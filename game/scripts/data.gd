@@ -1,0 +1,379 @@
+extends Node
+## Static game data: positions, techniques, opponents, belts, achievements, landmarks.
+
+# Community link shown on the title screen and journal. Leave empty to hide the button.
+const COMMUNITY_URL := ""
+const COMMUNITY_LABEL := "Join the community"
+
+# ---------------------------------------------------------------- positions
+# A position is always described from the perspective of the person "on top"
+# (for BACK, "top" is the one who has the back).
+const POS_STANDING := "standing"
+const POS_GUARD := "guard"
+const POS_HALF := "half"
+const POS_SIDE := "side"
+const POS_MOUNT := "mount"
+const POS_BACK := "back"
+
+const POSITION_NAMES := {
+	"standing": "Standing",
+	"guard": "Closed Guard",
+	"half": "Half Guard",
+	"side": "Side Control",
+	"mount": "Mount",
+	"back": "Back Control",
+}
+
+# Role labels: what you are called in each position.
+static func role_label(pos: String, top: bool) -> String:
+	match pos:
+		"standing":
+			return "Standing"
+		"guard":
+			return "In their guard" if top else "Closed guard (bottom)"
+		"half":
+			return "Passing half guard" if top else "Half guard (bottom)"
+		"side":
+			return "Side control (top)" if top else "Under side control"
+		"mount":
+			return "Mounted (top)" if top else "Under mount"
+		"back":
+			return "You have the back" if top else "They have your back"
+	return pos
+
+# ---------------------------------------------------------------- techniques
+# role: "any" (standing), "top" or "bottom".
+# result: [position, actor_is_top] or "sub" for submissions.
+# pts: IBJJF-style points (takedown 2, sweep 2, pass 3, mount 4, back 4).
+# diff: 0 easy .. 3 hard (shrinks the timing window).
+# rank: minimum rank index needed (0 = white belt no stripes, 4 = 4 stripes, 5 = blue).
+const MOVES := {
+	# --- standing
+	"double_leg": {"name": "Double-Leg Takedown", "pos": "standing", "role": "any", "result": ["guard", true], "pts": 2, "diff": 1, "cost": 14, "type": "takedown", "rank": 0},
+	"single_leg": {"name": "Single-Leg Takedown", "pos": "standing", "role": "any", "result": ["half", true], "pts": 2, "diff": 0, "cost": 12, "type": "takedown", "rank": 0},
+	"pull_guard": {"name": "Pull Guard", "pos": "standing", "role": "any", "result": ["guard", false], "pts": 0, "diff": 0, "cost": 4, "type": "guard", "rank": 0},
+	"osoto_gari": {"name": "Osoto Gari (Judo Trip)", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 3, "cost": 16, "type": "takedown", "rank": 2},
+	# --- closed guard, bottom
+	"scissor_sweep": {"name": "Scissor Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 1, "cost": 12, "type": "sweep", "rank": 0},
+	"hip_bump": {"name": "Hip Bump Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 1, "cost": 12, "type": "sweep", "rank": 1},
+	"guard_armbar": {"name": "Armbar from Guard", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 0},
+	"triangle": {"name": "Triangle Choke", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 1},
+	"arm_drag_back": {"name": "Arm Drag to Back", "pos": "guard", "role": "bottom", "result": ["back", true], "pts": 4, "diff": 3, "cost": 14, "type": "back", "rank": 2},
+	# --- closed guard, top
+	"toreando": {"name": "Toreando Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 2, "cost": 14, "type": "pass", "rank": 0},
+	"knee_cut_half": {"name": "Open & Knee Cut", "pos": "guard", "role": "top", "result": ["half", true], "pts": 0, "diff": 0, "cost": 10, "type": "pass", "rank": 0},
+	# --- half guard, bottom
+	"old_school": {"name": "Old School Sweep", "pos": "half", "role": "bottom", "result": ["half", true], "pts": 2, "diff": 1, "cost": 12, "type": "sweep", "rank": 0},
+	"recover_guard": {"name": "Recover Closed Guard", "pos": "half", "role": "bottom", "result": ["guard", false], "pts": 0, "diff": 0, "cost": 8, "type": "escape", "rank": 0},
+	"half_kimura": {"name": "Kimura from Half", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 1},
+	# --- half guard, top
+	"knee_slice": {"name": "Knee Slice Pass", "pos": "half", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 12, "type": "pass", "rank": 0},
+	"top_kimura": {"name": "Kimura from Top", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 1},
+	# --- side control, top
+	"mount_up": {"name": "Knee Slide to Mount", "pos": "side", "role": "top", "result": ["mount", true], "pts": 4, "diff": 1, "cost": 12, "type": "advance", "rank": 0},
+	"americana": {"name": "Americana", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 14, "type": "sub", "rank": 0},
+	# --- side control, bottom
+	"shrimp_guard": {"name": "Shrimp to Guard", "pos": "side", "role": "bottom", "result": ["guard", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 0},
+	"underhook_half": {"name": "Underhook to Half", "pos": "side", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 0, "cost": 8, "type": "escape", "rank": 0},
+	# --- mount, top
+	"mount_armbar": {"name": "Armbar from Mount", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 14, "type": "sub", "rank": 0},
+	"cross_collar": {"name": "Cross Collar Choke", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 3},
+	"mount_to_back": {"name": "Take the Back", "pos": "mount", "role": "top", "result": ["back", true], "pts": 4, "diff": 1, "cost": 10, "type": "back", "rank": 2},
+	# --- mount, bottom
+	"upa": {"name": "Upa (Bridge & Roll)", "pos": "mount", "role": "bottom", "result": ["guard", true], "pts": 2, "diff": 1, "cost": 14, "type": "sweep", "rank": 0},
+	"elbow_knee": {"name": "Elbow-Knee Escape", "pos": "mount", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 0},
+	# --- back, top
+	"rnc": {"name": "Rear Naked Choke", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 14, "type": "sub", "rank": 0},
+	"bow_arrow": {"name": "Bow & Arrow Choke", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 3},
+	# --- back, bottom
+	"back_escape": {"name": "Hand Fight & Turn In", "pos": "back", "role": "bottom", "result": ["guard", true], "pts": 0, "diff": 2, "cost": 12, "type": "escape", "rank": 0},
+	# --- talent / style techniques (rank 99 = unlocked only by a style or talent)
+	"snap_down": {"name": "Snap Down & Go Behind", "pos": "standing", "role": "any", "result": ["back", true], "pts": 4, "diff": 2, "cost": 14, "type": "back", "rank": 99},
+	"uchi_mata": {"name": "Uchi Mata", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 99},
+	"flying_armbar": {"name": "Flying Armbar", "pos": "standing", "role": "any", "result": "sub", "pts": 0, "diff": 3, "cost": 22, "type": "sub", "rank": 99},
+	"omoplata": {"name": "Omoplata", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 99},
+	"berimbolo": {"name": "Berimbolo", "pos": "guard", "role": "bottom", "result": ["back", true], "pts": 4, "diff": 2, "cost": 16, "type": "back", "rank": 99},
+	"leg_drag": {"name": "Leg Drag Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 13, "type": "pass", "rank": 99},
+	"darce": {"name": "D'Arce Choke", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 99},
+	"ezekiel": {"name": "Ezekiel Choke", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 13, "type": "sub", "rank": 99},
+}
+
+const SUB_FLAVOR := {
+	"guard_armbar": "hips up, thumb to the sky",
+	"triangle": "angle off, pull the head",
+	"half_kimura": "figure-four grip, rotate",
+	"top_kimura": "figure-four grip, crank",
+	"americana": "paint the floor",
+	"mount_armbar": "spin and fall back",
+	"cross_collar": "deep grips, elbows wide",
+	"rnc": "squeeze, elbows in",
+	"bow_arrow": "collar and pants, pull",
+	"flying_armbar": "jump, swing, hips up",
+	"omoplata": "sit up, roll the shoulder",
+	"darce": "arm through, squeeze",
+	"ezekiel": "sleeve grip, saw the neck",
+}
+
+static func moves_for(pos: String, top: bool) -> Array:
+	var out: Array = []
+	for id in MOVES:
+		var m: Dictionary = MOVES[id]
+		if m.pos != pos:
+			continue
+		if pos == "standing" or (m.role == "top") == top:
+			out.append(id)
+	return out
+
+# ---------------------------------------------------------------- belts
+const BELTS := [
+	{"name": "White", "color": Color(0.95, 0.95, 0.93)},
+	{"name": "Blue", "color": Color(0.12, 0.33, 0.85)},
+	{"name": "Purple", "color": Color(0.45, 0.2, 0.65)},
+	{"name": "Brown", "color": Color(0.42, 0.26, 0.13)},
+	{"name": "Black", "color": Color(0.08, 0.08, 0.08)},
+]
+
+# rank index -> belt index and stripes. 0..4 white, 5..9 blue, etc.
+static func belt_of(rank: int) -> int:
+	return clampi(rank / 5, 0, BELTS.size() - 1)
+
+static func stripes_of(rank: int) -> int:
+	return rank % 5
+
+static func rank_name(rank: int) -> String:
+	var s := stripes_of(rank)
+	var b: String = BELTS[belt_of(rank)].name
+	if s == 0:
+		return "%s Belt" % b
+	return "%s Belt, %d stripe%s" % [b, s, "" if s == 1 else "s"]
+
+# Combat level used by the timing formulas.
+static func rank_level(rank: int) -> float:
+	return 1.0 + float(rank) * 0.55
+
+const XP_PER_STRIPE := 100
+
+# ---------------------------------------------------------------- opponents (zone 1)
+# level drives AI speed, reaction windows and move choice.
+const OPPONENTS := {
+	"rafa": {"name": "Rafa", "title": "Plaza regular", "rank": 0, "level": 1.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.57, 0.4),
+		"pos": Vector3(6, 0, 4), "style": "balanced",
+		"intro": "Ei, gringo! Bora treinar? (Let's train?) I just started too, go easy.",
+		"win": "Boa! You caught me. Go find the academia by the cathedral.",
+		"lose": "Haha, tap early, tap often. Again later?"},
+	"cida": {"name": "Cida", "title": "Riverbank runner", "rank": 3, "level": 1.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
+		"pos": Vector3(-46, 0, -18), "style": "guard", "extra": ["omoplata"],
+		"intro": "I train every morning before the sun gets mean. Guard player. Watch the triangle.",
+		"win": "Sweep me like that again and I'm telling my professor.",
+		"lose": "My legs are everywhere, né? Come back with better posture."},
+	"tiago": {"name": "Tiago", "title": "Market wrestler", "rank": 5, "level": 2.8, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.86, 0.66, 0.5),
+		"pos": Vector3(30, 0, -26), "style": "pressure", "extra": ["snap_down"],
+		"intro": "Wrestled in school. I shoot doubles and I don't stop. Ready?",
+		"win": "Good hips. Most people just fall over.",
+		"lose": "Pressure, pressure, pressure. That's the game."},
+	"peixe": {"name": "Peixe", "title": "Fisherman, blue belt", "rank": 7, "level": 3.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.42, 0.28),
+		"pos": Vector3(-52, 0, 30), "style": "back", "extra": ["berimbolo"],
+		"intro": "They call me Peixe (fish). Slippery. If I get your back, it's over.",
+		"win": "You held me down like a net. Respect.",
+		"lose": "Like a fish, see? Hooks in, and goodbye."},
+	"onca": {"name": "Mestre Onça", "title": "Gym boss, purple belt", "rank": 10, "level": 5.2, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.5, 0.34, 0.22),
+		"pos": Vector3(0, 0, -50), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag"],
+		"intro": "So you beat the town. On my mat, every mistake costs a limb. Oss.",
+		"win": "Oss. Kneel. You've earned this. Welcome to blue belt.",
+		"lose": "Again. The mat doesn't lie. Come back stronger."},
+	# ---------------- Zone 2: Pantanal
+	"bruna": {"name": "Bruna", "title": "Ranch hand", "rank": 7, "level": 4.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.72, 0.52, 0.36),
+		"pos": Vector3(-40, 0, 22), "style": "guard", "extra": ["omoplata", "berimbolo", "triangle"], "zone": "pantanal",
+		"intro": "I wrestle calves before breakfast, gringo. Your guard passing better be good.",
+		"win": "Okay, okay. You can come help with the cattle anytime.",
+		"lose": "Legs like lassos. Next time."},
+	"zeca": {"name": "Zeca", "title": "Boat guide", "rank": 9, "level": 5.4, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.55, 0.38, 0.26),
+		"pos": Vector3(38, 0, -34), "style": "pressure", "extra": ["leg_drag", "darce", "snap_down"], "zone": "pantanal",
+		"intro": "Thirty years on these rivers. I've wrestled jacarés. You're easier.",
+		"win": "Ha! The river humbles everyone. Today it was me.",
+		"lose": "Heavy, né? Like a wet canoe."},
+	"tuca": {"name": "Tuca", "title": "Park ranger, purple belt", "rank": 10, "level": 6.0, "gi": Color(0.32, 0.4, 0.22), "skin": Color(0.6, 0.42, 0.28),
+		"pos": Vector3(-18, 0, -44), "style": "back", "extra": ["berimbolo", "bow_arrow", "rnc", "snap_down"], "zone": "pantanal",
+		"intro": "I track jaguars for a living. I'll track your back.",
+		"win": "Good defense. The onça would be proud.",
+		"lose": "Seatbelt, hooks, sleep. Like clockwork."},
+	"neide": {"name": "Dona Neide", "title": "Old-school killer, purple belt", "rank": 12, "level": 6.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.66, 0.47, 0.32),
+		"pos": Vector3(52, 0, 22), "style": "submission", "extra": ["ezekiel", "omoplata", "cross_collar", "darce"], "zone": "pantanal",
+		"intro": "Sixty-two years old, meu filho. Don't go easy. I won't.",
+		"win": "Lindo! Your grandmother would be proud.",
+		"lose": "Never underestimate the old lady with the gi."},
+	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.6, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
+		"pos": Vector3(64, 0, 58), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow"], "zone": "pantanal",
+		"intro": "Onça sent you? Then you know the rules. My mat, my swamp. Oss.",
+		"win": "The swamp respects you now. Purple belt. Wear it well.",
+		"lose": "The jacaré waits. The jacaré always wins in the end."},
+	# ---------------- Zone 3: Chapada dos Guimarães
+	"iara": {"name": "Iara", "title": "Waterfall guide, purple belt", "rank": 12, "level": 7.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.7, 0.5, 0.34),
+		"pos": Vector3(26, 0, 6), "style": "guard", "extra": ["omoplata", "berimbolo", "triangle", "guard_armbar"], "zone": "chapada",
+		"intro": "I swim under the Véu de Noiva every morning. Cold water, warm guard.",
+		"win": "Strong passing. The waterfall would be jealous.",
+		"lose": "Flow like water, gringo. You fought like a rock."},
+	"biro": {"name": "Biro", "title": "Rock climber, purple belt", "rank": 13, "level": 7.5, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.8, 0.6, 0.45),
+		"pos": Vector3(-30, 0, -40), "style": "pressure", "extra": ["leg_drag", "darce", "ezekiel", "knee_slice"], "zone": "chapada",
+		"intro": "Fingers like hooks from the cliffs. Once I grip, I don't let go.",
+		"win": "Okay, your grips are better than mine. Don't tell anyone.",
+		"lose": "Crimp grip, gringo. You can't escape a crimp grip."},
+	"joaquim": {"name": "Joaquim", "title": "Crystal seller, purple belt", "rank": 14, "level": 8.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
+		"pos": Vector3(46, 0, 34), "style": "submission", "extra": ["ezekiel", "cross_collar", "omoplata", "bow_arrow"], "zone": "chapada",
+		"intro": "The crystals say you will lose. But the crystals have been wrong before.",
+		"win": "The crystals... were wrong. Take this one, for luck.",
+		"lose": "The crystals are never wrong twice."},
+	"rita": {"name": "Rita", "title": "Trail runner, brown belt", "rank": 16, "level": 8.6, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.62, 0.42, 0.28),
+		"pos": Vector3(-8, 0, -58), "style": "back", "extra": ["berimbolo", "bow_arrow", "snap_down", "rnc"], "zone": "chapada",
+		"intro": "I run the plateau trail twice a day. Let's see if your gas tank keeps up.",
+		"win": "You outlasted me. That doesn't happen.",
+		"lose": "Cardio is a technique too, gringo."},
+	"gaucho": {"name": "Gaúcho", "title": "Visiting competitor, brown belt", "rank": 17, "level": 9.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.9, 0.72, 0.6),
+		"pos": Vector3(-52, 0, 30), "style": "pressure", "extra": ["leg_drag", "darce", "uchi_mata", "ezekiel"], "zone": "chapada",
+		"intro": "Came up from Porto Alegre for the Chapada open. You're my warm-up, tchê.",
+		"win": "Bah! Good roll, tchê. See you at the Worlds.",
+		"lose": "Warm-up's done. Thanks, tchê."},
+	"cachoeira": {"name": "Mestre Cachoeira", "title": "Chapada boss, black belt", "rank": 20, "level": 9.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.42, 0.28, 0.18),
+		"pos": Vector3(40, 0, 52), "style": "submission", "boss": true,
+		"extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow", "uchi_mata", "flying_armbar", "cross_collar"], "zone": "chapada",
+		"intro": "Onça and Jacaré were my students. Show me what they taught you. Oss.",
+		"win": "Brown belt. One step from the black. The mat is your home now.",
+		"lose": "The waterfall wears down the rock over a thousand years. Come back."},
+}
+
+const ZONES := {
+	"caceres": {"name": "Cáceres", "sub": "Mato Grosso", "rank": 0, "boss": "onca", "spawn": Vector3(0, 0, 24), "collect": "Tereré cups"},
+	"pantanal": {"name": "Pantanal Norte", "sub": "Transpantaneira", "rank": 5, "boss": "jacare", "spawn": Vector3(-82, 0, -4), "collect": "Arara feathers"},
+	"chapada": {"name": "Chapada dos Guimarães", "sub": "Red cliffs and waterfalls", "rank": 10, "boss": "cachoeira", "spawn": Vector3(-80, 0, 40), "collect": "Quartz crystals"},
+}
+
+# ---------------------------------------------------------------- daily challenge
+const DAILY_RULES := {
+	"sub_only": {"name": "Submission Only", "desc": "Points don't count. Tap them or it's a loss."},
+	"bad_spot": {"name": "Worst-Case Start", "desc": "You start mounted on the bottom."},
+	"back_taken": {"name": "Back Taken", "desc": "You start with your back taken. Survive, then win."},
+	"tired": {"name": "Last Round", "desc": "You start at half stamina."},
+	"sprint": {"name": "Sprint Match", "desc": "Only two minutes on the clock."},
+	"top_start": {"name": "King of the Hill", "desc": "You start in mount. Finish it."},
+}
+const DAILY_NAMES := ["Visiting Black Belt", "Mystery Competitor", "Open Mat Shark", "Traveling Brown Belt", "Old-School Killer", "Comp Team Captain"]
+
+## Builds today's challenge from a date string (YYYY-MM-DD) so everyone gets the same one.
+static func daily_challenge(date_str: String, player_rank: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("tatame-" + date_str)
+	var rules := DAILY_RULES.keys()
+	var rule: String = rules[rng.randi() % rules.size()]
+	var styles := ["guard", "pressure", "back", "submission", "balanced"]
+	var opp_rank := clampi(player_rank + rng.randi_range(1, 4), 2, 24)
+	var extras: Array = []
+	for id in MOVES:
+		if int(MOVES[id].rank) == 99 and rng.randf() < 0.45:
+			extras.append(id)
+	var name_: String = DAILY_NAMES[rng.randi() % DAILY_NAMES.size()]
+	var opp := {"name": name_, "title": "Daily Challenge", "rank": opp_rank, "level": rank_level(opp_rank) + 0.6,
+		"gi": [Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)][rng.randi() % 3],
+		"skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), rng.randf()),
+		"style": styles[rng.randi() % styles.size()], "extra": extras, "zone": "",
+		"intro": "Today's challenge: %s. %s" % [DAILY_RULES[rule].name, DAILY_RULES[rule].desc],
+		"win": "Oss. Same time tomorrow?", "lose": "Tomorrow's a new day. Oss."}
+	return {"date": date_str, "rule": rule, "opp": opp}
+
+static func zone_of(opp_id: String) -> String:
+	return OPPONENTS[opp_id].get("zone", "caceres")
+
+const BOSS_REQUIRED_WINS := 3
+
+# ---------------------------------------------------------------- landmarks & collectibles
+const LANDMARKS := {
+	"plaza": {"name": "Praça (Town Plaza)", "pos": Vector3(0, 0, 8), "radius": 12.0},
+	"cathedral": {"name": "The Cathedral", "pos": Vector3(0, 0, -20), "radius": 10.0},
+	"academia": {"name": "Academia Onça (Gym)", "pos": Vector3(0, 0, -52), "radius": 9.0},
+	"river": {"name": "Rio Paraguai Riverbank", "pos": Vector3(-50, 0, 0), "radius": 14.0},
+	"gate": {"name": "Pantanal Gate", "pos": Vector3(78, 0, 0), "radius": 10.0},
+	"market": {"name": "Feira (Street Market)", "pos": Vector3(30, 0, -22), "radius": 10.0},
+	"p_bus": {"name": "Transpantaneira Bus Stop", "pos": Vector3(-82, 0, -4), "radius": 10.0, "zone": "pantanal"},
+	"p_fazenda": {"name": "Fazenda Jacaré", "pos": Vector3(60, 0, 54), "radius": 14.0, "zone": "pantanal"},
+	"p_tower": {"name": "Ranger Tower", "pos": Vector3(-18, 0, -48), "radius": 10.0, "zone": "pantanal"},
+	"p_dock": {"name": "Boat Dock", "pos": Vector3(38, 0, -38), "radius": 10.0, "zone": "pantanal"},
+	"p_ranch": {"name": "Cattle Ranch", "pos": Vector3(-40, 0, 26), "radius": 14.0, "zone": "pantanal"},
+	"p_lagoon": {"name": "Lagoa dos Jacarés", "pos": Vector3(10, 0, 20), "radius": 14.0, "zone": "pantanal"},
+	"c_bus": {"name": "Chapada Bus Stop", "pos": Vector3(-80, 0, 40), "radius": 10.0, "zone": "chapada"},
+	"c_falls": {"name": "Véu de Noiva Waterfall", "pos": Vector3(20, 0, 2), "radius": 14.0, "zone": "chapada"},
+	"c_village": {"name": "Vila da Chapada", "pos": Vector3(42, 0, 44), "radius": 16.0, "zone": "chapada"},
+	"c_rocks": {"name": "Cidade de Pedra", "pos": Vector3(-30, 0, -50), "radius": 16.0, "zone": "chapada"},
+	"c_mirante": {"name": "Mirante: Center of South America", "pos": Vector3(30, 0, -70), "radius": 10.0, "zone": "chapada"},
+	"c_cave": {"name": "Caverna Aroe Jari", "pos": Vector3(-64, 0, -8), "radius": 9.0, "zone": "chapada"},
+}
+
+static func landmarks_in(zone: String) -> Array:
+	var out: Array = []
+	for id in LANDMARKS:
+		if LANDMARKS[id].get("zone", "caceres") == zone:
+			out.append(id)
+	return out
+
+const COLLECTIBLES := {
+	"caceres": [Vector3(18, 0.8, 18), Vector3(-30, 0.8, 40), Vector3(48, 0.8, -48), Vector3(-20, 0.8, -60), Vector3(62, 0.8, 38), Vector3(-58, 0.8, -50)],
+	"pantanal": [Vector3(-60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(70, 0.8, -70), Vector3(84, 0.8, 10), Vector3(20, 0.8, -12), Vector3(-75, 0.8, 60)],
+	"chapada": [Vector3(-66, 0.8, -12), Vector3(60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(-30, 0.8, -78), Vector3(75, 0.8, 20), Vector3(12, 0.8, -4)],
+}
+
+const TERERE_CUPS := [
+	Vector3(18, 0.8, 18), Vector3(-30, 0.8, 40), Vector3(48, 0.8, -48),
+	Vector3(-20, 0.8, -60), Vector3(62, 0.8, 38), Vector3(-58, 0.8, -50),
+]
+
+const NEST_POS := Vector3(-36, 10.6, 52)
+
+# ---------------------------------------------------------------- achievements
+const ACHIEVEMENTS := [
+	{"id": "first_roll", "name": "First Roll", "desc": "Finish your first roll."},
+	{"id": "first_tap", "name": "First Tap", "desc": "Win a roll by submission."},
+	{"id": "tapped", "name": "Tap Early, Tap Often", "desc": "Get submitted. It happens to everyone."},
+	{"id": "points_win", "name": "Points Fighter", "desc": "Win a roll on points."},
+	{"id": "triangle_win", "name": "Triangle Club", "desc": "Finish someone with a triangle choke."},
+	{"id": "armbar_win", "name": "Thumb to the Sky", "desc": "Finish someone with an armbar."},
+	{"id": "choke_win", "name": "Go to Sleep", "desc": "Finish someone with a rear naked choke."},
+	{"id": "takedowns", "name": "Takedown Artist", "desc": "Land 5 takedowns.", "goal": 5},
+	{"id": "sweeps", "name": "Sweep the Leg", "desc": "Land 5 sweeps.", "goal": 5},
+	{"id": "passes", "name": "Pressure Passer", "desc": "Pass the guard 5 times.", "goal": 5},
+	{"id": "backs", "name": "Seatbelt Secured", "desc": "Take the back 3 times.", "goal": 3},
+	{"id": "perfect", "name": "Perfect Timing", "desc": "Hit 10 perfect timings.", "goal": 10},
+	{"id": "escapes", "name": "Houdini", "desc": "Escape 3 submissions.", "goal": 3},
+	{"id": "iron_lungs", "name": "Iron Lungs", "desc": "Win without dropping under 30% stamina."},
+	{"id": "giant_slayer", "name": "Giant Slayer", "desc": "Beat someone 2+ belts or 5+ stripes above you."},
+	{"id": "explorer", "name": "Know the Town", "desc": "Discover every landmark in Cáceres.", "goal": 6},
+	{"id": "p_explorer", "name": "Pantaneiro", "desc": "Discover every landmark in the Pantanal.", "goal": 6},
+	{"id": "feathers", "name": "Arara Collector", "desc": "Find all 6 arara feathers in the Pantanal.", "goal": 6},
+	{"id": "jaguar", "name": "Onça Pintada", "desc": "Spot the jaguar hiding in the Pantanal.", "hidden": true},
+	{"id": "purple_belt", "name": "Purple Belt", "desc": "Get promoted by Mestre Jacaré."},
+	{"id": "travel", "name": "Road Trip", "desc": "Ride the bus down the Transpantaneira."},
+	{"id": "drills", "name": "Drill Sergeant", "desc": "Complete 10 training drills.", "goal": 10},
+	{"id": "pantanal_king", "name": "Rei do Pantanal", "desc": "Beat every fighter in the Pantanal."},
+	{"id": "c_explorer", "name": "Chapadeiro", "desc": "Discover every landmark in the Chapada.", "goal": 6},
+	{"id": "crystals", "name": "Good Vibes", "desc": "Find all 6 quartz crystals in the Chapada.", "goal": 6},
+	{"id": "brown_belt", "name": "Brown Belt", "desc": "Get promoted by Mestre Cachoeira."},
+	{"id": "chapada_king", "name": "Lord of the Plateau", "desc": "Beat every fighter in the Chapada."},
+	{"id": "behind_falls", "name": "Behind the Veil", "desc": "Find the secret behind the waterfall.", "hidden": true},
+	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
+	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},
+	{"id": "daily_7", "name": "Every Day Is Leg Day", "desc": "Win Daily Challenges 7 days in a row.", "goal": 7},
+	{"id": "terere", "name": "Tereré Time", "desc": "Find all 6 tereré cups.", "goal": 6},
+	{"id": "nest", "name": "Tuiuiú Spotter", "desc": "Find the tuiuiú nest high above the river."},
+	{"id": "first_stripe", "name": "First Stripe", "desc": "Earn your first stripe."},
+	{"id": "undefeated", "name": "King of Cáceres", "desc": "Beat every fighter in town."},
+	{"id": "blue_belt", "name": "Blue Belt", "desc": "Get promoted by Mestre Onça."},
+	{"id": "jumper", "name": "Too Much Açaí", "desc": "Jump 100 times.", "goal": 100, "hidden": true},
+	{"id": "chose_style", "name": "Choose Your Path", "desc": "Pick your fighting style."},
+	{"id": "talented", "name": "Talented", "desc": "Spend 5 talent points.", "goal": 5},
+	{"id": "capstone", "name": "Capstone", "desc": "Learn a final-tier talent."},
+	{"id": "peak", "name": "Peak Physique", "desc": "Raise any attribute to 12."},
+	{"id": "signature_win", "name": "Signature Move", "desc": "Win a roll using your style's signature technique."},
+]
+
+static func achievement(id: String) -> Dictionary:
+	for a in ACHIEVEMENTS:
+		if a.id == id:
+			return a
+	return {}

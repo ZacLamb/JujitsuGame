@@ -1,0 +1,624 @@
+class_name Hud
+extends CanvasLayer
+## Exploration HUD: rank, XP, objective, prompts, toasts, dialogue, journal and title screen.
+
+signal play_pressed
+signal dialogue_choice(accepted: bool)
+signal journal_toggled(open: bool)
+signal travel_chosen(zone: String)
+signal daily_requested
+
+var root: Control
+var rank_box: VBoxContainer
+var xp_bar: ProgressBar
+var rank_label: Label
+var chip_holder: Control
+var objective: Label
+var prompt: Label
+var toasts: VBoxContainer
+var dialogue: PanelContainer
+var dlg_name: Label
+var dlg_text: Label
+var dlg_yes: Button
+var dlg_no: Button
+var journal: PanelContainer
+var journal_tabs: TabContainer
+var title: Control
+var touch: TouchControls
+var journal_btn: Button
+var status_panels: Array = []
+var touch_mode := false
+var _obj_panel: PanelContainer
+var lvl_label: Label
+var _sel_talent := ""
+var _want_tab := -1
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch and not touch_mode:
+		touch_mode = true
+		touch.visible = _touch_allowed()
+
+func _touch_allowed() -> bool:
+	return (touch_mode or DisplayServer.is_touchscreen_available()) and not title.visible and not dialogue.visible and not journal.visible
+
+func _ready() -> void:
+	root = Control.new()
+	root.theme = UiKit.theme()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root)
+	_build_status()
+	_build_prompt()
+	_build_toasts()
+	_build_dialogue()
+	_build_journal()
+	touch = TouchControls.new()
+	root.add_child(touch)
+	touch.visible = false
+	_build_title()
+	for p in status_panels:
+		p.visible = false
+	Game.toast.connect(show_toast)
+	Game.achievement_unlocked.connect(_on_achievement)
+	Game.progress_changed.connect(refresh)
+	refresh()
+
+# ------------------------------------------------------------ status
+func _build_status() -> void:
+	var panel := PanelContainer.new()
+	panel.position = Vector2(14, 14)
+	panel.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.45), 14))
+	root.add_child(panel)
+	status_panels.append(panel)
+	rank_box = VBoxContainer.new()
+	rank_box.add_theme_constant_override("separation", 6)
+	panel.add_child(rank_box)
+	rank_label = UiKit.label("", 20)
+	rank_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	rank_box.add_child(rank_label)
+	chip_holder = HBoxContainer.new()
+	rank_box.add_child(chip_holder)
+	lvl_label = UiKit.label("", 17, Color(0.6, 0.9, 1.0))
+	lvl_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	rank_box.add_child(lvl_label)
+	xp_bar = UiKit.bar(Color(0.45, 0.75, 1.0), Vector2(200, 10))
+	rank_box.add_child(xp_bar)
+
+	var right := PanelContainer.new()
+	right.anchor_left = 1.0
+	right.anchor_right = 1.0
+	right.offset_left = -420
+	right.offset_right = -14
+	right.offset_top = 14
+	right.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.45), 14))
+	root.add_child(right)
+	_obj_panel = right
+	status_panels.append(right)
+	var rv := VBoxContainer.new()
+	right.add_child(rv)
+	var head := HBoxContainer.new()
+	rv.add_child(head)
+	var ql := UiKit.label("OBJECTIVE", 14, UiKit.ACCENT)
+	ql.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(ql)
+	journal_btn = UiKit.button("Character (C)", Vector2(150, 34))
+	journal_btn.add_theme_font_size_override("font_size", 15)
+	journal_btn.pressed.connect(open_character)
+	head.add_child(journal_btn)
+	var snd := UiKit.button("Sound: off" if Sfx.muted else "Sound: on", Vector2(110, 34))
+	snd.add_theme_font_size_override("font_size", 15)
+	snd.pressed.connect(func():
+		Sfx.set_muted(not Sfx.muted)
+		snd.text = "Sound: off" if Sfx.muted else "Sound: on")
+	head.add_child(snd)
+	objective = UiKit.label("", 19)
+	objective.custom_minimum_size = Vector2(380, 0)
+	rv.add_child(objective)
+
+func set_portrait(p: bool) -> void:
+	if _obj_panel == null:
+		return
+	if p:
+		_obj_panel.anchor_left = 0.0
+		_obj_panel.offset_left = 14
+		_obj_panel.offset_top = 166
+		objective.custom_minimum_size = Vector2(0, 0)
+		toasts.offset_top = 276
+		toasts.offset_left = -250
+		toasts.offset_right = 250
+	else:
+		_obj_panel.anchor_left = 1.0
+		_obj_panel.offset_left = -420
+		_obj_panel.offset_top = 14
+		objective.custom_minimum_size = Vector2(380, 0)
+		toasts.offset_top = 110
+		toasts.offset_left = -300
+		toasts.offset_right = 300
+
+func refresh() -> void:
+	rank_label.text = "%s  ·  %s" % [Game.player_name, Data.rank_name(Game.rank)]
+	for c in chip_holder.get_children():
+		c.queue_free()
+	chip_holder.add_child(UiKit.belt_chip(Game.rank, Vector2(150, 20)))
+	if Game.rank >= 5 or Game.at_stripe_cap():
+		xp_bar.value = 100
+	else:
+		xp_bar.value = Game.xp_into_stripe()
+	objective.text = Game.current_objective()
+	var lv := Game.player_level()
+	var pts := Game.attr_points() + Game.talent_points()
+	var extra := ("\n%d point%s to spend  (C)" % [pts, "" if pts == 1 else "s"]) if pts > 0 else ""
+	lvl_label.text = "Level %d  ·  %d / %d XP%s" % [lv, Game.xp - Rpg.xp_for_level(lv), Rpg.xp_for_level(lv + 1) - Rpg.xp_for_level(lv), extra]
+	lvl_label.add_theme_color_override("font_color", UiKit.ACCENT if pts > 0 else Color(0.6, 0.9, 1.0))
+	if journal.visible:
+		_fill_journal()
+
+# ------------------------------------------------------------ prompt
+func _build_prompt() -> void:
+	prompt = UiKit.label("", 24, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	prompt.anchor_left = 0.2
+	prompt.anchor_right = 0.8
+	prompt.anchor_top = 0.72
+	prompt.anchor_bottom = 0.72
+	root.add_child(prompt)
+
+func set_spot_prompt(spot: Dictionary) -> void:
+	if spot.is_empty():
+		prompt.text = ""
+		touch.interact_btn.visible = false
+		return
+	var extra := ""
+	if spot.action == "drill" and not Game.drills_ready:
+		extra = "  (roll first)"
+	prompt.text = "[E]  %s%s" % [spot.label, extra]
+	touch.interact_btn.visible = true
+	touch.interact_btn.text = "GO"
+
+func set_prompt(npc: Npc) -> void:
+	if npc == null:
+		prompt.text = ""
+		touch.interact_btn.visible = false
+		return
+	var o: Dictionary = Data.OPPONENTS[npc.opp_id]
+	var verb := "Talk to" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "Roll with"
+	prompt.text = "[E]  %s %s" % [verb, o.name]
+	touch.interact_btn.visible = true
+	touch.interact_btn.text = "TALK" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "ROLL"
+
+# ------------------------------------------------------------ toasts
+func _build_toasts() -> void:
+	toasts = VBoxContainer.new()
+	toasts.anchor_left = 0.5
+	toasts.anchor_right = 0.5
+	toasts.offset_left = -300
+	toasts.offset_right = 300
+	toasts.offset_top = 110
+	toasts.alignment = BoxContainer.ALIGNMENT_BEGIN
+	toasts.add_theme_constant_override("separation", 8)
+	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(toasts)
+
+func show_toast(text: String, color := Color.WHITE) -> void:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.7), 12, color * Color(1, 1, 1, 0.8)))
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := UiKit.label(text, 21, color, HORIZONTAL_ALIGNMENT_CENTER)
+	p.add_child(l)
+	toasts.add_child(p)
+	if toasts.get_child_count() > 4:
+		toasts.get_child(0).queue_free()
+	var tw := p.create_tween()
+	p.modulate.a = 0.0
+	tw.tween_property(p, "modulate:a", 1.0, 0.2)
+	tw.tween_interval(3.2)
+	tw.tween_property(p, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(p.queue_free)
+
+func _on_achievement(id: String) -> void:
+	var a := Data.achievement(id)
+	Sfx.play("perfect", -4.0)
+	show_toast("Achievement unlocked: %s" % a.name, UiKit.ACCENT)
+
+# ------------------------------------------------------------ dialogue
+func _build_dialogue() -> void:
+	dialogue = PanelContainer.new()
+	dialogue.anchor_left = 0.08
+	dialogue.anchor_right = 0.92
+	dialogue.anchor_top = 1.0
+	dialogue.anchor_bottom = 1.0
+	dialogue.offset_bottom = -20
+	dialogue.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	dialogue.visible = false
+	root.add_child(dialogue)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	dialogue.add_child(v)
+	dlg_name = UiKit.label("", 22, UiKit.ACCENT)
+	v.add_child(dlg_name)
+	dlg_text = UiKit.label("", 22)
+	v.add_child(dlg_text)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	dlg_no = UiKit.button("Later", Vector2(150, 56))
+	dlg_no.pressed.connect(func(): _close_dialogue(false))
+	row.add_child(dlg_no)
+	dlg_yes = UiKit.button("Oss! Let's roll", Vector2(220, 56))
+	dlg_yes.pressed.connect(func(): _close_dialogue(true))
+	row.add_child(dlg_yes)
+
+func open_dialogue(speaker: String, text: String, yes_text := "Oss! Let's roll", no_text := "Later") -> void:
+	dlg_name.text = speaker
+	dlg_text.text = text
+	dlg_yes.text = yes_text
+	dlg_yes.visible = yes_text != ""
+	dlg_no.text = no_text
+	dialogue.visible = true
+	prompt.visible = false
+	touch.release_all()
+	touch.visible = false
+
+func _close_dialogue(accepted: bool) -> void:
+	dialogue.visible = false
+	prompt.visible = true
+	touch.visible = _touch_allowed()
+	dialogue_choice.emit(accepted)
+
+func dialogue_open() -> bool:
+	return dialogue.visible
+
+# ------------------------------------------------------------ journal
+func _build_journal() -> void:
+	journal = PanelContainer.new()
+	journal.anchor_left = 0.06
+	journal.anchor_right = 0.94
+	journal.anchor_top = 0.08
+	journal.anchor_bottom = 0.94
+	journal.visible = false
+	root.add_child(journal)
+	var v := VBoxContainer.new()
+	journal.add_child(v)
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	var t := UiKit.label("JOURNAL", 28, UiKit.ACCENT)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(t)
+	var close := UiKit.button("Close", Vector2(120, 44))
+	close.pressed.connect(toggle_journal)
+	head.add_child(close)
+	journal_tabs = TabContainer.new()
+	journal_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(journal_tabs)
+
+func open_character() -> void:
+	_want_tab = 0
+	if not journal.visible:
+		toggle_journal()
+	else:
+		_fill_journal()
+
+func toggle_journal() -> void:
+	journal.visible = not journal.visible
+	if journal.visible:
+		_fill_journal()
+		touch.release_all()
+	touch.visible = _touch_allowed()
+	journal_toggled.emit(journal.visible)
+
+func _scroll_tab(name_: String) -> VBoxContainer:
+	var sc := ScrollContainer.new()
+	sc.name = name_
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	journal_tabs.add_child(sc)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 8)
+	sc.add_child(v)
+	return v
+
+func _fill_journal() -> void:
+	var cur := journal_tabs.current_tab
+	if _want_tab >= 0:
+		cur = _want_tab
+		_want_tab = -1
+	for c in journal_tabs.get_children():
+		journal_tabs.remove_child(c)
+		c.queue_free()
+	_fill_character()
+	_fill_talents()
+	# Quests
+	var q := _scroll_tab("Quests")
+	q.add_child(_daily_box())
+	q.add_child(UiKit.label("Main: " + Game.current_objective(), 22, UiKit.ACCENT))
+	for s in Game.side_objectives():
+		q.add_child(UiKit.label("•  " + s, 20))
+	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Data.XP_PER_STRIPE, "  (stripe cap — beat Mestre Onça for blue)" if Game.at_stripe_cap() else ""], 18, UiKit.MUTED))
+	if Data.COMMUNITY_URL != "":
+		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(260, 52))
+		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
+		q.add_child(cb)
+	var reset := UiKit.button("Reset progress", Vector2(200, 44))
+	reset.add_theme_font_size_override("font_size", 16)
+	reset.pressed.connect(func():
+		if reset.text == "Tap again to confirm":
+			Game.reset()
+			get_tree().reload_current_scene()
+		else:
+			reset.text = "Tap again to confirm")
+	q.add_child(reset)
+	# Achievements
+	var a := _scroll_tab("Achievements")
+	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Achievements %d/%d" % [Game.unlocked.size(), Data.ACHIEVEMENTS.size()])
+	for ach in Data.ACHIEVEMENTS:
+		var got := Game.unlocked.has(ach.id)
+		if ach.get("hidden", false) and not got:
+			a.add_child(_ach_row(false, "???", "Hidden achievement", ""))
+			continue
+		var prog := ""
+		if ach.has("goal") and not got:
+			prog = "  (%d/%d)" % [mini(Game.counter(ach.id), int(ach.goal)), int(ach.goal)]
+		a.add_child(_ach_row(got, ach.name, ach.desc, prog))
+	# Techniques
+	var tq := _scroll_tab("Techniques")
+	for pos in Data.POSITION_NAMES:
+		tq.add_child(UiKit.label(Data.POSITION_NAMES[pos], 22, UiKit.ACCENT))
+		for id in Data.MOVES:
+			var m: Dictionary = Data.MOVES[id]
+			if m.pos != pos:
+				continue
+			var known := Game.knows(id)
+			var who := "" if pos == "standing" else ("  [top]" if m.role == "top" else "  [bottom]")
+			var txt := "   %s%s%s" % [m.name, who, "" if known else "  — unlocks at %s" % Data.rank_name(int(m.rank))]
+			tq.add_child(UiKit.label(txt, 18, UiKit.TEXT if known else UiKit.MUTED))
+	# Fighters
+	var f := _scroll_tab("Fighters")
+	for id in Data.OPPONENTS:
+		var o: Dictionary = Data.OPPONENTS[id]
+		var rec := "W %d · L %d" % [int(Game.wins.get(id, 0)), int(Game.losses.get(id, 0))]
+		f.add_child(UiKit.label("%s — %s, %s  (%s)" % [o.name, o.title, Data.rank_name(int(o.rank)), rec], 19))
+	journal_tabs.current_tab = clampi(cur, 0, journal_tabs.get_tab_count() - 1)
+
+func _fill_character() -> void:
+	var c := _scroll_tab("Character")
+	if Game.style == "":
+		c.add_child(UiKit.label("No style chosen yet.", 20))
+		return
+	var st: Dictionary = Rpg.STYLES[Game.style]
+	c.add_child(UiKit.label("%s  ·  %s  ·  %s" % [Game.player_name, st.name, Data.rank_name(Game.rank)], 24, UiKit.ACCENT))
+	c.add_child(UiKit.label(st.passive, 18, UiKit.MUTED))
+	var lv := Game.player_level()
+	c.add_child(UiKit.label("Level %d — %d XP to level %d" % [lv, Rpg.xp_for_level(lv + 1) - Game.xp, lv + 1], 19))
+	var ap := Game.attr_points()
+	c.add_child(UiKit.label("Attribute points: %d" % ap, 21, UiKit.ACCENT if ap > 0 else UiKit.TEXT))
+	for k in Rpg.ATTR_ORDER:
+		var a: Dictionary = Rpg.ATTRS[k]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var nm := UiKit.label(a.name, 21)
+		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
+		nm.custom_minimum_size = Vector2(150, 0)
+		row.add_child(nm)
+		var val := UiKit.label(str(Game.attr(k)), 24, UiKit.ACCENT)
+		val.autowrap_mode = TextServer.AUTOWRAP_OFF
+		val.custom_minimum_size = Vector2(36, 0)
+		row.add_child(val)
+		var bar := UiKit.bar(Color(0.45, 0.75, 1.0), Vector2(140, 12))
+		bar.max_value = Rpg.ATTR_CAP
+		bar.value = Game.attr(k)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+		var plus := UiKit.button("+", Vector2(52, 44))
+		plus.disabled = ap <= 0 or Game.attr(k) >= Rpg.ATTR_CAP
+		plus.pressed.connect(func(): Game.raise_attr(k))
+		row.add_child(plus)
+		c.add_child(row)
+		c.add_child(UiKit.label("      " + a.desc, 16, UiKit.MUTED))
+	var sig: Array = []
+	for mid in st.signature:
+		sig.append(Data.MOVES[mid].name)
+	c.add_child(UiKit.label("Signature techniques: " + ", ".join(sig), 18))
+
+func _fill_talents() -> void:
+	var t := _scroll_tab("Talents")
+	var tp := Game.talent_points()
+	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Talents (%d)" % tp if tp > 0 else "Talents")
+	var head := HBoxContainer.new()
+	var hl := UiKit.label("Talent points: %d   ·   Tiers unlock at 0 / 2 / 4 / 6 points in a tree" % tp, 19, UiKit.ACCENT if tp > 0 else UiKit.TEXT)
+	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(hl)
+	var rs := UiKit.button("Reset talents", Vector2(150, 40))
+	rs.add_theme_font_size_override("font_size", 15)
+	rs.pressed.connect(func():
+		_sel_talent = ""
+		Game.reset_talents())
+	head.add_child(rs)
+	t.add_child(head)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 10)
+	t.add_child(cols)
+	for tree in Rpg.TREE_ORDER:
+		var info: Dictionary = Rpg.TREES[tree]
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_theme_constant_override("separation", 6)
+		cols.add_child(col)
+		var th := UiKit.label("%s (%d)" % [info.name, Game.tree_points(tree)], 21, info.color, HORIZONTAL_ALIGNMENT_CENTER)
+		col.add_child(th)
+		col.add_child(UiKit.label(info.pt, 14, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+		for tier in 4:
+			for tid in Rpg.talents_in(tree):
+				var tal: Dictionary = Rpg.TALENTS[tid]
+				if int(tal.tier) != tier:
+					continue
+				var rnk := Game.talent_rank(tid)
+				var b := UiKit.button("%s  %d/%d" % [tal.name, rnk, int(tal.max)], Vector2(0, 48))
+				b.add_theme_font_size_override("font_size", 16)
+				b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				b.clip_text = true
+				var col_c: Color = info.color
+				if rnk > 0:
+					b.add_theme_stylebox_override("normal", UiKit.box(col_c.darkened(0.55), 10, col_c, 2))
+				elif not Game.talent_unlocked(tid):
+					b.modulate = Color(1, 1, 1, 0.4)
+				if tid == _sel_talent:
+					b.add_theme_stylebox_override("normal", UiKit.box(Color(0.3, 0.26, 0.1), 10, UiKit.ACCENT, 3))
+				b.pressed.connect(func():
+					_sel_talent = tid
+					_fill_journal())
+				col.add_child(b)
+	if _sel_talent != "":
+		var tal: Dictionary = Rpg.TALENTS[_sel_talent]
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.4), 12, Rpg.TREES[tal.tree].color))
+		var bv := VBoxContainer.new()
+		box.add_child(bv)
+		bv.add_child(UiKit.label("%s  (%d/%d)  ·  %s tier %d" % [tal.name, Game.talent_rank(_sel_talent), int(tal.max), Rpg.TREES[tal.tree].name, int(tal.tier) + 1], 21, UiKit.ACCENT))
+		bv.add_child(UiKit.label(tal.desc, 19))
+		if tal.has("move") and Game.style != "" and tal.move in Rpg.STYLES[Game.style].signature:
+			bv.add_child(UiKit.label("You already know this from your style. It still counts toward unlocking deeper tiers.", 16, UiKit.MUTED))
+		var why := ""
+		if Game.talent_rank(_sel_talent) >= int(tal.max):
+			why = "Maxed."
+		elif not Game.talent_unlocked(_sel_talent):
+			why = "Needs %d points in %s first." % [Rpg.TIER_REQ[int(tal.tier)], Rpg.TREES[tal.tree].name]
+		elif Game.talent_points() <= 0:
+			why = "No talent points. Level up by rolling."
+		if why != "":
+			bv.add_child(UiKit.label(why, 17, UiKit.MUTED))
+		else:
+			var lb := UiKit.button("Learn (1 point)", Vector2(220, 52))
+			lb.pressed.connect(func(): Game.learn(_sel_talent))
+			bv.add_child(lb)
+		t.add_child(box)
+	else:
+		t.add_child(UiKit.label("Tap a talent to see what it does.", 17, UiKit.MUTED))
+
+func _daily_box() -> Control:
+	var dc := Game.daily_challenge()
+	var rd: Dictionary = Data.DAILY_RULES[dc.rule]
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UiKit.box(Color(0.25, 0.2, 0.05, 0.6), 12, UiKit.ACCENT))
+	var v := VBoxContainer.new()
+	box.add_child(v)
+	v.add_child(UiKit.label("DAILY CHALLENGE  ·  %s" % Game.today(), 22, UiKit.ACCENT))
+	v.add_child(UiKit.label("%s — %s" % [rd.name, rd.desc], 19))
+	v.add_child(UiKit.label("Opponent: %s (%s)   ·   Streak: %d   ·   Best: %d" % [dc.opp.name, Data.rank_name(int(dc.opp.rank)), Game.daily_streak(), int(Game.daily.get("best", 0))], 17, UiKit.MUTED))
+	var b := UiKit.button("Take today's challenge" if Game.daily_available() else "Won today! Replay for practice", Vector2(320, 50))
+	b.pressed.connect(func(): daily_requested.emit())
+	v.add_child(b)
+	return box
+
+func _ach_row(got: bool, title_: String, desc: String, prog: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var box := Panel.new()
+	box.custom_minimum_size = Vector2(22, 22)
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.add_theme_stylebox_override("panel", UiKit.box(UiKit.ACCENT if got else Color(0, 0, 0, 0.3), 5, UiKit.ACCENT if got else Color(1, 1, 1, 0.3)))
+	row.add_child(box)
+	var l := UiKit.label("%s — %s%s" % [title_, desc, prog], 19, UiKit.ACCENT if got else UiKit.TEXT)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	return row
+
+# ------------------------------------------------------------ travel menu
+var _travel_panel: PanelContainer
+
+func open_travel() -> void:
+	if _travel_panel:
+		_travel_panel.queue_free()
+	_travel_panel = PanelContainer.new()
+	_travel_panel.anchor_left = 0.1
+	_travel_panel.anchor_right = 0.9
+	_travel_panel.anchor_top = 0.18
+	_travel_panel.anchor_bottom = 0.18
+	_travel_panel.grow_vertical = Control.GROW_DIRECTION_END
+	root.add_child(_travel_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	_travel_panel.add_child(v)
+	v.add_child(UiKit.label("BUS  ·  Where to?", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	for z in Data.ZONES:
+		var zd: Dictionary = Data.ZONES[z]
+		var locked := Game.rank < int(zd.rank)
+		var here: bool = z == Game.zone
+		var txt := "%s  ·  %s" % [zd.name, zd.sub]
+		if here:
+			txt += "   (you are here)"
+		elif locked:
+			txt += "   (needs %s)" % Data.rank_name(int(zd.rank))
+		var b := UiKit.button(txt, Vector2(0, 58))
+		b.disabled = locked or here
+		b.pressed.connect(func():
+			_close_travel()
+			travel_chosen.emit(z))
+		v.add_child(b)
+	var c := UiKit.button("Stay here", Vector2(200, 50))
+	c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	c.pressed.connect(func():
+		_close_travel()
+		travel_chosen.emit(""))
+	v.add_child(c)
+	prompt.visible = false
+	touch.release_all()
+	touch.visible = false
+
+func _close_travel() -> void:
+	if _travel_panel:
+		_travel_panel.queue_free()
+		_travel_panel = null
+	prompt.visible = true
+	touch.visible = _touch_allowed()
+
+func travel_open() -> bool:
+	return _travel_panel != null
+
+# ------------------------------------------------------------ title
+func _build_title() -> void:
+	title = Control.new()
+	title.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(title)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.35)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.add_child(shade)
+	var v := VBoxContainer.new()
+	v.anchor_left = 0.08
+	v.anchor_right = 0.92
+	v.anchor_top = 0.14
+	v.anchor_bottom = 0.95
+	v.alignment = BoxContainer.ALIGNMENT_BEGIN
+	v.add_theme_constant_override("separation", 14)
+	title.add_child(v)
+	v.add_child(UiKit.label("TATAME", 96, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("OPEN MAT BRASIL", 34, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("An open-world jiu-jitsu adventure  ·  Zone 1: Cáceres, Mato Grosso", 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 16)
+	v.add_child(spacer)
+	var play := UiKit.button("Continue" if Game.has_save() and Game.xp > 0 else "Start Training", Vector2(320, 72))
+	play.add_theme_font_size_override("font_size", 30)
+	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	play.pressed.connect(func(): play_pressed.emit())
+	v.add_child(play)
+	var how := UiKit.label(
+		"Explore with WASD / joystick · drag to look · Space to jump · E to roll\n" +
+		"In a roll: pick a technique, stop the bar in the green, defend with the arrows, mash to finish or escape.",
+		17, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	v.add_child(how)
+	if Data.COMMUNITY_URL != "":
+		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(280, 52))
+		cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
+		v.add_child(cb)
+
+func hide_title() -> void:
+	title.visible = false
+	for p in status_panels:
+		p.visible = true
+	touch.visible = _touch_allowed()
+
+func set_exploring(on: bool) -> void:
+	root.visible = on

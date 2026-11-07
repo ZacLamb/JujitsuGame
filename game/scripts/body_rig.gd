@@ -1,0 +1,517 @@
+class_name BodyRig
+extends Node3D
+## Stylized low-poly grappler built from primitives, with named joints that can be posed
+## and tweened. Limbs hang along -Y; +X rotation swings a limb forward (toward -Z).
+
+const JOINTS := ["spine", "neck", "l_sh", "l_el", "r_sh", "r_el", "l_hip", "l_kn", "r_hip", "r_kn"]
+
+var gi_color := Color(0.95, 0.95, 0.93)
+var belt_color := Color(0.95, 0.95, 0.93)
+var skin_color := Color(0.78, 0.57, 0.4)
+var hair_color := Color(0.12, 0.08, 0.05)
+
+var hips: Node3D
+var joints := {}
+var _walk_t := 0.0
+var _tween: Tween
+
+static var _mat_cache := {}
+static var _outline: StandardMaterial3D
+
+## Shared toon material (cel shading + soft rim). Used by characters and the world.
+static func _mat(c: Color, rough := 0.85) -> StandardMaterial3D:
+	var key := c.to_html() + str(rough)
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	m.specular_mode = BaseMaterial3D.SPECULAR_TOON if rough < 0.5 else BaseMaterial3D.SPECULAR_DISABLED
+	m.rim_enabled = true
+	m.rim = 0.18
+	m.rim_tint = 0.6
+	_mat_cache[key] = m
+	return m
+
+## Character material: toon + inked outline pass.
+static func _cmat(c: Color, rough := 0.85) -> StandardMaterial3D:
+	var key := "c" + c.to_html() + str(rough)
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	if _outline == null:
+		_outline = StandardMaterial3D.new()
+		_outline.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_outline.albedo_color = Color(0.09, 0.07, 0.06)
+		_outline.cull_mode = BaseMaterial3D.CULL_FRONT
+		_outline.grow = true
+		_outline.grow_amount = 0.011
+	var m := (_mat(c, rough) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	m.next_pass = _outline
+	_mat_cache[key] = m
+	return m
+
+var hair_style := -1  # 0 short, 1 buzz, 2 bun, 3 curly, 4 bald, 5 long
+
+# ---- skinned model mode (CC0 Quaternius characters driven by this rig)
+const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://assets/models/rogue.glb"}
+static var use_models := true
+var body := ""            # "male" / "female"; "" picks from a hash
+var casual := false       # villagers: shirt + pants, no belt
+var skinned: Node3D
+var skel: Skeleton3D
+var anim: AnimationPlayer
+var _anim_mode := true
+var _anim_names := {}
+var _bones := {}
+var _foot_rel := {}
+var _belt_node: Node3D
+var _model_scale := 1.0
+
+func setup(gi: Color, belt: Color, skin: Color, hair := Color(0.12, 0.08, 0.05), style := -1, body_type := "", is_casual := false) -> BodyRig:
+	gi_color = gi
+	belt_color = belt
+	skin_color = skin
+	hair_color = hair
+	casual = is_casual
+	var h := absi(hash(gi.to_html() + skin.to_html() + hair.to_html()))
+	hair_style = style if style >= 0 else h % 6
+	body = body_type if body_type != "" else "male"  # the female model's hood doesn't recolor cleanly yet
+	_build()
+	if use_models and ResourceLoader.exists(MODELS.get(body, "")):
+		_build_skinned()
+	return self
+
+func set_belt_color(c: Color) -> void:
+	belt_color = c
+	for n in hips.find_children("Belt*", "MeshInstance3D", true, false):
+		(n as MeshInstance3D).material_override = _cmat(c, 0.7)
+	if _belt_node:
+		for n in _belt_node.get_children():
+			(n as MeshInstance3D).material_override = _cmat(c, 0.7)
+
+func _mesh(parent: Node3D, mesh: Mesh, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, scl := Vector3.ONE, mname := "", outline := true) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _cmat(color) if outline else _mat(color)
+	mi.position = pos
+	mi.rotation = rot
+	mi.scale = scl
+	if mname != "":
+		mi.name = mname
+	parent.add_child(mi)
+	return mi
+
+static func _cyl(rt: float, rb: float, h: float, segs := 12) -> CylinderMesh:
+	var m := CylinderMesh.new()
+	m.top_radius = rt
+	m.bottom_radius = rb
+	m.height = h
+	m.radial_segments = segs
+	m.rings = 1
+	return m
+
+static func _sph(r: float, h := -1.0, segs := 14) -> SphereMesh:
+	var m := SphereMesh.new()
+	m.radius = r
+	m.height = h if h > 0 else r * 2.0
+	m.radial_segments = segs
+	m.rings = segs / 2
+	return m
+
+static func _cap(r: float, h: float) -> CapsuleMesh:
+	var m := CapsuleMesh.new()
+	m.radius = r
+	m.height = maxf(h, r * 2.0 + 0.01)
+	m.radial_segments = 12
+	m.rings = 4
+	return m
+
+func _capsule(parent: Node3D, radius: float, length: float, color: Color, offset := Vector3.ZERO, mname := "") -> MeshInstance3D:
+	return _mesh(parent, _cap(radius, length), color, offset, Vector3.ZERO, Vector3.ONE, mname)
+
+func _pivot(parent: Node3D, n: String, pos: Vector3) -> Node3D:
+	var p := Node3D.new()
+	p.name = n
+	p.position = pos
+	parent.add_child(p)
+	joints[n] = p
+	return p
+
+func _build() -> void:
+	for c in get_children():
+		c.queue_free()
+	joints.clear()
+	var gi := gi_color
+	var gi_dark := gi.darkened(0.16)
+	var skin := skin_color
+	hips = Node3D.new()
+	hips.name = "Hips"
+	hips.position = Vector3(0, 0.95, 0)
+	add_child(hips)
+
+	# --- pelvis: gi pants seat + jacket skirt + belt with knot and tails
+	_mesh(hips, _cap(0.17, 0.4), gi, Vector3(0, 0.0, 0), Vector3(0, 0, PI / 2), Vector3(1, 1, 0.85))
+	_mesh(hips, _cyl(0.19, 0.225, 0.26), gi, Vector3(0, -0.02, 0), Vector3.ZERO, Vector3(1, 1, 0.8))
+	_mesh(hips, _cyl(0.196, 0.196, 0.075, 16), belt_color, Vector3(0, 0.12, 0), Vector3.ZERO, Vector3(1, 1, 0.82), "BeltBand")
+	_mesh(hips, _sph(0.045), belt_color, Vector3(0, 0.12, -0.165), Vector3.ZERO, Vector3(1.3, 1, 0.8), "BeltKnot")
+	for side in [-1, 1]:
+		_mesh(hips, BoxMesh.new(), belt_color, Vector3(0.045 * side, 0.02, -0.168), Vector3(0, 0, 0.22 * side), Vector3(0.055, 0.2, 0.02), "BeltTail%d" % side)
+
+	# --- torso: tapered jacket, lapels, collar
+	var spine := _pivot(hips, "spine", Vector3(0, 0.1, 0))
+	_mesh(spine, _cyl(0.235, 0.19, 0.5, 14), gi, Vector3(0, 0.27, 0), Vector3.ZERO, Vector3(1, 1, 0.72))
+	_mesh(spine, _sph(0.24), gi, Vector3(0, 0.5, 0), Vector3.ZERO, Vector3(1.0, 0.45, 0.72))
+	for side in [-1, 1]:
+		_mesh(spine, BoxMesh.new(), gi_dark, Vector3(0.055 * side, 0.32, -0.165), Vector3(0, 0, -0.38 * side), Vector3(0.06, 0.42, 0.02))
+	_mesh(spine, _cyl(0.085, 0.11, 0.07, 14), gi_dark, Vector3(0, 0.6, 0.0))
+	# a little patch on the shoulder (academy patch)
+	_mesh(spine, BoxMesh.new(), Color(0.95, 0.75, 0.2), Vector3(0.26, 0.43, 0.0), Vector3(0, 0, 0.3), Vector3(0.02, 0.07, 0.07), "", false)
+
+	# --- head
+	var neck := _pivot(spine, "neck", Vector3(0, 0.62, 0))
+	_mesh(neck, _cyl(0.055, 0.065, 0.1), skin, Vector3(0, 0.03, 0))
+	var head := _mesh(neck, _sph(0.125, -1, 16), skin, Vector3(0, 0.17, 0), Vector3.ZERO, Vector3(0.95, 1.1, 1.0))
+	head.name = "Head"
+	for side in [-1, 1]:
+		_mesh(neck, _sph(0.03), skin, Vector3(0.122 * side, 0.165, 0.01), Vector3.ZERO, Vector3(0.6, 1, 0.9))
+		# eyes: white + pupil, brows
+		_mesh(neck, _sph(0.022), Color(0.97, 0.97, 0.95), Vector3(0.045 * side, 0.185, -0.112), Vector3.ZERO, Vector3(1, 1.1, 0.6), "", false)
+		_mesh(neck, _sph(0.012), Color(0.08, 0.06, 0.05), Vector3(0.045 * side, 0.183, -0.124), Vector3.ZERO, Vector3.ONE, "", false)
+		_mesh(neck, BoxMesh.new(), hair_color.darkened(0.2), Vector3(0.046 * side, 0.218, -0.115), Vector3(0, 0, -0.18 * side), Vector3(0.05, 0.012, 0.012), "", false)
+	_mesh(neck, PrismMesh.new(), skin.darkened(0.08), Vector3(0, 0.155, -0.128), Vector3(-PI / 2 + 0.3, 0, 0), Vector3(0.03, 0.04, 0.03), "", false)
+	_mesh(neck, BoxMesh.new(), skin.darkened(0.35), Vector3(0, 0.115, -0.118), Vector3.ZERO, Vector3(0.04, 0.008, 0.01), "", false)
+	_build_hair(neck)
+
+	# --- arms: wide gi sleeves, wrists, hands
+	for side in ["l", "r"]:
+		var sx := -1.0 if side == "l" else 1.0
+		var sh := _pivot(spine, side + "_sh", Vector3(0.27 * sx, 0.5, 0))
+		_mesh(sh, _sph(0.085), gi, Vector3(0, -0.02, 0))
+		_mesh(sh, _cyl(0.088, 0.078, 0.3), gi, Vector3(0, -0.15, 0))
+		var el := _pivot(sh, side + "_el", Vector3(0, -0.3, 0))
+		_mesh(el, _sph(0.074), gi, Vector3.ZERO)
+		_mesh(el, _cyl(0.078, 0.07, 0.2), gi, Vector3(0, -0.1, 0))
+		_mesh(el, _cyl(0.04, 0.038, 0.06), skin, Vector3(0, -0.22, 0))
+		_mesh(el, _sph(0.055), skin, Vector3(0, -0.275, -0.01), Vector3.ZERO, Vector3(0.85, 1.15, 0.7))
+
+	# --- legs: gi pants, cuffs, feet
+	for side in ["l", "r"]:
+		var sx := -1.0 if side == "l" else 1.0
+		var hp := _pivot(hips, side + "_hip", Vector3(0.11 * sx, -0.02, 0))
+		_mesh(hp, _cyl(0.105, 0.088, 0.44), gi, Vector3(0, -0.2, 0))
+		var kn := _pivot(hp, side + "_kn", Vector3(0, -0.43, 0))
+		_mesh(kn, _sph(0.088), gi, Vector3.ZERO)
+		_mesh(kn, _cyl(0.088, 0.078, 0.36), gi, Vector3(0, -0.18, 0))
+		_mesh(kn, _cyl(0.05, 0.045, 0.06), skin, Vector3(0, -0.385, 0))
+		_mesh(kn, _cap(0.05, 0.24), skin, Vector3(0, -0.44, -0.06), Vector3(PI / 2, 0, 0), Vector3(1.1, 1, 0.6))
+
+func _build_hair(neck: Node3D) -> void:
+	var hc := hair_color
+	match hair_style:
+		0:  # short
+			_mesh(neck, _sph(0.133, -1, 16), hc, Vector3(0, 0.205, 0.012), Vector3.ZERO, Vector3(1, 0.62, 1.04))
+			_mesh(neck, _sph(0.06), hc, Vector3(0, 0.265, -0.07), Vector3.ZERO, Vector3(1.6, 0.6, 0.9))
+		1:  # buzz cut
+			_mesh(neck, _sph(0.129, -1, 16), hc, Vector3(0, 0.2, 0.008), Vector3.ZERO, Vector3(0.98, 0.6, 1.0))
+		2:  # bun
+			_mesh(neck, _sph(0.133, -1, 16), hc, Vector3(0, 0.205, 0.012), Vector3.ZERO, Vector3(1, 0.62, 1.04))
+			_mesh(neck, _sph(0.06), hc, Vector3(0, 0.29, 0.09))
+		3:  # curly
+			for i in 9:
+				var a := i * TAU / 9.0
+				_mesh(neck, _sph(0.05), hc, Vector3(cos(a) * 0.09, 0.25 + 0.02 * sin(a * 2.0), sin(a) * 0.09 + 0.01))
+			_mesh(neck, _sph(0.07), hc, Vector3(0, 0.29, 0.01))
+		4:  # bald with a beard
+			_mesh(neck, _sph(0.075), hc, Vector3(0, 0.105, -0.075), Vector3.ZERO, Vector3(1.3, 0.8, 0.7))
+		5:  # long, tied back
+			_mesh(neck, _sph(0.133, -1, 16), hc, Vector3(0, 0.205, 0.015), Vector3.ZERO, Vector3(1, 0.65, 1.06))
+			_mesh(neck, _cap(0.045, 0.22), hc, Vector3(0, 0.12, 0.13), Vector3(0.3, 0, 0))
+
+# ------------------------------------------------------------ posing
+## pose = {"root_pos": Vector3, "root_rot": Vector3, "hip_h": float, joint_name: Vector3, ...}
+func apply_pose(pose: Dictionary) -> void:
+	_enter_pose_mode()
+	hips.position.y = pose.get("hip_h", 0.95)
+	hips.rotation = pose.get("hip_rot", Vector3.ZERO)
+	for j in JOINTS:
+		(joints[j] as Node3D).rotation = pose.get(j, Vector3.ZERO)
+
+func tween_pose(pose: Dictionary, root: Transform3D, dur := 0.45) -> void:
+	_enter_pose_mode()
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	_tween.tween_property(self, "position", root.origin, dur)
+	_tween.tween_property(self, "quaternion", root.basis.get_rotation_quaternion(), dur)
+	_tween.tween_property(hips, "position:y", pose.get("hip_h", 0.95), dur)
+	_tween.tween_property(hips, "rotation", pose.get("hip_rot", Vector3.ZERO), dur)
+	for j in JOINTS:
+		_tween.tween_property(joints[j], "rotation", pose.get(j, Vector3.ZERO), dur)
+
+## Procedural walk / idle cycle for exploration. speed01: 0 idle .. 1 run.
+func animate_locomotion(delta: float, speed01: float, airborne := false) -> void:
+	if skel:
+		_play_locomotion(speed01, airborne)
+		return
+	if airborne:
+		var air := {"hip_h": 0.95, "l_hip": Vector3(0.6, 0, 0), "l_kn": Vector3(-1.0, 0, 0),
+			"r_hip": Vector3(0.2, 0, 0), "r_kn": Vector3(-0.5, 0, 0),
+			"l_sh": Vector3(0.4, 0, -0.6), "r_sh": Vector3(0.4, 0, 0.6), "l_el": Vector3(0.6, 0, 0), "r_el": Vector3(0.6, 0, 0)}
+		_blend_to(air, delta * 10.0)
+		return
+	_walk_t += delta * lerpf(1.5, 11.0, speed01)
+	var s := sin(_walk_t)
+	var amp := lerpf(0.04, 0.75, speed01)
+	var pose := {
+		"hip_h": 0.95 + absf(cos(_walk_t)) * 0.05 * speed01 - 0.02,
+		"spine": Vector3(-0.08 * speed01, 0, 0),
+		"l_hip": Vector3(s * amp, 0, 0), "r_hip": Vector3(-s * amp, 0, 0),
+		"l_kn": Vector3(-maxf(0.0, -s) * amp * 1.3 - 0.05, 0, 0), "r_kn": Vector3(-maxf(0.0, s) * amp * 1.3 - 0.05, 0, 0),
+		"l_sh": Vector3(-s * amp * 0.8, 0, -0.12), "r_sh": Vector3(s * amp * 0.8, 0, 0.12),
+		"l_el": Vector3(0.3 + 0.4 * speed01, 0, 0), "r_el": Vector3(0.3 + 0.4 * speed01, 0, 0),
+	}
+	if speed01 < 0.05:
+		var breathe := sin(_walk_t * 0.8) * 0.03
+		pose["spine"] = Vector3(breathe, 0, 0)
+		pose["hip_h"] = 0.95
+	_blend_to(pose, delta * 14.0)
+
+func _blend_to(pose: Dictionary, t: float) -> void:
+	t = clampf(t, 0.0, 1.0)
+	hips.position.y = lerpf(hips.position.y, pose.get("hip_h", 0.95), t)
+	hips.rotation = hips.rotation.lerp(pose.get("hip_rot", Vector3.ZERO), t)
+	for j in JOINTS:
+		var n := joints[j] as Node3D
+		n.rotation = n.rotation.lerp(pose.get(j, Vector3.ZERO), t)
+
+
+# ================================================================ skinned model support
+func _build_skinned() -> void:
+	# hide the primitive body; it stays as an invisible pose guide
+	for m in hips.find_children("*", "MeshInstance3D", true, false):
+		(m as MeshInstance3D).visible = false
+	var sc: PackedScene = load(MODELS[body])
+	skinned = sc.instantiate()
+	skinned.rotation.y = PI  # models face +Z; this rig faces -Z
+	add_child(skinned)
+	var sk := skinned.find_children("*", "Skeleton3D", true, false)
+	if sk.is_empty():
+		skinned.queue_free()
+		skinned = null
+		return
+	skel = sk[0]
+	var ap := skinned.find_children("*", "AnimationPlayer", true, false)
+	anim = ap[0] if not ap.is_empty() else null
+	if anim:
+		for a in anim.get_animation_list():
+			var short := str(a).get_slice("|", 1) if str(a).contains("|") else str(a)
+			short = short.trim_prefix("Man_")
+			if not _anim_names.has(short) or str(a).contains("|"):
+				_anim_names[short] = a
+			for loop_name in ["Idle", "Walk", "Run"]:
+				if short == loop_name:
+					anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	for n in ["Hips", "Abdomen", "Torso", "Neck", "Head", "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
+			"UpperLeg.L", "LowerLeg.L", "UpperLeg.R", "LowerLeg.R", "Foot.L", "Foot.R", "Palm.L", "Palm.R", "Fist.L", "Fist.R"]:
+		_bones[n] = skel.find_bone(n)
+	_bones["Hand.L"] = _bones["Palm.L"] if _bones["Palm.L"] >= 0 else _bones["Fist.L"]
+	_bones["Hand.R"] = _bones["Palm.R"] if _bones["Palm.R"] >= 0 else _bones["Fist.R"]
+	# scale so the model's hips sit where this rig's hips are
+	# skeleton-to-model transform (independent of being in the tree)
+	var chain := skel.transform
+	var p := skel.get_parent()
+	while p and p != skinned:
+		if p is Node3D:
+			chain = (p as Node3D).transform * chain
+		p = p.get_parent()
+	var hy := (chain * skel.get_bone_global_rest(_bones["Hips"])).origin.y
+	_model_scale = 0.95 / maxf(hy, 0.01)
+	skinned.scale = Vector3.ONE * _model_scale
+	for side in ["L", "R"]:
+		var lb: int = _bones["LowerLeg." + side]
+		var fb: int = _bones["Foot." + side]
+		if lb >= 0 and fb >= 0:
+			_foot_rel[side] = skel.get_bone_global_rest(lb).affine_inverse() * skel.get_bone_global_rest(fb)
+	_recolor()
+	if not casual:
+		_build_skinned_belt()
+	_play_locomotion(0.0, false)
+
+func _recolor() -> void:
+	var gi := gi_color
+	var pants := gi if not casual else Color(0.2, 0.25, 0.4).lerp(gi.darkened(0.5), 0.3)
+	for mi in skinned.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.name.begins_with("NurbsPath"):
+			m.visible = false  # rogue's dagger strap
+			continue
+		# world scale of this mesh relative to the rig, so the outline stays ~1 cm thick
+		var chain := m.transform
+		var p := m.get_parent()
+		while p and p != self:
+			if p is Node3D:
+				chain = (p as Node3D).transform * chain
+			p = p.get_parent()
+		var wscale := maxf(chain.basis.get_scale().x, 1e-4)
+		var outline := StandardMaterial3D.new()
+		outline.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		outline.albedo_color = Color(0.09, 0.07, 0.06)
+		outline.cull_mode = BaseMaterial3D.CULL_FRONT
+		outline.grow = true
+		outline.grow_amount = 0.012 / wscale
+		for i in m.mesh.get_surface_count():
+			var src := m.mesh.surface_get_material(i)
+			var nm := src.resource_name if src else ""
+			var col: Color
+			match nm:
+				"Shirt", "UnderShirt", "White", "Material.006":
+					col = gi
+				"Detail":
+					col = gi.darkened(0.15)
+				"Pants":
+					col = pants
+				"Skin", "Socks", "Boots":
+					col = skin_color
+				"Hair":
+					col = hair_color
+				"Eyes", "Eye", "Pupil":
+					col = Color(0.08, 0.06, 0.05) if nm != "Eye" else Color(0.95, 0.95, 0.93)
+				_:
+					col = gi
+			var mat := (_mat(col, 0.8) as StandardMaterial3D).duplicate() as StandardMaterial3D
+			mat.next_pass = outline
+			m.set_surface_override_material(i, mat)
+
+func _build_skinned_belt() -> void:
+	_belt_node = Node3D.new()
+	_belt_node.name = "SkinnedBelt"
+	add_child(_belt_node)
+	var band := MeshInstance3D.new()
+	band.mesh = _cyl(0.175, 0.175, 0.07, 18)
+	band.material_override = _cmat(belt_color, 0.7)
+	band.scale = Vector3(1.05, 1, 0.78)
+	_belt_node.add_child(band)
+	var knot := MeshInstance3D.new()
+	knot.mesh = _sph(0.045)
+	knot.material_override = _cmat(belt_color, 0.7)
+	knot.position = Vector3(0, 0, -0.145)
+	knot.scale = Vector3(1.3, 1, 0.8)
+	_belt_node.add_child(knot)
+	for sd in [-1, 1]:
+		var tail := MeshInstance3D.new()
+		tail.mesh = BoxMesh.new()
+		tail.material_override = _cmat(belt_color, 0.7)
+		tail.position = Vector3(0.045 * sd, -0.1, -0.148)
+		tail.rotation.z = 0.22 * sd
+		tail.scale = Vector3(0.055, 0.2, 0.02)
+		_belt_node.add_child(tail)
+
+func _play_locomotion(speed01: float, airborne: bool) -> void:
+	if not anim:
+		return
+	_anim_mode = true
+	var want := "Idle"
+	if airborne and _anim_names.has("Jump"):
+		want = "Jump"
+	elif speed01 > 0.62 and _anim_names.has("Run"):
+		want = "Run"
+	elif speed01 > 0.05 and _anim_names.has("Walk"):
+		want = "Walk"
+	var full: String = _anim_names.get(want, "")
+	if full == "":
+		return
+	if anim.current_animation != full or not anim.is_playing():
+		anim.play(full, 0.2)
+	anim.speed_scale = 1.0 if want != "Walk" else lerpf(0.7, 1.3, speed01 / 0.62)
+
+func _enter_pose_mode() -> void:
+	if skel and _anim_mode:
+		_anim_mode = false
+		if anim:
+			anim.stop()
+
+func _process(_delta: float) -> void:
+	if not skel:
+		return
+	if not _anim_mode:
+		_retarget()
+	if _belt_node and _bones["Hips"] >= 0:
+		var hw := skel.global_transform * skel.get_bone_global_pose(_bones["Hips"])
+		var bb := hw.basis.orthonormalized()
+		_belt_node.global_transform = Transform3D(bb, hw.origin + bb.y * 0.1)
+
+## Drive the skinned skeleton so its segments point the same way as this rig's (hidden) joints.
+func _retarget() -> void:
+	skel.reset_bone_poses()
+	var sx := skel.global_transform
+	var J := func(n: String, off := Vector3.ZERO) -> Vector3: return (joints[n] as Node3D).to_global(off)
+	var hips_w := hips.global_position
+	var neck_w: Vector3 = J.call("neck")
+	# 1) hips: full frame (up + left/right), and position
+	var hb: int = _bones["Hips"]
+	var cur := sx * skel.get_bone_global_pose(hb)
+	var up_c := ((sx * skel.get_bone_global_pose(_bones["Neck"])).origin - cur.origin).normalized()
+	var rt_c := ((sx * skel.get_bone_global_pose(_bones["UpperLeg.R"])).origin - (sx * skel.get_bone_global_pose(_bones["UpperLeg.L"])).origin).normalized()
+	var up_t := (neck_w - hips_w).normalized()
+	var rt_t := ((J.call("r_hip") as Vector3) - (J.call("l_hip") as Vector3)).normalized()
+	var bc := _frame(rt_c, up_c)
+	var bt := _frame(rt_t, up_t)
+	var new_w := Transform3D((bt * bc.inverse()) * cur.basis, hips_w + (cur.origin - (sx * skel.get_bone_global_pose(hb)).origin))
+	new_w.origin = hips_w - up_t * 0.02
+	_set_global(hb, new_w)
+	# 2) chains: align each bone so its child joint points toward the rig's matching joint
+	_aim("Abdomen", "Neck", J.call("spine"), neck_w)
+	_aim("Neck", "Head", neck_w, J.call("neck", Vector3(0, 0.25, 0)))
+	for s in ["L", "R"]:
+		var k := "l" if s == "L" else "r"
+		_aim("UpperArm." + s, "LowerArm." + s, J.call(k + "_sh"), J.call(k + "_el"))
+		_aim("LowerArm." + s, "Hand." + s, J.call(k + "_el"), J.call(k + "_el", Vector3(0, -0.27, 0)))
+		_aim("UpperLeg." + s, "LowerLeg." + s, J.call(k + "_hip"), J.call(k + "_kn"))
+		var lb: int = _bones["LowerLeg." + s]
+		var foot_t: Vector3 = J.call(k + "_kn", Vector3(0, -0.43, 0))
+		var knee_t: Vector3 = J.call(k + "_kn")
+		var fb: int = _bones["Foot." + s]
+		if fb >= 0 and lb >= 0:
+			# the lower leg points at where the foot should be
+			var lcur := sx * skel.get_bone_global_pose(lb)
+			var rel: Transform3D = _foot_rel.get(s, Transform3D())
+			var fcur: Transform3D = sx * (skel.get_bone_global_pose(lb) * rel)
+			_rotate_toward(lb, lcur, fcur.origin - lcur.origin, foot_t - knee_t)
+			# then glue the (IK-driven) foot bone to the end of the lower leg
+			var foot_g: Transform3D = skel.get_bone_global_pose(lb) * rel
+			var par := skel.get_bone_parent(fb)
+			var local := (skel.get_bone_global_pose(par).affine_inverse() if par >= 0 else Transform3D()) * foot_g
+			skel.set_bone_pose_position(fb, local.origin)
+			skel.set_bone_pose_rotation(fb, local.basis.get_rotation_quaternion())
+
+static func _frame(right: Vector3, up: Vector3) -> Basis:
+	var x := right.normalized()
+	var y := (up - x * up.dot(x)).normalized()
+	var z := x.cross(y).normalized()
+	return Basis(x, y, z)
+
+func _aim(bone: String, child: String, from_w: Vector3, to_w: Vector3) -> void:
+	var b: int = _bones.get(bone, -1)
+	var c: int = _bones.get(child, -1)
+	if b < 0 or c < 0:
+		return
+	var sx := skel.global_transform
+	var cur := sx * skel.get_bone_global_pose(b)
+	var child_w := (sx * skel.get_bone_global_pose(c)).origin
+	_rotate_toward(b, cur, child_w - cur.origin, to_w - from_w)
+
+func _rotate_toward(b: int, cur_w: Transform3D, dir_c: Vector3, dir_t: Vector3) -> void:
+	if dir_c.length() < 1e-5 or dir_t.length() < 1e-5:
+		return
+	var q := Quaternion(dir_c.normalized(), dir_t.normalized())
+	var new_w := Transform3D(Basis(q) * cur_w.basis, cur_w.origin)
+	_set_global(b, new_w)
+
+func _set_global(b: int, world: Transform3D) -> void:
+	var g := skel.global_transform.affine_inverse() * world
+	var par := skel.get_bone_parent(b)
+	var local := (skel.get_bone_global_pose(par).affine_inverse() if par >= 0 else Transform3D()) * g
+	skel.set_bone_pose_rotation(b, local.basis.get_rotation_quaternion())
+	if b == _bones["Hips"]:
+		skel.set_bone_pose_position(b, local.origin)
