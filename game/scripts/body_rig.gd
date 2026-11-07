@@ -253,6 +253,45 @@ func tween_pose(pose: Dictionary, root: Transform3D, dur := 0.45) -> void:
 	for j in JOINTS:
 		_tween.tween_property(joints[j], "rotation", pose.get(j, Vector3.ZERO), dur)
 
+## Snapshot of the current pose + root, in the same shape tween_pose takes.
+func current_pose() -> Dictionary:
+	var p := {"hip_h": hips.position.y, "hip_rot": hips.rotation}
+	for j in JOINTS:
+		p[j] = (joints[j] as Node3D).rotation
+	return p
+
+func current_root() -> Transform3D:
+	return Transform3D(Basis(quaternion), position)
+
+## Plays keyframes in sequence: each frame is [pose, root Transform3D, seconds].
+func tween_frames(frames: Array) -> void:
+	_enter_pose_mode()
+	if _tween and _tween.is_valid():
+		_tween.kill()
+	_tween = create_tween().set_parallel(true)
+	var first := true
+	for f in frames:
+		var pose: Dictionary = f[0]
+		var root: Transform3D = f[1]
+		var dur: float = f[2]
+		var ease_kind: int = f[3] if f.size() > 3 else Tween.EASE_IN_OUT
+		if not first:
+			_tween.chain()
+		first = false
+		_tween.tween_property(self, "position", root.origin, dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+		_tween.parallel().tween_property(self, "quaternion", root.basis.get_rotation_quaternion(), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+		_tween.parallel().tween_property(hips, "position:y", pose.get("hip_h", 0.95), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+		_tween.parallel().tween_property(hips, "rotation", pose.get("hip_rot", Vector3.ZERO), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+		for j in JOINTS:
+			_tween.parallel().tween_property(joints[j], "rotation", pose.get(j, Vector3.ZERO), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+
+static func lerp_pose(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var out := {"hip_h": lerpf(float(a.get("hip_h", 0.95)), float(b.get("hip_h", 0.95)), t),
+		"hip_rot": (a.get("hip_rot", Vector3.ZERO) as Vector3).lerp(b.get("hip_rot", Vector3.ZERO), t)}
+	for j in JOINTS:
+		out[j] = (a.get(j, Vector3.ZERO) as Vector3).lerp(b.get(j, Vector3.ZERO), t)
+	return out
+
 ## Procedural walk / idle cycle for exploration. speed01: 0 idle .. 1 run.
 func animate_locomotion(delta: float, speed01: float, airborne := false) -> void:
 	if skel:

@@ -193,6 +193,62 @@ func _build_world() -> void:
 	add_child(cam)
 	cam.make_current()
 
+var _shake := 0.0
+var _sub_pose := {}          # RollPoses.sub_pair result while a submission is locked in
+var _sub_by_player := false
+
+## Plays a move as a short arc (dive, roll, step around...) instead of a straight blend.
+func _animate_move(id: String, actor_player: bool) -> void:
+	var m: Dictionary = Data.MOVES[id]
+	var pair := RollPoses.get_pair(sim.pos)
+	var actor := player_rig if actor_player else opp_rig
+	var other := opp_rig if actor_player else player_rig
+	var fl := RollPoses.flavor(str(m.type))
+	for rig in [actor, other]:
+		var is_top: bool = (rig == player_rig) == sim.player_top
+		var fin: Array = pair.top if is_top else pair.bottom
+		var mid_p := BodyRig.lerp_pose(rig.current_pose(), fin[0], 0.5)
+		var mid_r: Transform3D = rig.current_root().interpolate_with(fin[1], 0.5)
+		var partner: BodyRig = other if rig == actor else actor
+		var res := RollPoses.apply_flavor(mid_p, mid_r, fl.actor if rig == actor else fl.other, partner.position - rig.position)
+		rig.tween_frames([[res[0], res[1], 0.3], [fin[0], fin[1], 0.4]])
+	if m.type in ["takedown", "sweep"]:
+		get_tree().create_timer(0.62).timeout.connect(_impact)
+
+## Landing: camera shake, a puff of dust off the mat, a thud.
+func _impact() -> void:
+	if not is_inside_tree():
+		return
+	_shake = 0.6
+	Sfx.play("hit", -2.0, 0.6)
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.amount = 26
+	p.lifetime = 0.7
+	p.explosiveness = 0.95
+	p.direction = Vector3.UP
+	p.spread = 80.0
+	p.initial_velocity_min = 0.8
+	p.initial_velocity_max = 1.8
+	p.gravity = Vector3(0, -2.5, 0)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.2
+	var sm := SphereMesh.new()
+	sm.radius = 0.05
+	sm.height = 0.1
+	sm.radial_segments = 6
+	sm.rings = 3
+	p.mesh = sm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.92, 0.85, 0.7)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	p.material_override = mat
+	p.position = (player_rig.position + opp_rig.position) * 0.5 + Vector3(0, 0.1, 0)
+	add_child(p)
+	p.emitting = true
+	get_tree().create_timer(1.2).timeout.connect(p.queue_free)
+
 func _process(delta: float) -> void:
 	cam_angle += delta * 0.12
 	var radius := 4.4
@@ -203,6 +259,9 @@ func _process(delta: float) -> void:
 	var target := Vector3(sin(cam_angle) * radius, h, cos(cam_angle) * radius)
 	cam.position = cam.position.lerp(target, clampf(delta * 3.0, 0, 1)) if cam.position != Vector3.ZERO else target
 	cam.look_at(Vector3(0, 0.45, 0), Vector3.UP)
+	if _shake > 0.0:
+		_shake = maxf(0.0, _shake - delta * 1.6)
+		cam.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * _shake * 0.12
 	if _you:
 		_you.global_position = (player_rig.joints["neck"] as Node3D).global_position + Vector3(0, 0.55, 0)
 	_tick_phase(delta)
@@ -260,9 +319,6 @@ func _tick_phase(delta: float) -> void:
 		Phase.STRUGGLE_ATK, Phase.STRUGGLE_DEF:
 			struggle -= float(struggle_p.decay) * delta
 			struggle_bar.value = struggle * 100.0
-			var wob := sin(phase_t * 30.0) * 0.03
-			player_rig.hips.rotation.z += wob * delta * 10.0
-			opp_rig.hips.rotation.z -= wob * delta * 10.0
 			if phase == Phase.STRUGGLE_ATK:
 				if struggle >= 1.0:
 					_sub_finished(true)
@@ -380,7 +436,7 @@ func _resolve_timing(marker: float) -> void:
 			struggle = minf(0.9, struggle + 0.15)
 			action_title.text += "  (deep grip!)"
 	else:
-		_pose_now()
+		_animate_move(pending_move, true)
 		var prefix := "PERFECT! " if j == "perfect" else ""
 		_show_message(prefix + r.text, 1.1, _begin_exchange)
 
@@ -455,12 +511,19 @@ func _resolve_defense(dir: String) -> void:
 	if r.sub:
 		_start_struggle(false, ai_move)
 	else:
-		_pose_now()
+		_animate_move(ai_move, false)
 		_show_message(r.text, 1.1, _begin_exchange)
 
 func _start_struggle(attacking: bool, sub_id: String) -> void:
 	struggle_sub = sub_id
 	struggle_p = sim.struggle_params(attacking, sub_id)
+	var atk_rig := player_rig if attacking else opp_rig
+	var def_rig := opp_rig if attacking else player_rig
+	var atk_top: bool = sim.player_top if attacking else not sim.player_top
+	_sub_pose = RollPoses.sub_pair(sub_id, sim.pos, atk_top)
+	_sub_by_player = attacking
+	atk_rig.tween_pose(_sub_pose.atk[0], _sub_pose.atk[1], 0.55)
+	def_rig.tween_pose(_sub_pose.def[0], _sub_pose.def[1], 0.55)
 	struggle = float(struggle_p.start)
 	_clear_action()
 	var m: Dictionary = Data.MOVES[sub_id]
@@ -484,6 +547,7 @@ func _start_struggle(attacking: bool, sub_id: String) -> void:
 func _struggle_tap() -> void:
 	if phase in [Phase.STRUGGLE_ATK, Phase.STRUGGLE_DEF]:
 		struggle = minf(1.0, struggle + float(struggle_p.gain))
+		_squeeze_pulse()
 		Sfx.play("squeeze", -6.0, randf_range(0.9, 1.2))
 		if struggle >= 1.0:
 			struggle_bar.value = 100.0
@@ -493,9 +557,30 @@ func _struggle_tap() -> void:
 				_sub_escaped(false)
 		sim.spend(0.6)
 
+## Each tap in a struggle: the attacker squeezes, the defender pulls at the grip.
+func _squeeze_pulse() -> void:
+	if _sub_pose.is_empty():
+		return
+	var key := "atk" if _sub_by_player else "def"
+	var base: Array = _sub_pose[key]
+	var p: Dictionary = (base[0] as Dictionary).duplicate()
+	if _sub_by_player:
+		p.hip_h = float(p.get("hip_h", 0.95)) + 0.05
+		p["spine"] = (p.get("spine", Vector3.ZERO) as Vector3) + Vector3(-0.12, 0, 0)
+		p["l_el"] = (p.get("l_el", Vector3.ZERO) as Vector3) + Vector3(0.2, 0, 0)
+	else:
+		p["l_sh"] = (p.get("l_sh", Vector3.ZERO) as Vector3) + Vector3(0.3, 0, 0.2)
+		p["r_sh"] = (p.get("r_sh", Vector3.ZERO) as Vector3) + Vector3(0.3, 0, -0.2)
+		p["hip_rot"] = (p.get("hip_rot", Vector3.ZERO) as Vector3) + Vector3(0, 0, randf_range(-0.12, 0.12))
+	player_rig.tween_frames([[p, base[1], 0.06], [base[0], base[1], 0.1]])
+
 func _sub_finished(player_won: bool) -> void:
 	sim.finish_by_sub(player_won, struggle_sub)
 	_log.append("S" if player_won else "X")
+	if not _sub_pose.is_empty():
+		var tapper := opp_rig if player_won else player_rig
+		tapper.tween_frames(RollPoses.tap_frames(_sub_pose.def[0], _sub_pose.def[1]))
+		_shake = 0.25
 	Sfx.play("tap")
 	var m: Dictionary = Data.MOVES.get(struggle_sub, {"name": "submission"})
 	if player_won:
@@ -504,6 +589,7 @@ func _sub_finished(player_won: bool) -> void:
 		_show_message("You tap to the %s. Tap early, tap often." % m.name, 1.4, _end_match)
 
 func _sub_escaped(attacker_was_player: bool) -> void:
+	_sub_pose = {}
 	_set_phase(Phase.MESSAGE)
 	if attacker_was_player:
 		sim.failed_attempt(struggle_sub, true)
