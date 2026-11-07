@@ -400,6 +400,10 @@ const ACHIEVEMENTS := [
 	{"id": "black_belt", "name": "Black Belt", "desc": "Get promoted by Grão-Mestre Leão."},
 	{"id": "rio_king", "name": "Rei do Rio", "desc": "Beat every fighter in Rio."},
 	{"id": "cristo", "name": "Arms Wide Open", "desc": "Climb Corcovado to the statue.", "hidden": true},
+	{"id": "first_medal", "name": "On the Podium", "desc": "Win a medal at a competition."},
+	{"id": "first_gold", "name": "Campeão", "desc": "Win gold at a competition."},
+	{"id": "grand_slam", "name": "Grand Slam", "desc": "Win gold at all four regional competitions.", "goal": 4},
+	{"id": "world_champ", "name": "Campeão Mundial", "desc": "Win the Campeonato Mundial at black belt."},
 	{"id": "behind_falls", "name": "Behind the Veil", "desc": "Find the secret behind the waterfall.", "hidden": true},
 	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
 	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},
@@ -422,3 +426,78 @@ static func achievement(id: String) -> Dictionary:
 		if a.id == id:
 			return a
 	return {}
+
+# ---------------------------------------------------------------- competitions (campeonatos)
+# PvE tournaments in your belt division. Opponents use the same profile shape as a player
+# "ghost" (name, style, rank, level, gi, skin, extra), so real players can be dropped into
+# brackets later (async PvP) without changing the roll code.
+const COMPS := {
+	"copa_caceres": {"name": "Copa Cáceres", "zone": "caceres", "min_rank": 0, "rounds": 3, "power": 0.0,
+		"blurb": "The town championship, held at the academia. Everyone's cousin is in the bracket."},
+	"pantanal_open": {"name": "Pantanal Open", "zone": "pantanal", "min_rank": 0, "rounds": 3, "power": 0.25,
+		"blurb": "Ranch hands and river guides, all gas and grips. Held in the fazenda barn."},
+	"chapada_open": {"name": "Chapada Open", "zone": "chapada", "min_rank": 0, "rounds": 3, "power": 0.45,
+		"blurb": "Competitors come from all over Mato Grosso. Cold mornings, hot matches."},
+	"rio_open": {"name": "Rio International Open", "zone": "rio", "min_rank": 0, "rounds": 3, "power": 0.7,
+		"blurb": "Teams from every corner of Brazil and abroad. The bracket is stacked."},
+	"mundial": {"name": "Campeonato Mundial", "zone": "rio", "min_rank": 20, "rounds": 4, "power": 1.1,
+		"blurb": "The world championship. Black belts only. Sixteen in the bracket, one on top."},
+}
+const ROUND_NAMES := {3: ["Quarterfinal", "Semifinal", "Final"], 4: ["Round of 16", "Quarterfinal", "Semifinal", "Final"]}
+const COMP_FIRST := ["Thiago", "Lucas", "Mateus", "Rafael", "Bruno", "Diego", "Felipe", "Gustavo", "Leandro", "Marcelo",
+	"Renan", "Vinícius", "Caio", "Igor", "Jonas", "Murilo", "Otávio", "Paulo", "Sandro", "Wellington",
+	"Kenji", "Marco", "Andrés", "Liam", "Nikolai", "Sami", "Tomás", "Jake"]
+const COMP_LAST := ["Silva", "Souza", "Oliveira", "Pereira", "Costa", "Rodrigues", "Almeida", "Nascimento", "Lima", "Araújo",
+	"Ribeiro", "Carvalho", "Gomes", "Martins", "Rocha", "Barbosa", "Moreira", "Teixeira"]
+const ACADEMIES := ["Academia Onça", "Jacaré BJJ", "Cachoeira Team", "Leão Jiu-Jitsu", "Tatame Livre", "Pantanal Fight",
+	"Ilha Grappling", "Copacabana Top Team", "Projeto Morro", "Arpoador BJJ", "Cuiabá Combat", "Rio Negro Team"]
+const MEDAL_ORDER := ["", "bronze", "silver", "gold"]
+
+## Builds a seeded bracket for the player's belt division. entries[0] is the player.
+## path[i] is the opponent the player meets in round i if they keep winning.
+static func comp_bracket(comp_id: String, player_rank: int, player_name: String, nonce: int) -> Dictionary:
+	var c: Dictionary = COMPS[comp_id]
+	var rounds: int = c.rounds
+	var size := 1 << rounds
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s-%d-%d" % [comp_id, player_rank / 5, nonce])
+	var belt := belt_of(player_rank)
+	var entries: Array = [{"name": player_name, "academy": "Gringo BJJ", "power": 0.0, "player": true}]
+	var used := {}
+	var styles := ["guard", "pressure", "back", "submission", "balanced"]
+	var gis := [Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)]
+	var specials: Array = []
+	for id in MOVES:
+		if int(MOVES[id].rank) == 99:
+			specials.append(id)
+	while entries.size() < size:
+		var nm := "%s %s" % [COMP_FIRST[rng.randi() % COMP_FIRST.size()], COMP_LAST[rng.randi() % COMP_LAST.size()]]
+		if used.has(nm):
+			continue
+		used[nm] = true
+		var r := clampi(belt * 5 + rng.randi_range(0, 4), 0, 24)
+		var extras: Array = []
+		for s in specials:
+			if rng.randf() < 0.12 + 0.1 * belt:
+				extras.append(s)
+		entries.append({"name": nm, "academy": ACADEMIES[rng.randi() % ACADEMIES.size()], "power": rng.randf(),
+			"opp": {"name": nm, "title": "%s Belt" % BELTS[belt].name, "rank": r, "level": 0.0,
+				"gi": gis[rng.randi() % gis.size()], "skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), rng.randf()),
+				"style": styles[rng.randi() % styles.size()], "extra": extras, "zone": "",
+				"intro": "Oss. Good luck.", "win": "Good match. Go get that medal.", "lose": "Next time, gringo."}})
+	# the player's opponent in each round: the stronger survivor of the section they would meet
+	var path: Array = []
+	for rd in rounds:
+		var hi := 1 << rd
+		var best: Dictionary = {}
+		for i in range(hi, hi * 2):
+			if best.is_empty() or float(entries[i].power) + rng.randf() * 0.35 > float(best.power):
+				best = entries[i]
+		var o: Dictionary = best.opp.duplicate()
+		o.level = rank_level(int(o.rank)) - 0.35 + rd * 0.45 + float(c.power) + float(best.power) * 0.3
+		o.academy = best.academy
+		path.append(o)
+	return {"id": comp_id, "entries": entries, "path": path, "round": 0, "belt": belt, "rounds": rounds}
+
+static func round_name(rounds: int, rd: int) -> String:
+	return ROUND_NAMES[rounds][rd]

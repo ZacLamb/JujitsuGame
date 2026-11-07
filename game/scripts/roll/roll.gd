@@ -48,13 +48,15 @@ var timing: TimingBar
 var struggle_bar: ProgressBar
 
 var daily := {}  # set for Daily Challenge rolls
+var comp := {}   # set for competition matches: {id, round_name, opp, final}
 var _log: Array = []  # exchange outcomes for the share card (see ShareCard.CODES)
 
-func start(opponent_id: String, daily_challenge: Dictionary = {}) -> void:
+func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Dictionary = {}) -> void:
 	opp_id = opponent_id
 	daily = daily_challenge
-	opp = daily.opp if not daily.is_empty() else Data.OPPONENTS[opponent_id]
-	sim.setup(opponent_id, Game.level(), Game.knows, -1, Game.mods(), opp if not daily.is_empty() else {})
+	comp = comp_match
+	opp = daily.opp if not daily.is_empty() else (comp.opp if not comp.is_empty() else Data.OPPONENTS[opponent_id])
+	sim.setup(opponent_id, Game.level(), Game.knows, -1, Game.mods(), opp if not (daily.is_empty() and comp.is_empty()) else {})
 	if not daily.is_empty():
 		sim.apply_rule(daily.rule)
 	_signature = Rpg.STYLES[Game.style].signature if Game.style != "" else []
@@ -65,6 +67,8 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}) -> void:
 	if not daily.is_empty():
 		var rd: Dictionary = Data.DAILY_RULES[daily.rule]
 		_show_message("DAILY CHALLENGE: %s\n%s" % [rd.name, rd.desc], 2.6, _begin_exchange)
+	elif not comp.is_empty():
+		_show_message("%s  ·  %s\nvs %s (%s)" % [Data.COMPS[comp.id].name.to_upper(), comp.round_name.to_upper(), opp.name, opp.get("academy", "")], 2.4, _begin_exchange)
 	else:
 		_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, 1.6, _begin_exchange)
 
@@ -525,7 +529,13 @@ func _end_match() -> void:
 	_set_phase(Phase.OVER)
 	var res := sim.result
 	res["signature"] = _used_signature and res.won
-	var xp := Game.record_daily(res, daily.date) if not daily.is_empty() else Game.record_roll(opp_id, res)
+	var xp := 0
+	if not daily.is_empty():
+		xp = Game.record_daily(res, daily.date)
+	elif not comp.is_empty():
+		xp = Game.record_comp_match(res, float(opp.level))
+	else:
+		xp = Game.record_roll(opp_id, res)
 	Sfx.play("win" if res.won else "lose")
 	var winner := player_rig if res.won else opp_rig
 	var loser := opp_rig if res.won else player_rig
@@ -558,7 +568,10 @@ func _end_match() -> void:
 			var st := ShareCard.share(text)
 			sh.text = "Shared!" if st == "shared" else "Copied! Paste it in the group chat")
 		action_body.add_child(sh)
-	var back := UiKit.button("Back to %s" % Data.ZONES[Game.zone].name, Vector2(320, 64))
+	var back_text := "Back to %s" % Data.ZONES[Game.zone].name
+	if not comp.is_empty():
+		back_text = "Continue"
+	var back := UiKit.button(back_text, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))
 	action_body.add_child(back)

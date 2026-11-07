@@ -97,6 +97,10 @@ func _ready() -> void:
 	for opp in ["iara", "biro", "joaquim", "rita", "gaucho", "cachoeira"]:
 		var r = await play_roll(opp, true)
 		check(r.done, "[chapada] roll vs %s completed (won=%s by_sub=%s)" % [opp, r.won, r.by_sub])
+	# ---- competitions: the Mundial is black belts only
+	main._open_comp("mundial")
+	check(main.comp_run.is_empty() and main.hud.dialogue_open(), "Mundial locked below black belt")
+	main.hud._close_dialogue(false)
 	# ---- brown belt rides to Rio for the black belt
 	Game.promote_belt(3)
 	main.hud.travel_chosen.emit("rio")
@@ -117,6 +121,10 @@ func _ready() -> void:
 	check(Game.belt_index() == 4 or tries == 8, "Leão roll(s) completed (belt=%s after %d)" % [Data.BELTS[Game.belt_index()].name, tries])
 	if Game.belt_index() == 4:
 		check(Game.unlocked.has("black_belt") and Game.flags.get("black_belt_ending", false), "black belt promotion + ending")
+	for cid in ["rio_open", "mundial"]:
+		var r2 = await play_comp(cid)
+		check(r2.matches >= 1 and main.comp_run.is_empty(), "%s bracket played: %d match(es), medal=%s" % [cid, r2.matches, Game.best_medal(cid)])
+	check(Game.unlocked.has("first_roll"), "comp matches count as rolls")
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
 	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")
@@ -137,6 +145,22 @@ func _ready() -> void:
 	check(main.player.global_position.y > -1.0, "player stays above ground")
 	print("\n%s (%d failures)" % ["PASS" if fails == 0 else "FAILED", fails])
 	get_tree().quit(1 if fails > 0 else 0)
+
+func play_comp(cid: String) -> Dictionary:
+	main._open_comp(cid)
+	var size: int = main.comp_run.get("entries", []).size()
+	check(main.hud.dialogue_open() and size >= 8, "%s bracket opens (%d entries)" % [cid, size])
+	main.hud._close_dialogue(true)
+	var matches := 0
+	while matches < 6 and main.roll != null:
+		await play_roll_existing("comp")
+		matches += 1
+		if main._comp_prompt == "next":
+			main.hud._close_dialogue(true)
+		else:
+			break
+	main.hud._close_dialogue(false)
+	return {"matches": matches}
 
 func play_roll(opp: String, skilled: bool) -> Dictionary:
 	main._start_roll(opp)

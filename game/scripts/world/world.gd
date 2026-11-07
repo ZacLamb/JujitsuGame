@@ -1176,6 +1176,7 @@ func _build_caceres_spots() -> void:
 	for i in Rpg.ATTR_ORDER.size():
 		_drill_station(Rpg.ATTR_ORDER[i], c + Vector3(xs[i], 0, -5.2))
 	_challenge_board(Vector3(12, 0, -44))
+	_comp_board(Vector3(-12, 0, -44), "copa_caceres")
 
 # ================================================================ zone 2: Pantanal
 func _height_pantanal(x: float, z: float) -> float:
@@ -1293,6 +1294,7 @@ func _p_fazenda() -> void:
 	for i in Rpg.ATTR_ORDER.size():
 		_drill_station(Rpg.ATTR_ORDER[i], c + Vector3(-9.0, 0, zs[i]))
 	_challenge_board(c + Vector3(0, 0, -9.0))
+	_comp_board(c + Vector3(4.0, 0, -9.0), "pantanal_open")
 
 func _p_ranch() -> void:
 	var c := Vector3(-40, ground_y(-40, 26), 26)
@@ -1551,6 +1553,7 @@ func _c_village() -> void:
 	for i in Rpg.ATTR_ORDER.size():
 		_drill_station(Rpg.ATTR_ORDER[i], g + Vector3(xs[i], 0, 5.0))
 	_challenge_board(g + Vector3(-12, 0, -9))
+	_comp_board(g + Vector3(12, 0, -9), "chapada_open")
 	var palette := [Color(0.97, 0.85, 0.35), Color(0.95, 0.55, 0.6), Color(0.98, 0.95, 0.88), Color(0.95, 0.6, 0.3), Color(0.55, 0.8, 0.5)]
 	for i in 6:
 		var a := -0.3 + i * 0.55
@@ -1626,6 +1629,21 @@ func _c_trail() -> void:
 	var trail_sign := _label("TRILHA DO MIRANTE", Vector3(-44, ground_y(-44, 8) + 2.4, 8), 60, Color(1, 0.95, 0.8))
 	trail_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
+
+## Tournament poster board: opens the bracket for this zone's competition.
+func _comp_board(pos: Vector3, comp_id: String) -> void:
+	var gy := ground_y(pos.x, pos.z)
+	var wood := Color(0.4, 0.28, 0.18)
+	_box(Vector3(0.15, 2.6, 0.15), Vector3(pos.x - 1.0, gy + 1.3, pos.z), wood, false)
+	_box(Vector3(0.15, 2.6, 0.15), Vector3(pos.x + 1.0, gy + 1.3, pos.z), wood, false)
+	_box(Vector3(2.4, 1.6, 0.1), Vector3(pos.x, gy + 2.1, pos.z), Color(0.55, 0.12, 0.12), false)
+	var nm: String = Data.COMPS[comp_id].name.to_upper()
+	for side in [1, -1]:
+		var l := _label("CAMPEONATO\n%s" % nm, Vector3(pos.x, gy + 2.15, pos.z + 0.07 * side), 40, Color(1, 0.88, 0.4), 0.0 if side == 1 else PI)
+		l.pixel_size = 0.0055
+	var medal := _cyl(0.22, 0.22, 0.05, Vector3(pos.x, gy + 3.15, pos.z), Color(0.98, 0.78, 0.2), 14)
+	medal.rotation.x = PI / 2
+	_spot(Vector3(pos.x, gy, pos.z), 2.4, Data.COMPS[comp_id].name, "comp", comp_id)
 
 func _challenge_board(pos: Vector3) -> void:
 	var gy := ground_y(pos.x, pos.z)
@@ -1747,6 +1765,8 @@ func _build_rio() -> void:
 	for i in Rpg.ATTR_ORDER.size():
 		_drill_station(Rpg.ATTR_ORDER[i], g + Vector3(xs[i], 0, 5.0))
 	_challenge_board(g + Vector3(-12, 0, 9))
+	_comp_board(g + Vector3(12, 0, 9), "rio_open")
+	_comp_board(g + Vector3(12, 0, -10), "mundial")
 	_label("ARPOADOR", Vector3(-78, ground_y(-78, 52) + 3.5, 52), 80, Color(1, 0.9, 0.7)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_build_cups()
 	_build_landmarks()

@@ -288,11 +288,78 @@ func _use_spot(spot: Dictionary) -> void:
 			hud.open_travel()
 		"daily":
 			_start_daily()
+		"comp":
+			_open_comp(spot.arg)
 		"drill":
 			if not Game.drills_ready:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
 				return
 			_start_drill(spot.arg)
+
+# ------------------------------------------------------------ competitions
+var comp_run: Dictionary = {}   # the bracket in progress (see Data.comp_bracket)
+var _comp_prompt := ""          # "enter" / "next" / "done" while a comp dialogue is open
+
+func _open_comp(comp_id: String) -> void:
+	var c: Dictionary = Data.COMPS[comp_id]
+	if Game.rank < int(c.min_rank):
+		hud.open_dialogue(c.name, "%s\n\nBlack belts only. Come back when Leão ties one around your waist." % c.blurb, "", "Okay")
+		return
+	var nonce := int(Game.counters.get("comp_entries", 0))
+	comp_run = Data.comp_bracket(comp_id, Game.rank, Game.player_name, nonce)
+	var belt: String = Data.BELTS[comp_run.belt].name
+	var best := Game.best_medal(comp_id)
+	var lines: Array[String] = [c.blurb, "", "Division: %s Belt  ·  %d in the bracket" % [belt, comp_run.entries.size()]]
+	if best != "":
+		lines.append("Your best here at %s belt: %s" % [belt.to_lower(), best.capitalize()])
+	lines.append("")
+	lines.append("First round: %s (%s)" % [comp_run.path[0].name, comp_run.path[0].academy])
+	lines.append("Lose once and you're out. Win the final for gold.")
+	_comp_prompt = "enter"
+	player.input_enabled = false
+	hud.open_dialogue(c.name, "\n".join(lines), "Enter the bracket", "Not now")
+
+func _comp_start_match() -> void:
+	if comp_run.round == 0:
+		Game.counters["comp_entries"] = int(Game.counters.get("comp_entries", 0)) + 1
+	var rd: int = comp_run.round
+	var m := {"id": comp_run.id, "round_name": Data.round_name(comp_run.rounds, rd), "opp": comp_run.path[rd], "final": rd == comp_run.rounds - 1}
+	_start_roll("comp", {}, m)
+
+func _comp_after_match(result: Dictionary) -> void:
+	var c: Dictionary = Data.COMPS[comp_run.id]
+	var rd: int = comp_run.round
+	var rounds: int = comp_run.rounds
+	var medal := ""
+	if result.won and rd == rounds - 1:
+		medal = "gold"
+	elif not result.won and rd == rounds - 1:
+		medal = "silver"
+	elif not result.won and rd == rounds - 2:
+		medal = "bronze"
+	if result.won and rd < rounds - 1:
+		comp_run.round = rd + 1
+		var nxt: Dictionary = comp_run.path[rd + 1]
+		_comp_prompt = "next"
+		player.input_enabled = false
+		hud.open_dialogue(c.name, "%s won!\n\nNext up, the %s: %s (%s), %s guy." % [Data.round_name(rounds, rd), Data.round_name(rounds, rd + 1).to_lower(), nxt.name, nxt.academy, nxt.style], "Next match", "Withdraw")
+		return
+	var belt: int = comp_run.belt
+	var text := ""
+	if medal != "":
+		var xp := Game.award_medal(comp_run.id, belt, medal)
+		Sfx.play("win" if medal == "gold" else "levelup")
+		var head: String = {"gold": "GOLD MEDAL! Campeão!", "silver": "SILVER MEDAL", "bronze": "BRONZE MEDAL"}[medal]
+		var body: String = {"gold": "Top of the podium at the %s. The whole academy is in the group chat." % c.name,
+			"silver": "Lost a tough final, but you're on the podium at the %s." % c.name,
+			"bronze": "Semifinal loss, but bronze at the %s is a real medal. Shake it off, oss." % c.name}[medal]
+		text = "%s\n\n%s\n\n+%d XP" % [head, body, xp]
+	else:
+		text = "Out in the %s. It happens to everyone; the bracket resets next time you enter." % Data.round_name(rounds, rd).to_lower()
+	comp_run = {}
+	_comp_prompt = "done"
+	player.input_enabled = false
+	hud.open_dialogue(c.name, text, "", "Oss")
 
 func _start_daily() -> void:
 	if hud.journal.visible:
@@ -353,13 +420,24 @@ func _interact() -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _comp_prompt != "":
+		var what := _comp_prompt
+		_comp_prompt = ""
+		if accepted and what in ["enter", "next"]:
+			_comp_start_match()
+		else:
+			if what == "next":
+				Game.toast.emit("You withdraw from the %s." % Data.COMPS[comp_run.id].name, UiKit.MUTED)
+			comp_run = {}
+			player.input_enabled = true
+		return
 	if accepted and _talking_to != null:
 		_start_roll(_talking_to.opp_id)
 	else:
 		player.input_enabled = true
 	_talking_to = null
 
-func _start_roll(opp_id: String, daily: Dictionary = {}) -> void:
+func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}) -> void:
 	player.input_enabled = false
 	world.visible = false
 	world.process_mode = Node.PROCESS_MODE_DISABLED
@@ -367,7 +445,7 @@ func _start_roll(opp_id: String, daily: Dictionary = {}) -> void:
 	roll = RollScene.new()
 	add_child(roll)
 	roll.finished.connect(_end_roll)
-	roll.start(opp_id, daily)
+	roll.start(opp_id, daily, comp)
 	_fit_screen()
 
 func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
@@ -382,6 +460,9 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	world.refresh_beacon()
 	hud.refresh()
 	hud.set_prompt(world.nearby)
+	if opp_id == "comp":
+		_comp_after_match(result)
+		return
 	if result.won and opp_id == "leao" and not Game.flags.get("black_belt_ending", false):
 		Game.flags["black_belt_ending"] = true
 		Game.save_game()

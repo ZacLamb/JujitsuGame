@@ -17,6 +17,7 @@ var counters := {}  # achievement id -> int
 var landmarks := {}
 var cups := {}
 var flags := {}  # misc quest flags
+var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
 var style := ""            # Rpg.STYLES key; "" until chosen
 var gi_index := 0
@@ -55,6 +56,7 @@ func reset() -> void:
 	train = {}
 	drills_ready = true
 	daily = {}
+	medals = {}
 	save_game()
 	progress_changed.emit()
 
@@ -66,7 +68,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -100,6 +102,7 @@ func load_game() -> void:
 	train = parsed.get("train", {})
 	drills_ready = bool(parsed.get("drills_ready", true))
 	daily = parsed.get("daily", {})
+	medals = parsed.get("medals", {})
 
 # ------------------------------------------------------------ rank / xp
 func level() -> float:
@@ -391,6 +394,9 @@ func current_objective() -> String:
 
 func side_objectives() -> Array:
 	var out: Array = []
+	var mc := medal_counts()
+	if mc.gold + mc.silver + mc.bronze > 0:
+		out.append("Competition medals: %d gold, %d silver, %d bronze" % [mc.gold, mc.silver, mc.bronze])
 	var z: Dictionary = Data.ZONES[zone]
 	out.append("%s: %d/%d" % [z.collect, collected_count(zone), Data.COLLECTIBLES[zone].size()])
 	var lms := Data.landmarks_in(zone)
@@ -474,6 +480,62 @@ func _all_town_beaten() -> bool:
 			return false
 	return true
 
+
+# ------------------------------------------------------------ competitions
+func medal_counts() -> Dictionary:
+	var out := {"gold": 0, "silver": 0, "bronze": 0}
+	for k in medals:
+		if out.has(medals[k]):
+			out[medals[k]] += 1
+	return out
+
+func best_medal(comp_id: String, belt := -1) -> String:
+	return str(medals.get("%s_%d" % [comp_id, belt if belt >= 0 else belt_index()], ""))
+
+## One match inside a bracket. Smaller XP than a named rival; the medal is the prize.
+func record_comp_match(result: Dictionary, opp_level: float) -> int:
+	unlock("first_roll")
+	drills_ready = true
+	var gained := 14
+	if result.won:
+		gained = int(20 + 10 * opp_level)
+		if result.by_sub:
+			gained += 10
+			unlock("first_tap")
+		else:
+			unlock("points_win")
+	elif result.by_sub:
+		unlock("tapped")
+	add_xp(gained)
+	return gained
+
+## Stores the best medal for this comp + belt and pays out. Returns the XP awarded.
+func award_medal(comp_id: String, belt: int, medal: String) -> int:
+	var key := "%s_%d" % [comp_id, belt]
+	var prev := str(medals.get(key, ""))
+	if Data.MEDAL_ORDER.find(medal) > Data.MEDAL_ORDER.find(prev):
+		medals[key] = medal
+	unlock("first_medal")
+	var xp_gain: int = {"gold": 260, "silver": 150, "bronze": 90}.get(medal, 0)
+	if medal == "gold":
+		unlock("first_gold")
+		if comp_id == "mundial":
+			unlock("world_champ")
+		var regional := 0
+		for c in ["copa_caceres", "pantanal_open", "chapada_open", "rio_open"]:
+			for b in Data.BELTS.size():
+				if str(medals.get("%s_%d" % [c, b], "")) == "gold":
+					regional += 1
+					break
+		counters["grand_slam"] = regional
+		if regional >= 4:
+			unlock("grand_slam")
+	if prev == medal:
+		xp_gain = int(xp_gain * 0.4)  # repeat medals still pay, just less
+	add_xp(xp_gain)
+	save_game()
+	progress_changed.emit()
+	return xp_gain
 
 # ------------------------------------------------------------ daily challenge
 static func today() -> String:
