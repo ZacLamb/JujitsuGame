@@ -239,7 +239,7 @@ func _npc_at(screen: Vector2) -> Npc:
 var _slow_t := 0.0
 
 func _adapt_quality(delta: float) -> void:
-	if Game.graphics_level() != 2 or Game.flags.get("gfx_manual", false) or Game.test_mode:
+	if Game.graphics_level() != 2 or Sfx.pref("gfx_manual", false) or Game.test_mode:
 		return
 	var fps := Engine.get_frames_per_second()
 	_slow_t = _slow_t + delta if fps > 0 and fps < 30 else maxf(0.0, _slow_t - delta * 2.0)
@@ -310,6 +310,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.input_enabled = true
 	elif event.is_action_pressed("pause") and hud.journal.visible:
 		hud.toggle_journal()
+	elif event.is_action_pressed("pause") and not hud.dialogue_open() and not hud.travel_open():
+		hud.toggle_settings()
 
 func _make_world(z: String) -> void:
 	if is_instance_valid(world):

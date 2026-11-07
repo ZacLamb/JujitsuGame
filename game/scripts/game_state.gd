@@ -229,6 +229,8 @@ func dress(rig: BodyRig) -> void:
 const GFX_NAMES := ["low", "high", "ultra"]
 
 func graphics_level() -> int:
+	if Sfx.pref("gfx") != null:
+		return clampi(int(Sfx.pref("gfx")), 0, 2)
 	if flags.has("gfx"):
 		return clampi(int(flags.gfx), 0, 2)
 	if flags.has("gfx_low"):  # older saves
@@ -238,10 +240,9 @@ func graphics_level() -> int:
 	return 2
 
 func set_graphics_level(lvl: int, manual := true) -> void:
-	flags["gfx"] = clampi(lvl, 0, 2)
+	Sfx.set_pref("gfx", clampi(lvl, 0, 2))
 	if manual:
-		flags["gfx_manual"] = true
-	save_game()
+		Sfx.set_pref("gfx_manual", true)
 
 func graphics_low() -> bool:
 	return graphics_level() == 0

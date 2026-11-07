@@ -89,7 +89,7 @@ func _draw_mini() -> void:
 	_draw_icons(r, c, MINI_RANGE, false)
 	_draw_player(r.get_center(), 1.0)
 	draw_rect(r.grow(4), UiKit.ACCENT.darkened(0.2), false, 3.0)
-	var zl := "%s  ·  %s" % [Data.ZONES[world.zone].name, Data.zone_levels(world.zone)]
+	var zl := "%s  ·  %s  ·  %s" % [Data.ZONES[world.zone].name, Data.zone_levels(world.zone), DayNight.clock_text()]
 	var f := UiKit.body_font()
 	if f:
 		draw_string_outline(f, r.position + Vector2(4, -10), zl, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, 5, Color(0, 0, 0, 0.9))

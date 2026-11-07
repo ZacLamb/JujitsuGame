@@ -7,7 +7,7 @@ func _ready() -> void:
 	Game.reset()
 	Game.choose_style("guard", "Gringo", 0)
 	Game.set_level(41)
-	Game.flags["gfx"] = 0 if OS.get_cmdline_user_args().has("--low") else (2 if OS.get_cmdline_user_args().has("--ultra") else 1)
+	Sfx.prefs["gfx"] = 0 if OS.get_cmdline_user_args().has("--low") else (2 if OS.get_cmdline_user_args().has("--ultra") else 1)
 	main = load("res://main.tscn").instantiate()
 	add_child(main)
 	await get_tree().process_frame

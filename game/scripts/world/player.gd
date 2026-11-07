@@ -112,6 +112,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			look(event.relative * 0.005)
 
 func look(delta: Vector2) -> void:
+	delta *= float(Sfx.pref("mouse", 1.0))
+	if Sfx.pref("invert_y", false):
+		delta.y = -delta.y
 	cam_yaw -= delta.x
 	cam_pitch = clampf(cam_pitch - delta.y, -1.2, 0.35)
 	_last_look_ms = Time.get_ticks_msec()

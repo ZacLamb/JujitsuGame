@@ -48,6 +48,7 @@ func _touch_allowed() -> bool:
 	return (touch_mode or DisplayServer.is_touchscreen_available()) and not title.visible and not dialogue.visible and not journal.visible
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # the settings menu works while the game is paused
 	root = Control.new()
 	root.theme = UiKit.theme()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -741,3 +742,121 @@ func hide_title() -> void:
 
 func set_exploring(on: bool) -> void:
 	root.visible = on
+
+# ------------------------------------------------------------ settings (Esc)
+signal quit_to_title
+var settings_panel: PanelContainer
+
+func _unhandled_input(event: InputEvent) -> void:
+	if settings_open() and event.is_action_pressed("pause"):
+		toggle_settings()
+		get_viewport().set_input_as_handled()
+
+func settings_open() -> bool:
+	return settings_panel != null and settings_panel.visible
+
+func toggle_settings() -> void:
+	if settings_open():
+		settings_panel.queue_free()
+		settings_panel = null
+		get_tree().paused = false
+		touch.visible = _touch_allowed()
+		journal_toggled.emit(false)
+		return
+	_build_settings()
+	get_tree().paused = true
+	touch.release_all()
+	touch.visible = false
+	journal_toggled.emit(true)
+
+func _slider_row(parent: Control, text: String, value: float, min_v: float, max_v: float, on_change: Callable) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	parent.add_child(row)
+	var l := UiKit.label(text, 19)
+	l.custom_minimum_size = Vector2(190, 0)
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(l)
+	var sl := HSlider.new()
+	sl.min_value = min_v
+	sl.max_value = max_v
+	sl.step = 0.05
+	sl.value = value
+	sl.custom_minimum_size = Vector2(260, 28)
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sl.focus_mode = Control.FOCUS_NONE
+	var val := UiKit.label("%d%%" % int(value * 100), 17, UiKit.MUTED)
+	val.custom_minimum_size = Vector2(60, 0)
+	sl.value_changed.connect(func(v):
+		val.text = "%d%%" % int(v * 100)
+		on_change.call(v))
+	row.add_child(sl)
+	row.add_child(val)
+
+func _build_settings() -> void:
+	settings_panel = PanelContainer.new()
+	settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	settings_panel.anchor_left = 0.5
+	settings_panel.anchor_right = 0.5
+	settings_panel.anchor_top = 0.5
+	settings_panel.anchor_bottom = 0.5
+	settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	settings_panel.custom_minimum_size = Vector2(780, 0)
+	root.add_child(settings_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	settings_panel.add_child(v)
+	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("Sound", 22, UiKit.ACCENT))
+	_slider_row(v, "Music", float(Sfx.pref("music", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("music", x))
+	_slider_row(v, "Effects", float(Sfx.pref("sfx", 0.9)), 0.0, 1.0, func(x):
+		Sfx.set_pref("sfx", x)
+		Sfx.play("click", -6.0))
+	v.add_child(UiKit.label("Controls", 22, UiKit.ACCENT))
+	_slider_row(v, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
+	var inv := CheckButton.new()
+	inv.text = "Invert camera up/down"
+	inv.button_pressed = bool(Sfx.pref("invert_y", false))
+	inv.focus_mode = Control.FOCUS_NONE
+	inv.toggled.connect(func(on): Sfx.set_pref("invert_y", on))
+	v.add_child(inv)
+	v.add_child(UiKit.label("Graphics", 22, UiKit.ACCENT))
+	var gr := HBoxContainer.new()
+	gr.add_theme_constant_override("separation", 10)
+	v.add_child(gr)
+	var btns: Array = []
+	for i in 3:
+		var b := UiKit.button(["Low (phones)", "High", "Ultra (desktop)"][i], Vector2(180, 48))
+		b.toggle_mode = true
+		b.button_pressed = Game.graphics_level() == i
+		btns.append(b)
+		gr.add_child(b)
+	for i in 3:
+		var bi: int = i
+		(btns[i] as Button).pressed.connect(func():
+			Game.set_graphics_level(bi)
+			for j in 3:
+				(btns[j] as Button).set_pressed_no_signal(j == bi)
+			if gfx_btn:
+				gfx_btn.text = "Gfx: " + Game.GFX_NAMES[bi]
+			graphics_changed.emit())
+	v.add_child(UiKit.label("Keys", 22, UiKit.ACCENT))
+	var keys := "WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n" + \
+		"Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n" + \
+		"E or click: talk / roll   ·   C: character   ·   J or Tab: journal   ·   M: map   ·   Esc: this menu\n" + \
+		"In a roll: 1-9 pick a move   ·   Space: stop the bar   ·   arrows: defend   ·   mash Space: squeeze / escape"
+	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	v.add_child(row)
+	var resume := UiKit.button("Resume", Vector2(200, 56))
+	resume.pressed.connect(toggle_settings)
+	row.add_child(resume)
+	var quit := UiKit.button("Title screen", Vector2(200, 56))
+	quit.pressed.connect(func():
+		get_tree().paused = false
+		Game.save_game()
+		get_tree().reload_current_scene())
+	row.add_child(quit)

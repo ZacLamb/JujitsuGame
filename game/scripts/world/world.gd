@@ -32,6 +32,7 @@ func build(z := "caceres") -> void:
 
 ## Merges static, opaque primitive meshes (houses, walls, posts, mats...) into one mesh per
 ## material per 40 m cell. Hundreds of draw calls become a few dozen; cells keep culling working.
+var day_night: DayNight
 var map_footprints: Array = []   # [Rect2 (x, z), Color] buildings and walls for the minimap
 
 func _batch_static() -> void:
@@ -329,7 +330,45 @@ func _build_environment() -> void:
 	sun.directional_shadow_max_distance = 55.0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
+	day_night = DayNight.new()
+	add_child(day_night)
+	day_night.setup(e, psm, sun, e.tonemap_exposure)
 	_build_clouds()
+	_build_lamps()
+
+## Street lamps: the heads share one emissive material that the day/night cycle brightens.
+func _build_lamps() -> void:
+	var pts: Array = []
+	match zone:
+		"caceres":
+			for x in range(-50, 72, 16):
+				pts.append(Vector3(x, 0, -7.6))
+			for z in range(-48, -6, 12):
+				pts.append(Vector3(12.4, 0, z))
+			for c in [Vector3(-15, 0, -1), Vector3(15, 0, -1), Vector3(-15, 0, 17), Vector3(15, 0, 17)]:
+				pts.append(c)
+		"pantanal":
+			for c in [Vector3(-78, 0, -8), Vector3(-86, 0, 2), Vector3(54, 0, 44), Vector3(66, 0, 44), Vector3(-36, 0, 20)]:
+				pts.append(c)
+		"chapada":
+			for i in 6:
+				var a := i * TAU / 6.0
+				pts.append(Vector3(42 + cos(a) * 11.0, 0, 42 + sin(a) * 11.0))
+			pts.append(Vector3(-76, 0, 36))
+		"rio":
+			for x in range(-88, 90, 20):
+				pts.append(Vector3(x, 0, 25.0))
+			for c in [Vector3(32, 0, -36), Vector3(40, 0, -46), Vector3(36, 0, -56), Vector3(-80, 0, 2)]:
+				pts.append(c)
+	for p in pts:
+		var gy := ground_y(p.x, p.z)
+		_cyl(0.07, 0.09, 4.2, Vector3(p.x, gy + 2.1, p.z), Color(0.18, 0.18, 0.2), 6)
+		var head := MeshInstance3D.new()
+		head.mesh = _mk_sphere(0.28, 0.56)
+		head.material_override = DayNight.lamp_material()
+		head.position = Vector3(p.x, gy + 4.35, p.z)
+		head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(head)
 
 func _build_clouds() -> void:
 	var cm := StandardMaterial3D.new()
