@@ -48,6 +48,7 @@ var timing: TimingBar
 var struggle_bar: ProgressBar
 
 var daily := {}  # set for Daily Challenge rolls
+var _log: Array = []  # exchange outcomes for the share card (see ShareCard.CODES)
 
 func start(opponent_id: String, daily_challenge: Dictionary = {}) -> void:
 	opp_id = opponent_id
@@ -355,6 +356,7 @@ func _resolve_timing(marker: float) -> void:
 		Sfx.play("miss")
 	timing.flash_color = Color(1, 0.85, 0.3, 0.6) if j == "perfect" else (Color(0.2, 0.9, 0.4, 0.5) if j == "hit" else Color(1, 0.2, 0.2, 0.5))
 	_set_phase(Phase.MESSAGE)
+	_log.append("R" if j == "miss" else ("Y" if j == "perfect" else "G"))
 	if j == "miss":
 		sim.failed_attempt(pending_move, true)
 		var next := _opponent_attack if sim.rng.randf() < sim.counter_chance(pending_move) else _begin_exchange
@@ -432,6 +434,7 @@ func _resolve_defense(dir: String) -> void:
 	var m: Dictionary = Data.MOVES[ai_move]
 	var quick := phase_t < phase_limit * 0.4
 	_set_phase(Phase.MESSAGE)
+	_log.append("B" if dir == defend_dir else "O")
 	if dir == defend_dir:
 		Sfx.play("hit", -3.0, 1.25)
 		sim.spend(4)
@@ -487,6 +490,7 @@ func _struggle_tap() -> void:
 
 func _sub_finished(player_won: bool) -> void:
 	sim.finish_by_sub(player_won, struggle_sub)
+	_log.append("S" if player_won else "X")
 	Sfx.play("tap")
 	var m: Dictionary = Data.MOVES.get(struggle_sub, {"name": "submission"})
 	if player_won:
@@ -509,6 +513,7 @@ func _tap_out() -> void:
 	if phase == Phase.OVER:
 		return
 	sim.finish_by_sub(false, "tap")
+	_log.append("X")
 	_set_phase(Phase.MESSAGE)
 	_show_message("You tap. Smart. Live to roll another day.", 1.0, _end_match)
 
@@ -543,6 +548,16 @@ func _end_match() -> void:
 	var line: String = opp.win if res.won else opp.lose
 	action_body.add_child(UiKit.label("%s: \"%s\"" % [opp.name, line], 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	action_body.add_child(UiKit.label("+%d XP   ·   %s" % [xp, Data.rank_name(Game.rank)], 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+	if not daily.is_empty():
+		action_body.add_child(ShareCard.squares(_log))
+		var text := ShareCard.build_text(daily, res, _log, Vector2i(sim.player_pts, sim.opp_pts), int(Game.daily.get("streak", 0)))
+		var sh := UiKit.button("Share result", Vector2(320, 56))
+		sh.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		sh.add_theme_color_override("font_color", UiKit.ACCENT)
+		sh.pressed.connect(func():
+			var st := ShareCard.share(text)
+			sh.text = "Shared!" if st == "shared" else "Copied! Paste it in the group chat")
+		action_body.add_child(sh)
 	var back := UiKit.button("Back to %s" % Data.ZONES[Game.zone].name, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))

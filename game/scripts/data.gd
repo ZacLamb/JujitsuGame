@@ -256,7 +256,7 @@ const DAILY_RULES := {
 	"sprint": {"name": "Sprint Match", "desc": "Only two minutes on the clock."},
 	"top_start": {"name": "King of the Hill", "desc": "You start in mount. Finish it."},
 }
-const DAILY_NAMES := ["Visiting Black Belt", "Mystery Competitor", "Open Mat Shark", "Traveling Brown Belt", "Old-School Killer", "Comp Team Captain"]
+const DAILY_NAMES := ["Visiting Gringo", "Mystery Competitor", "Open Mat Shark", "Traveling Grappler", "Old-School Killer", "Comp Team Captain"]
 
 ## Builds today's challenge from a date string (YYYY-MM-DD) so everyone gets the same one.
 static func daily_challenge(date_str: String, player_rank: int) -> Dictionary:

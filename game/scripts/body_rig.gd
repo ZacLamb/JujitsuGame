@@ -290,6 +290,16 @@ func _blend_to(pose: Dictionary, t: float) -> void:
 
 # ================================================================ skinned model support
 func _build_skinned() -> void:
+	for n in [_torso_parts, _hair_node]:
+		if n and is_instance_valid(n):
+			n.queue_free()
+	for g in _gi_parts:
+		if is_instance_valid(g.node):
+			(g.node as Node).queue_free()
+	_gi_parts.clear()
+	_torso_parts = null
+	_hair_node = null
+	_belt_node = null
 	# hide the primitive body; it stays as an invisible pose guide
 	for m in hips.find_children("*", "MeshInstance3D", true, false):
 		(m as MeshInstance3D).visible = false
@@ -338,7 +348,49 @@ func _build_skinned() -> void:
 	_recolor()
 	if not casual:
 		_build_skinned_belt()
+	if body == "female":
+		_build_ponytail()
+		skinned.scale *= Vector3(0.95, 0.94, 0.95)
 	_play_locomotion(0.0, false)
+
+## The worker model's shoes share the "Eyes" material; split them into a "Feet" surface (once per
+## mesh) so fighters can be barefoot on the mats.
+static var _barefoot_cache := {}
+static func _barefoot(src: Mesh) -> Mesh:
+	if _barefoot_cache.has(src):
+		return _barefoot_cache[src]
+	var out := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arr := src.surface_get_arrays(i)
+		var mat := src.surface_get_material(i)
+		var nm := mat.resource_name if mat else ""
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var fmt: int = src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		# Eyes: shoes are the triangles below the waist. Skin: bare legs are below the shorts' hem.
+		var cut := 0.0 if nm == "Eyes" else -0.3
+		var split_name := "Feet" if nm == "Eyes" else "Legs"
+		if (nm != "Eyes" and nm != "Skin") or idx.is_empty():
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, fmt)
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+			continue
+		var keep := PackedInt32Array()
+		var low := PackedInt32Array()
+		for t in range(0, idx.size(), 3):
+			var zc := (verts[idx[t]].z + verts[idx[t + 1]].z + verts[idx[t + 2]].z) / 3.0
+			var dst := low if zc < cut else keep
+			dst.append(idx[t]); dst.append(idx[t + 1]); dst.append(idx[t + 2])
+		for pair in [[keep, mat], [low, null]]:
+			if (pair[0] as PackedInt32Array).is_empty():
+				continue
+			var a2 := arr.duplicate()
+			a2[Mesh.ARRAY_INDEX] = pair[0]
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a2, [], {}, fmt)
+			var fm := StandardMaterial3D.new()
+			fm.resource_name = split_name
+			out.surface_set_material(out.get_surface_count() - 1, pair[1] if pair[1] else fm)
+	_barefoot_cache[src] = out
+	return out
 
 func _recolor() -> void:
 	var gi := gi_color
@@ -348,6 +400,8 @@ func _recolor() -> void:
 		if m.name.begins_with("NurbsPath") or m.name == "Rogue_001":
 			m.visible = false  # rogue's dagger strap and hood
 			continue
+		if not casual and m.mesh:
+			m.mesh = _barefoot(m.mesh)
 		# world scale of this mesh relative to the rig, so the outline stays ~1 cm thick
 		var chain := m.transform
 		var p := m.get_parent()
@@ -371,9 +425,9 @@ func _recolor() -> void:
 					col = gi
 				"Detail":
 					col = gi.darkened(0.15)
-				"Pants":
+				"Pants", "Legs":
 					col = pants
-				"Skin", "Socks", "Boots":
+				"Skin", "Socks", "Boots", "Feet":
 					col = skin_color
 				"Hair":
 					col = hair_color
@@ -385,29 +439,158 @@ func _recolor() -> void:
 			mat.next_pass = outline
 			m.set_surface_override_material(i, mat)
 
+## Gi pieces the base model lacks (long sleeves, full-length pants, lapels, jacket skirt, belt).
+## Each piece follows two skeleton bones every frame, so it works for both clips and grappling poses.
+var _gi_parts: Array = []   # [{node, a, b, t0, t1}] limb tubes
+var _torso_parts: Node3D    # lapels + skirt + belt, follows a torso frame
+
+func _tube(r0: float, r1: float, col: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var c := CylinderMesh.new()
+	c.top_radius = r0
+	c.bottom_radius = r1
+	c.height = 1.0
+	c.radial_segments = 10
+	c.rings = 1
+	mi.mesh = c
+	mi.material_override = _cmat(col, 0.85)
+	add_child(mi)
+	return mi
+
+func _limb(a: String, b: String, t0: float, t1: float, r0: float, r1: float, col: Color) -> void:
+	if _bones.get(a, -1) < 0 or _bones.get(b, -1) < 0:
+		return
+	_gi_parts.append({"node": _tube(r1, r0, col), "a": _bones[a], "b": _bones[b], "t0": t0, "t1": t1})
+
 func _build_skinned_belt() -> void:
+	var gi := gi_color
+	var cuff := gi.darkened(0.08)
+	for sd in ["L", "R"]:
+		# sleeves: loose over the upper arm, ending just above the wrist
+		_limb("UpperArm." + sd, "LowerArm." + sd, 0.14, 1.12, 0.106, 0.1, gi)
+		_limb("LowerArm." + sd, "Hand." + sd, -0.08, 0.84, 0.096, 0.078, cuff)
+		# pants: from the shorts' hem down to just above the ankle
+		_limb("UpperLeg." + sd, "LowerLeg." + sd, 0.3, 1.06, 0.13, 0.104, gi)
+		_limb("LowerLeg." + sd, "Foot." + sd, -0.04, 0.9, 0.102, 0.088, gi)
+	_torso_parts = Node3D.new()
+	_torso_parts.name = "GiTorso"
+	add_child(_torso_parts)
+	var lapel := gi.darkened(0.12) if gi.v > 0.5 else gi.lightened(0.1)
+	# jacket skirt below the belt
+	var skirt := MeshInstance3D.new()
+	var sc := CylinderMesh.new()
+	sc.top_radius = 1.0
+	sc.bottom_radius = 1.1
+	sc.height = 0.24
+	sc.radial_segments = 14
+	sc.rings = 1
+	skirt.mesh = sc
+	skirt.material_override = _cmat(gi)
+	skirt.scale = Vector3(0.232, 1, 0.19)
+	skirt.position = Vector3(0, -0.12, 0)
+	_torso_parts.add_child(skirt)
+	# lapels: two collar strips crossing into a V, left over right
+	for sd in [-1, 1]:
+		var lp := MeshInstance3D.new()
+		lp.mesh = BoxMesh.new()
+		lp.material_override = _cmat(lapel)
+		var top := Vector3(0.085 * sd, 0.78, -0.135)
+		var bot := Vector3(-0.06 * sd, 0.04, -0.205)
+		var d := top - bot
+		lp.position = (top + bot) * 0.5
+		lp.basis = Basis(Vector3(1, 0, 0).slide(d.normalized()).normalized(), d.normalized(), Vector3(1, 0, 0).slide(d.normalized()).normalized().cross(d.normalized()))
+		lp.scale = Vector3(0.062, d.length(), 0.03)
+		lp.position.z -= 0.003 * sd
+		_torso_parts.add_child(lp)
+	# belt: band + knot + tails
 	_belt_node = Node3D.new()
 	_belt_node.name = "SkinnedBelt"
-	add_child(_belt_node)
+	_torso_parts.add_child(_belt_node)
 	var band := MeshInstance3D.new()
-	band.mesh = _cyl(0.175, 0.175, 0.07, 18)
+	band.mesh = _cyl(1.0, 1.0, 0.075, 18)
 	band.material_override = _cmat(belt_color, 0.7)
-	band.scale = Vector3(1.05, 1, 0.78)
+	band.scale = Vector3(0.235, 1, 0.195)
 	_belt_node.add_child(band)
 	var knot := MeshInstance3D.new()
 	knot.mesh = _sph(0.045)
 	knot.material_override = _cmat(belt_color, 0.7)
-	knot.position = Vector3(0, 0, -0.145)
-	knot.scale = Vector3(1.3, 1, 0.8)
+	knot.position = Vector3(0, 0, -0.2)
+	knot.scale = Vector3(1.4, 1, 0.8)
 	_belt_node.add_child(knot)
 	for sd in [-1, 1]:
 		var tail := MeshInstance3D.new()
 		tail.mesh = BoxMesh.new()
 		tail.material_override = _cmat(belt_color, 0.7)
-		tail.position = Vector3(0.045 * sd, -0.1, -0.148)
-		tail.rotation.z = 0.22 * sd
-		tail.scale = Vector3(0.055, 0.2, 0.02)
+		tail.position = Vector3(0.05 * sd, -0.11, -0.205)
+		tail.rotation.z = 0.25 * sd
+		tail.scale = Vector3(0.06, 0.2, 0.02)
 		_belt_node.add_child(tail)
+
+var _hair_node: Node3D
+
+## Female fighters: tied-back hair (bun tie + ponytail) that follows the head.
+func _build_ponytail() -> void:
+	_hair_node = Node3D.new()
+	_hair_node.name = "Ponytail"
+	add_child(_hair_node)
+	var cap := MeshInstance3D.new()
+	cap.mesh = _sph(1.0, -1.0, 16)
+	cap.material_override = _cmat(hair_color, 0.6)
+	cap.scale = Vector3(0.152, 0.1, 0.155)
+	cap.position = Vector3(0, 0.215, 0.05)
+	_hair_node.add_child(cap)
+	var tie := MeshInstance3D.new()
+	tie.mesh = _sph(0.06)
+	tie.material_override = _cmat(hair_color.darkened(0.1), 0.6)
+	tie.position = Vector3(0, 0.17, 0.16)
+	_hair_node.add_child(tie)
+	var tail := MeshInstance3D.new()
+	tail.mesh = _cap(0.05, 0.34)
+	tail.material_override = _cmat(hair_color, 0.6)
+	tail.position = Vector3(0, 0.02, 0.2)
+	tail.rotation.x = 0.28
+	_hair_node.add_child(tail)
+
+func _update_hair() -> void:
+	if not _hair_node or _bones["Head"] < 0 or _bones["Neck"] < 0:
+		return
+	var sx := skel.global_transform
+	var hd := sx * skel.get_bone_global_pose(_bones["Head"])
+	var nk := (sx * skel.get_bone_global_pose(_bones["Neck"])).origin
+	var right := hd.basis.x
+	if _bones["UpperArm.L"] >= 0 and _bones["UpperArm.R"] >= 0:
+		right = (sx * skel.get_bone_global_pose(_bones["UpperArm.R"])).origin - (sx * skel.get_bone_global_pose(_bones["UpperArm.L"])).origin
+	var b := _frame(right, hd.origin - nk)
+	var gs := global_transform.basis.get_scale()
+	_hair_node.global_transform = Transform3D(b.scaled(gs), hd.origin)
+
+func _update_gi_parts() -> void:
+	var sx := skel.global_transform
+	for g in _gi_parts:
+		if not is_instance_valid(g.node):
+			continue
+		var pa: Vector3 = (sx * skel.get_bone_global_pose(g.a)).origin
+		var pb: Vector3 = (sx * skel.get_bone_global_pose(g.b)).origin
+		var p0: Vector3 = pa.lerp(pb, g.t0)
+		var p1: Vector3 = pa.lerp(pb, g.t1)
+		var d := p1 - p0
+		var ln := d.length()
+		if ln < 1e-4:
+			continue
+		var y := d / ln
+		var ref := Vector3.FORWARD if absf(y.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT
+		var x := ref.cross(y).normalized()
+		(g.node as Node3D).global_transform = Transform3D(Basis(x, y * ln, y.cross(x)), (p0 + p1) * 0.5)
+	if _torso_parts and _bones["Abdomen"] >= 0 and _bones["Neck"] >= 0:
+		var ab := (sx * skel.get_bone_global_pose(_bones["Abdomen"])).origin
+		var nk := (sx * skel.get_bone_global_pose(_bones["Neck"])).origin
+		var right := Vector3.RIGHT
+		if _bones["UpperArm.L"] >= 0 and _bones["UpperArm.R"] >= 0:
+			right = (sx * skel.get_bone_global_pose(_bones["UpperArm.R"])).origin - (sx * skel.get_bone_global_pose(_bones["UpperArm.L"])).origin
+		var up := nk - ab
+		var b := _frame(right, up)
+		var gs := global_transform.basis.get_scale()
+		_torso_parts.global_transform = Transform3D(b.scaled(gs), ab + b.y * 0.05 * gs.y)
 
 func _play_locomotion(speed01: float, airborne: bool) -> void:
 	if not anim:
@@ -438,10 +621,9 @@ func _process(_delta: float) -> void:
 		return
 	if not _anim_mode:
 		_retarget()
-	if _belt_node and _bones["Hips"] >= 0:
-		var hw := skel.global_transform * skel.get_bone_global_pose(_bones["Hips"])
-		var bb := hw.basis.orthonormalized()
-		_belt_node.global_transform = Transform3D(bb, hw.origin + bb.y * 0.1)
+	if not casual:
+		_update_gi_parts()
+	_update_hair()
 
 ## Drive the skinned skeleton so its segments point the same way as this rig's (hidden) joints.
 func _retarget() -> void:
