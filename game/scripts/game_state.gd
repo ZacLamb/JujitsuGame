@@ -103,6 +103,11 @@ func load_game() -> void:
 	drills_ready = bool(parsed.get("drills_ready", true))
 	daily = parsed.get("daily", {})
 	medals = parsed.get("medals", {})
+	# saves from before the belt-level system may have spent more points than they now have
+	if attr_points() < 0:
+		attr_alloc = {}
+	if talent_points() < 0:
+		talents = {}
 
 # ------------------------------------------------------------ rank / xp
 func level() -> float:
@@ -121,11 +126,6 @@ func at_stripe_cap() -> bool:
 func add_xp(amount: int) -> void:
 	var before := player_level()
 	xp += amount
-	var after := player_level()
-	if after > before:
-		if not test_mode:
-			Sfx.play("levelup")
-		toast.emit("LEVEL %d!  +%d attribute points, +%d talent point" % [after, Rpg.ATTR_POINTS_PER_LEVEL * (after - before), Rpg.TALENT_POINTS_PER_LEVEL * (after - before)], Color(0.6, 0.9, 1.0))
 	stripe_xp += amount
 	while stripe_xp >= Data.XP_PER_STRIPE and not at_stripe_cap() and rank < 24:
 		stripe_xp -= Data.XP_PER_STRIPE
@@ -135,19 +135,34 @@ func add_xp(amount: int) -> void:
 		_announce_new_moves(rank)
 	if at_stripe_cap():
 		stripe_xp = mini(stripe_xp, Data.XP_PER_STRIPE - 1)
+	_announce_level(before)
 	save_game()
 	progress_changed.emit()
+
+func _announce_level(before: int) -> void:
+	var after := player_level()
+	if after <= before:
+		return
+	if not test_mode:
+		Sfx.play("levelup")
+	var tal := after / Rpg.LEVELS_PER_TALENT_POINT - before / Rpg.LEVELS_PER_TALENT_POINT
+	var txt := "LEVEL %d!  +%d attribute point%s" % [after, after - before, "" if after - before == 1 else "s"]
+	if tal > 0:
+		txt += ", +%d talent point%s" % [tal, "" if tal == 1 else "s"]
+	toast.emit(txt, Color(0.75, 0.55, 1.0))
 
 ## Promote to the next belt (called when a zone boss is beaten).
 func promote_belt(to_belt: int) -> void:
 	if belt_index() >= to_belt:
 		return
+	var lv_before := player_level()
 	rank = to_belt * 5
 	stripe_xp = 0
 	var b: Dictionary = Data.BELTS[to_belt]
 	toast.emit("PROMOTED: %s Belt!" % b.name, b.color)
 	unlock({1: "blue_belt", 2: "purple_belt", 3: "brown_belt", 4: "black_belt"}.get(to_belt, ""))
 	_announce_new_moves(rank)
+	_announce_level(lv_before)
 	save_game()
 	progress_changed.emit()
 
@@ -184,8 +199,29 @@ func choose_style(id: String, name_: String, gi: int) -> void:
 func gi_color() -> Color:
 	return Rpg.GI_COLORS[gi_index]
 
+## WoW-style level tied to the belt: white 1-10, blue 11-20, purple 21-30, brown 31-40, black 41-50.
+## Every 50 XP is a level and every 2 levels a stripe; at 4 stripes the level is capped until the
+## zone boss promotes you.
+const XP_PER_LEVEL := 50
+const MAX_LEVEL := 50
+
 func player_level() -> int:
-	return Rpg.level_for_xp(xp)
+	return mini(MAX_LEVEL, 1 + (rank * Data.XP_PER_STRIPE + stripe_xp) / XP_PER_LEVEL)
+
+func level_capped() -> bool:
+	return player_level() >= MAX_LEVEL or (at_stripe_cap() and player_level() >= (belt_index() + 1) * 10)
+
+## 0..1 progress through the current level.
+func level_progress() -> float:
+	if level_capped():
+		return 1.0
+	return float((rank * Data.XP_PER_STRIPE + stripe_xp) % XP_PER_LEVEL) / XP_PER_LEVEL
+
+## Jump to a level (tests and QA links).
+func set_level(lvl: int) -> void:
+	lvl = clampi(lvl, 1, MAX_LEVEL)
+	rank = mini(24, (lvl - 1) / 2)
+	stripe_xp = ((lvl - 1) % 2) * XP_PER_LEVEL
 
 const DRILLS_PER_POINT := 3
 const TRAIN_CAP := 5
@@ -230,7 +266,7 @@ func attr_points() -> int:
 	return (player_level() - 1) * Rpg.ATTR_POINTS_PER_LEVEL - _sum(attr_alloc)
 
 func talent_points() -> int:
-	return Rpg.START_TALENT_POINTS + (player_level() - 1) * Rpg.TALENT_POINTS_PER_LEVEL - _sum(talents)
+	return Rpg.START_TALENT_POINTS + player_level() / Rpg.LEVELS_PER_TALENT_POINT - _sum(talents)
 
 func raise_attr(k: String) -> bool:
 	if attr_points() <= 0 or attr(k) >= Rpg.ATTR_CAP:

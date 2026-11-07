@@ -27,8 +27,8 @@ func setup_fighter(id: String, w) -> Npc:
 	tag.no_depth_test = true
 	tag.fixed_size = false
 	tag.font_size = 48
-	tag.pixel_size = 0.0085
-	tag.outline_size = 10
+	tag.pixel_size = 0.0115
+	tag.outline_size = 14
 	tag.position = Vector3(0, 2.25, 0)
 	add_child(tag)
 	refresh_tag()
@@ -53,8 +53,13 @@ func refresh_tag() -> void:
 		return
 	var o: Dictionary = Data.OPPONENTS[opp_id]
 	var mark := "  (beaten)" if Game.beaten(opp_id) else ""
-	tag.text = "%s%s\n%s · Lv %.0f" % [o.name, mark, Data.rank_name(int(o.rank)), ceil(float(o.level))]
-	tag.modulate = Color(0.75, 1, 0.75) if Game.beaten(opp_id) else Color(1, 0.95, 0.8)
+	var lv := Data.display_level(float(o.level))
+	var plv := Game.player_level()
+	var lv_txt := "Lv ??" if lv - plv >= 10 else "Lv %d" % lv
+	if o.get("boss", false):
+		lv_txt += " Boss"
+	tag.text = "%s%s\n%s · %s" % [o.name, mark, lv_txt, Data.BELTS[Data.belt_of(int(o.rank))].name + " Belt"]
+	tag.modulate = Data.con_color(lv, plv)
 
 func set_player(p: Node3D) -> void:
 	_player = p

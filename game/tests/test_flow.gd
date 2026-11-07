@@ -33,7 +33,7 @@ func _ready() -> void:
 	for st in Rpg.STYLE_ORDER:
 		Game.reset()
 		Game.choose_style(st, "Bot", 0)
-		Game.xp = Rpg.xp_for_level(5)
+		Game.set_level(5)
 		for t in talents_by_style[st]:
 			Game.learn(t)
 		while Game.attr_points() > 0:
@@ -45,7 +45,7 @@ func _ready() -> void:
 	# ---- travel to the Pantanal and play it through
 	Game.reset()
 	Game.choose_style("athlete", "Bot", 1)
-	Game.xp = Rpg.xp_for_level(8)
+	Game.set_level(8)
 	for t in ["hip_mobility", "hip_mobility", "heavy_hips", "heavy_hips", "t_leg_drag", "killer_instinct"]:
 		Game.learn(t)
 	while Game.attr_points() > 0:

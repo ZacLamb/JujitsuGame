@@ -79,13 +79,13 @@ func zone_bonus(move_id: String) -> float:
 ## Timing bar parameters for the player's chosen move.
 func timing_params(move_id: String) -> Dictionary:
 	var m: Dictionary = Data.MOVES[move_id]
-	var w := 0.26 + 0.035 * (player_level - opp_level) - 0.04 * float(m.diff)
+	var w := 0.2 + 0.05 * (player_level - opp_level) - 0.035 * float(m.diff)
 	w = clampf(w, 0.07, 0.42) * (1.0 + zone_bonus(move_id))
 	w = clampf(w, 0.05, 0.5) * stamina_factor(stamina_pct())
 	var center := rng.randf_range(0.02 + w * 0.5, 0.98 - w * 0.5)
 	center = clampf(lerpf(center, 0.5, 0.3), w * 0.5, 1.0 - w * 0.5)
 	var perfect := minf(w * 0.2 * float(mods.perfect), w * 0.45)
-	return {"center": center, "width": w, "perfect": perfect, "speed": 0.7 + 0.11 * opp_level}
+	return {"center": center, "width": w, "perfect": perfect, "speed": 0.75 + 0.05 * opp_level + 0.06 * maxf(gap(), 0.0)}
 
 func judge_timing(params: Dictionary, marker: float) -> String:
 	var d := absf(marker - float(params.center))
@@ -96,34 +96,40 @@ func judge_timing(params: Dictionary, marker: float) -> String:
 	return "miss"
 
 ## Seconds the player gets to react to an opponent attack.
+## How much stronger the opponent is than the player (negative = weaker). Difficulty is mostly
+## driven by this gap; the opponent's absolute level only adds a gentle intensity ramp.
+func gap() -> float:
+	return opp_level - player_level
+
 func defense_window(attack_id := "") -> float:
-	var w := clampf(1.55 - 0.14 * opp_level + 0.06 * player_level, 0.55, 1.7) * float(mods.defense)
+	var w := clampf(1.1 - 0.18 * gap() - 0.015 * (opp_level - 1.0), 0.5, 1.7) * float(mods.defense)
 	if attack_id != "":
 		w *= float(mods.defense_vs.get(Data.MOVES[attack_id].type, 1.0))
 	return clampf(w, 0.45, 2.6)
 
 func decision_window() -> float:
-	return clampf(5.0 - 0.35 * opp_level, 2.4, 5.0) * float(mods.decision)
+	return clampf(5.0 - 0.15 * opp_level - 0.4 * gap(), 2.6, 5.0) * float(mods.decision)
 
 ## Chance the opponent attacks first at the start of an exchange.
 func opp_initiative_chance() -> float:
-	var c := 0.12 + 0.05 * opp_level
+	var c := 0.26 + 0.06 * gap() + 0.01 * opp_level
 	if opp_stamina < 30.0:
 		c *= 0.5
 	if pos == "standing":
 		c *= float(mods.opp_initiative_standing)
-	return clampf(c, 0.05, 0.42)
+	return clampf(c, 0.1, 0.48)
 
 ## Chance a missed technique gets countered.
 func counter_chance(missed_id := "") -> float:
 	if missed_id != "" and mods.scramble and Data.MOVES[missed_id].type == "takedown":
 		return 0.0
-	return clampf(0.3 + 0.06 * opp_level, 0.3, 0.7)
+	return clampf(0.38 + 0.06 * gap() + 0.01 * opp_level, 0.2, 0.65)
 
 func struggle_params(attacking: bool, sub_id := "") -> Dictionary:
 	var gain := 0.075 * clampf(1.0 + 0.08 * (player_level - opp_level), 0.6, 1.35) * stamina_factor(stamina_pct())
 	gain *= float(mods.struggle_atk) if attacking else float(mods.struggle_def)
-	var decay := (0.15 + 0.04 * opp_level) if attacking else (0.14 + 0.05 * opp_level)
+	var decay := (0.22 + 0.06 * gap() + 0.01 * opp_level) if attacking else (0.24 + 0.07 * gap() + 0.01 * opp_level)
+	decay = maxf(decay, 0.12)
 	var start := 0.45
 	if attacking:
 		start = 0.5 + float(mods.sub_start) + float(mods.sub_start_move.get(sub_id, 0.0))

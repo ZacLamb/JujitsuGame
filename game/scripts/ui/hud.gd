@@ -11,6 +11,9 @@ signal daily_requested
 var root: Control
 var rank_box: VBoxContainer
 var xp_bar: ProgressBar
+var zone_lbl: Label
+const XP_COLOR := Color(0.62, 0.36, 1.0)       # experience purple
+const XP_CAP_COLOR := Color(0.98, 0.76, 0.24)   # gold when capped at the belt
 var rank_label: Label
 var chip_holder: Control
 var objective: Label
@@ -81,7 +84,8 @@ func _build_status() -> void:
 	lvl_label = UiKit.label("", 17, Color(0.6, 0.9, 1.0))
 	lvl_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	rank_box.add_child(lvl_label)
-	xp_bar = UiKit.bar(Color(0.45, 0.75, 1.0), Vector2(200, 10))
+	xp_bar = UiKit.bar(XP_COLOR, Vector2(240, 14))
+	xp_bar.add_theme_stylebox_override("background", UiKit.box(Color(0.08, 0.05, 0.14, 0.85), 7, Color(0.5, 0.35, 0.8, 0.7), 1))
 	rank_box.add_child(xp_bar)
 
 	var right := PanelContainer.new()
@@ -98,9 +102,10 @@ func _build_status() -> void:
 	right.add_child(rv)
 	var head := HBoxContainer.new()
 	rv.add_child(head)
-	var ql := UiKit.label("OBJECTIVE", 14, UiKit.ACCENT)
-	ql.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(ql)
+	zone_lbl = UiKit.label("OBJECTIVE", 14, UiKit.ACCENT)
+	zone_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	zone_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	head.add_child(zone_lbl)
 	journal_btn = UiKit.button("Character (C)", Vector2(150, 34))
 	journal_btn.add_theme_font_size_override("font_size", 15)
 	journal_btn.pressed.connect(open_character)
@@ -140,16 +145,22 @@ func refresh() -> void:
 	for c in chip_holder.get_children():
 		c.queue_free()
 	chip_holder.add_child(UiKit.belt_chip(Game.rank, Vector2(150, 20)))
-	if Game.rank >= 5 or Game.at_stripe_cap():
-		xp_bar.value = 100
-	else:
-		xp_bar.value = Game.xp_into_stripe()
+	var capped := Game.level_capped()
+	xp_bar.value = 100.0 * Game.level_progress()
+	xp_bar.add_theme_stylebox_override("fill", UiKit.box(XP_CAP_COLOR if capped else XP_COLOR, 7))
 	objective.text = Game.current_objective()
+	if Data.ZONES.has(Game.zone):
+		zone_lbl.text = "%s  ·  %s" % [Data.ZONES[Game.zone].name.to_upper(), Data.zone_levels(Game.zone).to_upper()]
 	var lv := Game.player_level()
 	var pts := Game.attr_points() + Game.talent_points()
 	var extra := ("\n%d point%s to spend  (C)" % [pts, "" if pts == 1 else "s"]) if pts > 0 else ""
-	lvl_label.text = "Level %d  ·  %d / %d XP%s" % [lv, Game.xp - Rpg.xp_for_level(lv), Rpg.xp_for_level(lv + 1) - Rpg.xp_for_level(lv), extra]
-	lvl_label.add_theme_color_override("font_color", UiKit.ACCENT if pts > 0 else Color(0.6, 0.9, 1.0))
+	if capped and lv < Game.MAX_LEVEL:
+		lvl_label.text = "Level %d  ·  belt cap: beat the boss%s" % [lv, extra]
+	elif capped:
+		lvl_label.text = "Level %d  ·  MAX%s" % [lv, extra]
+	else:
+		lvl_label.text = "Level %d  ·  %d / %d XP%s" % [lv, int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL, extra]
+	lvl_label.add_theme_color_override("font_color", UiKit.ACCENT if pts > 0 else Color(0.78, 0.66, 1.0))
 	if journal.visible:
 		_fill_journal()
 
@@ -388,7 +399,10 @@ func _fill_character() -> void:
 	c.add_child(UiKit.label("%s  ·  %s  ·  %s" % [Game.player_name, st.name, Data.rank_name(Game.rank)], 24, UiKit.ACCENT))
 	c.add_child(UiKit.label(st.passive, 18, UiKit.MUTED))
 	var lv := Game.player_level()
-	c.add_child(UiKit.label("Level %d — %d XP to level %d" % [lv, Rpg.xp_for_level(lv + 1) - Game.xp, lv + 1], 19))
+	if Game.level_capped():
+		c.add_child(UiKit.label("Level %d — capped for your belt. Beat this zone's boss to keep leveling." % lv if lv < Game.MAX_LEVEL else "Level %d — max level" % lv, 19))
+	else:
+		c.add_child(UiKit.label("Level %d — %d XP to level %d" % [lv, Game.XP_PER_LEVEL - int(Game.level_progress() * Game.XP_PER_LEVEL), lv + 1], 19))
 	var ap := Game.attr_points()
 	c.add_child(UiKit.label("Attribute points: %d" % ap, 21, UiKit.ACCENT if ap > 0 else UiKit.TEXT))
 	for k in Rpg.ATTR_ORDER:
@@ -543,7 +557,7 @@ func open_travel() -> void:
 		var zd: Dictionary = Data.ZONES[z]
 		var locked := Game.rank < int(zd.rank)
 		var here: bool = z == Game.zone
-		var txt := "%s  ·  %s" % [zd.name, zd.sub]
+		var txt := "%s  ·  %s" % [zd.name, Data.zone_levels(z)]
 		if here:
 			txt += "   (you are here)"
 		elif locked:

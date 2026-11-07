@@ -67,7 +67,7 @@ func _dev_hash() -> void:
 		Game.choose_style(style_q, "Gringo", 0)
 		for part in h.trim_prefix("#").split("&"):
 			if part.begins_with("lvl="):
-				Game.xp = Rpg.xp_for_level(int(part.trim_prefix("lvl=")))
+				Game.set_level(int(part.trim_prefix("lvl=")))
 				Game.progress_changed.emit()
 	_start_game()
 	hud._close_dialogue(false)
@@ -256,7 +256,7 @@ func _travel(z: String) -> void:
 	hud.set_prompt(null)
 	hud.refresh()
 	var zd: Dictionary = Data.ZONES[z]
-	Game.toast.emit("%s  ·  %s" % [zd.name, zd.sub], UiKit.ACCENT)
+	Game.toast.emit("%s  ·  %s  ·  %s" % [zd.name, zd.sub, Data.zone_levels(z)], UiKit.ACCENT)
 	if z == "pantanal":
 		Game.unlock("travel")
 		if not Game.flags.get("pantanal_intro", false):

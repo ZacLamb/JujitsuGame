@@ -113,8 +113,8 @@ static func level_for_xp(xp: int) -> int:
 		lvl += 1
 	return lvl
 
-const ATTR_POINTS_PER_LEVEL := 2
-const TALENT_POINTS_PER_LEVEL := 1
+const ATTR_POINTS_PER_LEVEL := 1
+const LEVELS_PER_TALENT_POINT := 2  # one talent point every other level
 const START_TALENT_POINTS := 1
 
 # ---------------------------------------------------------------- modifiers

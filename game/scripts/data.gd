@@ -151,89 +151,110 @@ static func rank_name(rank: int) -> String:
 static func rank_level(rank: int) -> float:
 	return 1.0 + float(rank) * 0.55
 
+## The 1-50 level shown to players for a fighter's combat strength (same scale as Game.player_level).
+static func display_level(combat_level: float) -> int:
+	return clampi(int(round(1.0 + 2.0 * (combat_level - 1.0) / 0.55)), 1, 60)
+
+## WoW-style "con" color: how dangerous a fighter at opp_lv is for a player at player_lv.
+static func con_color(opp_lv: int, player_lv: int) -> Color:
+	var d := opp_lv - player_lv
+	if d >= 5:
+		return Color(1.0, 0.25, 0.22)    # red: you will probably lose
+	if d >= 3:
+		return Color(1.0, 0.55, 0.15)    # orange: hard
+	if d >= -2:
+		return Color(1.0, 0.88, 0.25)    # yellow: even
+	if d >= -7:
+		return Color(0.35, 0.95, 0.35)   # green: easy
+	return Color(0.62, 0.62, 0.62)       # gray: no challenge
+
+static func zone_levels(z: String) -> String:
+	var lv: Array = ZONES[z].levels
+	return "Lv %d–%d" % [lv[0], lv[1]]
+
 const XP_PER_STRIPE := 100
 
 # ---------------------------------------------------------------- opponents (zone 1)
 # level drives AI speed, reaction windows and move choice.
 const OPPONENTS := {
-	"rafa": {"name": "Rafa", "title": "Plaza regular", "rank": 0, "level": 1.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.57, 0.4),
+	"rafa": {"name": "Rafa", "title": "Plaza regular", "rank": 0, "level": 1.3, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.57, 0.4),
 		"pos": Vector3(6, 0, 4), "style": "balanced",
 		"intro": "Ei, gringo! Bora treinar? (Let's train?) I just started too, go easy.",
 		"win": "Boa! You caught me. Go find the academia by the cathedral.",
 		"lose": "Haha, tap early, tap often. Again later?"},
-	"cida": {"body": "female", "name": "Cida", "title": "Riverbank runner", "rank": 3, "level": 1.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
+	"cida": {"body": "female", "name": "Cida", "title": "Riverbank runner", "rank": 3, "level": 2.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
 		"pos": Vector3(-46, 0, -18), "style": "guard", "extra": ["omoplata"],
 		"intro": "I train every morning before the sun gets mean. Guard player. Watch the triangle.",
 		"win": "Sweep me like that again and I'm telling my professor.",
 		"lose": "My legs are everywhere, né? Come back with better posture."},
-	"tiago": {"name": "Tiago", "title": "Market wrestler", "rank": 5, "level": 2.8, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.86, 0.66, 0.5),
+	"tiago": {"name": "Tiago", "title": "Market wrestler", "rank": 5, "level": 2.6, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.86, 0.66, 0.5),
 		"pos": Vector3(30, 0, -26), "style": "pressure", "extra": ["snap_down"],
 		"intro": "Wrestled in school. I shoot doubles and I don't stop. Ready?",
 		"win": "Good hips. Most people just fall over.",
 		"lose": "Pressure, pressure, pressure. That's the game."},
-	"peixe": {"name": "Peixe", "title": "Fisherman, blue belt", "rank": 7, "level": 3.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.42, 0.28),
+	"peixe": {"name": "Peixe", "title": "Fisherman, blue belt", "rank": 7, "level": 3.1, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.42, 0.28),
 		"pos": Vector3(-52, 0, 30), "style": "back", "extra": ["berimbolo"],
 		"intro": "They call me Peixe (fish). Slippery. If I get your back, it's over.",
 		"win": "You held me down like a net. Respect.",
 		"lose": "Like a fish, see? Hooks in, and goodbye."},
-	"onca": {"name": "Mestre Onça", "title": "Gym boss, purple belt", "rank": 10, "level": 5.2, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.5, 0.34, 0.22),
+	"onca": {"name": "Mestre Onça", "title": "Gym boss, purple belt", "rank": 10, "level": 4.35, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.5, 0.34, 0.22),
 		"pos": Vector3(0, 0, -50), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag"],
 		"intro": "So you beat the town. On my mat, every mistake costs a limb. Oss.",
 		"win": "Oss. Kneel. You've earned this. Welcome to blue belt.",
 		"lose": "Again. The mat doesn't lie. Come back stronger."},
 	# ---------------- Zone 2: Pantanal
-	"bruna": {"body": "female", "name": "Bruna", "title": "Ranch hand", "rank": 7, "level": 4.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.72, 0.52, 0.36),
+	"bruna": {"body": "female", "name": "Bruna", "title": "Ranch hand", "rank": 7, "level": 4.3, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.72, 0.52, 0.36),
 		"pos": Vector3(-40, 0, 22), "style": "guard", "extra": ["omoplata", "berimbolo", "triangle"], "zone": "pantanal",
 		"intro": "I wrestle calves before breakfast, gringo. Your guard passing better be good.",
 		"win": "Okay, okay. You can come help with the cattle anytime.",
 		"lose": "Legs like lassos. Next time."},
-	"zeca": {"name": "Zeca", "title": "Boat guide", "rank": 9, "level": 5.4, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.55, 0.38, 0.26),
+	"zeca": {"name": "Zeca", "title": "Boat guide", "rank": 9, "level": 4.9, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.55, 0.38, 0.26),
 		"pos": Vector3(38, 0, -34), "style": "pressure", "extra": ["leg_drag", "darce", "snap_down"], "zone": "pantanal",
 		"intro": "Thirty years on these rivers. I've wrestled jacarés. You're easier.",
 		"win": "Ha! The river humbles everyone. Today it was me.",
 		"lose": "Heavy, né? Like a wet canoe."},
-	"tuca": {"name": "Tuca", "title": "Park ranger, purple belt", "rank": 10, "level": 6.0, "gi": Color(0.32, 0.4, 0.22), "skin": Color(0.6, 0.42, 0.28),
+	"tuca": {"name": "Tuca", "title": "Park ranger, purple belt", "rank": 10, "level": 5.4, "gi": Color(0.32, 0.4, 0.22), "skin": Color(0.6, 0.42, 0.28),
 		"pos": Vector3(-18, 0, -44), "style": "back", "extra": ["berimbolo", "bow_arrow", "rnc", "snap_down"], "zone": "pantanal",
 		"intro": "I track jaguars for a living. I'll track your back.",
 		"win": "Good defense. The onça would be proud.",
 		"lose": "Seatbelt, hooks, sleep. Like clockwork."},
-	"neide": {"body": "female", "name": "Dona Neide", "title": "Old-school killer, purple belt", "rank": 12, "level": 6.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.66, 0.47, 0.32),
+	"neide": {"body": "female", "name": "Dona Neide", "title": "Old-school killer, purple belt", "rank": 12, "level": 5.9, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.66, 0.47, 0.32),
 		"pos": Vector3(52, 0, 22), "style": "submission", "extra": ["ezekiel", "omoplata", "cross_collar", "darce"], "zone": "pantanal",
 		"intro": "Sixty-two years old, meu filho. Don't go easy. I won't.",
 		"win": "Lindo! Your grandmother would be proud.",
 		"lose": "Never underestimate the old lady with the gi."},
-	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.6, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
+	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.1, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
 		"pos": Vector3(64, 0, 58), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow"], "zone": "pantanal",
 		"intro": "Onça sent you? Then you know the rules. My mat, my swamp. Oss.",
 		"win": "The swamp respects you now. Purple belt. Wear it well.",
 		"lose": "The jacaré waits. The jacaré always wins in the end."},
 	# ---------------- Zone 3: Chapada dos Guimarães
-	"iara": {"body": "female", "name": "Iara", "title": "Waterfall guide, purple belt", "rank": 12, "level": 7.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.7, 0.5, 0.34),
+	"iara": {"body": "female", "name": "Iara", "title": "Waterfall guide, purple belt", "rank": 12, "level": 6.9, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.7, 0.5, 0.34),
 		"pos": Vector3(26, 0, 6), "style": "guard", "extra": ["omoplata", "berimbolo", "triangle", "guard_armbar"], "zone": "chapada",
 		"intro": "I swim under the Véu de Noiva every morning. Cold water, warm guard.",
 		"win": "Strong passing. The waterfall would be jealous.",
 		"lose": "Flow like water, gringo. You fought like a rock."},
-	"biro": {"name": "Biro", "title": "Rock climber, purple belt", "rank": 13, "level": 7.5, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.8, 0.6, 0.45),
+	"biro": {"name": "Biro", "title": "Rock climber, purple belt", "rank": 13, "level": 7.4, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.8, 0.6, 0.45),
 		"pos": Vector3(-30, 0, -40), "style": "pressure", "extra": ["leg_drag", "darce", "ezekiel", "knee_slice"], "zone": "chapada",
 		"intro": "Fingers like hooks from the cliffs. Once I grip, I don't let go.",
 		"win": "Okay, your grips are better than mine. Don't tell anyone.",
 		"lose": "Crimp grip, gringo. You can't escape a crimp grip."},
-	"joaquim": {"name": "Joaquim", "title": "Crystal seller, purple belt", "rank": 14, "level": 8.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
+	"joaquim": {"name": "Joaquim", "title": "Crystal seller, purple belt", "rank": 14, "level": 7.9, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.55, 0.38, 0.26),
 		"pos": Vector3(46, 0, 34), "style": "submission", "extra": ["ezekiel", "cross_collar", "omoplata", "bow_arrow"], "zone": "chapada",
 		"intro": "The crystals say you will lose. But the crystals have been wrong before.",
 		"win": "The crystals... were wrong. Take this one, for luck.",
 		"lose": "The crystals are never wrong twice."},
-	"rita": {"body": "female", "name": "Rita", "title": "Trail runner, brown belt", "rank": 16, "level": 8.6, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.62, 0.42, 0.28),
+	"rita": {"body": "female", "name": "Rita", "title": "Trail runner, brown belt", "rank": 16, "level": 8.3, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.62, 0.42, 0.28),
 		"pos": Vector3(-8, 0, -58), "style": "back", "extra": ["berimbolo", "bow_arrow", "snap_down", "rnc"], "zone": "chapada",
 		"intro": "I run the plateau trail twice a day. Let's see if your gas tank keeps up.",
 		"win": "You outlasted me. That doesn't happen.",
 		"lose": "Cardio is a technique too, gringo."},
-	"gaucho": {"name": "Gaúcho", "title": "Visiting competitor, brown belt", "rank": 17, "level": 9.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.9, 0.72, 0.6),
+	"gaucho": {"name": "Gaúcho", "title": "Visiting competitor, brown belt", "rank": 17, "level": 8.7, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.9, 0.72, 0.6),
 		"pos": Vector3(-52, 0, 30), "style": "pressure", "extra": ["leg_drag", "darce", "uchi_mata", "ezekiel"], "zone": "chapada",
 		"intro": "Came up from Porto Alegre for the Chapada open. You're my warm-up, tchê.",
 		"win": "Bah! Good roll, tchê. See you at the Worlds.",
 		"lose": "Warm-up's done. Thanks, tchê."},
-	"cachoeira": {"name": "Mestre Cachoeira", "title": "Chapada boss, black belt", "rank": 20, "level": 9.8, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.42, 0.28, 0.18),
+	"cachoeira": {"name": "Mestre Cachoeira", "title": "Chapada boss, black belt", "rank": 20, "level": 9.85, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.42, 0.28, 0.18),
 		"pos": Vector3(40, 0, 52), "style": "submission", "boss": true,
 		"extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow", "uchi_mata", "flying_armbar", "cross_collar"], "zone": "chapada",
 		"intro": "Onça and Jacaré were my students. Show me what they taught you. Oss.",
@@ -250,22 +271,22 @@ const OPPONENTS := {
 		"intro": "Sand training makes your legs like steel. You're about to find out.",
 		"win": "Nice! You read the berimbolo before I even spun.",
 		"lose": "Sand in your gi and a choke on your neck. Classic Copacabana."},
-	"baiano": {"name": "Baiano", "title": "Capoeira mestre, brown belt", "rank": 18, "level": 10.2, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.36, 0.23, 0.15),
+	"baiano": {"name": "Baiano", "title": "Capoeira mestre, brown belt", "rank": 18, "level": 10.5, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.36, 0.23, 0.15),
 		"pos": Vector3(52, 0, 27), "style": "guard", "extra": ["berimbolo", "omoplata", "triangle", "flying_armbar"], "zone": "rio",
 		"intro": "Ginga, gringo. Capoeira taught me to move. Jiu-jitsu taught me to finish.",
 		"win": "Axé! Your base is stronger than my ginga.",
 		"lose": "The berimbau plays, and you dance to my rhythm."},
-	"tatu": {"name": "Tatu", "title": "Morro social project coach, black belt", "rank": 20, "level": 10.8, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.45, 0.3, 0.2),
+	"tatu": {"name": "Tatu", "title": "Morro social project coach, black belt", "rank": 20, "level": 10.9, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.45, 0.3, 0.2),
 		"pos": Vector3(36, 0, -42), "style": "pressure", "extra": ["leg_drag", "darce", "ezekiel", "knee_slice"], "zone": "rio",
 		"intro": "I teach forty kids up here for free. They all watch me roll. Don't embarrass yourself.",
 		"win": "The kids are clapping for you. Come teach a class sometime.",
 		"lose": "Pressure, gringo. Up here we grow up under pressure."},
-	"bia": {"body": "female", "name": "Professora Bia", "title": "Competition coach, black belt", "rank": 21, "level": 11.2, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.88, 0.7, 0.56),
+	"bia": {"body": "female", "name": "Professora Bia", "title": "Competition coach, black belt", "rank": 21, "level": 11.4, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.88, 0.7, 0.56),
 		"pos": Vector3(-68, 0, 36), "style": "submission", "extra": ["ezekiel", "cross_collar", "omoplata", "bow_arrow", "darce"], "zone": "rio",
 		"intro": "I train world champions at sunrise on the Arpoador. Let's see what Mato Grosso sent me.",
 		"win": "Technical, patient, dangerous. Leão will want to see you.",
 		"lose": "Good roll. Tap a little earlier next time; I can see the sunset from here."},
-	"leao": {"name": "Grão-Mestre Leão", "title": "Rio boss, coral belt legend", "rank": 24, "level": 12.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.45, 0.32),
+	"leao": {"name": "Grão-Mestre Leão", "title": "Rio boss, coral belt legend", "rank": 24, "level": 12.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.45, 0.32),
 		"pos": Vector3(10, 0, -24), "style": "balanced", "boss": true,
 		"extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow", "uchi_mata", "flying_armbar", "cross_collar", "snap_down"], "zone": "rio",
 		"intro": "Onça, Jacaré, Cachoeira... I gave them their black belts. Now show me yours is earned. Oss.",
@@ -274,10 +295,10 @@ const OPPONENTS := {
 }
 
 const ZONES := {
-	"caceres": {"name": "Cáceres", "sub": "Mato Grosso", "rank": 0, "boss": "onca", "spawn": Vector3(0, 0, 24), "collect": "Tereré cups"},
-	"pantanal": {"name": "Pantanal Norte", "sub": "Transpantaneira", "rank": 5, "boss": "jacare", "spawn": Vector3(-82, 0, -4), "collect": "Arara feathers"},
-	"chapada": {"name": "Chapada dos Guimarães", "sub": "Red cliffs and waterfalls", "rank": 10, "boss": "cachoeira", "spawn": Vector3(-80, 0, 40), "collect": "Quartz crystals"},
-	"rio": {"name": "Rio de Janeiro", "sub": "Where jiu-jitsu grew up", "rank": 15, "boss": "leao", "spawn": Vector3(-84, 0, 6), "collect": "Green coconuts"},
+	"caceres": {"levels": [1, 10], "name": "Cáceres", "sub": "Mato Grosso", "rank": 0, "boss": "onca", "spawn": Vector3(0, 0, 24), "collect": "Tereré cups"},
+	"pantanal": {"levels": [11, 20], "name": "Pantanal Norte", "sub": "Transpantaneira", "rank": 5, "boss": "jacare", "spawn": Vector3(-82, 0, -4), "collect": "Arara feathers"},
+	"chapada": {"levels": [21, 30], "name": "Chapada dos Guimarães", "sub": "Red cliffs and waterfalls", "rank": 10, "boss": "cachoeira", "spawn": Vector3(-80, 0, 40), "collect": "Quartz crystals"},
+	"rio": {"levels": [31, 50], "name": "Rio de Janeiro", "sub": "Where jiu-jitsu grew up", "rank": 15, "boss": "leao", "spawn": Vector3(-84, 0, 6), "collect": "Green coconuts"},
 }
 
 # ---------------------------------------------------------------- daily challenge
@@ -298,13 +319,13 @@ static func daily_challenge(date_str: String, player_rank: int) -> Dictionary:
 	var rules := DAILY_RULES.keys()
 	var rule: String = rules[rng.randi() % rules.size()]
 	var styles := ["guard", "pressure", "back", "submission", "balanced"]
-	var opp_rank := clampi(player_rank + rng.randi_range(1, 4), 2, 24)
+	var opp_rank := clampi(player_rank + rng.randi_range(0, 2), 1, 24)
 	var extras: Array = []
 	for id in MOVES:
 		if int(MOVES[id].rank) == 99 and rng.randf() < 0.45:
 			extras.append(id)
 	var name_: String = DAILY_NAMES[rng.randi() % DAILY_NAMES.size()]
-	var opp := {"name": name_, "title": "Daily Challenge", "rank": opp_rank, "level": rank_level(opp_rank) + 0.6,
+	var opp := {"name": name_, "title": "Daily Challenge", "rank": opp_rank, "level": rank_level(player_rank) + 0.35 + rng.randf() * 0.7,
 		"gi": [Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)][rng.randi() % 3],
 		"skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), rng.randf()),
 		"style": styles[rng.randi() % styles.size()], "extra": extras, "zone": "",
@@ -494,7 +515,7 @@ static func comp_bracket(comp_id: String, player_rank: int, player_name: String,
 			if best.is_empty() or float(entries[i].power) + rng.randf() * 0.35 > float(best.power):
 				best = entries[i]
 		var o: Dictionary = best.opp.duplicate()
-		o.level = rank_level(int(o.rank)) - 0.35 + rd * 0.45 + float(c.power) + float(best.power) * 0.3
+		o.level = rank_level(player_rank) - 0.45 + rd * 0.4 + float(c.power) * 0.6 + float(best.power) * 0.3
 		o.academy = best.academy
 		path.append(o)
 	return {"id": comp_id, "entries": entries, "path": path, "round": 0, "belt": belt, "rounds": rounds}
