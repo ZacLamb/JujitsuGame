@@ -17,6 +17,7 @@ var counters := {}  # achievement id -> int
 var landmarks := {}
 var cups := {}
 var flags := {}  # misc quest flags
+var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
 var style := ""            # Rpg.STYLES key; "" until chosen
@@ -57,6 +58,7 @@ func reset() -> void:
 	drills_ready = true
 	daily = {}
 	medals = {}
+	quests = {}
 	save_game()
 	progress_changed.emit()
 
@@ -68,7 +70,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -103,6 +105,7 @@ func load_game() -> void:
 	drills_ready = bool(parsed.get("drills_ready", true))
 	daily = parsed.get("daily", {})
 	medals = parsed.get("medals", {})
+	quests = parsed.get("quests", {})
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
 		attr_alloc = {}
@@ -234,6 +237,7 @@ func complete_drill(k: String) -> bool:
 	var before := train_bonus(k)
 	train[k] = int(train.get(k, 0)) + 1
 	bump("drills")
+	quest_event("drill")
 	add_xp(5)
 	var gained := train_bonus(k) > before
 	if gained:
@@ -468,6 +472,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 	if result.won:
 		wins[opp_id] = int(wins.get(opp_id, 0)) + 1
 		var first_time := int(wins[opp_id]) == 1
+		if result.by_sub:
+			quest_event("sub_wins")
 		gained = int(30 + 18 * float(opp.level))
 		if result.by_sub:
 			gained += 15
@@ -517,6 +523,140 @@ func _all_town_beaten() -> bool:
 	return true
 
 
+# ------------------------------------------------------------ quests
+signal quest_progress(id: String)
+
+func quest_state(id: String) -> String:
+	return str(quests.get(id, {}).get("state", ""))
+
+## Can the player pick this quest up right now?
+func quest_available(id: String) -> bool:
+	if quest_state(id) != "":
+		return false
+	var q: Dictionary = Data.QUESTS[id]
+	for r in q.get("requires", []):
+		if quest_state(r) != "done":
+			return false
+	return player_level() >= int(q.min_level)
+
+func quest_locked_by_level(id: String) -> bool:
+	var q: Dictionary = Data.QUESTS[id]
+	if quest_state(id) != "":
+		return false
+	for r in q.get("requires", []):
+		if quest_state(r) != "done":
+			return false
+	return player_level() < int(q.min_level)
+
+func accept_quest(id: String) -> void:
+	if not quest_available(id):
+		return
+	quests[id] = {"state": "active", "count": {}}
+	toast.emit("Quest accepted: %s" % Data.QUESTS[id].title, Color(1, 0.85, 0.3))
+	save_game()
+	progress_changed.emit()
+
+## [current, needed] for one objective.
+func objective_progress(id: String, i: int) -> Array:
+	var o: Dictionary = Data.QUESTS[id].obj[i]
+	var cnt := int(quests.get(id, {}).get("count", {}).get(str(i), 0))
+	match o.type:
+		"collect":
+			return [mini(collected_count(o.zone), o.n), o.n]
+		"count_landmarks":
+			var n := 0
+			for lid in Data.landmarks_in(o.zone):
+				if landmarks.has(lid):
+					n += 1
+			return [mini(n, o.n), o.n]
+		"landmarks":
+			var n2 := 0
+			for lid in o.ids:
+				if landmarks.has(lid):
+					n2 += 1
+			return [n2, o.ids.size()]
+		"beat":
+			var n3 := 0
+			for oid in o.ids:
+				if beaten(oid):
+					n3 += 1
+			return [n3, o.ids.size()]
+		"medal":
+			for b in Data.BELTS.size():
+				if str(medals.get("%s_%d" % [o.comp, b], "")) != "":
+					return [1, 1]
+			return [0, 1]
+		"reach":
+			return [mini(cnt, 1), 1]
+		_:
+			return [mini(cnt, int(o.n)), int(o.n)]
+
+func quest_ready(id: String) -> bool:
+	if quest_state(id) != "active":
+		return false
+	for i in Data.QUESTS[id].obj.size():
+		var p := objective_progress(id, i)
+		if int(p[0]) < int(p[1]):
+			return false
+	return true
+
+## Event-driven objectives (drills, sub wins, dailies, reach points) count from acceptance.
+func quest_event(kind: String, key := "") -> void:
+	var changed := false
+	for id in quests:
+		if quest_state(id) != "active":
+			continue
+		var objs: Array = Data.QUESTS[id].obj
+		for i in objs.size():
+			var o: Dictionary = objs[i]
+			if o.type != kind:
+				continue
+			if kind == "reach" and key != "%s:%d" % [id, i]:
+				continue
+			var was_ready := quest_ready(id)
+			quests[id].count[str(i)] = int(quests[id].count.get(str(i), 0)) + 1
+			changed = true
+			if quest_ready(id) and not was_ready:
+				toast.emit("%s: complete! Return to %s." % [Data.QUESTS[id].title, Data.QUEST_GIVERS[Data.QUESTS[id].giver].name], Color(1, 0.85, 0.3))
+			quest_progress.emit(id)
+	if changed:
+		save_game()
+		progress_changed.emit()
+
+func complete_quest(id: String) -> int:
+	if not quest_ready(id):
+		return 0
+	quests[id].state = "done"
+	var q: Dictionary = Data.QUESTS[id]
+	toast.emit("Quest complete: %s  (+%d XP)" % [q.title, int(q.xp)], Color(1, 0.85, 0.3))
+	unlock("quest_1")
+	bump("quests_10")
+	bump("quests_all")
+	add_xp(int(q.xp))
+	return int(q.xp)
+
+func active_quests(z := "") -> Array:
+	var out: Array = []
+	for id in quests:
+		if quest_state(id) == "active" and (z == "" or Data.QUEST_GIVERS[Data.QUESTS[id].giver].zone == z):
+			out.append(id)
+	return out
+
+## "!" available, "?" ready to turn in, "…" in progress, "" nothing for this giver.
+func giver_marker(giver: String) -> String:
+	var progress := false
+	var avail := false
+	for id in Data.quests_of(giver):
+		if quest_ready(id):
+			return "?"
+		if quest_state(id) == "active":
+			progress = true
+		elif quest_available(id):
+			avail = true
+	if avail:
+		return "!"
+	return "…" if progress else ""
+
 # ------------------------------------------------------------ competitions
 func medal_counts() -> Dictionary:
 	var out := {"gold": 0, "silver": 0, "bronze": 0}
@@ -536,6 +676,7 @@ func record_comp_match(result: Dictionary, opp_level: float) -> int:
 	if result.won:
 		gained = int(20 + 10 * opp_level)
 		if result.by_sub:
+			quest_event("sub_wins")
 			gained += 10
 			unlock("first_tap")
 		else:
@@ -606,6 +747,9 @@ func record_daily(result: Dictionary, date_str := "") -> int:
 	daily["last_try"] = date_str
 	var gained := 15
 	if result.won:
+		quest_event("daily_wins")
+		if result.by_sub:
+			quest_event("sub_wins")
 		var last := str(daily.get("last_win", ""))
 		if last == date_str:
 			gained = 20

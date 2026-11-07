@@ -42,6 +42,32 @@ func _ready() -> void:
 			var r = await play_roll(opp, true)
 			check(r.done, "[%s] roll vs %s completed (won=%s by_sub=%s)" % [st, opp, r.won, r.by_sub])
 	check(Game.unlocked.has("first_roll"), "first_roll unlocked")
+	# ---- quests: accept from a giver, progress, turn in
+	check(main.world.quest_givers.has("kaique") and main.world.quest_givers["kaique"].marker.visible, "Kaique has a quest marker")
+	main._open_quest("juninho")
+	check(main._quest_prompt == "offer:know_town", "Juninho offers Know the Town")
+	main.hud._close_dialogue(true)
+	check(Game.quest_state("know_town") == "active", "quest accepted")
+	for lid in ["plaza", "cathedral", "academia", "market"]:
+		Game.discover_landmark(lid)
+	check(Game.quest_ready("know_town") and main.world.quest_givers["juninho"].marker.text == "?", "objective done, giver shows ?")
+	var lv_before: int = Game.player_level()
+	main._open_quest("juninho")
+	main.hud._close_dialogue(true)
+	check(Game.quest_state("know_town") == "done" and Game.unlocked.has("quest_1"), "quest turned in (lv %d -> %d)" % [lv_before, Game.player_level()])
+	main._open_quest("kaique")
+	main.hud._close_dialogue(true)
+	Game.complete_drill("strength")
+	Game.complete_drill("cardio")
+	check(Game.quest_ready("shrimping"), "drill quest counts drills after accepting")
+	main._open_quest("rosa")
+	main.hud._close_dialogue(true)
+	await get_tree().process_frame
+	check(main.world._reach_nodes.size() == 1, "lost belt marker appears")
+	Game.quest_event("reach", "lost_faixa:0")
+	await get_tree().process_frame
+	check(Game.quest_ready("lost_faixa") and main.world._reach_nodes.is_empty(), "reaching the spot completes it")
+	main.hud._close_dialogue(false)
 	# ---- travel to the Pantanal and play it through
 	Game.reset()
 	Game.choose_style("athlete", "Bot", 1)

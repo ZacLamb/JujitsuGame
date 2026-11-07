@@ -148,7 +148,15 @@ func refresh() -> void:
 	var capped := Game.level_capped()
 	xp_bar.value = 100.0 * Game.level_progress()
 	xp_bar.add_theme_stylebox_override("fill", UiKit.box(XP_CAP_COLOR if capped else XP_COLOR, 7))
-	objective.text = Game.current_objective()
+	var otext := Game.current_objective()
+	for id in Game.active_quests(Game.zone).slice(0, 3):
+		var q: Dictionary = Data.QUESTS[id]
+		if Game.quest_ready(id):
+			otext += "\n•  %s: return to %s" % [q.title, Data.QUEST_GIVERS[q.giver].name]
+		else:
+			var pr := Game.objective_progress(id, 0)
+			otext += "\n•  %s: %s %d/%d" % [q.title, q.obj[0].text, pr[0], pr[1]]
+	objective.text = otext
 	if Data.ZONES.has(Game.zone):
 		zone_lbl.text = "%s  ·  %s" % [Data.ZONES[Game.zone].name.to_upper(), Data.zone_levels(Game.zone).to_upper()]
 	var lv := Game.player_level()
@@ -183,7 +191,7 @@ func set_spot_prompt(spot: Dictionary) -> void:
 		extra = "  (roll first)"
 	prompt.text = "[E]  %s%s" % [spot.label, extra]
 	touch.interact_btn.visible = true
-	touch.interact_btn.text = "GO"
+	touch.interact_btn.text = "TALK" if spot.action == "quest" else "GO"
 
 func set_prompt(npc: Npc) -> void:
 	if npc == null:
@@ -342,9 +350,25 @@ func _fill_journal() -> void:
 	var q := _scroll_tab("Quests")
 	q.add_child(_daily_box())
 	q.add_child(UiKit.label("Main: " + Game.current_objective(), 22, UiKit.ACCENT))
+	var act := Game.active_quests()
+	if not act.is_empty():
+		q.add_child(UiKit.label("Quest log", 22, UiKit.ACCENT))
+		for id in act:
+			var qd: Dictionary = Data.QUESTS[id]
+			var gz: String = Data.QUEST_GIVERS[qd.giver].zone
+			var head := "%s  (%s, %s)" % [qd.title, Data.QUEST_GIVERS[qd.giver].name, Data.ZONES[gz].name]
+			q.add_child(UiKit.label(head, 20, Color(1, 0.85, 0.3) if Game.quest_ready(id) else UiKit.TEXT))
+			for i in qd.obj.size():
+				var pr := Game.objective_progress(id, i)
+				q.add_child(UiKit.label("     %s: %d/%d%s" % [qd.obj[i].text, pr[0], pr[1], "  (done)" if pr[0] >= pr[1] else ""], 17, UiKit.MUTED))
+	var ndone := 0
+	for id in Data.QUESTS:
+		if Game.quest_state(id) == "done":
+			ndone += 1
+	q.add_child(UiKit.label("Quests completed: %d / %d" % [ndone, Data.QUESTS.size()], 18, UiKit.MUTED))
 	for s in Game.side_objectives():
 		q.add_child(UiKit.label("•  " + s, 20))
-	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Data.XP_PER_STRIPE, "  (stripe cap — beat Mestre Onça for blue)" if Game.at_stripe_cap() else ""], 18, UiKit.MUTED))
+	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Data.XP_PER_STRIPE, "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""], 18, UiKit.MUTED))
 	if Data.COMMUNITY_URL != "":
 		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(260, 52))
 		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))

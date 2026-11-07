@@ -931,7 +931,88 @@ func _on_cup(body: Node, i: int) -> void:
 		_cups[i].visible = false
 		Game.collect_cup(i, zone)
 
+# ---------------------------------------------------------------- quests
+var quest_givers := {}  # giver id -> Npc
+var _reach_nodes := {}  # "quest:objective" -> Node3D
+
+func _build_quests() -> void:
+	for g in Data.QUEST_GIVERS:
+		var gd: Dictionary = Data.QUEST_GIVERS[g]
+		if gd.zone != zone:
+			continue
+		var p: Vector3 = gd.pos
+		var npc := Npc.new()
+		add_child(npc)
+		npc.setup_quest_giver(g, self)
+		npc.position = Vector3(p.x, ground_y(p.x, p.z), p.z)
+		npc.rig.rotation.y = PI
+		quest_givers[g] = npc
+		_spot(npc.position, 2.6, "Talk to %s" % gd.name, "quest", g)
+	refresh_quests()
+
+func refresh_quests() -> void:
+	for g in quest_givers:
+		quest_givers[g].refresh_marker()
+	var want := {}
+	for id in Game.active_quests(zone):
+		var objs: Array = Data.QUESTS[id].obj
+		for i in objs.size():
+			if objs[i].type == "reach" and int(Game.objective_progress(id, i)[0]) < 1:
+				want["%s:%d" % [id, i]] = objs[i]
+	for key in _reach_nodes.keys():
+		if not want.has(key):
+			_reach_nodes[key].queue_free()
+			_reach_nodes.erase(key)
+	for key in want:
+		if _reach_nodes.has(key):
+			continue
+		var o: Dictionary = want[key]
+		var p: Vector3 = o.pos
+		var holder := Node3D.new()
+		holder.position = Vector3(p.x, ground_y(p.x, p.z), p.z)
+		add_child(holder)
+		var ring := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = float(o.radius) * 0.6
+		cm.bottom_radius = float(o.radius) * 0.6
+		cm.height = 6.0
+		cm.cap_top = false
+		cm.cap_bottom = false
+		cm.radial_segments = 20
+		ring.mesh = cm
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(1, 0.85, 0.2, 0.22)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		ring.material_override = m
+		ring.position.y = 3.0
+		holder.add_child(ring)
+		var l := Label3D.new()
+		l.text = o.text
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.font_size = 48
+		l.pixel_size = 0.009
+		l.outline_size = 12
+		l.modulate = Color(1, 0.9, 0.4)
+		l.position.y = 3.2
+		holder.add_child(l)
+		var a := Area3D.new()
+		var cs := CollisionShape3D.new()
+		var sh := SphereShape3D.new()
+		sh.radius = float(o.radius)
+		cs.shape = sh
+		cs.position.y = 1.0
+		a.add_child(cs)
+		holder.add_child(a)
+		var k: String = key
+		a.body_entered.connect(func(b):
+			if b is Player and game_started:
+				Game.quest_event("reach", k))
+		_reach_nodes[key] = holder
+
 func _build_landmarks() -> void:
+	_build_quests()
 	for id in Data.landmarks_in(zone):
 		var lm: Dictionary = Data.LANDMARKS[id]
 		var p: Vector3 = lm.pos
@@ -1087,6 +1168,7 @@ func refresh_beacon() -> void:
 	beacon.position = Vector3(t.x, ground_y(t.x, t.z) + 20.0, t.z)
 	for id in fighters:
 		fighters[id].refresh_tag()
+	refresh_quests()
 	refresh_gate()
 
 func attach_player(p: Player) -> void:

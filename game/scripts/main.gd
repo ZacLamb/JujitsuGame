@@ -290,11 +290,53 @@ func _use_spot(spot: Dictionary) -> void:
 			_start_daily()
 		"comp":
 			_open_comp(spot.arg)
+		"quest":
+			_open_quest(spot.arg)
 		"drill":
 			if not Game.drills_ready:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
 				return
 			_start_drill(spot.arg)
+
+# ------------------------------------------------------------ quests
+var _quest_prompt := ""  # "offer:<id>" / "turnin:<id>" / "info" while a quest dialogue is open
+
+func _open_quest(giver: String) -> void:
+	var g: Dictionary = Data.QUEST_GIVERS[giver]
+	var ids := Data.quests_of(giver)
+	player.input_enabled = false
+	for id in ids:
+		if Game.quest_ready(id):
+			var q: Dictionary = Data.QUESTS[id]
+			_quest_prompt = "turnin:" + id
+			hud.open_dialogue(g.name, "%s\n\n%s\n\nReward: %d XP" % [q.title.to_upper(), q.done, int(q.xp)], "Complete quest", "Later")
+			return
+	for id in ids:
+		if Game.quest_state(id) == "active":
+			var q: Dictionary = Data.QUESTS[id]
+			var lines: Array[String] = [q.title.to_upper(), ""]
+			for i in q.obj.size():
+				var pr := Game.objective_progress(id, i)
+				lines.append("•  %s: %d/%d" % [q.obj[i].text, pr[0], pr[1]])
+			_quest_prompt = "info"
+			hud.open_dialogue(g.name, "\n".join(lines) + "\n\nCome back when it's done.", "", "Okay")
+			return
+	for id in ids:
+		if Game.quest_available(id):
+			var q: Dictionary = Data.QUESTS[id]
+			var objs: Array[String] = []
+			for o in q.obj:
+				objs.append("•  " + str(o.text))
+			_quest_prompt = "offer:" + id
+			hud.open_dialogue(g.name, "%s\n\n%s\n\n%s\nReward: %d XP" % [q.title.to_upper(), q.offer, "\n".join(objs), int(q.xp)], "Accept", "Not now")
+			return
+	for id in ids:
+		if Game.quest_locked_by_level(id):
+			_quest_prompt = "info"
+			hud.open_dialogue(g.name, "I might have something for you later. Come back at level %d." % int(Data.QUESTS[id].min_level), "", "Okay")
+			return
+	_quest_prompt = "info"
+	hud.open_dialogue(g.name, "Obrigado for everything, gringo. Oss!", "", "Oss")
 
 # ------------------------------------------------------------ competitions
 var comp_run: Dictionary = {}   # the bracket in progress (see Data.comp_bracket)
@@ -420,6 +462,21 @@ func _interact() -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _quest_prompt != "":
+		var qp := _quest_prompt
+		_quest_prompt = ""
+		var parts := qp.split(":")
+		if accepted and parts[0] == "offer":
+			Game.accept_quest(parts[1])
+		elif accepted and parts[0] == "turnin":
+			Game.complete_quest(parts[1])
+			# another quest from the same giver? offer it right away
+			for nid in Data.quests_of(Data.QUESTS[parts[1]].giver):
+				if Game.quest_available(nid):
+					_open_quest(Data.QUESTS[parts[1]].giver)
+					return
+		player.input_enabled = true
+		return
 	if _comp_prompt != "":
 		var what := _comp_prompt
 		_comp_prompt = ""

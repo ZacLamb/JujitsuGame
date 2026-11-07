@@ -48,6 +48,52 @@ func setup_villager(seed_v: int, w, area_center: Vector3) -> Npc:
 	_pick_target()
 	return self
 
+# ------------------------------------------------------------ quest givers
+const FEMALE_GIVERS := ["lurdes", "rosa", "lia", "ana", "cristal", "nanda", "jaci", "dandara"]
+var giver_id := ""
+var marker: Label3D
+
+func setup_quest_giver(id: String, w) -> Npc:
+	giver_id = id
+	world = w
+	var g: Dictionary = Data.QUEST_GIVERS[id]
+	display_name = g.name
+	rig = BodyRig.new()
+	add_child(rig)
+	var shirt: Color = g.shirt
+	rig.setup(shirt, shirt.darkened(0.4), UiKit.skin_tone(float(g.skin)), Color(0.15, 0.09, 0.05), -1, "female" if id in FEMALE_GIVERS else "", true)
+	tag = Label3D.new()
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.font_size = 44
+	tag.pixel_size = 0.0095
+	tag.outline_size = 12
+	tag.position = Vector3(0, 2.2, 0)
+	tag.text = g.name
+	tag.modulate = Color(0.85, 1.0, 0.85)
+	add_child(tag)
+	marker = Label3D.new()
+	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	marker.no_depth_test = true
+	marker.font_size = 140
+	marker.pixel_size = 0.012
+	marker.outline_size = 22
+	marker.outline_modulate = Color(0.25, 0.15, 0.0)
+	marker.position = Vector3(0, 3.1, 0)
+	if UiKit.head_font():
+		marker.font = UiKit.head_font()
+	add_child(marker)
+	refresh_marker()
+	return self
+
+func refresh_marker() -> void:
+	if marker == null:
+		return
+	var m := Game.giver_marker(giver_id)
+	marker.text = "?" if m == "…" else m
+	marker.modulate = Color(0.6, 0.6, 0.6) if m == "…" else Color(1.0, 0.85, 0.15)
+	marker.visible = m != ""
+
 func refresh_tag() -> void:
 	if tag == null:
 		return
@@ -85,7 +131,9 @@ func _process(delta: float) -> void:
 		rig.rotation.y = lerp_angle(rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 6.0, 0, 1))
 		rig.animate_locomotion(delta, 0.3)
 		return
-	# fighters idle and face the player when near
+	if marker:
+		marker.position.y = 3.1 + sin(Time.get_ticks_msec() * 0.004) * 0.12
+	# fighters and quest givers idle and face the player when near
 	var speed := 0.0
 	if _player and global_position.distance_to(_player.global_position) < 8.0:
 		var to2 := _player.global_position - global_position
