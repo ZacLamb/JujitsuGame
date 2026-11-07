@@ -225,6 +225,12 @@ func dress(rig: BodyRig) -> void:
 	rig.lapel_override = lapel_color()
 	rig.rash_color = rash_color()
 
+## Graphics quality: phones default to low; players can switch in the HUD.
+func graphics_low() -> bool:
+	if flags.has("gfx_low"):
+		return bool(flags.gfx_low)
+	return OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("mobile")
+
 func look_key() -> String:
 	return "%s|%s|%s" % [gi_color().to_html(), str(equipped.get("gi", "")), str(equipped.get("rash", ""))]
 
@@ -485,6 +491,11 @@ func zone_beaten(z: String) -> bool:
 
 # ------------------------------------------------------------ quests
 func current_objective() -> String:
+	# already past this zone's belt: point at the furthest zone the player can ride to
+	var zi := ["caceres", "pantanal", "chapada", "rio"].find(zone)
+	if zi >= 0 and zi < 3 and belt_index() > zi + 1:
+		var best := "rio" if rank >= 15 else ("chapada" if rank >= 10 else "pantanal")
+		return "You've outgrown %s. Ride the bus to %s, or hunt quests and medals here." % [Data.ZONES[zone].name, Data.ZONES[best].name]
 	if zone == "rio":
 		if rank >= 20:
 			return "Black belt. Oss! Roll anyone, anywhere: the mat is yours."

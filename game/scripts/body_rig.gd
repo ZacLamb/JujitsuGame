@@ -93,6 +93,9 @@ func set_belt_color(c: Color) -> void:
 	if _belt_node:
 		for n in _belt_node.get_children():
 			(n as MeshInstance3D).material_override = _cmat(c, 0.7)
+	if skel:
+		_collect_lod()
+		_apply_lod()
 
 func _mesh(parent: Node3D, mesh: Mesh, color: Color, pos := Vector3.ZERO, rot := Vector3.ZERO, scl := Vector3.ONE, mname := "", outline := true) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -393,6 +396,7 @@ func _build_skinned() -> void:
 		_build_ponytail()
 		skinned.scale *= Vector3(0.95, 0.94, 0.95)
 	_play_locomotion(0.0, false)
+	_collect_lod()
 
 ## The worker model's shoes share the "Eyes" material; split them into a "Feet" surface (once per
 ## mesh) so fighters can be barefoot on the mats.
@@ -667,9 +671,87 @@ func _enter_pose_mode() -> void:
 		if anim:
 			anim.stop()
 
+# ------------------------------------------------------------ level of detail
+## 0 full (outlines) · 1 mid (no outlines) · 2 far (no gi details) · 3 not drawn
+const LOD_DIST := [18.0, 40.0, 85.0]
+var lod_enabled := true
+var _lod := 0
+var _lod_t := 0.0
+var _lod_surfaces: Array = []   # [MeshInstance3D, surface index or -1, full material, plain material]
+static var _plain_cache := {}
+
+static func _plain_of(m: Material) -> Material:
+	if m == null or not (m is StandardMaterial3D) or (m as StandardMaterial3D).next_pass == null:
+		return m
+	var id := m.get_instance_id()
+	if not _plain_cache.has(id):
+		var p := (m as StandardMaterial3D).duplicate() as StandardMaterial3D
+		p.next_pass = null
+		_plain_cache[id] = p
+	return _plain_cache[id]
+
+func _collect_lod() -> void:
+	_lod_surfaces.clear()
+	_lod = 0
+	for n in find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if hips.is_ancestor_of(mi):
+			continue
+		if mi.material_override:
+			_lod_surfaces.append([mi, -1, mi.material_override, _plain_of(mi.material_override)])
+		elif mi.mesh:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.get_surface_override_material(i)
+				if m:
+					_lod_surfaces.append([mi, i, m, _plain_of(m)])
+
+func _update_lod(delta: float) -> void:
+	_lod_t -= delta
+	if _lod_t > 0.0:
+		return
+	_lod_t = 0.3 + randf() * 0.1
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return
+	var k := 0.6 if Game.graphics_low() else 1.0
+	var d := cam.global_position.distance_to(global_position)
+	var lod := 3
+	for i in LOD_DIST.size():
+		if d < float(LOD_DIST[i]) * k:
+			lod = i
+			break
+	if lod != _lod:
+		_lod = lod
+		_apply_lod()
+
+func _apply_lod() -> void:
+	visible = _lod < 3
+	for e in _lod_surfaces:
+		var mi := e[0] as MeshInstance3D
+		if not is_instance_valid(mi):
+			continue
+		var m: Material = e[2] if _lod == 0 else e[3]
+		if int(e[1]) < 0:
+			mi.material_override = m
+		else:
+			mi.set_surface_override_material(int(e[1]), m)
+	for g in _gi_parts:
+		if is_instance_valid(g.node):
+			(g.node as Node3D).visible = _lod < 2
+	if _torso_parts:
+		for c in _torso_parts.get_children():
+			if c != _belt_node:
+				(c as Node3D).visible = _lod < 2
+
 func _process(_delta: float) -> void:
 	if not skel:
 		return
+	if lod_enabled:
+		_update_lod(_delta)
+		if _lod >= 2:
+			if not _anim_mode:
+				_retarget()
+			return
 	if not _anim_mode:
 		_retarget()
 	if not casual:

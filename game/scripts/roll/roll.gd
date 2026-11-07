@@ -70,7 +70,11 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	elif not comp.is_empty():
 		_show_message("%s  ·  %s\nvs %s (%s)" % [Data.COMPS[comp.id].name.to_upper(), comp.round_name.to_upper(), opp.name, opp.get("academy", "")], 2.4, _begin_exchange)
 	else:
-		_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, 1.6, _begin_exchange)
+		var plan: String = sim.traits.plan
+		if plan != "":
+			_show_message("SCOUTING REPORT: %s\n%s" % [opp.name.to_upper(), plan], 3.2, _begin_exchange)
+		else:
+			_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, 1.6, _begin_exchange)
 
 # ================================================================= world
 func _pm(c: Color, rough := 0.85) -> StandardMaterial3D:
@@ -463,6 +467,8 @@ func _opponent_attack() -> void:
 	var m: Dictionary = Data.MOVES[ai_move]
 	_clear_action()
 	action_title.text = "%s goes for a %s!" % [opp.name, m.name]
+	if ai_move in sim.traits.fav:
+		action_title.text = "%s goes for the favorite: %s!" % [opp.name, m.name]
 	var head := HBoxContainer.new()
 	head.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_theme_constant_override("separation", 16)

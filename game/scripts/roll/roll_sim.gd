@@ -31,6 +31,7 @@ var result := {}
 var log_lines: Array = []
 
 var rule := ""  # daily challenge rule
+var traits := {"aggr": 1.0, "counter": 0.0, "finish": 1.0, "slippery": 1.0, "cardio": 1.0, "fav": [], "plan": ""}
 
 func setup(opponent_id: String, p_level: float, knows: Callable, seed_value := -1, player_mods: Dictionary = {}, opp_override: Dictionary = {}) -> void:
 	mods = player_mods if not player_mods.is_empty() else Rpg.neutral_mods()
@@ -40,6 +41,7 @@ func setup(opponent_id: String, p_level: float, knows: Callable, seed_value := -
 	opp_id = opponent_id
 	opp = opp_override if not opp_override.is_empty() else Data.OPPONENTS[opponent_id]
 	opp_level = float(opp.level)
+	traits = Data.personality(opp, opponent_id)
 	player_level = p_level
 	known_moves = knows
 	if seed_value >= 0:
@@ -112,7 +114,7 @@ func decision_window() -> float:
 
 ## Chance the opponent attacks first at the start of an exchange.
 func opp_initiative_chance() -> float:
-	var c := 0.26 + 0.06 * gap() + 0.01 * opp_level
+	var c := (0.26 + 0.06 * gap() + 0.01 * opp_level) * float(traits.aggr)
 	if opp_stamina < 30.0:
 		c *= 0.5
 	if pos == "standing":
@@ -123,12 +125,13 @@ func opp_initiative_chance() -> float:
 func counter_chance(missed_id := "") -> float:
 	if missed_id != "" and mods.scramble and Data.MOVES[missed_id].type == "takedown":
 		return 0.0
-	return clampf(0.38 + 0.06 * gap() + 0.01 * opp_level, 0.2, 0.65)
+	return clampf(0.38 + 0.06 * gap() + 0.01 * opp_level + float(traits.counter), 0.2, 0.7)
 
 func struggle_params(attacking: bool, sub_id := "") -> Dictionary:
 	var gain := 0.075 * clampf(1.0 + 0.08 * (player_level - opp_level), 0.6, 1.35) * stamina_factor(stamina_pct())
 	gain *= float(mods.struggle_atk) if attacking else float(mods.struggle_def)
 	var decay := (0.22 + 0.06 * gap() + 0.01 * opp_level) if attacking else (0.24 + 0.07 * gap() + 0.01 * opp_level)
+	decay *= float(traits.slippery) if attacking else float(traits.finish)
 	decay = maxf(decay, 0.12)
 	var start := 0.45
 	if attacking:
@@ -162,6 +165,11 @@ func ai_pick_move() -> String:
 				if style == "guard": w *= 4.0
 			"escape":
 				w = 1.6
+		if id in traits.fav:
+			w *= 3.0
+		# stuck under a dominant position: getting out comes first
+		if m.type == "escape" and pos in ["mount", "back", "side"]:
+			w *= 1.8
 		weights[id] = w
 		total += w
 	var r := rng.randf() * total
@@ -234,7 +242,7 @@ func tick(delta: float) -> void:
 	if over:
 		return
 	clock = maxf(0.0, clock - delta * CLOCK_SPEED)
-	opp_stamina = minf(100.0, opp_stamina + delta * (2.0 + 0.4 * opp_level))
+	opp_stamina = minf(100.0, opp_stamina + delta * (2.0 + 0.4 * opp_level) * float(traits.cardio))
 	if clock <= 0.0:
 		finish_on_points()
 

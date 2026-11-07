@@ -7,6 +7,7 @@ signal dialogue_choice(accepted: bool)
 signal journal_toggled(open: bool)
 signal travel_chosen(zone: String)
 signal daily_requested
+signal graphics_changed
 
 var root: Control
 var rank_box: VBoxContainer
@@ -91,7 +92,8 @@ func _build_status() -> void:
 	var right := PanelContainer.new()
 	right.anchor_left = 1.0
 	right.anchor_right = 1.0
-	right.offset_left = -420
+	right.offset_left = -500
+	right.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	right.offset_right = -14
 	right.offset_top = 14
 	right.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.45), 14))
@@ -116,6 +118,14 @@ func _build_status() -> void:
 		Sfx.set_muted(not Sfx.muted)
 		snd.text = "Sound: off" if Sfx.muted else "Sound: on")
 	head.add_child(snd)
+	var gfx := UiKit.button("Gfx: low" if Game.graphics_low() else "Gfx: high", Vector2(96, 34))
+	gfx.add_theme_font_size_override("font_size", 15)
+	gfx.pressed.connect(func():
+		Game.flags["gfx_low"] = not Game.graphics_low()
+		Game.save_game()
+		gfx.text = "Gfx: low" if Game.graphics_low() else "Gfx: high"
+		graphics_changed.emit())
+	head.add_child(gfx)
 	objective = UiKit.label("", 19)
 	objective.custom_minimum_size = Vector2(380, 0)
 	rv.add_child(objective)
@@ -133,7 +143,7 @@ func set_portrait(p: bool) -> void:
 		toasts.offset_right = 250
 	else:
 		_obj_panel.anchor_left = 1.0
-		_obj_panel.offset_left = -420
+		_obj_panel.offset_left = -500
 		_obj_panel.offset_top = 14
 		objective.custom_minimum_size = Vector2(380, 0)
 		toasts.offset_top = 110
@@ -453,7 +463,13 @@ func _fill_journal() -> void:
 	for id in Data.OPPONENTS:
 		var o: Dictionary = Data.OPPONENTS[id]
 		var rec := "W %d · L %d" % [int(Game.wins.get(id, 0)), int(Game.losses.get(id, 0))]
-		f.add_child(UiKit.label("%s — %s, %s  (%s)" % [o.name, o.title, Data.rank_name(int(o.rank)), rec], 19))
+		f.add_child(UiKit.label("%s — %s, Lv %d  (%s)" % [o.name, o.title, Data.display_level(float(o.level)), rec], 19, Data.con_color(Data.display_level(float(o.level)), Game.player_level())))
+		var pl := Data.personality(o, id)
+		if pl.plan != "" and (Game.beaten(id) or int(Game.losses.get(id, 0)) > 0 or Data.zone_of(id) == Game.zone):
+			var favs: Array[String] = []
+			for mv in pl.fav:
+				favs.append(str(Data.MOVES[mv].name))
+			f.add_child(UiKit.label("     %s  Favorites: %s." % [pl.plan, ", ".join(favs)], 16, UiKit.MUTED))
 	journal_tabs.current_tab = clampi(cur, 0, journal_tabs.get_tab_count() - 1)
 
 func _fill_character() -> void:

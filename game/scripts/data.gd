@@ -223,7 +223,7 @@ const OPPONENTS := {
 		"intro": "Sixty-two years old, meu filho. Don't go easy. I won't.",
 		"win": "Lindo! Your grandmother would be proud.",
 		"lose": "Never underestimate the old lady with the gi."},
-	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.1, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
+	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.6, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
 		"pos": Vector3(64, 0, 58), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow"], "zone": "pantanal",
 		"intro": "Onça sent you? Then you know the rules. My mat, my swamp. Oss.",
 		"win": "The swamp respects you now. Purple belt. Wear it well.",
@@ -286,7 +286,7 @@ const OPPONENTS := {
 		"intro": "I train world champions at sunrise on the Arpoador. Let's see what Mato Grosso sent me.",
 		"win": "Technical, patient, dangerous. Leão will want to see you.",
 		"lose": "Good roll. Tap a little earlier next time; I can see the sunset from here."},
-	"leao": {"name": "Grão-Mestre Leão", "title": "Rio boss, coral belt legend", "rank": 24, "level": 12.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.45, 0.32),
+	"leao": {"name": "Grão-Mestre Leão", "title": "Rio boss, coral belt legend", "rank": 24, "level": 12.35, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.45, 0.32),
 		"pos": Vector3(10, 0, -24), "style": "balanced", "boss": true,
 		"extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow", "uchi_mata", "flying_armbar", "cross_collar", "snap_down"], "zone": "rio",
 		"intro": "Onça, Jacaré, Cachoeira... I gave them their black belts. Now show me yours is earned. Oss.",
@@ -653,3 +653,39 @@ static func quests_of(giver: String) -> Array:
 		if QUESTS[id].giver == giver:
 			out.append(id)
 	return out
+
+# ---------------------------------------------------------------- fighter personalities
+# aggr: how often they take the initiative · counter: bonus to punish your misses
+# finish: how hard their subs are to escape · slippery: how hard they are to finish
+# cardio: stamina recovery · fav: favorite techniques (picked far more often)
+# plan: scouting report shown before the roll and in the journal
+const PERSONALITY := {
+	"rafa": {"aggr": 0.8, "fav": ["pull_guard", "scissor_sweep"], "plan": "Friendly plaza regular. Pulls guard and tries the scissor sweep. Takes his time."},
+	"cida": {"aggr": 1.0, "cardio": 1.25, "fav": ["guard_armbar", "shrimp_guard"], "plan": "Runs the riverbank every morning. Never gets tired and hunts the armbar from guard."},
+	"tiago": {"aggr": 1.25, "fav": ["double_leg", "single_leg", "knee_slice"], "plan": "Wrestler. Shoots early and often, then smashes through half guard. Stop the shot."},
+	"peixe": {"aggr": 0.9, "slippery": 1.25, "counter": 0.05, "fav": ["old_school", "recover_guard", "half_kimura"], "plan": "Slippery as his name. Lives in half guard, waits for your mistake and counters."},
+	"onca": {"aggr": 1.15, "finish": 1.15, "fav": ["triangle", "guard_armbar", "toreando"], "plan": "The academia's jaguar. Patient, then explosive. His triangle is famous in Cáceres."},
+	"bruna": {"aggr": 1.1, "fav": ["upa", "elbow_knee", "triangle"], "plan": "Never stays on the bottom long. Bridges and escapes, then attacks from guard."},
+	"zeca": {"aggr": 1.2, "cardio": 0.85, "fav": ["double_leg", "mount_up", "americana"], "plan": "Ranch strength. Takes you down, climbs to mount and cranks the americana. Gasses late."},
+	"tuca": {"aggr": 0.95, "counter": 0.06, "fav": ["knee_slice", "mount_up", "top_kimura"], "plan": "Heavy top game. Slow but crushing. Don't let him settle in side control."},
+	"neide": {"aggr": 0.85, "finish": 1.2, "slippery": 1.15, "fav": ["triangle", "omoplata", "half_kimura"], "plan": "Dona Neide, sixty years old, black-belt guard. Her chokes are tight and she never panics."},
+	"jacare": {"aggr": 1.1, "finish": 1.2, "fav": ["darce", "ezekiel", "leg_drag"], "plan": "Grinds you down from the top, then the jaws close: d'arce or ezekiel."},
+	"iara": {"aggr": 1.0, "slippery": 1.15, "fav": ["berimbolo", "omoplata", "triangle"], "plan": "Fluid guard player. Spins under you for the back. Keep your base."},
+	"biro": {"aggr": 1.05, "finish": 1.15, "fav": ["leg_drag", "darce", "knee_slice"], "plan": "Climber's grips. Once he holds a lapel, you won't break it. Pressure passer."},
+	"joaquim": {"aggr": 0.9, "finish": 1.25, "fav": ["ezekiel", "cross_collar", "bow_arrow"], "plan": "Collar choke specialist. Protect your neck at all times."},
+	"rita": {"aggr": 1.2, "cardio": 1.3, "fav": ["snap_down", "rnc", "bow_arrow"], "plan": "Trail runner. Pushes the pace for the whole match and takes the back off scrambles."},
+	"gaucho": {"aggr": 1.25, "fav": ["uchi_mata", "leg_drag", "mount_up"], "plan": "Competition machine from Porto Alegre. Great takedowns, then points, points, points."},
+	"cachoeira": {"aggr": 1.1, "finish": 1.2, "slippery": 1.15, "fav": ["flying_armbar", "omoplata", "cross_collar"], "plan": "Like water: attacks from everywhere. Even the flying armbar. Expect anything."},
+	"dudu": {"aggr": 1.05, "cardio": 1.15, "fav": ["berimbolo", "uchi_mata", "hip_bump"], "plan": "Surfer balance and a modern guard. Loves the berimbolo."},
+	"luana": {"aggr": 1.15, "fav": ["snap_down", "rnc", "bow_arrow"], "plan": "Back-take hunter with sand-trained legs. Once she's behind you, the choke comes fast."},
+	"baiano": {"aggr": 1.0, "slippery": 1.2, "fav": ["flying_armbar", "triangle", "berimbolo"], "plan": "Capoeira movement. Unpredictable and very hard to hold down."},
+	"tatu": {"aggr": 1.0, "counter": 0.07, "fav": ["knee_slice", "darce", "mount_up"], "plan": "Morro pressure. Heavy, patient, and he punishes every mistake."},
+	"bia": {"aggr": 1.05, "finish": 1.25, "fav": ["cross_collar", "ezekiel", "bow_arrow", "omoplata"], "plan": "World-class coach. Technical and calm. Her collar chokes finish world champions."},
+	"leao": {"aggr": 1.15, "finish": 1.2, "slippery": 1.2, "counter": 0.06, "fav": ["darce", "leg_drag", "bow_arrow", "flying_armbar"], "plan": "The legend. No weaknesses, no wasted motion. Everything he does, he has done ten thousand times."},
+}
+
+static func personality(o: Dictionary, id := "") -> Dictionary:
+	var p: Dictionary = PERSONALITY.get(id, {})
+	return {"aggr": float(p.get("aggr", 1.0)), "counter": float(p.get("counter", 0.0)), "finish": float(p.get("finish", 1.0)),
+		"slippery": float(p.get("slippery", 1.0)), "cardio": float(p.get("cardio", 1.0)),
+		"fav": p.get("fav", o.get("extra", []).slice(0, 2)), "plan": str(p.get("plan", ""))}

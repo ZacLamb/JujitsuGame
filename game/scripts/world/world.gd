@@ -26,6 +26,61 @@ var _jaguar_area: Area3D
 var _blocked: Array = []  # Rect2 areas with no trees/houses
 
 func build(z := "caceres") -> void:
+	_build_zone(z)
+	_batch_static()
+	apply_graphics()
+
+## Merges static, opaque primitive meshes (houses, walls, posts, mats...) into one mesh per
+## material per 40 m cell. Hundreds of draw calls become a few dozen; cells keep culling working.
+func _batch_static() -> void:
+	var groups := {}
+	for c in get_children():
+		if not (c is MeshInstance3D) or c.get_child_count() > 0 or c.get_script() != null or not c.visible:
+			continue
+		var mi := c as MeshInstance3D
+		if mi.mesh == null or not (mi.mesh is PrimitiveMesh):
+			continue
+		var mat := mi.material_override as StandardMaterial3D
+		if mat == null or mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		var cell := Vector2i(floori(mi.position.x / 40.0), floori(mi.position.z / 40.0))
+		var key := "%d|%s|%s" % [mat.get_instance_id(), mi.mesh.get_class(), cell]
+		if not groups.has(key):
+			groups[key] = []
+		groups[key].append(mi)
+	var merged := 0
+	for key in groups:
+		var list: Array = groups[key]
+		if list.size() < 2:
+			continue
+		var st := SurfaceTool.new()
+		for mi in list:
+			st.append_from((mi as MeshInstance3D).mesh, 0, (mi as MeshInstance3D).transform)
+		var out := MeshInstance3D.new()
+		out.mesh = st.commit()
+		out.material_override = (list[0] as MeshInstance3D).material_override
+		out.name = "Batched"
+		add_child(out)
+		for mi in list:
+			remove_child(mi)
+			mi.queue_free()
+		merged += list.size()
+	if OS.is_debug_build() and merged > 0:
+		print_verbose("batched %d static meshes" % merged)
+
+## Low graphics: no sun shadows, shorter grass distance, lower 3D resolution (phones).
+func apply_graphics() -> void:
+	var low := Game.graphics_low()
+	for c in get_children():
+		if c is DirectionalLight3D:
+			(c as DirectionalLight3D).shadow_enabled = not low
+		elif c is MultiMeshInstance3D and (c as MultiMeshInstance3D).visibility_range_end > 0.0:
+			(c as MultiMeshInstance3D).visibility_range_end = 35.0 if low else 70.0
+	var vp := get_viewport()
+	if vp:
+		vp.scaling_3d_scale = 0.75 if low else 1.0
+
+func _build_zone(z: String) -> void:
 	zone = z
 	if zone == "pantanal":
 		_build_pantanal()
@@ -251,6 +306,7 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	sun.shadow_opacity = 0.7
 	sun.directional_shadow_max_distance = 55.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	add_child(sun)
 	_build_clouds()
 
@@ -909,11 +965,12 @@ func _build_cups() -> void:
 		straw.rotation.z = -0.25
 		holder.add_child(straw)
 		straw.visible = zone == "caceres" or zone == "rio"
-		var glow := OmniLight3D.new()
-		glow.light_color = Color(0.5, 1, 0.5)
-		glow.light_energy = 0.8
-		glow.omni_range = 2.5
-		holder.add_child(glow)
+		# glow via emission instead of a light (lights are expensive on phones)
+		var gm := (cup.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		gm.emission_enabled = true
+		gm.emission = gm.albedo_color
+		gm.emission_energy_multiplier = 0.9
+		cup.material_override = gm
 		var a := Area3D.new()
 		var cs := CollisionShape3D.new()
 		var sh := SphereShape3D.new()

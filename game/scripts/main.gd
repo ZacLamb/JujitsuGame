@@ -35,6 +35,7 @@ func _ready() -> void:
 			_travel(z))
 	hud.daily_requested.connect(_start_daily)
 	hud.dialogue_choice.connect(_on_dialogue_choice)
+	hud.graphics_changed.connect(func(): if is_instance_valid(world): world.apply_graphics())
 	hud.journal_toggled.connect(func(open): player.input_enabled = not open and not _in_title)
 	Game.progress_changed.connect(func(): if is_instance_valid(world): world.refresh_beacon())
 
