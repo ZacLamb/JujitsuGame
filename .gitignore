@@ -1,0 +1,5 @@
+node_modules/
+game/.godot/
+game/build/
+*.import
+.DS_Store
