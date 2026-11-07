@@ -20,6 +20,10 @@ var cam_yaw := 0.0
 var cam_pitch := -0.32
 var cam_dist := 6.0
 var _dragging := false
+var autorun := false
+var _last_look_ms := -100000
+const FOLLOW_TOUCH := 1.1   # follow-camera turn rate on phones (rad/s per rad of offset)
+const FOLLOW_KEYS := 0.55   # gentler with keyboard + mouse
 var last_safe := Vector3.ZERO
 
 signal jumped
@@ -90,6 +94,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func look(delta: Vector2) -> void:
 	cam_yaw -= delta.x
 	cam_pitch = clampf(cam_pitch - delta.y, -1.2, 0.35)
+	_last_look_ms = Time.get_ticks_msec()
+
+func zoom(amount: float) -> void:
+	cam_dist = clampf(cam_dist + amount, 3.0, 12.0)
 
 func _physics_process(delta: float) -> void:
 	var dir2 := Vector2.ZERO
@@ -98,6 +106,12 @@ func _physics_process(delta: float) -> void:
 		dir2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if touch_move.length() > 0.05:
 			dir2 = touch_move
+		if InputMap.has_action("autorun") and Input.is_action_just_pressed("autorun"):
+			autorun = not autorun
+		if autorun and (Input.is_action_pressed("move_back") or Input.is_action_pressed("move_forward")):
+			autorun = false
+		if autorun and dir2 == Vector2.ZERO:
+			dir2 = Vector2(0, -1)
 		sprint = Input.is_action_pressed("sprint") or touch_sprint or touch_move.length() > 0.92
 		var kl := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 		if kl != Vector2.ZERO:
@@ -122,6 +136,12 @@ func _physics_process(delta: float) -> void:
 	if hspeed > 0.2:
 		var face := atan2(-velocity.x, -velocity.z)
 		rig.rotation.y = lerp_angle(rig.rotation.y, face, clampf(delta * 12.0, 0, 1))
+		# follow camera: swing in behind the runner unless the player is steering the camera
+		if input_enabled and Time.get_ticks_msec() - _last_look_ms > 1200:
+			var off := wrapf(face - cam_yaw, -PI, PI)
+			if absf(off) < 2.3:
+				var rate := FOLLOW_TOUCH if touch_move.length() > 0.05 or autorun else FOLLOW_KEYS
+				cam_yaw += off * clampf(delta * rate * clampf(hspeed / RUN, 0.3, 1.0), 0.0, 1.0)
 	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor())
 
 	yaw_node.global_position = yaw_node.global_position.lerp(global_position + Vector3(0, 1.5, 0), clampf(delta * 12.0, 0, 1))

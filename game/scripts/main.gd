@@ -126,7 +126,7 @@ func _register_inputs() -> void:
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"look_left": [KEY_Q], "look_right": [KEY_R], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
-		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "interact": [KEY_E, KEY_ENTER],
+		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "interact": [KEY_E, KEY_ENTER],
 		"journal": [KEY_J, KEY_TAB], "character": [KEY_C], "confirm": [KEY_SPACE, KEY_ENTER],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],

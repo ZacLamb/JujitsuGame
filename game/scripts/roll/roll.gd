@@ -224,6 +224,7 @@ func _impact() -> void:
 	if not is_inside_tree():
 		return
 	_shake = 0.6
+	UiKit.buzz(45)
 	Sfx.play("hit", -2.0, 0.6)
 	var p := CPUParticles3D.new()
 	p.one_shot = true
@@ -579,6 +580,7 @@ func _squeeze_pulse() -> void:
 		p["r_sh"] = (p.get("r_sh", Vector3.ZERO) as Vector3) + Vector3(0.3, 0, -0.2)
 		p["hip_rot"] = (p.get("hip_rot", Vector3.ZERO) as Vector3) + Vector3(0, 0, randf_range(-0.12, 0.12))
 	player_rig.tween_frames([[p, base[1], 0.06], [base[0], base[1], 0.1]])
+	UiKit.buzz(12)
 
 func _sub_finished(player_won: bool) -> void:
 	sim.finish_by_sub(player_won, struggle_sub)
@@ -587,6 +589,7 @@ func _sub_finished(player_won: bool) -> void:
 		var tapper := opp_rig if player_won else player_rig
 		tapper.tween_frames(RollPoses.tap_frames(_sub_pose.def[0], _sub_pose.def[1]))
 		_shake = 0.25
+		UiKit.buzz(70)
 	Sfx.play("tap")
 	var m: Dictionary = Data.MOVES.get(struggle_sub, {"name": "submission"})
 	if player_won:

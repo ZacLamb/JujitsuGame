@@ -170,6 +170,47 @@ func _ready() -> void:
 	main.player.touch_move = Vector2.ZERO
 	check(main.player.global_position.distance_to(p0) > 2.0, "player walks (%.1fm)" % main.player.global_position.distance_to(p0))
 	check(main.player.global_position.y > -1.0, "player stays above ground")
+	# ---- phone controls: joystick, follow camera, pinch zoom, auto-run
+	var tc: TouchControls = main.hud.touch
+	tc.visible = true
+	check(TouchControls.shape(Vector2(0.1, 0)) == Vector2.ZERO and TouchControls.shape(Vector2(1, 0)).is_equal_approx(Vector2(1, 0)), "joystick dead zone and full push")
+	var w: float = tc.get_viewport_rect().size.x
+	var ev := InputEventScreenTouch.new()
+	ev.index = 0
+	ev.position = Vector2(w * 0.15, 400)
+	ev.pressed = true
+	tc._input(ev)
+	var dr := InputEventScreenDrag.new()
+	dr.index = 0
+	dr.position = Vector2(w * 0.15 + 80, 400)   # push right
+	tc._input(dr)
+	var yaw0: float = main.player.cam_yaw
+	var pa: Vector3 = main.player.global_position
+	for i in 90:
+		await get_tree().physics_frame
+	check(main.player.global_position.distance_to(pa) > 2.0, "joystick moves the player")
+	check(absf(wrapf(main.player.cam_yaw - yaw0, -PI, PI)) > 0.2, "follow camera swings behind the runner")
+	ev.pressed = false
+	tc._input(ev)
+	var d0: float = main.player.cam_dist
+	var t1 := InputEventScreenTouch.new(); t1.index = 1; t1.position = Vector2(w * 0.6, 300); t1.pressed = true
+	var t2 := InputEventScreenTouch.new(); t2.index = 2; t2.position = Vector2(w * 0.8, 300); t2.pressed = true
+	tc._input(t1)
+	tc._input(t2)
+	var d2 := InputEventScreenDrag.new(); d2.index = 2; d2.position = Vector2(w * 0.7, 300)
+	tc._input(d2)
+	check(main.player.cam_dist > d0, "pinch in zooms the camera out (%.1f -> %.1f)" % [d0, main.player.cam_dist])
+	t1.pressed = false
+	t2.pressed = false
+	tc._input(t2)
+	tc._input(t1)
+	tc.set_autorun(true)
+	var pr: Vector3 = main.player.global_position
+	for i in 60:
+		await get_tree().physics_frame
+	check(main.player.global_position.distance_to(pr) > 2.0, "auto-run moves without touching")
+	tc.release_all()
+	check(not main.player.autorun, "releasing controls stops auto-run")
 	print("\n%s (%d failures)" % ["PASS" if fails == 0 else "FAILED", fails])
 	get_tree().quit(1 if fails > 0 else 0)
 

@@ -137,3 +137,8 @@ static func open_url(url: String) -> void:
 		JavaScriptBridge.eval("window.open(%s, '_blank')" % JSON.stringify(url))
 	else:
 		OS.shell_open(url)
+
+## Short vibration on phones that support it (Android browsers; iOS ignores it).
+static func buzz(ms := 20) -> void:
+	if OS.has_feature("web_android") or OS.has_feature("android"):
+		Input.vibrate_handheld(ms)

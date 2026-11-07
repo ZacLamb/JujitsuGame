@@ -700,7 +700,7 @@ func _build_title() -> void:
 	play.pressed.connect(func(): play_pressed.emit())
 	v.add_child(play)
 	var how := UiKit.label(
-		"Explore with WASD / joystick · drag to look · Space to jump · E to roll\n" +
+		"Explore with WASD / joystick · drag to look · pinch to zoom · Space to jump · X auto-run · E to roll\n" +
 		"In a roll: pick a technique, stop the bar in the green, defend with the arrows, mash to finish or escape.",
 		17, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(how)

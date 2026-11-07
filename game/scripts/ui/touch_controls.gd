@@ -1,21 +1,28 @@
 class_name TouchControls
 extends Control
-## Virtual joystick (left half) + camera drag (right half) + action buttons.
+## Phone controls, MMO style: floating joystick (left side), camera drag + pinch zoom (right
+## side), auto-run, run toggle, jump and a context button (Roll / Talk / Go).
 
 signal jump_pressed
 signal interact_pressed
 signal journal_pressed
 
+const DEAD_ZONE := 0.14
+const LOOK_SPEED := 3.2          # radians per screen-width of drag
 var player: Player
 var _stick_id := -1
 var _stick_origin := Vector2.ZERO
 var _stick_vec := Vector2.ZERO
 var _look_id := -1
 var _look_last := Vector2.ZERO
+var _pinch_id := -1
+var _pinch_last := Vector2.ZERO
 var stick_radius := 80.0
 var interact_btn: Button
 var jump_btn: Button
 var sprint_btn: Button
+var autorun_btn: Button
+var autorun := false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -29,6 +36,9 @@ func _ready() -> void:
 	sprint_btn = _round_button("RUN", Vector2(-175, -310), Vector2(100, 80))
 	sprint_btn.toggle_mode = true
 	sprint_btn.toggled.connect(func(on): if player: player.touch_sprint = on)
+	autorun_btn = _round_button("AUTO", Vector2(-300, -290), Vector2(100, 70))
+	autorun_btn.toggle_mode = true
+	autorun_btn.toggled.connect(set_autorun)
 
 func _round_button(text: String, offset: Vector2, size_v: Vector2) -> Button:
 	var b := UiKit.button(text, size_v)
@@ -46,6 +56,23 @@ func _round_button(text: String, offset: Vector2, size_v: Vector2) -> Button:
 	add_child(b)
 	return b
 
+## Auto-run: keeps running forward (camera direction) until toggled off or the stick is used.
+func set_autorun(on: bool) -> void:
+	autorun = on
+	if autorun_btn.button_pressed != on:
+		autorun_btn.set_pressed_no_signal(on)
+	if player:
+		player.autorun = on
+
+## Joystick response: dead zone, then a smooth curve so small pushes walk slowly.
+static func shape(v: Vector2) -> Vector2:
+	var l := v.length()
+	if l < DEAD_ZONE:
+		return Vector2.ZERO
+	var t := (l - DEAD_ZONE) / (1.0 - DEAD_ZONE)
+	t = t * t * (3.0 - 2.0 * t) * 0.35 + t * 0.65
+	return v / l * clampf(t, 0.0, 1.0)
+
 func _input(event: InputEvent) -> void:
 	if not visible or player == null or not player.input_enabled:
 		return
@@ -58,9 +85,15 @@ func _input(event: InputEvent) -> void:
 				_stick_id = event.index
 				_stick_origin = event.position
 				_stick_vec = Vector2.ZERO
-			elif _look_id == -1 and event.position.x >= w * 0.45:
-				_look_id = event.index
-				_look_last = event.position
+				if autorun:
+					set_autorun(false)
+			elif event.position.x >= w * 0.45:
+				if _look_id == -1:
+					_look_id = event.index
+					_look_last = event.position
+				elif _pinch_id == -1:
+					_pinch_id = event.index
+					_pinch_last = event.position
 		else:
 			if event.index == _stick_id:
 				_stick_id = -1
@@ -68,19 +101,35 @@ func _input(event: InputEvent) -> void:
 				player.touch_move = Vector2.ZERO
 			elif event.index == _look_id:
 				_look_id = -1
+				_pinch_id = -1
+			elif event.index == _pinch_id:
+				_pinch_id = -1
 		queue_redraw()
 	elif event is InputEventScreenDrag:
 		if event.index == _stick_id:
 			var v: Vector2 = event.position - _stick_origin
+			# the stick follows the thumb so it can never be "lost" off the edge
+			if v.length() > stick_radius * 1.25:
+				_stick_origin += v.normalized() * (v.length() - stick_radius * 1.25)
+				v = event.position - _stick_origin
 			_stick_vec = v.limit_length(stick_radius) / stick_radius
-			player.touch_move = _stick_vec
+			player.touch_move = shape(_stick_vec)
 			queue_redraw()
+		elif _pinch_id != -1 and (event.index == _look_id or event.index == _pinch_id):
+			# two fingers on the right side: pinch to zoom
+			var before := _look_last.distance_to(_pinch_last)
+			if event.index == _look_id:
+				_look_last = event.position
+			else:
+				_pinch_last = event.position
+			var after := _look_last.distance_to(_pinch_last)
+			player.zoom((before - after) * 0.02)
 		elif event.index == _look_id:
-			player.look((event.position - _look_last) * 0.006)
+			player.look((event.position - _look_last) * (LOOK_SPEED / maxf(w, 1.0)))
 			_look_last = event.position
 
 func _over_button(p: Vector2) -> bool:
-	for b in [jump_btn, interact_btn, sprint_btn]:
+	for b in [jump_btn, interact_btn, sprint_btn, autorun_btn]:
 		if b.visible and b.get_global_rect().has_point(p):
 			return true
 	return false
@@ -88,14 +137,24 @@ func _over_button(p: Vector2) -> bool:
 func release_all() -> void:
 	_stick_id = -1
 	_look_id = -1
+	_pinch_id = -1
 	_stick_vec = Vector2.ZERO
 	if player:
 		player.touch_move = Vector2.ZERO
+	if autorun:
+		set_autorun(false)
 	queue_redraw()
 
 func _draw() -> void:
+	var size_v := get_viewport_rect().size
 	if _stick_id == -1:
+		# faint hint where the joystick lives
+		var hint := Vector2(size_v.x * 0.16, size_v.y - 150)
+		draw_circle(hint, stick_radius * 0.8, Color(0, 0, 0, 0.12))
+		draw_arc(hint, stick_radius * 0.8, 0, TAU, 40, Color(1, 1, 1, 0.18), 2.0)
+		draw_circle(hint, 26, Color(1, 1, 1, 0.18))
 		return
 	draw_circle(_stick_origin, stick_radius, Color(0, 0, 0, 0.25))
 	draw_arc(_stick_origin, stick_radius, 0, TAU, 40, Color(1, 1, 1, 0.4), 3.0)
-	draw_circle(_stick_origin + _stick_vec * stick_radius, 34, Color(1, 1, 1, 0.55))
+	var run := _stick_vec.length() > 0.92
+	draw_circle(_stick_origin + _stick_vec * stick_radius, 34, Color(1, 0.85, 0.3, 0.7) if run else Color(1, 1, 1, 0.55))
