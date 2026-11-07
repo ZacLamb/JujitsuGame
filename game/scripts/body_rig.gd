@@ -54,7 +54,9 @@ static func _cmat(c: Color, rough := 0.85) -> StandardMaterial3D:
 var hair_style := -1  # 0 short, 1 buzz, 2 bun, 3 curly, 4 bald, 5 long
 
 # ---- skinned model mode (CC0 Quaternius characters driven by this rig)
-const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://assets/models/rogue.glb"}
+# The female model (rogue.glb) has a hood baked into its head that does not recolor cleanly yet,
+# so both body types use the worker model until a better CC0 female base is added.
+const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://assets/models/worker.glb"}
 static var use_models := true
 var body := ""            # "male" / "female"; "" picks from a hash
 var casual := false       # villagers: shirt + pants, no belt
@@ -76,7 +78,7 @@ func setup(gi: Color, belt: Color, skin: Color, hair := Color(0.12, 0.08, 0.05),
 	casual = is_casual
 	var h := absi(hash(gi.to_html() + skin.to_html() + hair.to_html()))
 	hair_style = style if style >= 0 else h % 6
-	body = body_type if body_type != "" else "male"  # the female model's hood doesn't recolor cleanly yet
+	body = body_type if body_type != "" else "male"
 	_build()
 	if use_models and ResourceLoader.exists(MODELS.get(body, "")):
 		_build_skinned()
@@ -343,8 +345,8 @@ func _recolor() -> void:
 	var pants := gi if not casual else Color(0.2, 0.25, 0.4).lerp(gi.darkened(0.5), 0.3)
 	for mi in skinned.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
-		if m.name.begins_with("NurbsPath"):
-			m.visible = false  # rogue's dagger strap
+		if m.name.begins_with("NurbsPath") or m.name == "Rogue_001":
+			m.visible = false  # rogue's dagger strap and hood
 			continue
 		# world scale of this mesh relative to the rig, so the outline stays ~1 cm thick
 		var chain := m.transform

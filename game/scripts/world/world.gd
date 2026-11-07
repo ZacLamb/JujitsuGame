@@ -57,6 +57,8 @@ func build(z := "caceres") -> void:
 	_build_houses()
 	_build_trees()
 	_build_ground_detail()
+	_build_props()
+	_build_caceres_life()
 	_build_gate()
 	_build_pier()
 	_build_nest_tree()
@@ -514,14 +516,8 @@ func _mango_tree(p: Vector3, s := 1.0) -> void:
 	add_child(c)
 
 func _build_trees() -> void:
-	# MultiMesh per part to keep draw calls low on phones.
-	var parts := {
-		"trunk": {"mesh": _mk_cyl(0.28, 0.38, 3.2), "color": Color(0.4, 0.28, 0.18), "xf": []},
-		"mango": {"mesh": _mk_sphere(2.2, 3.4), "color": Color(0.17, 0.4, 0.17), "xf": []},
-		"ipe": {"mesh": _mk_sphere(2.0, 3.0), "color": Color(0.9, 0.45, 0.7) if zone == "pantanal" else Color(0.98, 0.8, 0.15), "xf": []},
-		"palm_trunk": {"mesh": _mk_cyl(0.16, 0.24, 6.0), "color": Color(0.55, 0.45, 0.3), "xf": []},
-		"frond": {"mesh": _mk_box(Vector3(0.6, 0.08, 3.0)), "color": Color(0.25, 0.55, 0.2), "xf": []},
-	}
+	# CC0 models (Kenney Nature Kit), batched with MultiMesh to stay cheap on phones.
+	var xf := {"palm": [], "oak": [], "fat": [], "ipe": []}
 	var placed := 0
 	var tries := 0
 	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120}[zone] and tries < 3000:
@@ -552,28 +548,189 @@ func _build_trees() -> void:
 		cs.shape = sh
 		cs.position = base + Vector3(0, 2, 0)
 		_static.add_child(cs)
+		var b := Basis(Vector3.UP, _rng.randf() * TAU)
 		if d < 22.0 or kind < 0.25:
-			parts.palm_trunk.xf.append(Transform3D(Basis().scaled(Vector3(s, s, s)), base + Vector3(0, 3.0 * s, 0)))
-			for k in 6:
-				var b := Basis(Vector3.UP, k * TAU / 6.0) * Basis(Vector3.RIGHT, 0.35)
-				parts.frond.xf.append(Transform3D(b.scaled(Vector3(s, s, s)), base + Vector3(0, 6.0 * s, 0) + b * Vector3(0, 0, -1.3 * s)))
+			xf.palm.append(Transform3D(b.scaled(Vector3.ONE * 5.4 * s), base))
+		elif kind > 0.85:
+			xf.ipe.append(Transform3D(b.scaled(Vector3.ONE * 4.8 * s), base))
+		elif kind > 0.55:
+			xf.oak.append(Transform3D(b.scaled(Vector3.ONE * 5.0 * s), base))
 		else:
-			parts.trunk.xf.append(Transform3D(Basis().scaled(Vector3(s, s, s)), base + Vector3(0, 1.6 * s, 0)))
-			var key := "ipe" if kind > 0.85 else "mango"
-			parts[key].xf.append(Transform3D(Basis().scaled(Vector3(s, s, s)), base + Vector3(0, 4.0 * s, 0)))
+			xf.fat.append(Transform3D(b.scaled(Vector3.ONE * 4.8 * s), base))
 		placed += 1
-	for k in parts:
-		var p: Dictionary = parts[k]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = p.mesh
-		mm.instance_count = p.xf.size()
-		for i in p.xf.size():
-			mm.set_instance_transform(i, p.xf[i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.material_override = _mat(p.color)
-		add_child(mmi)
+	var ipe_col := Color(0.9, 0.45, 0.7) if zone == "pantanal" else Color(0.98, 0.78, 0.15)
+	_mm("tree_palm", xf.palm)
+	_mm("tree_oak", xf.oak)
+	_mm("tree_fat", xf.fat, Color(0.2, 0.42, 0.18))
+	_mm("tree_fat", xf.ipe, ipe_col)
+
+# ---------------------------------------------------------------- CC0 model helpers
+static var _model_cache := {}
+
+## Kenney's pastel palette, re-mapped by material name to fit Mato Grosso.
+const PALETTE := {
+	"grass": Color(0.27, 0.47, 0.18), "leafsGreen": Color(0.24, 0.5, 0.2), "leafs": Color(0.24, 0.5, 0.2),
+	"woodBark": Color(0.42, 0.3, 0.2), "woodInner": Color(0.78, 0.66, 0.5), "dirt": Color(0.46, 0.37, 0.28),
+	"rock": Color(0.56, 0.53, 0.49), "rockTrack": Color(0.5, 0.47, 0.44), "stone": Color(0.56, 0.53, 0.49),
+	"crystal": Color(0.78, 0.68, 0.98), "colorRed": Color(0.86, 0.2, 0.24), "colorYellow": Color(0.98, 0.82, 0.2),
+}
+
+## Lambert copy of a model material: keeps textures, swaps pastel colors for our palette.
+func _prop_mat(src: BaseMaterial3D, leaf_tint := Color(0, 0, 0, 0)) -> Material:
+	if src and src.albedo_texture:
+		var m := src.duplicate() as BaseMaterial3D
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		m.roughness = 0.8
+		return m
+	var nm := src.resource_name if src else ""
+	var col: Color = PALETTE.get(nm, src.albedo_color.srgb_to_linear() if src else Color(0.5, 0.5, 0.5))
+	if leaf_tint.a > 0.0 and (nm.begins_with("leaf") or nm == "grass"):
+		col = leaf_tint
+	return _mat(col, 0.9)
+
+## Returns {"mesh": ArrayMesh, "xf": Transform3D} for the first mesh in a model, with lambert
+## materials (optionally tinting the foliage surfaces).
+func _model_mesh(n: String, leaf_tint := Color(0, 0, 0, 0)) -> Dictionary:
+	var key := n + leaf_tint.to_html()
+	if _model_cache.has(key):
+		return _model_cache[key]
+	var path := "res://assets/models/%s.glb" % n
+	if not ResourceLoader.exists(path):
+		return {}
+	var inst: Node3D = (load(path) as PackedScene).instantiate()
+	var found := inst.find_children("*", "MeshInstance3D", true, false)
+	if found.is_empty():
+		inst.free()
+		return {}
+	var mi := found[0] as MeshInstance3D
+	var chain := mi.transform
+	var p := mi.get_parent()
+	while p and p != inst:
+		if p is Node3D:
+			chain = (p as Node3D).transform * chain
+		p = p.get_parent()
+	var mesh := (mi.mesh as ArrayMesh).duplicate() as ArrayMesh
+	for i in mesh.get_surface_count():
+		mesh.surface_set_material(i, _prop_mat(mesh.surface_get_material(i) as BaseMaterial3D, leaf_tint))
+	var out := {"mesh": mesh, "xf": chain}
+	inst.free()
+	_model_cache[key] = out
+	return out
+
+func _mm(n: String, xforms: Array, leaf_tint := Color(0, 0, 0, 0), shadows := true) -> void:
+	if xforms.is_empty():
+		return
+	var md := _model_mesh(n, leaf_tint)
+	if md.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = md.mesh
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, (xforms[i] as Transform3D) * (md.xf as Transform3D))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	if not shadows:
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+
+## Place a full model scene (with its own animation, if any).
+func _place_model(n: String, pos: Vector3, scale_v: float, rot_y := 0.0, box := Vector3.ZERO) -> Node3D:
+	var path := "res://assets/models/%s.glb" % n
+	if not ResourceLoader.exists(path):
+		return null
+	var inst: Node3D = (load(path) as PackedScene).instantiate()
+	inst.position = pos
+	inst.rotation.y = rot_y
+	inst.scale = Vector3.ONE * scale_v
+	add_child(inst)
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			mi.set_surface_override_material(i, _prop_mat(mi.mesh.surface_get_material(i) as BaseMaterial3D))
+	if box != Vector3.ZERO:
+		var cs := CollisionShape3D.new()
+		var sh := BoxShape3D.new()
+		sh.size = box
+		cs.shape = sh
+		cs.position = pos + Vector3(0, box.y / 2.0, 0)
+		cs.rotation.y = rot_y
+		_static.add_child(cs)
+	return inst
+
+## Animated CC0 animal (Quaternius). length = rough body length in metres.
+func _animal(n: String, pos: Vector3, length: float, rot_y := 0.0) -> void:
+	var path := "res://assets/models/%s.glb" % n
+	if not ResourceLoader.exists(path):
+		return
+	var inst: Node3D = (load(path) as PackedScene).instantiate()
+	add_child(inst)
+	var aabb := AABB()
+	var first := true
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		var a: AABB = mi.global_transform * mi.mesh.get_aabb()
+		aabb = a if first else aabb.merge(a)
+		first = false
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i) as BaseMaterial3D
+			if src:
+				mi.set_surface_override_material(i, BodyRig._mat(src.albedo_color, 0.8))
+	var longest := maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
+	inst.scale = Vector3.ONE * (length / maxf(longest, 0.001))
+	inst.position = pos
+	inst.rotation.y = rot_y
+	var ap := inst.find_children("*", "AnimationPlayer", true, false)
+	if not ap.is_empty():
+		var player := ap[0] as AnimationPlayer
+		var pick := ""
+		for a in player.get_animation_list():
+			var an := str(a)
+			if an.ends_with("Idle") or an.ends_with("Eating") or an.ends_with("Idle_Eating"):
+				pick = an
+				if _rng.randf() < 0.5:
+					break
+		if pick != "":
+			player.get_animation(pick).loop_mode = Animation.LOOP_LINEAR
+			player.play(pick)
+			player.seek(_rng.randf() * 2.0)
+
+## Bushes, rocks, flowers, logs: the small stuff that makes a place feel lived in.
+func _build_props() -> void:
+	var lists := {"bush": [], "bush_large": [], "rock_small": [], "rock_large": [], "flower_red": [], "stump": [], "log": []}
+	var want := {"bush": 160, "bush_large": 90, "rock_small": 50, "rock_large": 25, "flower_red": 140, "stump": 12, "log": 10}
+	var scale_of := {"bush": 4.5, "bush_large": 5.5, "rock_small": 4.0, "rock_large": 3.2, "flower_red": 2.6, "stump": 4.0, "log": 3.0}
+	if zone == "chapada":
+		want.rock_small = 110
+		want.rock_large = 60
+	for k in want:
+		var n := 0
+		var tries := 0
+		while n < int(want[k]) and tries < 2000:
+			tries += 1
+			var x := _rng.randf_range(-90, 90)
+			var z := _rng.randf_range(-90, 90)
+			if _is_blocked(x, z, 1.0):
+				continue
+			var gy := ground_y(x, z)
+			if gy < -0.2 or absf(ground_y(x + 1.0, z) - gy) > 0.9:
+				continue
+			if zone == "caceres" and absf(x - river_x(z)) < 11.0:
+				continue
+			var sc: float = scale_of[k] * _rng.randf_range(0.8, 1.25)
+			lists[k].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(x, gy - 0.05, z)))
+			n += 1
+	for k in lists:
+		_mm(k, lists[k], Color(0, 0, 0, 0), k.begins_with("rock") or k == "log")
+	# big rocks get collision
+	for t in lists.rock_large:
+		var cs := CollisionShape3D.new()
+		var sh := SphereShape3D.new()
+		sh.radius = 1.1 * (t as Transform3D).basis.get_scale().x / 3.2
+		cs.shape = sh
+		cs.position = (t as Transform3D).origin + Vector3(0, 0.3, 0)
+		_static.add_child(cs)
 
 func _mk_cyl(rt: float, rb: float, h: float) -> Mesh:
 	var m := CylinderMesh.new()
@@ -1025,6 +1182,15 @@ func _build_pantanal() -> void:
 	add_child(water)
 	_build_trees()
 	_build_ground_detail()
+	_build_props()
+	for p in [Vector3(-34, 0, 34), Vector3(-46, 0, 18)]:
+		_animal("deer", Vector3(p.x, ground_y(p.x, p.z), p.z), 1.6, _rng.randf() * TAU)
+	_animal("fox", Vector3(70, ground_y(70, -20), -20), 0.9, 1.0)
+	for p in [Vector3(-2, 0, 10), Vector3(22, 0, 30), Vector3(30, 0, -46)]:
+		_animal("frog", Vector3(p.x, maxf(ground_y(p.x, p.z), -0.3), p.z), 0.25, _rng.randf() * TAU)
+	_place_model("tent", Vector3(-58, ground_y(-58, 10), 10), 4.0, 0.9, Vector3(3.0, 2.2, 2.6))
+	_place_model("campfire", Vector3(-55, ground_y(-55, 13), 13), 3.0)
+	_animal("shiba", Vector3(-40, ground_y(-40, 30), 30), 0.9, 0.3)
 	_p_bus_stop()
 	_p_fazenda()
 	_p_ranch()
@@ -1258,6 +1424,8 @@ func _build_chapada() -> void:
 	_build_terrain()
 	_build_trees()
 	_build_ground_detail()
+	_build_props()
+	_c_wildlife()
 	_p_bus_stop(Vector3(-80, 0, 40), "CHAPADA DOS GUIMARÃES")
 	_c_waterfall()
 	_c_village()
@@ -1427,3 +1595,34 @@ func _challenge_board(pos: Vector3) -> void:
 	var l2 := _label("DESAFIO\nDO DIA", Vector3(pos.x, gy + 1.95, pos.z - 0.07), 44, UiKit.ACCENT, PI)
 	l2.pixel_size = 0.006
 	_spot(Vector3(pos.x, gy, pos.z), 2.4, "Daily Challenge board", "daily")
+
+
+func _build_caceres_life() -> void:
+	# parked cars along the main street (Kenney Car Kit)
+	var cars := ["sedan", "taxi", "van", "police_car", "truck", "sedan", "taxi"]
+	var xs := [-42.0, -28.0, 18.0, 36.0, 48.0, 58.0, -12.0]
+	for i in cars.size():
+		var x: float = xs[i]
+		var z := -8.6 if i % 2 == 0 else 0.6
+		if _is_blocked(x, z, 0.0) and not (absf(z + 4.0) < 5.0):
+			continue
+		_place_model(cars[i], Vector3(x, ground_y(x, z), z), 1.7, PI / 2 if i % 2 == 0 else -PI / 2, Vector3(4.6, 2.0, 2.4))
+	# street dogs and cats (Quaternius animals)
+	_animal("shiba", Vector3(8, ground_y(8, 18), 18), 0.9, 2.4)
+	_animal("pug", Vector3(-6, ground_y(-6, 0), 0), 0.55, 0.8)
+	_animal("cat", Vector3(14, ground_y(14, -10), -10), 0.5, -1.2)
+	_animal("cat", Vector3(-3, ground_y(-3, -46), -46), 0.45, 0.4)
+	_animal("shiba", Vector3(26, ground_y(26, -14), -14), 0.85, -0.6)
+	_animal("frog", Vector3(-58, ground_y(-58, 14), 14), 0.22, 1.0)
+	# tereré stand in the plaza
+	_place_model("barrel", Vector3(11, ground_y(11, 12) + 0.15, 12), 4.0, 0.0, Vector3(0.8, 1.0, 0.8))
+	_place_model("crate", Vector3(12.3, ground_y(12, 12) + 0.15, 12.2), 2.0, 0.3)
+
+func _c_wildlife() -> void:
+	_animal("deer", Vector3(-20, ground_y(-20, 30), 30), 1.7, 0.5)
+	_animal("fox", Vector3(60, ground_y(60, -40), -40), 0.9, 2.0)
+	_animal("fox", Vector3(-40, ground_y(-40, -70), -70), 0.85, -0.7)
+	_place_model("crystal_rock", Vector3(-60, ground_y(-60, -6), -6), 3.0, 0.4, Vector3(2.4, 1.6, 2.4))
+	_place_model("crystal_rock", Vector3(-68, ground_y(-68, -4), -4), 2.4, 1.9, Vector3(2.0, 1.3, 2.0))
+	_place_model("tent", Vector3(-70, ground_y(-70, 48), 48), 4.0, 0.6, Vector3(3.0, 2.2, 2.6))
+	_place_model("campfire", Vector3(-66, ground_y(-66, 46), 46), 3.0)

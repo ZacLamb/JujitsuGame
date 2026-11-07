@@ -21,7 +21,7 @@ func setup_fighter(id: String, w) -> Npc:
 	display_name = o.name
 	rig = BodyRig.new()
 	add_child(rig)
-	rig.setup(o.gi, Data.BELTS[Data.belt_of(int(o.rank))].color, o.skin)
+	rig.setup(o.gi, Data.BELTS[Data.belt_of(int(o.rank))].color, o.skin, Color(0.12, 0.08, 0.05), -1, o.get("body", "male"))
 	tag = Label3D.new()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
