@@ -25,6 +25,8 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.touch.player = player
+	player.clicked.connect(_on_world_click)
+	hud.minimap.set_world(world, player)
 	hud.touch.jump_pressed.connect(player.do_jump)
 	hud.touch.interact_pressed.connect(_interact)
 	hud.touch.journal_pressed.connect(hud.toggle_journal)
@@ -126,7 +128,7 @@ func _register_inputs() -> void:
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"look_left": [KEY_Q], "look_right": [KEY_R], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
-		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "interact": [KEY_E, KEY_ENTER],
+		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E, KEY_ENTER],
 		"journal": [KEY_J, KEY_TAB], "character": [KEY_C], "confirm": [KEY_SPACE, KEY_ENTER],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],
@@ -166,6 +168,9 @@ func _process(delta: float) -> void:
 		var c := Vector3(0, 0, -10)
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
+	_mouse_process()
+	if not _in_title and roll == null:
+		_adapt_quality(delta)
 
 func _start_game() -> void:
 	Sfx.music("explore")
@@ -204,6 +209,87 @@ func _begin_play() -> void:
 			"You just moved to town with a white belt and a dream. Follow the golden light: there's a guy in the plaza who rolls every afternoon. Win rolls, earn stripes, and find the academia.",
 			"", "Let's go")
 
+# ------------------------------------------------------------ mouse: hover + click to interact
+var _hover: Npc = null
+
+## Fighter or quest giver under the mouse (screen-space pick around their chest/head).
+func _npc_at(screen: Vector2) -> Npc:
+	if world == null or player == null:
+		return null
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return null
+	var best: Npc = null
+	var bd := 42.0
+	var cands: Array = world.fighters.values() + world.quest_givers.values()
+	for n in cands:
+		var npc := n as Npc
+		var wp := npc.global_position + Vector3(0, 1.3, 0)
+		if cam.is_position_behind(wp) or wp.distance_to(cam.global_position) > 60.0:
+			continue
+		var sp := cam.unproject_position(wp)
+		var d := sp.distance_to(screen)
+		var reach := bd * clampf(12.0 / maxf(wp.distance_to(cam.global_position), 1.0), 0.5, 2.0)
+		if d < reach and d < bd * 2.0:
+			bd = d
+			best = npc
+	return best
+
+# Ultra steps down to High once if the frame rate stays low (unless the player picked it).
+var _slow_t := 0.0
+
+func _adapt_quality(delta: float) -> void:
+	if Game.graphics_level() != 2 or Game.flags.get("gfx_manual", false) or Game.test_mode:
+		return
+	var fps := Engine.get_frames_per_second()
+	_slow_t = _slow_t + delta if fps > 0 and fps < 30 else maxf(0.0, _slow_t - delta * 2.0)
+	if _slow_t > 6.0:
+		_slow_t = 0.0
+		Game.set_graphics_level(1, false)
+		if is_instance_valid(world):
+			world.apply_graphics()
+		hud.gfx_btn.text = "Gfx: high"
+		Game.toast.emit("Graphics lowered to High for smoother play", UiKit.MUTED)
+
+func _mouse_process() -> void:
+	if _in_title or roll != null or hud == null or not player.input_enabled or hud.touch.visible:
+		if _hover != null:
+			_hover = null
+			Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+			hud.set_hover("")
+		return
+	var h := _npc_at(get_viewport().get_mouse_position())
+	if h != _hover:
+		_hover = h
+		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if h else Input.CURSOR_ARROW)
+		if h == null:
+			hud.set_hover("")
+		elif h.giver_id != "":
+			hud.set_hover("%s  ·  click to talk" % h.display_name)
+		else:
+			var o: Dictionary = Data.OPPONENTS[h.opp_id]
+			hud.set_hover("%s  ·  Lv %d  ·  click to roll" % [o.name, Data.display_level(float(o.level))])
+	if _hover:
+		hud.place_hover(get_viewport().get_mouse_position())
+	# walking to a clicked NPC: interact on arrival
+	if player.walk_target != null and is_instance_valid(player.walk_target):
+		if player.global_position.distance_to(player.walk_target.global_position) < 2.6:
+			var t: Npc = player.walk_target
+			player.walk_target = null
+			_interact(t)
+
+func _on_world_click(screen: Vector2) -> void:
+	if roll != null or hud.dialogue_open() or hud.journal.visible or hud.minimap.big:
+		return
+	var n := _npc_at(screen)
+	if n == null:
+		return
+	if player.global_position.distance_to(n.global_position) < 2.8:
+		_interact(n)
+	else:
+		player.walk_target = n
+		Game.toast.emit("Walking to %s..." % n.display_name, UiKit.MUTED)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _in_title or roll != null or Game.style == "":
 		return
@@ -216,6 +302,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			hud.open_character()
 	elif event.is_action_pressed("interact") and not hud.dialogue_open() and not hud.journal.visible:
 		_interact()
+	elif event.is_action_pressed("map") and not hud.dialogue_open() and not hud.journal.visible:
+		hud.minimap.toggle_big()
+		player.input_enabled = not hud.minimap.big
+	elif event.is_action_pressed("pause") and hud.minimap.big:
+		hud.minimap.toggle_big()
+		player.input_enabled = true
 	elif event.is_action_pressed("pause") and hud.journal.visible:
 		hud.toggle_journal()
 
@@ -239,6 +331,8 @@ func _make_world(z: String) -> void:
 	world.add_child(player)
 	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio"] else 0.0)
 	world.attach_player(player)
+	if hud:
+		hud.minimap.set_world(world, player)
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
 	if is_instance_valid(_title_cam):
@@ -428,9 +522,12 @@ func _start_drill(attr: String) -> void:
 		hud.refresh())
 	_drill.start(attr)
 
-func _interact() -> void:
-	var npc := world.nearby
+func _interact(target: Npc = null) -> void:
+	var npc: Npc = target if target != null else world.nearby
 	if roll != null or hud.dialogue_open() or _drill != null or hud.travel_open():
+		return
+	if npc != null and npc.giver_id != "":
+		_open_quest(npc.giver_id)
 		return
 	if npc == null:
 		if not world.nearby_spot.is_empty():

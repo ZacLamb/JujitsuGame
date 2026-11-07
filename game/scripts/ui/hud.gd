@@ -10,6 +10,8 @@ signal daily_requested
 signal graphics_changed
 
 var root: Control
+var minimap: Minimap
+var gfx_btn: Button
 var rank_box: VBoxContainer
 var xp_bar: ProgressBar
 var zone_lbl: Label
@@ -57,6 +59,9 @@ func _ready() -> void:
 	_build_dialogue()
 	_build_journal()
 	touch = TouchControls.new()
+	minimap = Minimap.new()
+	root.add_child(minimap)
+	status_panels.append(minimap)
 	root.add_child(touch)
 	touch.visible = false
 	_build_title()
@@ -118,12 +123,12 @@ func _build_status() -> void:
 		Sfx.set_muted(not Sfx.muted)
 		snd.text = "Sound: off" if Sfx.muted else "Sound: on")
 	head.add_child(snd)
-	var gfx := UiKit.button("Gfx: low" if Game.graphics_low() else "Gfx: high", Vector2(96, 34))
+	gfx_btn = UiKit.button("Gfx: " + Game.GFX_NAMES[Game.graphics_level()], Vector2(104, 34))
+	var gfx := gfx_btn
 	gfx.add_theme_font_size_override("font_size", 15)
 	gfx.pressed.connect(func():
-		Game.flags["gfx_low"] = not Game.graphics_low()
-		Game.save_game()
-		gfx.text = "Gfx: low" if Game.graphics_low() else "Gfx: high"
+		Game.set_graphics_level((Game.graphics_level() + 1) % 3)
+		gfx.text = "Gfx: " + Game.GFX_NAMES[Game.graphics_level()]
 		graphics_changed.emit())
 	head.add_child(gfx)
 	objective = UiKit.label("", 19)
@@ -190,6 +195,24 @@ func _build_prompt() -> void:
 	prompt.anchor_top = 0.72
 	prompt.anchor_bottom = 0.72
 	root.add_child(prompt)
+
+# ------------------------------------------------------------ mouse hover tooltip
+var _hover_lbl: Label
+
+func set_hover(text: String) -> void:
+	if _hover_lbl == null:
+		_hover_lbl = UiKit.label("", 17, UiKit.TEXT)
+		_hover_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_hover_lbl.add_theme_stylebox_override("normal", UiKit.box(Color(0.05, 0.07, 0.06, 0.88), 8, UiKit.ACCENT.darkened(0.3), 1))
+		_hover_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(_hover_lbl)
+	_hover_lbl.text = text
+	_hover_lbl.visible = text != ""
+	_hover_lbl.reset_size()
+
+func place_hover(mouse: Vector2) -> void:
+	if _hover_lbl and _hover_lbl.visible:
+		_hover_lbl.position = mouse + Vector2(18, 14)
 
 func set_spot_prompt(spot: Dictionary) -> void:
 	if spot.is_empty():

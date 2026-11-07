@@ -225,11 +225,26 @@ func dress(rig: BodyRig) -> void:
 	rig.lapel_override = lapel_color()
 	rig.rash_color = rash_color()
 
-## Graphics quality: phones default to low; players can switch in the HUD.
+## Graphics quality: 0 low (phones), 1 high, 2 ultra (desktop default; steps down if slow).
+const GFX_NAMES := ["low", "high", "ultra"]
+
+func graphics_level() -> int:
+	if flags.has("gfx"):
+		return clampi(int(flags.gfx), 0, 2)
+	if flags.has("gfx_low"):  # older saves
+		return 0 if bool(flags.gfx_low) else 1
+	if OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("mobile"):
+		return 0
+	return 2
+
+func set_graphics_level(lvl: int, manual := true) -> void:
+	flags["gfx"] = clampi(lvl, 0, 2)
+	if manual:
+		flags["gfx_manual"] = true
+	save_game()
+
 func graphics_low() -> bool:
-	if flags.has("gfx_low"):
-		return bool(flags.gfx_low)
-	return OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("mobile")
+	return graphics_level() == 0
 
 func look_key() -> String:
 	return "%s|%s|%s" % [gi_color().to_html(), str(equipped.get("gi", "")), str(equipped.get("rash", ""))]

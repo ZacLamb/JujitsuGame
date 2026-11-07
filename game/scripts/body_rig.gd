@@ -713,7 +713,7 @@ func _update_lod(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return
-	var k := 0.6 if Game.graphics_low() else 1.0
+	var k: float = [0.6, 1.0, 1.4][Game.graphics_level()]
 	var d := cam.global_position.distance_to(global_position)
 	var lod := 3
 	for i in LOD_DIST.size():

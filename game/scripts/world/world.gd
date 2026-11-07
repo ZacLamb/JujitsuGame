@@ -32,7 +32,17 @@ func build(z := "caceres") -> void:
 
 ## Merges static, opaque primitive meshes (houses, walls, posts, mats...) into one mesh per
 ## material per 40 m cell. Hundreds of draw calls become a few dozen; cells keep culling working.
+var map_footprints: Array = []   # [Rect2 (x, z), Color] buildings and walls for the minimap
+
 func _batch_static() -> void:
+	map_footprints.clear()
+	for c in get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh and c.visible:
+			var mi := c as MeshInstance3D
+			var bb: AABB = mi.transform * mi.mesh.get_aabb()
+			if bb.size.y >= 1.4 and bb.size.x * bb.size.z >= 1.5 and bb.size.x * bb.size.z < 2500.0:
+				var col: Color = (mi.material_override as StandardMaterial3D).albedo_color if mi.material_override is StandardMaterial3D else Color(0.6, 0.6, 0.6)
+				map_footprints.append([Rect2(bb.position.x, bb.position.z, bb.size.x, bb.size.z), col])
 	var groups := {}
 	for c in get_children():
 		if not (c is MeshInstance3D) or c.get_child_count() > 0 or c.get_script() != null or not c.visible:
@@ -68,17 +78,28 @@ func _batch_static() -> void:
 	if OS.is_debug_build() and merged > 0:
 		print_verbose("batched %d static meshes" % merged)
 
-## Low graphics: no sun shadows, shorter grass distance, lower 3D resolution (phones).
+## Graphics tiers. Low (phones): no sun shadows, short grass distance, 75% 3D resolution.
+## High: 2-cascade shadows to 55 m. Ultra (desktop): 4x MSAA, glow, 90 m shadows, far grass.
 func apply_graphics() -> void:
-	var low := Game.graphics_low()
+	var lvl := Game.graphics_level()
 	for c in get_children():
 		if c is DirectionalLight3D:
-			(c as DirectionalLight3D).shadow_enabled = not low
+			var sun := c as DirectionalLight3D
+			sun.shadow_enabled = lvl > 0
+			sun.directional_shadow_max_distance = 90.0 if lvl == 2 else 55.0
 		elif c is MultiMeshInstance3D and (c as MultiMeshInstance3D).visibility_range_end > 0.0:
-			(c as MultiMeshInstance3D).visibility_range_end = 35.0 if low else 70.0
+			(c as MultiMeshInstance3D).visibility_range_end = [35.0, 70.0, 110.0][lvl]
+		elif c is WorldEnvironment:
+			var e := (c as WorldEnvironment).environment
+			e.glow_enabled = lvl == 2
+			e.glow_intensity = 0.55
+			e.glow_bloom = 0.06
+			e.glow_hdr_threshold = 0.9
 	var vp := get_viewport()
 	if vp:
-		vp.scaling_3d_scale = 0.75 if low else 1.0
+		vp.scaling_3d_scale = 0.75 if lvl == 0 else 1.0
+		vp.msaa_3d = Viewport.MSAA_4X if lvl == 2 else (Viewport.MSAA_2X if lvl == 1 else Viewport.MSAA_DISABLED)
+	RenderingServer.directional_shadow_atlas_set_size(4096 if lvl == 2 else 2048, true)
 
 func _build_zone(z: String) -> void:
 	zone = z

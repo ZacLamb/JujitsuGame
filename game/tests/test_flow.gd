@@ -170,7 +170,25 @@ func _ready() -> void:
 	main.player.touch_move = Vector2.ZERO
 	check(main.player.global_position.distance_to(p0) > 2.0, "player walks (%.1fm)" % main.player.global_position.distance_to(p0))
 	check(main.player.global_position.y > -1.0, "player stays above ground")
-	# ---- phone controls: joystick, follow camera, pinch zoom, auto-run
+	# ---- desktop mouse: click a fighter to walk over and challenge them
+	main.player.walk_target = null
+	var target: Npc = main.world.fighters["rafa"]
+	main.player.teleport(target.global_position + Vector3(0, 1, -9), 0.0)
+	await get_tree().physics_frame
+	main.player.walk_target = target
+	var arrived := false
+	for i in 400:
+		await get_tree().physics_frame
+		if main.hud.dialogue_open():
+			arrived = true
+			break
+	check(arrived and main._talking_to == target, "click-to-interact walks to the fighter and opens the challenge")
+	main.hud._close_dialogue(false)
+	main.hud.minimap.toggle_big()
+	check(main.hud.minimap.big and main.world.map_footprints.size() > 10, "world map opens with building footprints (%d)" % main.world.map_footprints.size())
+	main.hud.minimap.toggle_big()
+	main.player.input_enabled = true
+		# ---- phone controls: joystick, follow camera, pinch zoom, auto-run
 	var tc: TouchControls = main.hud.touch
 	tc.visible = true
 	check(TouchControls.shape(Vector2(0.1, 0)) == Vector2.ZERO and TouchControls.shape(Vector2(1, 0)).is_equal_approx(Vector2(1, 0)), "joystick dead zone and full push")

@@ -27,7 +27,7 @@ func setup_fighter(id: String, w) -> Npc:
 	tag.no_depth_test = true
 	tag.fixed_size = false
 	tag.font_size = 48
-	tag.pixel_size = 0.0115
+	tag.pixel_size = 0.01
 	tag.outline_size = 14
 	tag.position = Vector3(0, 2.25, 0)
 	add_child(tag)

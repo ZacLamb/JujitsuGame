@@ -7,8 +7,7 @@ func _ready() -> void:
 	Game.reset()
 	Game.choose_style("guard", "Gringo", 0)
 	Game.set_level(41)
-	if OS.get_cmdline_user_args().has("--low"):
-		Game.flags["gfx_low"] = true
+	Game.flags["gfx"] = 0 if OS.get_cmdline_user_args().has("--low") else (2 if OS.get_cmdline_user_args().has("--ultra") else 1)
 	main = load("res://main.tscn").instantiate()
 	add_child(main)
 	await get_tree().process_frame
@@ -23,6 +22,8 @@ func _ready() -> void:
 		for v in views[z]:
 			main.player.teleport(Vector3(v.x, main.world.ground_y(v.x, v.z) + 0.5, v.z), 0.6)
 			for i in 20: await get_tree().process_frame
+			if z == "caceres" and v == views[z][0]:
+				get_viewport().get_texture().get_image().save_png("/home/claude/shots/gfx_%d.png" % Game.graphics_level())
 			print("%-9s %-18s draws %4d  objects %4d  prims %7d  nodes %5d" % [z, str(Vector2(v.x, v.z)),
 				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 				Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
