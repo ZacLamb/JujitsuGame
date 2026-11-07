@@ -33,6 +33,9 @@ func build(z := "caceres") -> void:
 	if zone == "chapada":
 		_build_chapada()
 		return
+	if zone == "rio":
+		_build_rio()
+		return
 	noise.seed = 7
 	noise.frequency = 0.03
 	_rng.seed = 2026
@@ -84,6 +87,8 @@ func height(x: float, z: float) -> float:
 		return _height_pantanal(x, z)
 	if zone == "chapada":
 		return _height_chapada(x, z)
+	if zone == "rio":
+		return _height_rio(x, z)
 	var h := noise.get_noise_2d(x, z) * 1.4
 	var town := 1.0 - _ss(38.0, 62.0, maxf(absf(x) * 0.9, absf(z + 15.0) * 0.8))
 	h *= 1.0 - town * 0.88
@@ -98,6 +103,8 @@ func ground_y(x: float, z: float) -> float:
 	return height(x, z)
 
 func _ground_color(x: float, z: float, h: float) -> Color:
+	if zone == "rio":
+		return _rio_color(x, z, h)
 	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
 	if zone == "chapada":
 		var cg := Color(0.34, 0.38, 0.16).lerp(Color(0.44, 0.43, 0.2), n)
@@ -228,9 +235,9 @@ func _build_environment() -> void:
 	e.ambient_light_color = Color(0.62, 0.68, 0.78)
 	e.ambient_light_energy = 0.42
 	e.tonemap_mode = Environment.TONE_MAPPER_ACES
-	e.tonemap_exposure = 0.88
+	e.tonemap_exposure = 0.88 if zone != "rio" else 0.78
 	e.adjustment_enabled = true
-	e.adjustment_saturation = 1.08
+	e.adjustment_saturation = 1.08 if zone != "rio" else 1.22
 	e.adjustment_contrast = 1.08
 	e.fog_enabled = true
 	e.fog_light_color = Color(0.72, 0.82, 0.92)
@@ -298,6 +305,8 @@ func _build_ground_detail() -> void:
 		if gy < -0.25 or gy > 9.0:
 			continue
 		if zone == "caceres" and absf(x - river_x(z)) < 12.0:
+			continue
+		if zone == "rio" and ((z > -30.0 and x > -64.0) or z > 16.0):
 			continue
 		if absf(ground_y(x + 1.0, z) - gy) > 0.8:
 			continue
@@ -520,7 +529,7 @@ func _build_trees() -> void:
 	var xf := {"palm": [], "oak": [], "fat": [], "ipe": []}
 	var placed := 0
 	var tries := 0
-	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120}[zone] and tries < 3000:
+	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120, "rio": 150}[zone] and tries < 3000:
 		tries += 1
 		var x := _rng.randf_range(-92, 92)
 		var z := _rng.randf_range(-92, 92)
@@ -530,7 +539,9 @@ func _build_trees() -> void:
 		if d < 10.0:
 			continue
 		var gy := ground_y(x, z)
-		if zone == "chapada":
+		if zone == "rio" and ((z > -30.0 and x > -64.0) or Vector2(x, z).distance_to(SUGARLOAF) < 16.0):
+			continue
+		if zone == "chapada" or zone == "rio":
 			if absf(ground_y(x, z + 2.0) - gy) > 1.2 or absf(ground_y(x + 2.0, z) - gy) > 1.2 or gy < -0.3:
 				continue
 			d = 40.0
@@ -718,6 +729,8 @@ func _build_props() -> void:
 				continue
 			if zone == "caceres" and absf(x - river_x(z)) < 11.0:
 				continue
+			if zone == "rio" and ((z > -30.0 and x > -64.0) or Vector2(x, z).distance_to(SUGARLOAF) < 16.0):
+				continue
 			var sc: float = scale_of[k] * _rng.randf_range(0.8, 1.25)
 			lists[k].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(x, gy - 0.05, z)))
 			n += 1
@@ -875,6 +888,10 @@ func _build_cups() -> void:
 			qm.size = Vector3(0.35, 0.8, 0.35)
 			cup.mesh = qm
 			cup.material_override = _mat(Color(0.85, 0.75, 1.0), 0.15)
+		if zone == "rio":
+			# green coconut with a straw
+			cup.mesh = _mk_sphere(0.32, 0.6)
+			cup.material_override = _mat(Color(0.35, 0.62, 0.2), 0.5)
 		if zone == "pantanal":
 			# arara feather instead of a cup
 			var fm := PrismMesh.new()
@@ -891,7 +908,7 @@ func _build_cups() -> void:
 		straw.position = Vector3(0.08, 0.35, 0)
 		straw.rotation.z = -0.25
 		holder.add_child(straw)
-		straw.visible = zone == "caceres"
+		straw.visible = zone == "caceres" or zone == "rio"
 		var glow := OmniLight3D.new()
 		glow.light_color = Color(0.5, 1, 0.5)
 		glow.light_energy = 0.8
@@ -941,6 +958,8 @@ func _build_fighters() -> void:
 			y = ground_y(64, 58) + 0.4
 		elif id == "cachoeira":
 			y = ground_y(40, 56) + 0.38
+		elif id == "leao":
+			y = ground_y(RIO_GYM.x, RIO_GYM.z) + 0.38
 		npc.position = Vector3(p.x, y, p.z)
 		npc.rig.rotation.y = PI
 		fighters[id] = npc
@@ -951,6 +970,8 @@ func _build_villagers() -> void:
 		where = [Vector3(-75, 0, -4), Vector3(-40, 0, 26), Vector3(56, 0, 50), Vector3(38, 0, -30)]
 	elif zone == "chapada":
 		where = [Vector3(42, 0, 40), Vector3(36, 0, 36), Vector3(-74, 0, 40), Vector3(20, 0, 10)]
+	elif zone == "rio":
+		where = [Vector3(0, 0, 40), Vector3(-50, 0, 44), Vector3(40, 0, 44), Vector3(-10, 0, 28), Vector3(30, 0, 27), Vector3(36, 0, -36), Vector3(-80, 0, 10)]
 	for i in where.size():
 		var v := Npc.new()
 		add_child(v)
@@ -984,7 +1005,28 @@ func _build_beacon() -> void:
 	add_child(beacon)
 	refresh_beacon()
 
+func _nearest_unbeaten(z: String) -> Vector3:
+	var best := Vector3.INF
+	var bd := INF
+	for id in Data.OPPONENTS:
+		if Data.zone_of(id) != z or Data.OPPONENTS[id].get("boss", false) or Game.beaten(id):
+			continue
+		var p: Vector3 = Data.OPPONENTS[id].pos
+		var d := p.distance_to(player.global_position) if player else p.length()
+		if d < bd:
+			bd = d
+			best = p
+	return best
+
 func objective_target() -> Vector3:
+	if zone == "rio":
+		if Game.rank >= 20:
+			return Data.OPPONENTS.leao.pos
+		if Game.town_wins("rio") < Data.BOSS_REQUIRED_WINS:
+			var t := _nearest_unbeaten("rio")
+			if t != Vector3.INF:
+				return t
+		return Data.OPPONENTS.leao.pos
 	if zone == "chapada":
 		if Game.rank >= 15:
 			return Data.ZONES.chapada.spawn
@@ -1626,3 +1668,290 @@ func _c_wildlife() -> void:
 	_place_model("crystal_rock", Vector3(-68, ground_y(-68, -4), -4), 2.4, 1.9, Vector3(2.0, 1.3, 2.0))
 	_place_model("tent", Vector3(-70, ground_y(-70, 48), 48), 4.0, 0.6, Vector3(3.0, 2.2, 2.6))
 	_place_model("campfire", Vector3(-66, ground_y(-66, 46), 46), 3.0)
+
+
+# ================================================================ zone 4: Rio de Janeiro
+const CRISTO := Vector2(-46, -62)
+const MORRO := Vector2(38, -52)
+const SUGARLOAF := Vector2(82, 66)
+const RIO_GYM := Vector3(10, 0, -24)
+
+func _height_rio(x: float, z: float) -> float:
+	var p := Vector2(x, z)
+	var h := noise.get_noise_2d(x, z) * 0.5 + 0.45
+	# beach slopes into the Atlantic
+	h = lerpf(h, 0.35, _ss(30.0, 34.0, z))
+	h = lerpf(h, -2.8, _ss(50.0, 63.0, z))
+	# Corcovado (forest mountain with the statue), the morro, Arpoador rock, Sugarloaf
+	h += 22.0 * _ss(46.0, 6.0, p.distance_to(CRISTO))
+	h += 9.0 * _ss(32.0, 6.0, p.distance_to(MORRO))
+	h += 4.5 * _ss(11.0, 3.0, p.distance_to(Vector2(-78, 52)))
+	h += 31.0 * _ss(14.0, 5.0, p.distance_to(SUGARLOAF))
+	# green ridges behind the city
+	var e := maxf(absf(x), absf(z))
+	h += _ss(82.0, 98.0, e) * 10.0 * (1.0 - _ss(28.0, 40.0, z))
+	# flat pads: bus station, gym
+	h = lerpf(h, 0.5, _ss(13.0, 8.0, p.distance_to(Vector2(-84, 6))))
+	h = lerpf(h, 0.5, _ss(14.0, 10.0, p.distance_to(Vector2(RIO_GYM.x, RIO_GYM.z))))
+	return h
+
+func _rio_color(x: float, z: float, h: float) -> Color:
+	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
+	var slope := absf(height(x, z + 1.5) - height(x, z - 1.5)) + absf(height(x + 1.5, z) - height(x - 1.5, z))
+	if Vector2(x, z).distance_to(SUGARLOAF) < 15.0 or (slope > 2.6 and h > 3.0):
+		return Color(0.5, 0.47, 0.44).lerp(Color(0.6, 0.57, 0.52), n)
+	if z > 31.0:
+		var sand := Color(0.8, 0.66, 0.44).lerp(Color(0.86, 0.73, 0.5), n)
+		return sand.lerp(Color(0.7, 0.62, 0.46), _ss(-0.4, -1.3, h))
+	if z > 17.0 and z <= 25.0:
+		return Color(0.24, 0.24, 0.26)  # Avenida Atlântica
+	if z > 25.0:
+		return Color(0.8, 0.78, 0.74)
+	var morro := _ss(30.0, 18.0, Vector2(x, z).distance_to(MORRO))
+	if morro > 0.0:
+		return Color(0.3, 0.42, 0.18).lerp(Color(0.58, 0.44, 0.3), morro)
+	if x > -64.0 and z > -34.0 and h < 2.0:
+		return Color(0.6, 0.58, 0.54).lerp(Color(0.66, 0.64, 0.6), n)  # city pavement
+	return Color(0.17, 0.34, 0.14).lerp(Color(0.26, 0.42, 0.18), n)  # Tijuca forest
+
+func _build_rio() -> void:
+	noise.seed = 21
+	noise.frequency = 0.03
+	_rng.seed = 2030
+	_static = StaticBody3D.new()
+	add_child(_static)
+	_blocked = [
+		Rect2(-98, -8, 28, 26),     # bus station
+		Rect2(-4, -38, 28, 28),     # gym
+		Rect2(-66, -16, 140, 32),   # city blocks
+		Rect2(-100, 16, 200, 90),   # avenue, calçadão, beach, sea
+		Rect2(10, -82, 56, 56),     # morro
+		Rect2(-56, -72, 20, 20),    # statue
+	]
+	_build_environment()
+	_build_terrain()
+	_r_ocean()
+	_r_calcadao()
+	_r_buildings()
+	_build_trees()
+	_build_ground_detail()
+	_build_props()
+	_r_beach_life()
+	_r_cristo()
+	_r_morro()
+	_r_sugarloaf()
+	_p_bus_stop(Vector3(-84, 0, 6), "RODOVIÁRIA · RIO")
+	var g := Vector3(RIO_GYM.x, ground_y(RIO_GYM.x, RIO_GYM.z), RIO_GYM.z)
+	_gym(g, "ACADEMIA LEÃO", Color(0.92, 0.9, 0.84))
+	var xs := [-7.0, -3.5, 0.0, 3.5, 7.0]
+	for i in Rpg.ATTR_ORDER.size():
+		_drill_station(Rpg.ATTR_ORDER[i], g + Vector3(xs[i], 0, 5.0))
+	_challenge_board(g + Vector3(-12, 0, 9))
+	_label("ARPOADOR", Vector3(-78, ground_y(-78, 52) + 3.5, 52), 80, Color(1, 0.9, 0.7)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_build_cups()
+	_build_landmarks()
+	_build_fighters()
+	_build_villagers()
+	_build_bounds()
+	_build_beacon()
+
+func _r_ocean() -> void:
+	var mi := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(420, 180)
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.1, 0.45, 0.58, 0.88)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.25
+	m.metallic_specular = 0.6
+	mi.material_override = m
+	mi.position = Vector3(0, WATER_Y, 140)
+	add_child(mi)
+	# a line of surf where the waves break
+	var foam := MeshInstance3D.new()
+	var fm := PlaneMesh.new()
+	fm.size = Vector2(400, 1.6)
+	foam.mesh = fm
+	var fmat := StandardMaterial3D.new()
+	fmat.albedo_color = Color(1, 1, 1, 0.55)
+	fmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	foam.material_override = fmat
+	foam.position = Vector3(0, WATER_Y + 0.03, 57.5)
+	add_child(foam)
+
+## The black-and-white wave pavement along the beach.
+func _r_calcadao() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cell := 0.5
+	var x := -98.0
+	while x < 98.0:
+		var z := 25.5
+		while z < 30.5:
+			var cx := x + cell * 0.5
+			var cz := z + cell * 0.5
+			var wave := sin((cz - 28.0) * 2.2 + sin(cx * 0.55) * 1.7)
+			var c := Color(0.08, 0.08, 0.08) if wave > 0.0 else Color(0.86, 0.85, 0.8)
+			var y := ground_y(cx, cz) + 0.04
+			st.set_color(c)
+			for v in [Vector3(x, y, z), Vector3(x + cell, y, z), Vector3(x + cell, y, z + cell), Vector3(x, y, z), Vector3(x + cell, y, z + cell), Vector3(x, y, z + cell)]:
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v)
+			z += cell
+		x += cell
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	m.roughness = 0.9
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	# palms along the promenade
+	var palms: Array = []
+	var px := -90.0
+	while px < 90.0:
+		palms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * 5.6), Vector3(px, ground_y(px, 31.5), 31.5)))
+		px += 9.0
+	_mm("tree_palm", palms)
+	# kiosks
+	var kx := -70.0
+	while kx < 80.0:
+		var gy := ground_y(kx, 33.5)
+		_box(Vector3(2.6, 2.2, 2.6), Vector3(kx, gy + 1.1, 33.5), Color(0.95, 0.95, 0.92))
+		_cyl(0.0, 2.3, 1.0, Vector3(kx, gy + 2.7, 33.5), Color(0.15, 0.55, 0.35), 8)
+		_box(Vector3(2.7, 0.3, 0.3), Vector3(kx, gy + 1.0, 32.1), Color(0.98, 0.8, 0.2), false)
+		kx += 26.0
+	# yellow taxis and cars on the Avenida
+	var cars := ["taxi", "taxi", "sedan", "taxi", "van", "taxi", "police_car", "taxi"]
+	for i in cars.size():
+		var cx := -76.0 + i * 20.0 + _rng.randf_range(-3, 3)
+		var cz := 19.5 if i % 2 == 0 else 23.0
+		_place_model(cars[i], Vector3(cx, ground_y(cx, cz), cz), 1.7, PI / 2 if i % 2 == 0 else -PI / 2, Vector3(4.6, 2.0, 2.4))
+
+## High-rises facing the beach, like the Avenida Atlântica skyline.
+func _r_buildings() -> void:
+	var cols := [Color(0.88, 0.84, 0.74), Color(0.86, 0.72, 0.56), Color(0.66, 0.76, 0.8), Color(0.92, 0.72, 0.62), Color(0.74, 0.8, 0.68), Color(0.85, 0.85, 0.82), Color(0.95, 0.85, 0.55)]
+	var x := -60.0
+	var i := 0
+	while x < 70.0:
+		var w := _rng.randf_range(7.0, 8.6)
+		var h := _rng.randf_range(12.0, 30.0)
+		var gy := ground_y(x, 9.0)
+		var col: Color = cols[i % cols.size()]
+		_box(Vector3(w, h, 10), Vector3(x, gy + h / 2.0, 9.0), col)
+		# balconies + dark glass bands on the beach side
+		var y := 3.0
+		while y < h - 1.0:
+			_box(Vector3(w * 0.92, 1.1, 0.12), Vector3(x, gy + y + 0.7, 14.05), Color(0.2, 0.3, 0.38), false)
+			_box(Vector3(w + 0.4, 0.18, 0.9), Vector3(x, gy + y, 14.4), col.darkened(0.08), false)
+			y += 3.2
+		_box(Vector3(w + 0.2, 0.5, 10.2), Vector3(x, gy + h + 0.25, 9.0), col.darkened(0.2), false)
+		# shorter block behind
+		var h2 := _rng.randf_range(6.0, 14.0)
+		_box(Vector3(w, h2, 7), Vector3(x, gy + h2 / 2.0, -6.0), cols[(i + 3) % cols.size()].darkened(0.05))
+		x += w + _rng.randf_range(1.2, 2.6)
+		if i % 3 == 2:
+			x += 7.0  # cross street down to the beach
+		i += 1
+
+func _r_beach_life() -> void:
+	var cols := [Color(0.95, 0.3, 0.25), Color(0.98, 0.8, 0.2), Color(0.2, 0.55, 0.9), Color(0.3, 0.75, 0.4), Color(0.95, 0.55, 0.75), Color(1, 1, 1)]
+	for i in 34:
+		var x := _rng.randf_range(-86, 74)
+		var z := _rng.randf_range(36, 50)
+		if Vector2(x, z).distance_to(Vector2(22, 40)) < 4.0 or Vector2(x, z).distance_to(Vector2(-30, 42)) < 6.0 or Vector2(x, z).distance_to(Vector2(-78, 52)) < 11.0:
+			continue
+		var gy := ground_y(x, z)
+		_cyl(0.04, 0.04, 2.2, Vector3(x, gy + 1.1, z), Color(0.85, 0.85, 0.85), 5)
+		_cyl(0.0, 1.35, 0.5, Vector3(x, gy + 2.2, z), cols[i % cols.size()], 10)
+		if i % 3 == 0:
+			_box(Vector3(0.8, 0.05, 1.8), Vector3(x + 1.2, gy + 0.05, z + 0.3), cols[(i + 2) % cols.size()], false, _rng.randf())
+	# volleyball court next to Luana
+	var vc := Vector3(-30, ground_y(-30, 46), 46)
+	for sx in [-4.5, 4.5]:
+		_cyl(0.06, 0.06, 2.6, vc + Vector3(sx, 1.3, 0), Color(0.9, 0.9, 0.9), 6)
+	_box(Vector3(9, 0.9, 0.04), vc + Vector3(0, 2.1, 0), Color(0.15, 0.15, 0.15, 0.8), false)
+	# sand mats where the beach crew trains
+	_box(Vector3(6, 0.12, 6), Vector3(22, ground_y(22, 40) + 0.06, 40), Color(0.15, 0.4, 0.75), false)
+	_animal("crab", Vector3(-10, ground_y(-10, 52), 52), 0.4, 0.3)
+	_animal("crab", Vector3(30, ground_y(30, 53), 53), 0.35, 2.0)
+	_animal("crab", Vector3(-60, ground_y(-60, 50), 50), 0.4, -1.0)
+	_animal("pug", Vector3(-20, ground_y(-20, 28), 28), 0.55, 1.2)
+	_animal("shiba", Vector3(40, ground_y(40, 28), 28), 0.85, -2.0)
+
+## A generic robed statue with outstretched arms on the summit.
+func _r_cristo() -> void:
+	var top := Vector3(CRISTO.x, ground_y(CRISTO.x, CRISTO.y), CRISTO.y)
+	var stone := Color(0.9, 0.9, 0.86)
+	_box(Vector3(10, 0.4, 10), top + Vector3(0, 0.1, 0), Color(0.75, 0.72, 0.68))
+	_box(Vector3(3, 3.4, 3), top + Vector3(0, 1.9, 0), Color(0.82, 0.8, 0.76))
+	_cyl(0.7, 1.25, 6.2, top + Vector3(0, 6.7, 0), stone, 10)
+	_box(Vector3(8.4, 0.8, 0.8), top + Vector3(0, 9.0, 0), stone, false)
+	_cyl(0.45, 0.45, 0.9, top + Vector3(0, 10.2, 0), stone, 10)
+	var head := MeshInstance3D.new()
+	head.mesh = _mk_sphere(0.6, 1.2)
+	head.material_override = _mat(stone)
+	head.position = top + Vector3(0, 11.1, 0)
+	add_child(head)
+	for k in 4:
+		var a := k * PI / 2
+		_box(Vector3(10 if k % 2 == 0 else 0.15, 1.0, 0.15 if k % 2 == 0 else 10), top + Vector3(sin(a) * 5.0, 0.7, cos(a) * 5.0), Color(0.4, 0.3, 0.2), false)
+	var summit := _area(top + Vector3(0, 1.0, 0), 6.0)
+	summit.body_entered.connect(func(b):
+		if b is Player and game_started:
+			if not Game.unlocked.has("cristo"):
+				Game.toast.emit("The whole city below, arms wide open.", Color(0.9, 0.95, 1.0))
+			Game.unlock("cristo"))
+
+## Hillside community: stacked, brightly painted houses and the social-project mats.
+func _r_morro() -> void:
+	var cols := [Color(0.95, 0.45, 0.3), Color(0.98, 0.8, 0.3), Color(0.35, 0.65, 0.85), Color(0.5, 0.8, 0.45), Color(0.95, 0.6, 0.75), Color(0.92, 0.92, 0.88), Color(0.85, 0.55, 0.35)]
+	var n := 0
+	var tries := 0
+	while n < 46 and tries < 600:
+		tries += 1
+		var a := _rng.randf() * TAU
+		var r := _rng.randf_range(7.0, 28.0)
+		var x := MORRO.x + cos(a) * r
+		var z := MORRO.y + sin(a) * r
+		if absf(x - 36.0) < 3.5 or Vector2(x, z).distance_to(Vector2(36, -42)) < 6.0 or z > -26.0:
+			continue
+		var gy := minf(minf(ground_y(x - 1.4, z - 1.4), ground_y(x + 1.4, z + 1.4)), minf(ground_y(x + 1.4, z - 1.4), ground_y(x - 1.4, z + 1.4)))
+		var hh := _rng.randf_range(2.4, 3.2)
+		var rot := _rng.randf_range(-0.3, 0.3)
+		_box(Vector3(3.0, hh + 1.0, 3.0), Vector3(x, gy + (hh + 1.0) / 2.0 - 0.5, z), cols[n % cols.size()], true, rot)
+		_box(Vector3(0.7, 1.2, 0.05), Vector3(x, gy + 0.6, z + 1.53), Color(0.25, 0.18, 0.12), false, rot)
+		if _rng.randf() < 0.45:
+			_box(Vector3(2.6, 2.2, 2.6), Vector3(x + 0.2, gy + hh + 1.6, z - 0.2), cols[(n + 3) % cols.size()], true, rot + 0.1)
+		if _rng.randf() < 0.5:
+			_cyl(0.5, 0.5, 0.8, Vector3(x + 0.8, gy + hh + 0.9, z + 0.8), Color(0.2, 0.35, 0.75), 8)  # water tank
+		n += 1
+	# Tatu's free class: mats in a cleared square
+	var mc := Vector3(36, ground_y(36, -42), -42)
+	_box(Vector3(7, 0.3, 7), mc + Vector3(0, 0.05, 0), Color(0.6, 0.55, 0.5))
+	for ix in 3:
+		for iz in 3:
+			_box(Vector3(1.96, 0.06, 1.96), mc + Vector3(-2 + ix * 2, 0.23, -2 + iz * 2), Color(0.13, 0.38, 0.26) if (ix + iz) % 2 == 0 else Color(0.85, 0.7, 0.2), false)
+	_label("PROJETO SOCIAL", mc + Vector3(0, 3.6, -4), 70, Color(1, 0.95, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_animal("cat", Vector3(30, ground_y(30, -46) + 0.1, -46), 0.45, 1.0)
+	_animal("cat", Vector3(44, ground_y(44, -58) + 0.1, -58), 0.45, -0.8)
+
+func _r_sugarloaf() -> void:
+	var st := Vector3(62, ground_y(62, 40), 40)
+	_box(Vector3(5, 4, 4), st + Vector3(0, 2, -1.5), Color(0.85, 0.82, 0.75))
+	_box(Vector3(5.6, 0.4, 4.6), st + Vector3(0, 4.2, -1.5), Color(0.4, 0.4, 0.42), false)
+	var a := st + Vector3(0, 4.0, -1.5)
+	var b := Vector3(SUGARLOAF.x, ground_y(SUGARLOAF.x, SUGARLOAF.y) + 0.5, SUGARLOAF.y)
+	var d := b - a
+	var cable := MeshInstance3D.new()
+	cable.mesh = _mk_box(Vector3(0.06, 0.06, d.length()))
+	cable.material_override = _mat(Color(0.15, 0.15, 0.15))
+	add_child(cable)
+	cable.global_transform = Transform3D(Basis.looking_at(d.normalized(), Vector3.UP), (a + b) * 0.5)
+	var car := _box(Vector3(2.0, 1.6, 2.6), a.lerp(b, 0.42) - Vector3(0, 1.1, 0), Color(0.95, 0.75, 0.2), false)
+	car.look_at(car.global_position + Vector3(d.x, 0, d.z).normalized(), Vector3.UP)
+	_label("PÃO DE AÇÚCAR", b + Vector3(0, 3.0, 0), 110, Color(1, 1, 1, 0.95)).billboard = BaseMaterial3D.BILLBOARD_ENABLED

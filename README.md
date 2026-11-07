@@ -1,7 +1,9 @@
 # Tatame: Open Mat Brasil
 
-A free, open-world jiu-jitsu adventure set in Mato Grosso, Brazil. Roll your way from white belt in Cáceres,
-through the Pantanal, to brown belt in the Chapada dos Guimarães.
+A free, open-world jiu-jitsu adventure across Brazil. Roll your way from white belt in Cáceres,
+through the Pantanal and the Chapada dos Guimarães, to black belt in Rio de Janeiro.
+
+Play it: https://jujitsugame-production.up.railway.app
 
 - `web/`: the playable browser build (open `index.html` through any web server).
 - `game/`: the Godot 4.7.2 project. See `game/README.md` for how it's organized, tested and exported.

@@ -236,7 +236,7 @@ func _make_world(z: String) -> void:
 	var spawn := Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z)
 	player.position = spawn
 	world.add_child(player)
-	player.teleport(spawn, PI / 2 if z == "pantanal" else 0.0)
+	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio"] else 0.0)
 	world.attach_player(player)
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
@@ -246,7 +246,7 @@ func _make_world(z: String) -> void:
 func _travel(z: String) -> void:
 	var need := int(Data.ZONES[z].rank)
 	if Game.rank < need:
-		hud.open_dialogue("Bus driver", "The Transpantaneira is no place for white belts, amigo. Come back with a blue belt.", "", "Okay")
+		hud.open_dialogue("Bus driver", "Not yet, amigo. That road is for %s and up." % Data.rank_name(need), "", "Okay")
 		return
 	Game.zone = z
 	Game.save_game()
@@ -263,6 +263,11 @@ func _travel(z: String) -> void:
 			Game.flags["pantanal_intro"] = true
 			Game.save_game()
 			hud.open_dialogue("Pantanal Norte", "The world's biggest wetland. Jaguars, jacarés, and the toughest open mats in Mato Grosso. Mestre Jacaré runs the fazenda gym to the northeast. Beat %d locals to earn a roll with him." % Data.BOSS_REQUIRED_WINS, "", "Vamos")
+
+	if z == "rio" and not Game.flags.get("rio_intro", false):
+		Game.flags["rio_intro"] = true
+		Game.save_game()
+		hud.open_dialogue("Rio de Janeiro", "The city where jiu-jitsu grew up. Train on the sand at Copacabana, roll with the kids on the morro, and climb Corcovado if your legs still work. Grão-Mestre Leão gives black belts at his academia behind the beach. Beat %d locals first." % Data.BOSS_REQUIRED_WINS, "", "Oss")
 
 func _on_nearby(npc: Npc) -> void:
 	hud.set_prompt(npc)
@@ -377,5 +382,9 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	world.refresh_beacon()
 	hud.refresh()
 	hud.set_prompt(world.nearby)
+	if result.won and opp_id == "leao" and not Game.flags.get("black_belt_ending", false):
+		Game.flags["black_belt_ending"] = true
+		Game.save_game()
+		hud.open_dialogue("Black Belt", "From a tourist on the plaza in Cáceres to a black belt in Rio. Onça, Jacaré, Cachoeira and Leão all put their hands on that belt.\n\nThe journey doesn't end here. Every Daily Challenge is still waiting, and every fighter in Brazil still wants a roll with the gringo black belt. Oss.", "", "Oss")
 	if result.won and opp_id == "rafa" and not Game.flags.get("met_professor", false):
 		Game.toast.emit("Rafa: the academia is behind the cathedral. Follow the light.", Color(1, 0.95, 0.8))

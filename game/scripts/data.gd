@@ -239,12 +239,45 @@ const OPPONENTS := {
 		"intro": "Onça and Jacaré were my students. Show me what they taught you. Oss.",
 		"win": "Brown belt. One step from the black. The mat is your home now.",
 		"lose": "The waterfall wears down the rock over a thousand years. Come back."},
+	# ---------------- Zone 4: Rio de Janeiro
+	"dudu": {"name": "Dudu", "title": "Surfer, brown belt", "rank": 17, "level": 9.6, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.55, 0.38),
+		"pos": Vector3(22, 0, 40), "style": "balanced", "extra": ["berimbolo", "uchi_mata", "flying_armbar", "leg_drag"], "zone": "rio",
+		"intro": "Waves are flat today, mermão. Guess I'll surf on you instead.",
+		"win": "Caramba! You roll like a local. Valeu!",
+		"lose": "Tá maluco? Go eat an açaí and try again."},
+	"luana": {"body": "female", "name": "Luana", "title": "Beach volleyball pro, brown belt", "rank": 18, "level": 10.0, "gi": Color(0.15, 0.3, 0.75), "skin": Color(0.66, 0.45, 0.3),
+		"pos": Vector3(-30, 0, 42), "style": "back", "extra": ["berimbolo", "bow_arrow", "snap_down", "rnc"], "zone": "rio",
+		"intro": "Sand training makes your legs like steel. You're about to find out.",
+		"win": "Nice! You read the berimbolo before I even spun.",
+		"lose": "Sand in your gi and a choke on your neck. Classic Copacabana."},
+	"baiano": {"name": "Baiano", "title": "Capoeira mestre, brown belt", "rank": 18, "level": 10.2, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.36, 0.23, 0.15),
+		"pos": Vector3(52, 0, 27), "style": "guard", "extra": ["berimbolo", "omoplata", "triangle", "flying_armbar"], "zone": "rio",
+		"intro": "Ginga, gringo. Capoeira taught me to move. Jiu-jitsu taught me to finish.",
+		"win": "Axé! Your base is stronger than my ginga.",
+		"lose": "The berimbau plays, and you dance to my rhythm."},
+	"tatu": {"name": "Tatu", "title": "Morro social project coach, black belt", "rank": 20, "level": 10.8, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.45, 0.3, 0.2),
+		"pos": Vector3(36, 0, -42), "style": "pressure", "extra": ["leg_drag", "darce", "ezekiel", "knee_slice"], "zone": "rio",
+		"intro": "I teach forty kids up here for free. They all watch me roll. Don't embarrass yourself.",
+		"win": "The kids are clapping for you. Come teach a class sometime.",
+		"lose": "Pressure, gringo. Up here we grow up under pressure."},
+	"bia": {"body": "female", "name": "Professora Bia", "title": "Competition coach, black belt", "rank": 21, "level": 11.2, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.88, 0.7, 0.56),
+		"pos": Vector3(-68, 0, 36), "style": "submission", "extra": ["ezekiel", "cross_collar", "omoplata", "bow_arrow", "darce"], "zone": "rio",
+		"intro": "I train world champions at sunrise on the Arpoador. Let's see what Mato Grosso sent me.",
+		"win": "Technical, patient, dangerous. Leão will want to see you.",
+		"lose": "Good roll. Tap a little earlier next time; I can see the sunset from here."},
+	"leao": {"name": "Grão-Mestre Leão", "title": "Rio boss, coral belt legend", "rank": 24, "level": 12.0, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.62, 0.45, 0.32),
+		"pos": Vector3(10, 0, -24), "style": "balanced", "boss": true,
+		"extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow", "uchi_mata", "flying_armbar", "cross_collar", "snap_down"], "zone": "rio",
+		"intro": "Onça, Jacaré, Cachoeira... I gave them their black belts. Now show me yours is earned. Oss.",
+		"win": "Kneel, gringo. You came to Brazil a tourist. You leave a black belt. Oss.",
+		"lose": "The black belt is just a white belt who never quit. Come back tomorrow."},
 }
 
 const ZONES := {
 	"caceres": {"name": "Cáceres", "sub": "Mato Grosso", "rank": 0, "boss": "onca", "spawn": Vector3(0, 0, 24), "collect": "Tereré cups"},
 	"pantanal": {"name": "Pantanal Norte", "sub": "Transpantaneira", "rank": 5, "boss": "jacare", "spawn": Vector3(-82, 0, -4), "collect": "Arara feathers"},
 	"chapada": {"name": "Chapada dos Guimarães", "sub": "Red cliffs and waterfalls", "rank": 10, "boss": "cachoeira", "spawn": Vector3(-80, 0, 40), "collect": "Quartz crystals"},
+	"rio": {"name": "Rio de Janeiro", "sub": "Where jiu-jitsu grew up", "rank": 15, "boss": "leao", "spawn": Vector3(-84, 0, 6), "collect": "Green coconuts"},
 }
 
 # ---------------------------------------------------------------- daily challenge
@@ -304,6 +337,12 @@ const LANDMARKS := {
 	"c_rocks": {"name": "Cidade de Pedra", "pos": Vector3(-30, 0, -50), "radius": 16.0, "zone": "chapada"},
 	"c_mirante": {"name": "Mirante: Center of South America", "pos": Vector3(30, 0, -70), "radius": 10.0, "zone": "chapada"},
 	"c_cave": {"name": "Caverna Aroe Jari", "pos": Vector3(-64, 0, -8), "radius": 9.0, "zone": "chapada"},
+	"r_bus": {"name": "Rodoviária Novo Rio", "pos": Vector3(-84, 0, 6), "radius": 10.0, "zone": "rio"},
+	"r_beach": {"name": "Copacabana Beach", "pos": Vector3(0, 0, 42), "radius": 16.0, "zone": "rio"},
+	"r_arpoador": {"name": "Pedra do Arpoador", "pos": Vector3(-74, 0, 46), "radius": 10.0, "zone": "rio"},
+	"r_sugarloaf": {"name": "Pão de Açúcar Cable Car", "pos": Vector3(62, 0, 40), "radius": 10.0, "zone": "rio"},
+	"r_cristo": {"name": "Corcovado Summit", "pos": Vector3(-46, 0, -62), "radius": 9.0, "zone": "rio"},
+	"r_morro": {"name": "The Morro", "pos": Vector3(38, 0, -50), "radius": 14.0, "zone": "rio"},
 }
 
 static func landmarks_in(zone: String) -> Array:
@@ -317,6 +356,7 @@ const COLLECTIBLES := {
 	"caceres": [Vector3(18, 0.8, 18), Vector3(-30, 0.8, 40), Vector3(48, 0.8, -48), Vector3(-20, 0.8, -60), Vector3(62, 0.8, 38), Vector3(-58, 0.8, -50)],
 	"pantanal": [Vector3(-60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(70, 0.8, -70), Vector3(84, 0.8, 10), Vector3(20, 0.8, -12), Vector3(-75, 0.8, 60)],
 	"chapada": [Vector3(-66, 0.8, -12), Vector3(60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(-30, 0.8, -78), Vector3(75, 0.8, 20), Vector3(12, 0.8, -4)],
+	"rio": [Vector3(-14, 0.8, 50), Vector3(44, 0.8, 46), Vector3(-82, 0.8, 40), Vector3(-40, 0.8, -46), Vector3(52, 0.8, -60), Vector3(-56, 0.8, -8)],
 }
 
 const TERERE_CUPS := [
@@ -355,6 +395,11 @@ const ACHIEVEMENTS := [
 	{"id": "crystals", "name": "Good Vibes", "desc": "Find all 6 quartz crystals in the Chapada.", "goal": 6},
 	{"id": "brown_belt", "name": "Brown Belt", "desc": "Get promoted by Mestre Cachoeira."},
 	{"id": "chapada_king", "name": "Lord of the Plateau", "desc": "Beat every fighter in the Chapada."},
+	{"id": "r_explorer", "name": "Carioca da Gema", "desc": "Discover every landmark in Rio.", "goal": 6},
+	{"id": "coconuts", "name": "Água de Coco", "desc": "Find all 6 green coconuts in Rio.", "goal": 6},
+	{"id": "black_belt", "name": "Black Belt", "desc": "Get promoted by Grão-Mestre Leão."},
+	{"id": "rio_king", "name": "Rei do Rio", "desc": "Beat every fighter in Rio."},
+	{"id": "cristo", "name": "Arms Wide Open", "desc": "Climb Corcovado to the statue.", "hidden": true},
 	{"id": "behind_falls", "name": "Behind the Veil", "desc": "Find the secret behind the waterfall.", "hidden": true},
 	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
 	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},

@@ -306,7 +306,7 @@ func discover_landmark(id: String) -> bool:
 	if landmarks.has(id):
 		return false
 	landmarks[id] = true
-	bump({"pantanal": "p_explorer", "chapada": "c_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
+	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
 	toast.emit("Discovered: %s" % Data.LANDMARKS[id].name, Color(0.6, 0.9, 1.0))
 	save_game()
 	progress_changed.emit()
@@ -331,7 +331,7 @@ func collect_cup(i: int, z := "caceres") -> bool:
 		return false
 	cups[key] = true
 	Sfx.play("collect")
-	bump({"pantanal": "feathers", "chapada": "crystals"}.get(z, "terere"))
+	bump({"pantanal": "feathers", "chapada": "crystals", "rio": "coconuts"}.get(z, "terere"))
 	toast.emit("%s %d/%d" % [Data.ZONES[z].collect, collected_count(z), Data.COLLECTIBLES[z].size()], Color(0.55, 0.9, 0.4))
 	save_game()
 	progress_changed.emit()
@@ -359,9 +359,15 @@ func zone_beaten(z: String) -> bool:
 
 # ------------------------------------------------------------ quests
 func current_objective() -> String:
+	if zone == "rio":
+		if rank >= 20:
+			return "Black belt. Oss! Roll anyone, anywhere: the mat is yours."
+		if town_wins("rio") < Data.BOSS_REQUIRED_WINS:
+			return "Win rolls around Rio (%d/%d)." % [town_wins("rio"), Data.BOSS_REQUIRED_WINS]
+		return "Challenge Grão-Mestre Leão at his academia."
 	if zone == "chapada":
 		if rank >= 15:
-			return "Brown belt! The road to black belt opens soon."
+			return "Brown belt! Ride the bus to Rio de Janeiro."
 		if town_wins("chapada") < Data.BOSS_REQUIRED_WINS:
 			return "Win rolls in the Chapada (%d/%d)." % [town_wins("chapada"), Data.BOSS_REQUIRED_WINS]
 		return "Challenge Mestre Cachoeira in the village."
@@ -447,6 +453,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("pantanal_king")
 		if zone_beaten("chapada"):
 			unlock("chapada_king")
+		if zone_beaten("rio"):
+			unlock("rio_king")
 	else:
 		losses[opp_id] = int(losses.get(opp_id, 0)) + 1
 		gained = 12
@@ -455,7 +463,7 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 	drills_ready = true
 	add_xp(gained)
 	if result.won and opp.get("boss", false):
-		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3}.get(Data.zone_of(opp_id), 1))
+		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()
 	progress_changed.emit()
 	return gained

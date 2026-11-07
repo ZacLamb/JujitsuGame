@@ -97,6 +97,26 @@ func _ready() -> void:
 	for opp in ["iara", "biro", "joaquim", "rita", "gaucho", "cachoeira"]:
 		var r = await play_roll(opp, true)
 		check(r.done, "[chapada] roll vs %s completed (won=%s by_sub=%s)" % [opp, r.won, r.by_sub])
+	# ---- brown belt rides to Rio for the black belt
+	Game.promote_belt(3)
+	main.hud.travel_chosen.emit("rio")
+	await get_tree().process_frame
+	check(main.world.zone == "rio" and main.world.fighters.size() == 6, "brown belt rides to Rio (%d fighters)" % main.world.fighters.size())
+	var ry: float = main.player.global_position.y
+	check(ry > -1.0 and ry < 3.0, "player spawns on the ground in Rio (y=%.2f)" % ry)
+	check(main.world.ground_y(-46, -62) > 18.0 and main.world.ground_y(0, 62) < -1.3, "Corcovado high, ocean low")
+	main.hud._close_dialogue(false)
+	for opp in ["dudu", "luana", "baiano", "tatu", "bia"]:
+		var r = await play_roll(opp, true)
+		check(r.done, "[rio] roll vs %s completed (won=%s by_sub=%s)" % [opp, r.won, r.by_sub])
+	var tries := 0
+	while Game.belt_index() < 4 and tries < 8:
+		await play_roll("leao", true)
+		main.hud._close_dialogue(false)
+		tries += 1
+	check(Game.belt_index() == 4 or tries == 8, "Leão roll(s) completed (belt=%s after %d)" % [Data.BELTS[Game.belt_index()].name, tries])
+	if Game.belt_index() == 4:
+		check(Game.unlocked.has("black_belt") and Game.flags.get("black_belt_ending", false), "black belt promotion + ending")
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
 	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")
