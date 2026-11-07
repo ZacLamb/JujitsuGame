@@ -1,17 +1,21 @@
 extends Node
 ## Sound effects + music with crossfade. Autoloaded as "Sfx".
 
-const SFX := ["click", "hit", "perfect", "miss", "tap", "squeeze", "win", "lose", "levelup", "collect", "jump"]
+const SFX := ["click", "hit", "perfect", "miss", "tap", "squeeze", "win", "lose", "levelup", "collect", "jump", "step_ground", "step_sand"]
 const SETTINGS := "user://tatame_settings.json"
 
 var muted := false
 ## Player preferences (kept apart from game progress): volumes, mouse, graphics.
-var prefs := {"music": 0.8, "sfx": 0.9, "mouse": 1.0, "invert_y": false}
+var prefs := {"music": 0.8, "sfx": 0.9, "ambience": 0.8, "mouse": 1.0, "invert_y": false}
 var _streams := {}
 var _players: Array = []
 var _music_a: AudioStreamPlayer
 var _music_b: AudioStreamPlayer
 var _current := ""
+var _amb_day: AudioStreamPlayer
+var _amb_night: AudioStreamPlayer
+var _amb_zone := ""
+var _amb_duck := 0.0   # dB; lowered during rolls
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -25,6 +29,13 @@ func _ready() -> void:
 		_players.append(pl)
 	_ensure_bus("Music")
 	_ensure_bus("SFX")
+	_ensure_bus("Ambience")
+	_amb_day = AudioStreamPlayer.new()
+	_amb_night = AudioStreamPlayer.new()
+	for a in [_amb_day, _amb_night]:
+		a.bus = "Ambience"
+		a.volume_db = -60.0
+		add_child(a)
 	for pl in _players:
 		pl.bus = "SFX"
 	_music_a = AudioStreamPlayer.new()
@@ -54,7 +65,7 @@ func _ensure_bus(n: String) -> void:
 		AudioServer.set_bus_send(AudioServer.bus_count - 1, "Master")
 
 func _apply_volumes() -> void:
-	for pair in [["Music", "music"], ["SFX", "sfx"]]:
+	for pair in [["Music", "music"], ["SFX", "sfx"], ["Ambience", "ambience"]]:
 		var i := AudioServer.get_bus_index(pair[0])
 		if i >= 0:
 			var v := clampf(float(prefs.get(pair[1], 1.0)), 0.0, 1.0)
@@ -111,3 +122,33 @@ func music(n: String) -> void:
 	if old:
 		tw.tween_property(old, "volume_db", -40.0, 1.2)
 		tw.chain().tween_callback(old.stop)
+
+
+# ------------------------------------------------------------ ambience
+## Zone soundscape: a day layer and a night layer, mixed by the day/night cycle.
+func ambience(zone: String) -> void:
+	if zone == _amb_zone:
+		return
+	_amb_zone = zone
+	for pair in [[_amb_day, "day"], [_amb_night, "night"]]:
+		var pl: AudioStreamPlayer = pair[0]
+		var path := "res://assets/audio/amb_%s_%s.ogg" % [zone, pair[1]]
+		if zone == "" or not ResourceLoader.exists(path):
+			pl.stop()
+			continue
+		var st: AudioStreamOggVorbis = load(path)
+		st.loop = true
+		pl.stream = st
+		pl.play(randf() * 10.0)
+
+func duck_ambience(on: bool) -> void:
+	_amb_duck = -14.0 if on else 0.0
+
+func _process(_delta: float) -> void:
+	if _amb_zone == "":
+		return
+	var day := DayNight.daylight()
+	var tgt_day := lerpf(-40.0, -11.0, day) + _amb_duck
+	var tgt_night := lerpf(-40.0, -13.0, 1.0 - day) + _amb_duck
+	_amb_day.volume_db = lerpf(_amb_day.volume_db, tgt_day, 0.05)
+	_amb_night.volume_db = lerpf(_amb_night.volume_db, tgt_night, 0.05)

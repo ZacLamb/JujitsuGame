@@ -33,6 +33,7 @@ func build(z := "caceres") -> void:
 ## Merges static, opaque primitive meshes (houses, walls, posts, mats...) into one mesh per
 ## material per 40 m cell. Hundreds of draw calls become a few dozen; cells keep culling working.
 var day_night: DayNight
+var wildlife: Wildlife
 var map_footprints: Array = []   # [Rect2 (x, z), Color] buildings and walls for the minimap
 
 func _batch_static() -> void:
@@ -445,9 +446,7 @@ func _build_ground_detail() -> void:
 			mm.set_instance_transform(i, p.xf[i])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		var mat := (_mat(p.color) as StandardMaterial3D).duplicate() as StandardMaterial3D
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mmi.material_override = mat
+		mmi.material_override = EnvShaders.grass(p.color, 1.0 if str(k).begins_with("grass") else 0.6)
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi.visibility_range_end = 70.0
 		add_child(mmi)
@@ -479,11 +478,7 @@ func _build_terrain() -> void:
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.vertex_color_is_srgb = true
-	m.roughness = 1.0
-	mi.material_override = m
+	mi.material_override = EnvShaders.terrain()
 	mi.name = "Terrain"
 	add_child(mi)
 	# collision: 1 m heightmap
@@ -503,15 +498,9 @@ func _build_terrain() -> void:
 
 func _build_water() -> void:
 	var mi := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(60, 220)
-	mi.mesh = pm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.16, 0.36, 0.38, 0.9)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.4
-	m.metallic_specular = 0.3
-	mi.material_override = m
+	mi.mesh = EnvShaders.water_plane(Vector2(60, 220), 3.0)
+	# Rio Paraguai: brown-green, flowing south
+	mi.material_override = EnvShaders.water(Color(0.1, 0.24, 0.24), Color(0.24, 0.4, 0.36, 0.88), 0.06, 0.22, Vector2(0.0, 0.6))
 	mi.position = Vector3(-72, WATER_Y, 0)
 	add_child(mi)
 
@@ -598,14 +587,16 @@ func _build_market() -> void:
 
 func _build_houses() -> void:
 	var palette := [Color(0.97, 0.85, 0.35), Color(0.45, 0.7, 0.9), Color(0.95, 0.55, 0.6), Color(0.55, 0.8, 0.5), Color(0.98, 0.95, 0.88), Color(0.95, 0.6, 0.3)]
-	var spots: Array = []
+	var spots: Array = []   # [position, front direction toward the street]
 	for x in range(-52, 66, 10):
-		spots.append(Vector3(x, 0, -14))
-		spots.append(Vector3(x, 0, 6))
+		spots.append([Vector3(x, 0, -14), Vector3(0, 0, 1)])
+		spots.append([Vector3(x, 0, 6), Vector3(0, 0, -1)])
 	for z in range(-46, 0, 10):
-		spots.append(Vector3(19, 0, z))
-		spots.append(Vector3(-1, 0, z))
-	for p in spots:
+		spots.append([Vector3(19, 0, z), Vector3(-1, 0, 0)])
+		spots.append([Vector3(-1, 0, z), Vector3(1, 0, 0)])
+	for sp in spots:
+		var p: Vector3 = sp[0]
+		var front: Vector3 = sp[1]
 		if _is_blocked(p.x, p.z, 1.0):
 			continue
 		if absf(p.x - river_x(p.z)) < 20.0:
@@ -615,17 +606,49 @@ func _build_houses() -> void:
 		var hgt := _rng.randf_range(3.2, 4.2)
 		var gy := ground_y(p.x, p.z)
 		var col: Color = palette[_rng.randi() % palette.size()]
-		_box(Vector3(w, hgt, d), Vector3(p.x, gy + hgt / 2.0, p.z), col)
+		var size := Vector3(w, hgt, d) if front.z != 0.0 else Vector3(d, hgt, w)
+		_box(size, Vector3(p.x, gy + hgt / 2.0, p.z), col)
 		var roof := MeshInstance3D.new()
 		var pm := PrismMesh.new()
-		pm.size = Vector3(w + 0.6, 1.6, d + 0.6)
+		pm.size = Vector3(size.x + 0.6, 1.6, size.z + 0.6)
 		roof.mesh = pm
 		roof.material_override = _mat(Color(0.72, 0.33, 0.2))
 		roof.position = Vector3(p.x, gy + hgt + 0.8, p.z)
+		if front.x != 0.0:
+			roof.rotation.y = PI / 2
+			pm.size = Vector3(size.z + 0.6, 1.6, size.x + 0.6)
 		add_child(roof)
-		var door_z: float = p.z + d / 2.0 + 0.02 if p.z < -4 else p.z - d / 2.0 - 0.02
-		_box(Vector3(1.1, 2.0, 0.08), Vector3(p.x, gy + 1.0, door_z), col.darkened(0.55), false)
-		_blocked.append(Rect2(p.x - w / 2 - 1, p.z - d / 2 - 1, w + 2, d + 2))
+		_facade(Vector3(p.x, gy, p.z), size, front, col)
+		_blocked.append(Rect2(p.x - size.x / 2 - 1, p.z - size.z / 2 - 1, size.x + 2, size.z + 2))
+
+## Colonial facade details on a box house: painted base band (barrado), door with frame,
+## windows with shutters and sills, white eave trim. All static boxes, so they batch.
+const SHUTTERS := [Color(0.2, 0.45, 0.32), Color(0.2, 0.32, 0.55), Color(0.45, 0.28, 0.16), Color(0.6, 0.15, 0.15)]
+func _facade(base: Vector3, size: Vector3, front: Vector3, col: Color) -> void:
+	var side := Vector3(front.z, 0, -front.x).abs()   # along the front wall
+	var half_front := (size.z if front.z != 0.0 else size.x) * 0.5
+	var width := size.x if front.z != 0.0 else size.z
+	var face := base + front * (half_front + 0.04)
+	var thin := func(along: float, up: float, depth := 0.08) -> Vector3:
+		return side * along + Vector3(0, up, 0) + front.abs() * depth
+	var white := Color(0.97, 0.96, 0.92)
+	var shutter: Color = SHUTTERS[_rng.randi() % SHUTTERS.size()]
+	# barrado: darker band around the bottom
+	_box(Vector3(size.x + 0.06, 0.55, size.z + 0.06), base + Vector3(0, 0.27, 0), col.darkened(0.35), false)
+	# door + frame
+	_box(thin.call(1.3, 2.3, 0.06), face + Vector3(0, 1.15, 0), white, false)
+	_box(thin.call(1.0, 2.05, 0.1), face + Vector3(0, 1.03, 0) + front * 0.02, shutter.darkened(0.2), false)
+	# windows either side of the door
+	for sgn in [-1.0, 1.0]:
+		var off: float = sgn * minf(width * 0.3, 2.0)
+		var wc := face + side * off + Vector3(0, 1.9, 0)
+		_box(thin.call(1.05, 1.1, 0.06), wc, white, false)
+		_box(thin.call(0.8, 0.85, 0.1), wc + front * 0.02, Color(0.16, 0.2, 0.26), false)
+		for sh in [-1.0, 1.0]:
+			_box(thin.call(0.42, 0.95, 0.07), wc + side * (sh * 0.72) + front * 0.03, shutter, false)
+		_box(thin.call(1.2, 0.08, 0.22), wc + Vector3(0, -0.6, 0) + front * 0.06, white, false)
+	# eave trim
+	_box(Vector3(size.x + 0.1, 0.18, size.z + 0.1), base + Vector3(0, size.y - 0.09, 0), white, false)
 
 func _mango_tree(p: Vector3, s := 1.0) -> void:
 	_cyl(0.25 * s, 0.35 * s, 3.0 * s, p + Vector3(0, 1.5 * s, 0), Color(0.4, 0.28, 0.18), 7, true)
@@ -1289,6 +1312,10 @@ func refresh_beacon() -> void:
 	refresh_gate()
 
 func attach_player(p: Player) -> void:
+	if wildlife == null:
+		wildlife = Wildlife.new()
+		add_child(wildlife)
+		wildlife.setup(zone, p)
 	player = p
 	for id in fighters:
 		fighters[id].set_player(p)
@@ -1411,15 +1438,9 @@ func _build_pantanal() -> void:
 	_build_environment()
 	_build_terrain()
 	var water := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(200, 200)
-	water.mesh = pm
-	var wm := StandardMaterial3D.new()
-	wm.albedo_color = Color(0.13, 0.2, 0.13, 0.9)
-	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wm.roughness = 0.7
-	wm.metallic_specular = 0.2
-	water.material_override = wm
+	water.mesh = EnvShaders.water_plane(Vector2(200, 200), 4.0)
+	# Pantanal wetland: still, tea-colored, mirror-like
+	water.material_override = EnvShaders.water(Color(0.08, 0.14, 0.09), Color(0.22, 0.28, 0.16, 0.88), 0.025, 0.25)
 	water.position = Vector3(0, -0.35, 0)
 	add_child(water)
 	_build_trees()
@@ -1709,11 +1730,7 @@ func _c_waterfall() -> void:
 	pm.height = 0.05
 	pm.radial_segments = 24
 	pool.mesh = pm
-	var wm := StandardMaterial3D.new()
-	wm.albedo_color = Color(0.2, 0.42, 0.45, 0.85)
-	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wm.roughness = 0.5
-	pool.material_override = wm
+	pool.material_override = EnvShaders.water(Color(0.06, 0.3, 0.34), Color(0.28, 0.58, 0.58, 0.82), 0.0, 0.5)
 	pool.position = Vector3(FALLS_X, -0.55, cz + 7.0)
 	add_child(pool)
 	var mist := _label("VÉU DE NOIVA", Vector3(FALLS_X, top + 2.5, cz), 90, Color(1, 1, 1, 0.9))
@@ -1976,15 +1993,9 @@ func _build_rio() -> void:
 
 func _r_ocean() -> void:
 	var mi := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(420, 180)
-	mi.mesh = pm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.1, 0.45, 0.58, 0.88)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.25
-	m.metallic_specular = 0.6
-	mi.material_override = m
+	mi.mesh = EnvShaders.water_plane(Vector2(420, 180), 4.0)
+	# the Atlantic: bigger swells rolling toward the beach
+	mi.material_override = EnvShaders.water(Color(0.02, 0.2, 0.36), Color(0.1, 0.52, 0.6, 0.86), 0.22, 0.09, Vector2(0.0, -0.8))
 	mi.position = Vector3(0, WATER_Y, 140)
 	add_child(mi)
 	# a line of surf where the waves break

@@ -810,6 +810,7 @@ func _build_settings() -> void:
 	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("Sound", 22, UiKit.ACCENT))
 	_slider_row(v, "Music", float(Sfx.pref("music", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("music", x))
+	_slider_row(v, "Ambience", float(Sfx.pref("ambience", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("ambience", x))
 	_slider_row(v, "Effects", float(Sfx.pref("sfx", 0.9)), 0.0, 1.0, func(x):
 		Sfx.set_pref("sfx", x)
 		Sfx.play("click", -6.0))

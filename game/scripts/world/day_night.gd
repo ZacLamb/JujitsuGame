@@ -104,6 +104,7 @@ func apply() -> void:
 	sky.sky_horizon_color = hor
 	sky.ground_horizon_color = hor.darkened(0.25)
 	env.fog_light_color = hor.lerp(top, 0.25)
+	EnvShaders.set_sky_tint(hor.lerp(top, 0.35))
 	env.ambient_light_color = NIGHT_AMBIENT.lerp(DAY_AMBIENT, d).lerp(Color(1.0, 0.75, 0.6), gold * 0.25)
 	env.ambient_light_energy = lerpf(0.3, 0.42, d)
 	env.tonemap_exposure = base_exposure * lerpf(1.08, 1.0, d)

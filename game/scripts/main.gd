@@ -335,6 +335,7 @@ func _make_world(z: String) -> void:
 	world.attach_player(player)
 	if hud:
 		hud.minimap.set_world(world, player)
+	Sfx.ambience(z)
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
 	if is_instance_valid(_title_cam):
@@ -603,10 +604,12 @@ func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}) 
 	add_child(roll)
 	roll.finished.connect(_end_roll)
 	roll.start(opp_id, daily, comp)
+	Sfx.duck_ambience(true)
 	_fit_screen()
 
 func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	Sfx.music("explore")
+	Sfx.duck_ambience(false)
 	roll.queue_free()
 	roll = null
 	world.visible = true

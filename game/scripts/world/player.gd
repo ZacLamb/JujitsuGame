@@ -26,7 +26,8 @@ var _rmb := false
 var _press_pos := Vector2.ZERO
 var _press_ms := 0
 var _drag_px := 0.0
-var walk_target: Npc = null   # set by click-to-interact; the player walks there
+var walk_target: Npc = null
+var _step_dist := 0.0   # set by click-to-interact; the player walks there
 var autorun := false
 var _last_look_ms := -100000
 const FOLLOW_TOUCH := 1.1   # follow-camera turn rate on phones (rad/s per rad of offset)
@@ -188,6 +189,13 @@ func _physics_process(delta: float) -> void:
 				var rate := FOLLOW_TOUCH if touch_move.length() > 0.05 or autorun else FOLLOW_KEYS
 				cam_yaw += off * clampf(delta * rate * clampf(hspeed / RUN, 0.3, 1.0), 0.0, 1.0)
 	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor())
+	# footsteps
+	if is_on_floor() and hspeed > 1.0:
+		_step_dist += hspeed * delta
+		if _step_dist > (1.55 if hspeed < WALK + 0.5 else 2.1):
+			_step_dist = 0.0
+			var sand := get_parent() is World and (get_parent() as World).zone == "rio" and global_position.z > 31.0
+			Sfx.play("step_sand" if sand else "step_ground", -15.0, randf_range(0.85, 1.15))
 
 	yaw_node.global_position = yaw_node.global_position.lerp(global_position + Vector3(0, 1.5, 0), clampf(delta * 12.0, 0, 1))
 	yaw_node.rotation.y = cam_yaw
