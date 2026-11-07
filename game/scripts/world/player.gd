@@ -62,11 +62,12 @@ func _ready() -> void:
 var _look_key := ""
 
 func refresh_look() -> void:
-	var key := Game.gi_color().to_html()
+	var key := Game.look_key()
 	if key == _look_key:
 		rig.set_belt_color(Data.BELTS[Game.belt_index()].color)
 		return
 	_look_key = key
+	Game.dress(rig)
 	rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
 
 func make_current() -> void:

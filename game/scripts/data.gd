@@ -428,6 +428,8 @@ const ACHIEVEMENTS := [
 	{"id": "quest_1", "name": "Helping Hand", "desc": "Complete your first quest."},
 	{"id": "quests_10", "name": "Friend of Brazil", "desc": "Complete 10 quests.", "goal": 10},
 	{"id": "quests_all", "name": "Everybody Knows the Gringo", "desc": "Complete every quest.", "goal": 22},
+	{"id": "first_loot", "name": "Fresh Gear", "desc": "Get your first piece of gear."},
+	{"id": "legendary", "name": "Legendary", "desc": "Own a legendary piece of gear."},
 	{"id": "behind_falls", "name": "Behind the Veil", "desc": "Find the secret behind the waterfall.", "hidden": true},
 	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
 	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},

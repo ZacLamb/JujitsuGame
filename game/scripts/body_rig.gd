@@ -11,6 +11,8 @@ var skin_color := Color(0.78, 0.57, 0.4)
 var hair_color := Color(0.12, 0.08, 0.05)
 
 var hips: Node3D
+var lapel_override := Color(0, 0, 0, 0)  # alpha 0 = derive from the gi
+var rash_color := Color(0, 0, 0, 0)      # alpha 0 = no rashguard showing
 var joints := {}
 var _walk_t := 0.0
 var _tween: Tween
@@ -476,6 +478,16 @@ func _build_skinned_belt() -> void:
 	_torso_parts.name = "GiTorso"
 	add_child(_torso_parts)
 	var lapel := gi.darkened(0.12) if gi.v > 0.5 else gi.lightened(0.1)
+	if lapel_override.a > 0.0:
+		lapel = lapel_override
+	# rashguard peeking out of the collar
+	if rash_color.a > 0.0:
+		var rg := MeshInstance3D.new()
+		rg.mesh = BoxMesh.new()
+		rg.material_override = _cmat(rash_color)
+		rg.position = Vector3(0, 0.66, -0.128)
+		rg.scale = Vector3(0.15, 0.26, 0.02)
+		_torso_parts.add_child(rg)
 	# jacket skirt below the belt
 	var skirt := MeshInstance3D.new()
 	var sc := CylinderMesh.new()

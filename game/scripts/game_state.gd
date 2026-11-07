@@ -17,6 +17,8 @@ var counters := {}  # achievement id -> int
 var landmarks := {}
 var cups := {}
 var flags := {}  # misc quest flags
+var inventory := {}  # item id -> true
+var equipped := {}   # slot -> item id
 var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
@@ -59,6 +61,8 @@ func reset() -> void:
 	daily = {}
 	medals = {}
 	quests = {}
+	inventory = {"standard_gi": true, "rash_white": true}
+	equipped = {"gi": "standard_gi", "rash": "rash_white"}
 	save_game()
 	progress_changed.emit()
 
@@ -70,7 +74,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -106,6 +110,9 @@ func load_game() -> void:
 	daily = parsed.get("daily", {})
 	medals = parsed.get("medals", {})
 	quests = parsed.get("quests", {})
+	inventory = parsed.get("inventory", {})
+	equipped = parsed.get("equipped", {})
+	_backfill_gear()
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
 		attr_alloc = {}
@@ -166,6 +173,7 @@ func promote_belt(to_belt: int) -> void:
 	unlock({1: "blue_belt", 2: "purple_belt", 3: "brown_belt", 4: "black_belt"}.get(to_belt, ""))
 	_announce_new_moves(rank)
 	_announce_level(lv_before)
+	give_item(Gear.PROMOTION_LOOT.get(to_belt, ""))
 	save_game()
 	progress_changed.emit()
 
@@ -200,7 +208,82 @@ func choose_style(id: String, name_: String, gi: int) -> void:
 	progress_changed.emit()
 
 func gi_color() -> Color:
+	var it: Dictionary = Gear.ITEMS.get(str(equipped.get("gi", "")), {})
+	if it.has("color"):
+		return it.color
 	return Rpg.GI_COLORS[gi_index]
+
+## Lapel accent of the equipped gi (alpha 0 = derive from the gi color).
+func lapel_color() -> Color:
+	return Gear.ITEMS.get(str(equipped.get("gi", "")), {}).get("lapel", Color(0, 0, 0, 0))
+
+func rash_color() -> Color:
+	return Gear.ITEMS.get(str(equipped.get("rash", "")), {}).get("color", Color(0, 0, 0, 0))
+
+## Applies the equipped gear look to a rig before rig.setup().
+func dress(rig: BodyRig) -> void:
+	rig.lapel_override = lapel_color()
+	rig.rash_color = rash_color()
+
+func look_key() -> String:
+	return "%s|%s|%s" % [gi_color().to_html(), str(equipped.get("gi", "")), str(equipped.get("rash", ""))]
+
+# ------------------------------------------------------------ gear
+func gear_bonus(k: String) -> int:
+	var n := 0
+	for slot in equipped:
+		n += int(Gear.ITEMS.get(str(equipped[slot]), {}).get("attrs", {}).get(k, 0))
+	return n
+
+func has_item(id: String) -> bool:
+	return inventory.has(id)
+
+func give_item(id: String, quiet := false) -> bool:
+	if id == "" or not Gear.ITEMS.has(id) or inventory.has(id):
+		return false
+	inventory[id] = true
+	var it: Dictionary = Gear.ITEMS[id]
+	if Gear.power(id) > 0:
+		unlock("first_loot")
+	if it.rarity == "legendary":
+		unlock("legendary")
+	if not quiet:
+		toast.emit("LOOT: %s  (%s)" % [it.name, Gear.RARITY[it.rarity].name], Gear.rarity_color(id))
+		Sfx.play("collect")
+	var cur := str(equipped.get(it.slot, ""))
+	if cur == "" or Gear.power(id) > Gear.power(cur):
+		equipped[it.slot] = id
+		if not quiet:
+			toast.emit("Equipped %s" % it.name, Gear.rarity_color(id))
+	save_game()
+	progress_changed.emit()
+	return true
+
+func equip(id: String) -> bool:
+	if not inventory.has(id):
+		return false
+	equipped[Gear.ITEMS[id].slot] = id
+	save_game()
+	progress_changed.emit()
+	return true
+
+## Gives gear for progress made before gear existed (and the starter kit).
+func _backfill_gear() -> void:
+	for id in ["standard_gi", "rash_white"]:
+		inventory[id] = true
+	if not equipped.has("gi"):
+		equipped["gi"] = "standard_gi"
+	if not equipped.has("rash"):
+		equipped["rash"] = "rash_white"
+	for boss in Gear.BOSS_LOOT:
+		if beaten(boss):
+			give_item(Gear.BOSS_LOOT[boss], true)
+	for q in Gear.QUEST_LOOT:
+		if quest_state(q) == "done":
+			give_item(Gear.QUEST_LOOT[q], true)
+	for b in Gear.PROMOTION_LOOT:
+		if belt_index() >= b:
+			give_item(Gear.PROMOTION_LOOT[b], true)
 
 ## WoW-style level tied to the belt: white 1-10, blue 11-20, purple 21-30, brown 31-40, black 41-50.
 ## Every 50 XP is a level and every 2 levels a stripe; at 4 stripes the level is capped until the
@@ -249,7 +332,7 @@ func complete_drill(k: String) -> bool:
 	return gained
 
 func attr(k: String) -> int:
-	var v := Rpg.ATTR_BASE + int(attr_alloc.get(k, 0)) + train_bonus(k)
+	var v := Rpg.ATTR_BASE + int(attr_alloc.get(k, 0)) + train_bonus(k) + gear_bonus(k)
 	if style != "":
 		v += int(Rpg.STYLES[style].attrs.get(k, 0))
 	return v
@@ -510,6 +593,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("tapped")
 	drills_ready = true
 	add_xp(gained)
+	if result.won and Gear.BOSS_LOOT.has(opp_id):
+		give_item(Gear.BOSS_LOOT[opp_id])
 	if result.won and opp.get("boss", false):
 		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()
@@ -633,6 +718,7 @@ func complete_quest(id: String) -> int:
 	bump("quests_10")
 	bump("quests_all")
 	add_xp(int(q.xp))
+	give_item(Gear.QUEST_LOOT.get(id, ""))
 	return int(q.xp)
 
 func active_quests(z := "") -> Array:
@@ -696,8 +782,10 @@ func award_medal(comp_id: String, belt: int, medal: String) -> int:
 	var xp_gain: int = {"gold": 260, "silver": 150, "bronze": 90}.get(medal, 0)
 	if medal == "gold":
 		unlock("first_gold")
+		give_item("tape_pro")
 		if comp_id == "mundial":
 			unlock("world_champ")
+			give_item("mundial_gi")
 		var regional := 0
 		for c in ["copa_caceres", "pantanal_open", "chapada_open", "rio_open"]:
 			for b in Data.BELTS.size():

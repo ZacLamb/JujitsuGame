@@ -95,6 +95,22 @@ func _ready() -> void:
 	check(not game.raise_attr("grip"), "no attribute points left")
 	game.reset_talents()
 	check(game.talent_points() == 6 and not game.knows("uchi_mata"), "reset refunds talents")
+	# ---------------- gear
+	game.reset()
+	game.choose_style("guard", "Tester", 0)
+	check(game.equipped.get("gi") == "standard_gi" and game.equipped.get("rash") == "rash_white", "starter gear equipped")
+	var grip0: int = game.attr("grip")
+	check(game.give_item("onca_gi") and game.equipped.gi == "onca_gi", "boss gi auto-equips")
+	check(game.attr("grip") == grip0 + 2 and game.gi_color() == Gear.ITEMS.onca_gi.color, "gear adds attributes and changes the gi color")
+	check(not game.give_item("onca_gi"), "no duplicate loot")
+	game.give_item("terere_gi")
+	check(game.equipped.gi == "onca_gi", "weaker gear does not replace better gear")
+	check(game.equip("terere_gi") and game.attr("grip") == grip0, "manual equip swaps bonuses")
+	game.reset()
+	game.rank = 9
+	game.wins = {"onca": 1, "jacare": 1}
+	game._backfill_gear()
+	check(game.has_item("onca_gi") and game.has_item("jacare_gi") and game.has_item("rash_blue"), "old saves get gear for past progress")
 	# every style produces sane modifiers and wider takedowns for the wrestler
 	var neutral := RollSim.new()
 	neutral.setup("tiago", 2.0, func(_id): return true, 7)

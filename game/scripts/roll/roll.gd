@@ -171,6 +171,7 @@ func _build_world() -> void:
 
 	player_rig = BodyRig.new()
 	add_child(player_rig)
+	Game.dress(player_rig)
 	player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
 	var you := Label3D.new()
 	you.text = "YOU"

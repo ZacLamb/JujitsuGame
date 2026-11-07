@@ -144,6 +144,7 @@ func _ready() -> void:
 		await play_roll("leao", true)
 		main.hud._close_dialogue(false)
 		tries += 1
+	check(Game.has_item("leao_gi") == (Game.belt_index() == 4), "Leão drops his gi when beaten")
 	check(Game.belt_index() == 4 or tries == 8, "Leão roll(s) completed (belt=%s after %d)" % [Data.BELTS[Game.belt_index()].name, tries])
 	if Game.belt_index() == 4:
 		check(Game.unlocked.has("black_belt") and Game.flags.get("black_belt_ending", false), "black belt promotion + ending")

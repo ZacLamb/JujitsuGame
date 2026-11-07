@@ -325,6 +325,47 @@ func toggle_journal() -> void:
 	touch.visible = _touch_allowed()
 	journal_toggled.emit(journal.visible)
 
+func _fill_gear() -> void:
+	var g := _scroll_tab("Gear")
+	var owned := 0
+	for id in Gear.ITEMS:
+		if Game.has_item(id):
+			owned += 1
+	g.add_child(UiKit.label("Gear collected: %d / %d" % [owned, Gear.ITEMS.size()], 18, UiKit.MUTED))
+	for slot in Gear.SLOTS:
+		g.add_child(UiKit.label(Gear.SLOT_NAMES[slot].to_upper(), 24, UiKit.ACCENT))
+		var cur := str(Game.equipped.get(slot, ""))
+		if cur == "":
+			g.add_child(UiKit.label("Nothing equipped", 18, UiKit.MUTED))
+		for id in Gear.ITEMS:
+			var it: Dictionary = Gear.ITEMS[id]
+			if it.slot != slot:
+				continue
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 12)
+			g.add_child(row)
+			var info := VBoxContainer.new()
+			info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(info)
+			if Game.has_item(id):
+				var nm := UiKit.label("%s%s" % [it.name, "   (equipped)" if id == cur else ""], 20, Gear.rarity_color(id))
+				info.add_child(nm)
+				info.add_child(UiKit.label("%s  ·  %s" % [Gear.RARITY[it.rarity].name, Gear.stat_text(id)], 16, UiKit.TEXT))
+				info.add_child(UiKit.label(it.desc, 15, UiKit.MUTED))
+				if id != cur:
+					var b := UiKit.button("Equip", Vector2(110, 44))
+					b.add_theme_font_size_override("font_size", 17)
+					b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+					var iid: String = id
+					b.pressed.connect(func():
+						Game.equip(iid)
+						_want_tab = journal_tabs.current_tab
+						_fill_journal())
+					row.add_child(b)
+			else:
+				info.add_child(UiKit.label("???  (%s)" % Gear.RARITY[it.rarity].name, 18, Gear.rarity_color(id).darkened(0.45)))
+				info.add_child(UiKit.label("Source: %s" % it.source, 15, UiKit.MUTED))
+
 func _scroll_tab(name_: String) -> VBoxContainer:
 	var sc := ScrollContainer.new()
 	sc.name = name_
@@ -346,6 +387,7 @@ func _fill_journal() -> void:
 		c.queue_free()
 	_fill_character()
 	_fill_talents()
+	_fill_gear()
 	# Quests
 	var q := _scroll_tab("Quests")
 	q.add_child(_daily_box())
