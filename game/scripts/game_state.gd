@@ -5,7 +5,12 @@ signal achievement_unlocked(id: String)
 signal toast(text: String, color: Color)
 signal progress_changed
 
-const SAVE_PATH := "user://tatame_save.json"
+const LEGACY_SAVE := "user://tatame_save.json"   # single-character saves from before character slots
+const INDEX_PATH := "user://tatame_chars.json"    # {active: id, chars: [{id, name, style, rank, level, zone, gi, created}]}
+const MAX_CHARS := 8
+var SAVE_PATH := "user://tatame_char_1.json"      # the active character's file
+var char_id := ""
+var boot_into := false     # set before a scene reload: skip the title and go straight in
 const SAVE_VERSION := 1
 
 var xp := 0
@@ -37,13 +42,133 @@ var daily := {}            # {"last_win": date, "last_try": date, "streak": n, "
 var test_mode := false  # set by tests to avoid writing saves
 
 func _ready() -> void:
+	_migrate_legacy()
+	var idx := _index()
+	if str(idx.get("active", "")) != "" and _find_char(idx, str(idx.active)) >= 0:
+		_use_slot(str(idx.active))
+		load_game()
+
+# ------------------------------------------------------------ characters (slots)
+## Every character is its own save: own class, belt, gear, quests, territories. Everyone starts
+## at white belt, level 1. Settings (sound, controls, graphics) are shared across characters.
+func _index() -> Dictionary:
+	if not FileAccess.file_exists(INDEX_PATH):
+		return {"active": "", "chars": []}
+	var f := FileAccess.open(INDEX_PATH, FileAccess.READ)
+	var d = JSON.parse_string(f.get_as_text()) if f else null
+	return d if typeof(d) == TYPE_DICTIONARY else {"active": "", "chars": []}
+
+func _write_index(d: Dictionary) -> void:
+	if test_mode:
+		return
+	var f := FileAccess.open(INDEX_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(d))
+
+static func _find_char(d: Dictionary, id: String) -> int:
+	var arr: Array = d.get("chars", [])
+	for i in arr.size():
+		if str(arr[i].get("id", "")) == id:
+			return i
+	return -1
+
+func _use_slot(id: String) -> void:
+	char_id = id
+	SAVE_PATH = "user://tatame_char_%s.json" % id
+
+func _migrate_legacy() -> void:
+	if FileAccess.file_exists(INDEX_PATH) or not FileAccess.file_exists(LEGACY_SAVE):
+		return
+	var src := FileAccess.open(LEGACY_SAVE, FileAccess.READ)
+	if not src:
+		return
+	var txt := src.get_as_text()
+	src = null
+	var dst := FileAccess.open("user://tatame_char_1.json", FileAccess.WRITE)
+	if not dst:
+		return
+	dst.store_string(txt)
+	dst = null
+	_write_index({"active": "1", "chars": [{"id": "1"}]})
+	_use_slot("1")
 	load_game()
+	_sync_index()
+
+## Character list for the select screen (newest summary of each).
+func characters() -> Array:
+	var out: Array = []
+	for c in _index().get("chars", []):
+		if str(c.get("style", "")) != "":
+			out.append(c)
+	return out
+
+func can_create() -> bool:
+	return characters().size() < MAX_CHARS
+
+## Start a brand-new character: white belt, level 1, nothing carried over.
+func new_character() -> void:
+	var d := _index()
+	var n := 1
+	for c in d.chars:
+		n = maxi(n, int(str(c.get("id", "0"))) + 1)
+	var arr: Array = d.chars.filter(func(c): return str(c.get("style", "")) != "")   # drop unfinished creations
+	var id := str(n)
+	arr.append({"id": id, "created": int(Time.get_unix_time_from_system())})
+	d.chars = arr
+	d.active = id
+	_write_index(d)
+	_use_slot(id)
+	reset()
+
+func select_character(id: String) -> void:
+	var d := _index()
+	if _find_char(d, id) < 0:
+		return
+	d.active = id
+	_write_index(d)
+	_use_slot(id)
+	reset_state()
+	load_game()
+
+func delete_character(id: String) -> void:
+	var d := _index()
+	var i := _find_char(d, id)
+	if i < 0:
+		return
+	(d.chars as Array).remove_at(i)
+	if not test_mode:
+		DirAccess.remove_absolute("user://tatame_char_%s.json" % id)
+	if str(d.active) == id:
+		d.active = ""
+		char_id = ""
+	_write_index(d)
+
+## Keep the select screen's summary of the active character current (called on every save).
+func _sync_index() -> void:
+	if test_mode or char_id == "":
+		return
+	var d := _index()
+	var i := _find_char(d, char_id)
+	var row := {"id": char_id, "name": player_name, "style": style, "rank": rank, "level": player_level(), "zone": zone, "gi": gi_index,
+		"created": int(d.chars[i].get("created", 0)) if i >= 0 else int(Time.get_unix_time_from_system()), "played": int(Time.get_unix_time_from_system())}
+	if i >= 0:
+		d.chars[i] = row
+	else:
+		(d.chars as Array).append(row)
+	d.active = char_id
+	_write_index(d)
 
 # ------------------------------------------------------------ persistence
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 func reset() -> void:
+	reset_state()
+	save_game()
+	progress_changed.emit()
+
+func reset_state() -> void:
+	player_name = "Gringo"
 	xp = 0
 	rank = 0
 	wins = {}
@@ -71,8 +196,6 @@ func reset() -> void:
 	kit = "gi"
 	team = {}
 	territories = {}
-	save_game()
-	progress_changed.emit()
 
 func save_game() -> void:
 	if test_mode:
@@ -87,6 +210,8 @@ func save_game() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(data))
+		f = null
+	_sync_index()
 
 func load_game() -> void:
 	if not has_save():

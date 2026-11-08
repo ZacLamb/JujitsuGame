@@ -41,6 +41,8 @@ static func role_label(pos: String, top: bool) -> String:
 			return "You have the back" if top else "They have your back"
 	return pos
 
+const QA_KEY := "oss-tatame-qa"   # #qa=<key>&roll=... enables the dev URL shortcuts
+
 # ---------------------------------------------------------------- techniques
 # role: "any" (standing), "top" or "bottom".
 # result: [position, actor_is_top] or "sub" for submissions.

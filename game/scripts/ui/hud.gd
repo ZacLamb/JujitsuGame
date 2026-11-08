@@ -614,26 +614,22 @@ func _build_title() -> void:
 	var v := VBoxContainer.new()
 	v.anchor_left = 0.08
 	v.anchor_right = 0.92
-	v.anchor_top = 0.14
-	v.anchor_bottom = 0.95
+	v.anchor_top = 0.06
+	v.anchor_bottom = 0.97
 	v.alignment = BoxContainer.ALIGNMENT_BEGIN
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 8)
 	title.add_child(v)
-	v.add_child(UiKit.label("TATAME", 96, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("TATAME", 84, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("OPEN MAT BRASIL", 34, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("An open-world jiu-jitsu adventure  ·  Zone 1: Cáceres, Mato Grosso", 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 16)
+	spacer.custom_minimum_size = Vector2(0, 4)
 	v.add_child(spacer)
-	var play := UiKit.button("Continue" if Game.has_save() and Game.xp > 0 else "Start Training", Vector2(320, 72))
-	play.add_theme_font_size_override("font_size", 30)
-	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	play.pressed.connect(func(): play_pressed.emit())
-	v.add_child(play)
+	v.add_child(CharSelect.new())
 	var how := UiKit.label(
-		"Explore with WASD / joystick · drag to look · pinch to zoom · Space to jump · X auto-run · E to roll\n" +
-		"In a roll: pick a technique, stop the bar in the green, defend with the arrows, mash to finish or escape.",
-		17, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+		"Explore with WASD / joystick · drag to look · wheel to zoom · Space to jump · E to roll\n" +
+		"Fights: 1-8 techniques · Q / E / R counters · F breathe · WASD circle · mash Space to finish or escape",
+		16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(how)
 	if Data.COMMUNITY_URL != "":
 		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(280, 52))

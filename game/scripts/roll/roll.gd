@@ -401,6 +401,7 @@ func _process(delta: float) -> void:
 			_float("SECOND WIND! +40", Vector2(0.25, 0.3), Color(0.5, 1, 0.6), 30)
 		_drain_events()
 	_refresh_hud()
+	_tick_tip(delta)
 
 # ================================================================= poses
 func _pose_now(dur := 0.5) -> void:
@@ -837,7 +838,13 @@ func _input(event: InputEvent) -> void:
 		var face := [JOY_BUTTON_A, JOY_BUTTON_B, JOY_BUTTON_X, JOY_BUTTON_Y].find(b)
 		if face >= 0:
 			var lb := Input.is_joy_button_pressed(event.device, JOY_BUTTON_LEFT_SHOULDER)
-			_use_index(face + (4 if lb else 0))
+			var ix := face + (4 if lb else 0)
+			if Input.get_joy_axis(event.device, JOY_AXIS_TRIGGER_LEFT) > 0.5:
+				# hold LT + a face button: inspect the ability instead of using it
+				if ix < slots.size():
+					_show_tip(str(slots[ix].id), true)
+				return
+			_use_index(ix)
 		elif b == JOY_BUTTON_DPAD_LEFT:
 			_defend("base")
 		elif b == JOY_BUTTON_DPAD_UP:
@@ -999,7 +1006,7 @@ func _build_ui() -> void:
 		b.add_theme_stylebox_override("hover", UiKit.box(c.darkened(0.4), 12, Color.WHITE, 2))
 		b.add_theme_stylebox_override("pressed", UiKit.box(c.darkened(0.2), 12, Color.WHITE, 3))
 		b.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(c, 0.3), 2))
-		b.tooltip_text = {"base": "Answers takedowns and sweeps (orange casts)", "frame": "Answers passes, back takes and escapes (blue casts)", "defend": "Answers submissions (red casts)"}[kind]
+		_hook_tip(b, kind)
 		b.pivot_offset = Vector2(37, 37)
 		b.pressed.connect(_defend.bind(kind))
 		drow.add_child(b)
@@ -1013,7 +1020,7 @@ func _build_ui() -> void:
 	breathe_btn.add_theme_stylebox_override("normal", UiKit.box(bc.darkened(0.65), 12, Color(bc, 0.7), 2))
 	breathe_btn.add_theme_stylebox_override("hover", UiKit.box(bc.darkened(0.45), 12, Color.WHITE, 2))
 	breathe_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(bc, 0.25), 2))
-	breathe_btn.tooltip_text = "Recover stamina. Leaves you open for a moment."
+	_hook_tip(breathe_btn, "breathe")
 	breathe_btn.pressed.connect(_breathe)
 	drow.add_child(breathe_btn)
 	# action bar
@@ -1174,6 +1181,7 @@ func _rebuild_bar() -> void:
 	if key == _bar_key:
 		return
 	_bar_key = key
+	_hide_tip()
 	for c in bar_box.get_children():
 		c.queue_free()
 	slots.clear()
@@ -1188,15 +1196,7 @@ func _rebuild_bar() -> void:
 		sl.cd_max = float(s.cd)
 		sl.signature = s.id in _signature
 		sl.key = CombatUi.PAD_LABELS[i] if pad else str(i + 1)
-		var m_desc := ""
-		if s.kind == "move":
-			var m: Dictionary = Data.MOVES[s.id]
-			m_desc = "%s · %s · needs %d grip%s%s" % [str(m.type).capitalize(), RollSim.DEF_NAMES[RollSim.counter_kind(s.id)] + "-able", int(s.req), "" if int(s.req) == 1 else "s", ("  ·  +%d pts" % int(m.pts)) if int(m.pts) > 0 else ""]
-		elif s.kind == "grip":
-			m_desc = "+1 Grip Control (+2 if they are off-balance)"
-		else:
-			m_desc = "Drains their stamina and strips a grip"
-		sl.tooltip_text = "%s\n%s" % [s.name, m_desc]
+		_hook_tip(sl, str(s.id))
 		sl.pressed_slot.connect(_use)
 		bar_box.add_child(sl)
 		slots.append(sl)
@@ -1349,3 +1349,54 @@ func _refresh_plates() -> void:
 	_plate_p_cast.t = cast_p.t
 	_plate_p_cast.dur = cast_p.dur
 	_plate_p_cast.interrupted = cast_p.interrupted
+
+# ================================================================= tooltips
+## WoW-style ability tooltip, bottom-right above the bar. Mouse: hover. Pad: hold LT + face button.
+var _tip: Control
+var _tip_id := ""
+var _tip_pad_t := 0.0
+var _tip_refresh := 0.0
+
+func _hook_tip(c: Control, id: String) -> void:
+	c.tooltip_text = ""
+	c.mouse_entered.connect(func(): _show_tip(id))
+	c.mouse_exited.connect(func():
+		if _tip_id == id and _tip_pad_t <= 0.0:
+			_hide_tip())
+
+func _show_tip(id: String, from_pad := false) -> void:
+	_hide_tip()
+	_tip_id = id
+	_tip_pad_t = 3.0 if from_pad else 0.0
+	_tip = MoveInfo.panel(id, sim, pace, "", id in _signature)
+	ui.add_child(_tip)
+	_tip.anchor_left = 1.0
+	_tip.anchor_right = 1.0
+	_tip.anchor_top = 1.0
+	_tip.anchor_bottom = 1.0
+	_tip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_tip.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_tip.offset_right = -18
+	_tip.offset_bottom = -150
+	_tip_refresh = 0.3
+
+func _hide_tip() -> void:
+	if _tip and is_instance_valid(_tip):
+		_tip.queue_free()
+	_tip = null
+	_tip_id = ""
+
+func _tick_tip(delta: float) -> void:
+	if _tip == null:
+		return
+	if _tip_pad_t > 0.0:
+		_tip_pad_t -= delta
+		if _tip_pad_t <= 0.0:
+			_hide_tip()
+			return
+	_tip_refresh -= delta
+	if _tip_refresh <= 0.0 and _tip_id != "":
+		var id := _tip_id
+		var pad_t := _tip_pad_t
+		_show_tip(id, pad_t > 0.0)
+		_tip_pad_t = pad_t

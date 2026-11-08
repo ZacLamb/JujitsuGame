@@ -51,8 +51,9 @@ func _ready() -> void:
 	# web: hint to the browser that loading finished
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.__tatameReady = true;")
-	if OS.get_cmdline_user_args().has("--autoplay"):
-		_start_game()
+	if OS.get_cmdline_user_args().has("--autoplay") or Game.boot_into:
+		Game.boot_into = false
+		_start_game.call_deferred()
 	_dev_hash()
 
 ## QA shortcuts via URL hash, e.g. index.html#roll=rafa or #tp=-36,52
@@ -60,7 +61,8 @@ func _dev_hash() -> void:
 	if not OS.has_feature("web"):
 		return
 	var h := str(JavaScriptBridge.eval("window.location.hash || ''"))
-	if h == "":
+	# QA only, behind a key: nobody skips the line on a real character (and QA sessions never save)
+	if h == "" or not h.contains("qa=" + Data.QA_KEY):
 		return
 	Game.test_mode = true  # never save QA sessions
 	var style_q := "guard"

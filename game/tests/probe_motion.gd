@@ -40,4 +40,11 @@ func _ready() -> void:
 	roll.motion.bump(roll.player_rig, FightMotion.BRACE.frame, 0.5)
 	for i in 8: await get_tree().process_frame
 	_shot("e_brace")
+	roll.sim.control = 2
+	roll._show_tip(str(roll.slots[3].id))
+	for i in 4: await get_tree().process_frame
+	_shot("f_tip")
+	roll._show_tip("base")
+	for i in 3: await get_tree().process_frame
+	_shot("g_tip_base")
 	get_tree().quit()
