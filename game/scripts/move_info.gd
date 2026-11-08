@@ -160,6 +160,11 @@ static func _basic(v: VBoxContainer, id: String, sim: RollSim, pace: float) -> v
 			v.add_child(_line("Breathe", 20, Color.WHITE))
 			v.add_child(_pair("%.1f sec channel" % (1.4 / pace), "free"))
 			v.add_child(_line("Recover 20 stamina. You can't counter while you breathe, so pick your moment.", 14, UiKit.TEXT, true))
+		"disengage":
+			v.add_child(_line("Walk Away", 20, Color.WHITE))
+			v.add_child(_pair("%.1f sec channel" % (1.8 / pace), "free"))
+			v.add_child(_line("Back off and leave the fight: no win, no loss, no loot. Only from standing, and they may grab you back while you go. Not allowed in competitions.", 14, UiKit.TEXT, true))
+			v.add_child(_line("Out of a fight, just walk off: mobs give up the chase once you're far from their camp.", 13, UiKit.MUTED, true))
 		"base", "frame", "defend":
 			var c: Color = RollSim.DEF_COLORS[id]
 			v.add_child(_line(RollSim.DEF_NAMES[id], 20, c.lightened(0.2)))

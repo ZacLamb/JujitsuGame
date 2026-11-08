@@ -447,5 +447,23 @@ func _ready() -> void:
 			if Data.MOVES[id].has("spec"):
 				opp_any = true
 	check(not opp_any, "NPCs never use spec techniques")
+	# ---- disengage
+	var dg := RollSim.new()
+	dg.setup("tiago", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 5)
+	dg.start_live()
+	check(dg.disengage() == "locked", "can't walk away unless the fight allows it")
+	dg.can_disengage = true
+	dg.ai_t = 99.0
+	dg.opp_counter_cd = 99.0
+	check(dg.disengage() == "", "disengage starts a channel from standing")
+	for i in 40:
+		dg.tick(0.05)
+	check(dg.over and dg.result.get("disengaged", false) and not dg.result.won, "walked away: fight over, no win")
+	var dg2 := RollSim.new()
+	dg2.setup("tiago", 2.0, func(_id): return true, 5)
+	dg2.start_live()
+	dg2.can_disengage = true
+	dg2.pos = "guard"
+	check(dg2.disengage() == "grounded", "can't walk away from the ground")
 	print("\n%s (%d failures)" % ["PASS" if fails == 0 else "FAILED", fails])
 	get_tree().quit(1 if fails > 0 else 0)

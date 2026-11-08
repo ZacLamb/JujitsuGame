@@ -354,6 +354,25 @@ func breathe() -> String:
 	events.append({"e": "cast", "who": "p", "id": "breathe", "name": "Breathe", "kind": "breathe", "dur": 1.4})
 	return ""
 
+## Disengage: step back and walk away (open-world fights only). Only from standing; a 1.8s
+## channel they can grab you out of. No win, no loss, no rewards.
+const DISENGAGE_TIME := 1.8
+var can_disengage := false
+
+func disengage() -> String:
+	if not can_disengage:
+		return "locked"
+	if not live or over or not struggle.is_empty() or reset_t > 0.0 or not cast.is_empty():
+		return "busy"
+	if pos != "standing":
+		return "grounded"
+	cast = {"id": "disengage", "name": "Disengage", "kind": "disengage", "t": 0.0, "dur": DISENGAGE_TIME, "spend": 0, "ai_int_at": -1.0}
+	gcd = GCD
+	if opp_counter_cd <= 0.0 and opp_cast.is_empty() and rng.randf() < 0.35 * float(traits.aggr):
+		cast.ai_int_at = DISENGAGE_TIME * rng.randf_range(0.4, 0.85)   # they grab you back
+	events.append({"e": "cast", "who": "p", "id": "disengage", "name": "Disengage", "kind": "disengage", "dur": DISENGAGE_TIME})
+	return ""
+
 ## Answer the opponent's cast with a counter. Right counter = interrupt; wrong one = locked out.
 func defend(kind: String) -> String:
 	if not live or over or not struggle.is_empty() or def_cd > 0.0:
@@ -482,6 +501,14 @@ func _resolve_player() -> void:
 	var c: Dictionary = cast
 	cast = {}
 	match c.kind:
+		"disengage":
+			if pos != "standing":
+				events.append({"e": "whiff", "kind": "disengage"})
+				return
+			over = true
+			live = false
+			result = {"won": false, "disengaged": true, "by_sub": false, "sub": "", "min_stamina": 100.0 * min_stamina / max_stamina, "score": [player_pts, opp_pts]}
+			events.append({"e": "disengaged"})
 		"breathe":
 			recover(30.0 if mods.get("second_breath", false) else 20.0)
 			cds["breathe"] = 6.0

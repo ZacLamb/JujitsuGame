@@ -4,7 +4,7 @@ extends RefCounted
 ## Everything is drawn in code so it stays crisp at any size and needs no icon art.
 
 const KIND_COLORS := {
-	"grip": Color(0.78, 0.78, 0.74), "wear": Color(0.72, 0.5, 0.95), "breathe": Color(0.45, 0.85, 1.0),
+	"grip": Color(0.78, 0.78, 0.74), "wear": Color(0.72, 0.5, 0.95), "breathe": Color(0.45, 0.85, 1.0), "disengage": Color(0.85, 0.85, 0.85),
 	"base": Color(0.98, 0.6, 0.2), "frame": Color(0.35, 0.65, 1.0), "defend": Color(0.95, 0.3, 0.3),
 }
 const TYPE_ICONS := {
@@ -18,7 +18,7 @@ static func font() -> Font:
 
 ## Colour of a bar slot or a cast: what it is answered by.
 static func slot_color(id: String, kind: String) -> Color:
-	if kind in ["grip", "wear", "breathe"]:
+	if kind in ["grip", "wear", "breathe", "disengage"]:
 		return KIND_COLORS[kind]
 	return KIND_COLORS[RollSim.counter_kind(id)]
 

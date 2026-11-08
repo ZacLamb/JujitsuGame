@@ -53,6 +53,7 @@ var slots: Array = []
 var _bar_key := ""
 var def_btns := {}
 var breathe_btn: Button
+var disengage_btn: Button
 var live_root: Control
 var struggle_panel: PanelContainer
 var struggle_title: Label
@@ -105,6 +106,7 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	sim.signature = _signature
 	pace = clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0)
 	sim.clock_scale = 1.0 / pace * 0.85   # a slower fight, but the round only runs ~20% longer
+	sim.can_disengage = in_world and team.is_empty() and comp.is_empty() and daily.is_empty()
 	_build_world()
 	_build_ui()
 	_pose_now(0.01)
@@ -577,6 +579,11 @@ func _on_event(ev: Dictionary) -> void:
 			_sub_escaped(ev.who == "o")
 		"tap":
 			_sub_finished(ev.who == "o")
+		"disengaged":
+			phase = Phase.OVER
+			_live_ui(false)
+			_message("You back off, hands up. \"Depois, depois.\" You walk away.", 1.2)
+			_after(1.1, func(): finished.emit(opp_id, sim.result, 0))
 		"over":
 			if not sim.result.get("by_sub", false):
 				_message("TIME!  The bell rings.", 1.5)
@@ -864,6 +871,8 @@ func _input(event: InputEvent) -> void:
 			_defend("defend")
 		elif k == KEY_F:
 			_breathe()
+		elif k == KEY_X:
+			_disengage()
 		else:
 			return
 		get_viewport().set_input_as_handled()
@@ -891,6 +900,8 @@ func _input(event: InputEvent) -> void:
 			_defend("defend")
 		elif b == JOY_BUTTON_DPAD_DOWN:
 			_breathe()
+		elif b == JOY_BUTTON_BACK:
+			_disengage()
 
 func _use_index(i: int) -> void:
 	if i >= 0 and i < slots.size():
@@ -916,6 +927,16 @@ func _defend(kind: String) -> void:
 		var tw := create_tween()
 		b.scale = Vector2(0.92, 0.92)
 		tw.tween_property(b, "scale", Vector2.ONE, 0.12)
+	_drain_events()
+
+func _disengage() -> void:
+	if phase != Phase.LIVE:
+		return
+	match sim.disengage():
+		"grounded":
+			_float("Get back to your feet first", Vector2(0.5, 0.66), UiKit.ACCENT, 20)
+		"locked":
+			_float("Can't walk away from this one", Vector2(0.5, 0.66), UiKit.RED, 20)
 	_drain_events()
 
 func _breathe() -> void:
@@ -1061,6 +1082,19 @@ func _build_ui() -> void:
 	_hook_tip(breathe_btn, "breathe")
 	breathe_btn.pressed.connect(_breathe)
 	drow.add_child(breathe_btn)
+	if sim.can_disengage:
+		disengage_btn = Button.new()
+		disengage_btn.text = "Walk\naway X"
+		disengage_btn.custom_minimum_size = Vector2(74, 74)
+		disengage_btn.focus_mode = Control.FOCUS_NONE
+		disengage_btn.add_theme_font_size_override("font_size", 14)
+		var gc := Color(0.75, 0.75, 0.75)
+		disengage_btn.add_theme_stylebox_override("normal", UiKit.box(gc.darkened(0.75), 12, Color(gc, 0.6), 2))
+		disengage_btn.add_theme_stylebox_override("hover", UiKit.box(gc.darkened(0.55), 12, Color.WHITE, 2))
+		disengage_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(gc, 0.2), 2))
+		_hook_tip(disengage_btn, "disengage")
+		disengage_btn.pressed.connect(_disengage)
+		drow.add_child(disengage_btn)
 	# action bar
 	var abox := VBoxContainer.new()
 	abox.add_theme_constant_override("separation", 4)
@@ -1293,6 +1327,8 @@ func _refresh_hud() -> void:
 	if not sim.opp_cast.is_empty():
 		cast_o.t = float(sim.opp_cast.t)
 		cast_o.dur = float(sim.opp_cast.dur)
+	if disengage_btn:
+		disengage_btn.disabled = sim.pos != "standing" or not sim.struggle.is_empty()
 	_refresh_plates()
 	var big: bool = not sim.opp_cast.is_empty() and sim.opp_cast.kind in ["move", "special"]
 	alert.visible = (big or alert.interrupted > 0.0) and alert.title != ""

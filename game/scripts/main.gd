@@ -902,6 +902,8 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	if opp_id == "mob":
 		if is_instance_valid(_mob_npc):
 			world.mob_done(_mob_npc, bool(result.won))
+		if result.get("disengaged", false):
+			world.aggro_grace = 10.0
 		_mob_npc = null
 		world.refresh_mob_tags()
 		var next: Npc = null
