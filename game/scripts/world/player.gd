@@ -103,14 +103,28 @@ func _unhandled_input(event: InputEvent) -> void:
 				_drag_px = 0.0
 			elif event.button_index == MOUSE_BUTTON_LEFT and _drag_px < 6.0 and Time.get_ticks_msec() - _press_ms < 350:
 				clicked.emit(event.position)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			cam_dist = clampf(cam_dist - 0.6, 3.0, 12.0)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			cam_dist = clampf(cam_dist + 0.6, 3.0, 12.0)
 	elif event is InputEventMouseMotion and _dragging and event.device != InputEvent.DEVICE_ID_EMULATION:
 		_drag_px += event.relative.length()
 		if _drag_px >= 6.0:
 			look(event.relative * 0.005)
+
+var zoom_blocked: Callable   # set by main: true while a panel (big map, menus) owns the wheel
+
+## Zoom is read in _input (before the GUI) so HUD panels under the cursor can't swallow the wheel.
+## Mac trackpads send two-finger scroll as pan gestures and pinch as magnify.
+func _input(event: InputEvent) -> void:
+	if not input_enabled or (zoom_blocked.is_valid() and zoom_blocked.call()):
+		return
+	if event is InputEventMouseButton and event.pressed:
+		var f: float = event.factor if event.factor > 0.0 else 1.0
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			zoom(-0.7 * f)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			zoom(0.7 * f)
+	elif event is InputEventPanGesture:
+		zoom(event.delta.y * 0.35)
+	elif event is InputEventMagnifyGesture:
+		zoom((1.0 - event.factor) * 8.0)
 
 func look(delta: Vector2) -> void:
 	delta *= float(Sfx.pref("mouse", 1.0))
@@ -121,7 +135,7 @@ func look(delta: Vector2) -> void:
 	_last_look_ms = Time.get_ticks_msec()
 
 func zoom(amount: float) -> void:
-	cam_dist = clampf(cam_dist + amount, 3.0, 12.0)
+	cam_dist = clampf(cam_dist + amount, 2.2, 16.0)
 
 func _physics_process(delta: float) -> void:
 	var dir2 := Vector2.ZERO

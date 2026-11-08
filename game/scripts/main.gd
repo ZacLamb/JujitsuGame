@@ -28,6 +28,7 @@ func _ready() -> void:
 	player.clicked.connect(_on_world_click)
 	hud.minimap.set_world(world, player)
 	hud.touch.jump_pressed.connect(player.do_jump)
+	player.zoom_blocked = func() -> bool: return hud.dialogue_open() or hud.journal.visible or hud.minimap.big or hud.settings_open()
 	hud.touch.interact_pressed.connect(_interact)
 	hud.touch.journal_pressed.connect(hud.toggle_journal)
 	hud.play_pressed.connect(_start_game)

@@ -353,7 +353,9 @@ func open_character() -> void:
 
 func toggle_journal() -> void:
 	journal.visible = not journal.visible
+	minimap.visible = not journal.visible
 	if journal.visible:
+		journal.move_to_front()
 		_fill_journal()
 		touch.release_all()
 	touch.visible = _touch_allowed()
@@ -498,121 +500,13 @@ func _fill_journal() -> void:
 
 func _fill_character() -> void:
 	var c := _scroll_tab("Character")
-	if Game.style == "":
-		c.add_child(UiKit.label("No style chosen yet.", 20))
-		return
-	var st: Dictionary = Rpg.STYLES[Game.style]
-	c.add_child(UiKit.label("%s  ·  %s  ·  %s" % [Game.player_name, st.name, Data.rank_name(Game.rank)], 24, UiKit.ACCENT))
-	c.add_child(UiKit.label(st.passive, 18, UiKit.MUTED))
-	var lv := Game.player_level()
-	if Game.level_capped():
-		c.add_child(UiKit.label("Level %d — capped for your belt. Beat this zone's boss to keep leveling." % lv if lv < Game.MAX_LEVEL else "Level %d — max level" % lv, 19))
-	else:
-		c.add_child(UiKit.label("Level %d — %d XP to level %d" % [lv, Game.XP_PER_LEVEL - int(Game.level_progress() * Game.XP_PER_LEVEL), lv + 1], 19))
-	var ap := Game.attr_points()
-	c.add_child(UiKit.label("Attribute points: %d" % ap, 21, UiKit.ACCENT if ap > 0 else UiKit.TEXT))
-	for k in Rpg.ATTR_ORDER:
-		var a: Dictionary = Rpg.ATTRS[k]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var nm := UiKit.label(a.name, 21)
-		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
-		nm.custom_minimum_size = Vector2(150, 0)
-		row.add_child(nm)
-		var val := UiKit.label(str(Game.attr(k)), 24, UiKit.ACCENT)
-		val.autowrap_mode = TextServer.AUTOWRAP_OFF
-		val.custom_minimum_size = Vector2(36, 0)
-		row.add_child(val)
-		var bar := UiKit.bar(Color(0.45, 0.75, 1.0), Vector2(140, 12))
-		bar.max_value = Rpg.ATTR_CAP
-		bar.value = Game.attr(k)
-		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(bar)
-		var plus := UiKit.button("+", Vector2(52, 44))
-		plus.disabled = ap <= 0 or Game.attr(k) >= Rpg.ATTR_CAP
-		plus.pressed.connect(func(): Game.raise_attr(k))
-		row.add_child(plus)
-		c.add_child(row)
-		c.add_child(UiKit.label("      " + a.desc, 16, UiKit.MUTED))
-	var sig: Array = []
-	for mid in st.signature:
-		sig.append(Data.MOVES[mid].name)
-	c.add_child(UiKit.label("Signature techniques: " + ", ".join(sig), 18))
+	c.add_child(CharSheet.build_character(self))
 
 func _fill_talents() -> void:
 	var t := _scroll_tab("Talents")
 	var tp := Game.talent_points()
 	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Talents (%d)" % tp if tp > 0 else "Talents")
-	var head := HBoxContainer.new()
-	var hl := UiKit.label("Talent points: %d   ·   Tiers unlock at 0 / 2 / 4 / 6 points in a tree" % tp, 19, UiKit.ACCENT if tp > 0 else UiKit.TEXT)
-	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(hl)
-	var rs := UiKit.button("Reset talents", Vector2(150, 40))
-	rs.add_theme_font_size_override("font_size", 15)
-	rs.pressed.connect(func():
-		_sel_talent = ""
-		Game.reset_talents())
-	head.add_child(rs)
-	t.add_child(head)
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 10)
-	t.add_child(cols)
-	for tree in Rpg.TREE_ORDER:
-		var info: Dictionary = Rpg.TREES[tree]
-		var col := VBoxContainer.new()
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.add_theme_constant_override("separation", 6)
-		cols.add_child(col)
-		var th := UiKit.label("%s (%d)" % [info.name, Game.tree_points(tree)], 21, info.color, HORIZONTAL_ALIGNMENT_CENTER)
-		col.add_child(th)
-		col.add_child(UiKit.label(info.pt, 14, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-		for tier in 4:
-			for tid in Rpg.talents_in(tree):
-				var tal: Dictionary = Rpg.TALENTS[tid]
-				if int(tal.tier) != tier:
-					continue
-				var rnk := Game.talent_rank(tid)
-				var b := UiKit.button("%s  %d/%d" % [tal.name, rnk, int(tal.max)], Vector2(0, 48))
-				b.add_theme_font_size_override("font_size", 16)
-				b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				b.clip_text = true
-				var col_c: Color = info.color
-				if rnk > 0:
-					b.add_theme_stylebox_override("normal", UiKit.box(col_c.darkened(0.55), 10, col_c, 2))
-				elif not Game.talent_unlocked(tid):
-					b.modulate = Color(1, 1, 1, 0.4)
-				if tid == _sel_talent:
-					b.add_theme_stylebox_override("normal", UiKit.box(Color(0.3, 0.26, 0.1), 10, UiKit.ACCENT, 3))
-				b.pressed.connect(func():
-					_sel_talent = tid
-					_fill_journal())
-				col.add_child(b)
-	if _sel_talent != "":
-		var tal: Dictionary = Rpg.TALENTS[_sel_talent]
-		var box := PanelContainer.new()
-		box.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.4), 12, Rpg.TREES[tal.tree].color))
-		var bv := VBoxContainer.new()
-		box.add_child(bv)
-		bv.add_child(UiKit.label("%s  (%d/%d)  ·  %s tier %d" % [tal.name, Game.talent_rank(_sel_talent), int(tal.max), Rpg.TREES[tal.tree].name, int(tal.tier) + 1], 21, UiKit.ACCENT))
-		bv.add_child(UiKit.label(tal.desc, 19))
-		if tal.has("move") and Game.style != "" and tal.move in Rpg.STYLES[Game.style].signature:
-			bv.add_child(UiKit.label("You already know this from your style. It still counts toward unlocking deeper tiers.", 16, UiKit.MUTED))
-		var why := ""
-		if Game.talent_rank(_sel_talent) >= int(tal.max):
-			why = "Maxed."
-		elif not Game.talent_unlocked(_sel_talent):
-			why = "Needs %d points in %s first." % [Rpg.TIER_REQ[int(tal.tier)], Rpg.TREES[tal.tree].name]
-		elif Game.talent_points() <= 0:
-			why = "No talent points. Level up by rolling."
-		if why != "":
-			bv.add_child(UiKit.label(why, 17, UiKit.MUTED))
-		else:
-			var lb := UiKit.button("Learn (1 point)", Vector2(220, 52))
-			lb.pressed.connect(func(): Game.learn(_sel_talent))
-			bv.add_child(lb)
-		t.add_child(box)
-	else:
-		t.add_child(UiKit.label("Tap a talent to see what it does.", 17, UiKit.MUTED))
+	t.add_child(CharSheet.build_talents(self))
 
 func _daily_box() -> Control:
 	var dc := Game.daily_challenge()
