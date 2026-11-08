@@ -302,6 +302,32 @@ func _ready() -> void:
 	var cx0: int = game.xp
 	game.record_circuit(5, true)
 	check(game.unlocked.has("circuit_champ") and game.has_item("rash_circuito") and game.xp > cx0, "champion: achievement, rashguard, xp")
+	# ---------------- academy wars
+	game.reset()
+	game.clock_override = 1000000
+	check(Data.territories_in("caceres").size() == 3 and Data.TERRITORIES.size() == 12, "3 territories per zone")
+	check(game.territory_state("t_plaza") == "rival", "territories start with the rivals")
+	game.capture("t_plaza")
+	check(game.territory_state("t_plaza") == "held" and game.unlocked.has("flag_taken"), "capture")
+	var gx0: int = game.record_roll("rafa", {"won": true, "by_sub": false, "min_stamina": 50.0})
+	game.territories.erase("t_plaza")
+	game.wins.erase("rafa")
+	var gx1: int = game.record_roll("rafa", {"won": true, "by_sub": false, "min_stamina": 50.0})
+	check(gx0 > gx1, "holding a territory boosts XP in its zone (%d vs %d)" % [gx0, gx1])
+	game.capture("t_plaza")
+	game.clock_override = int(game.territories.t_plaza.attack_at) + 10
+	check(game.territory_state("t_plaza") == "attacked" and game.defend_left("t_plaza") > 80000, "a counterattack comes 8-16h later")
+	game.defended("t_plaza")
+	check(game.territory_state("t_plaza") == "held" and game.unlocked.has("flag_defended"), "defending resets the clock")
+	game.clock_override = int(game.territories.t_plaza.attack_at) + 90000
+	check(game.expire_territories() == ["t_plaza"] and game.territory_state("t_plaza") == "rival", "ignored for 24h: the flag falls")
+	game.capture("t_plaza")
+	game.capture("t_river")
+	game.capture("t_market")
+	check(game.unlocked.has("zone_owner"), "holding a whole zone")
+	game.clock_override = -1
+	var tm3 := Team.new_match("caceres", game.team_lineup(), 1, 3, "Tatame Livre")
+	check(tm3.ours.size() == 3 and tm3.theirs.size() == 3 and tm3.academy == "Tatame Livre", "territory fights are 3v3 against the holding academy")
 	# ---------------- belts, zones, drills
 	game.reset()
 	game.add_xp(450)

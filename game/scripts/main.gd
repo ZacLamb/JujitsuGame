@@ -326,6 +326,13 @@ func _make_world(z: String) -> void:
 	world.build(z)
 	world.game_started = false
 	if not _in_title:
+		for tid in Game.expire_territories():
+			Game.toast.emit("%s fell to %s while you were away." % [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy], UiKit.RED)
+		world.refresh_flags()
+		for tid in Data.territories_in(z):
+			if Game.territory_state(tid) == "attacked":
+				Game.toast.emit("%s is attacking %s! Defend it within %dh." % [Data.TERRITORIES[tid].academy, Data.TERRITORIES[tid].name, maxi(1, Game.defend_left(tid) / 3600)], Color(1, 0.45, 0.35))
+	if not _in_title:
 		# let physics settle at the new spawn before landmarks/collectibles can trigger
 		get_tree().create_timer(0.6).timeout.connect(func(): if is_instance_valid(world): world.game_started = true)
 	var sp: Vector3 = Data.ZONES[z].spawn
@@ -393,6 +400,8 @@ func _use_spot(spot: Dictionary) -> void:
 			_open_team(str(spot.arg))
 		"circuit":
 			_open_circuit()
+		"territory":
+			_open_territory(str(spot.arg))
 		"quest":
 			_open_quest(spot.arg)
 		"drill":
@@ -510,7 +519,29 @@ func _comp_after_match(result: Dictionary) -> void:
 var team_match: Team.Match = null
 var team_board: TeamBoard
 
-func _open_team(zone: String) -> void:
+var _territory_prompt := ""
+
+## A territory flag: take it (3v3 vs the holding academy), defend it, or check on it.
+func _open_territory(tid: String) -> void:
+	var t: Dictionary = Data.TERRITORIES[tid]
+	var st := Game.territory_state(tid)
+	player.input_enabled = false
+	match st:
+		"rival":
+			_territory_prompt = tid
+			hud.open_dialogue("Territory: %s" % t.name, "%s plant their flag here. Take it with a 3v3: their best three against your first three (set your lineup on any Team Challenge board).\n\nHold it for +10%% XP from rolls in %s. Rivals will come back for it." % [t.academy, Data.ZONES[t.zone].name], "Challenge for the flag", "Not now")
+		"attacked":
+			_territory_prompt = tid
+			hud.open_dialogue("Territory: %s" % t.name, "%s are back for %s! Defend it in a 3v3 within %dh or the flag falls." % [t.academy, t.name, maxi(1, Game.defend_left(tid) / 3600)], "Defend it", "Later")
+		_:
+			var left := int(Game.territories[tid].attack_at) - Game.now()
+			hud.open_dialogue("Territory: %s" % t.name, "Gringo BJJ holds %s. Everything quiet: the rivals regroup for about %dh." % [t.name, maxi(1, left / 3600)], "", "Oss")
+
+func _territory_fight(tid: String) -> void:
+	var t: Dictionary = Data.TERRITORIES[tid]
+	_open_team(str(t.zone), tid)
+
+func _open_team(zone: String, territory := "") -> void:
 	if team_board == null:
 		team_board = TeamBoard.new()
 		hud.root.add_child(team_board)
@@ -523,7 +554,12 @@ func _open_team(zone: String) -> void:
 			_team_close())
 		team_board.close_pressed.connect(_team_close)
 	var nonce := int(Game.counters.get("team_matches", 0))
-	team_match = Team.new_match(zone, Game.team_lineup(), nonce)
+	if territory != "":
+		var td: Dictionary = Data.TERRITORIES[territory]
+		team_match = Team.new_match(zone, Game.team_lineup(), nonce + hash(territory), 3, td.academy)
+		team_match.territory = territory
+	else:
+		team_match = Team.new_match(zone, Game.team_lineup(), nonce)
 	player.input_enabled = false
 	hud.minimap.visible = false
 	team_board.result_text = ""
@@ -545,6 +581,16 @@ func _team_after(result: Dictionary, me_stam: float, them_stam: float) -> void:
 	if team_match.over():
 		var won := team_match.won()
 		var xp := Game.record_team(won, team_match.i)
+		var tid := team_match.territory
+		if tid != "":
+			if won:
+				if Game.holds(tid):
+					Game.defended(tid)
+				else:
+					Game.capture(tid)
+			elif Game.territory_state(tid) == "attacked":
+				Game.lose_territory(tid)
+			world.refresh_flags()
 		team_board.result_text = ("%s beat %s, %d fighters left standing.  +%d XP" % [Team.TEAM_NAMES[0], team_match.academy, team_match.ours.size() - team_match.i, xp]) if won else ("%s win this one.  +%d XP" % [team_match.academy, xp])
 		Sfx.play("win" if won else "lose")
 		team_board.show_match(team_match, "done")
@@ -686,6 +732,14 @@ func _on_dialogue_choice(accepted: bool) -> void:
 					_open_quest(Data.QUESTS[parts[1]].giver)
 					return
 		player.input_enabled = true
+		return
+	if _territory_prompt != "":
+		var tp := _territory_prompt
+		_territory_prompt = ""
+		if accepted:
+			_territory_fight(tp)
+		else:
+			player.input_enabled = true
 		return
 	if _comp_prompt != "":
 		var what := _comp_prompt

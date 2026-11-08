@@ -403,6 +403,36 @@ const LANDMARKS := {
 	"r_morro": {"name": "The Morro", "pos": Vector3(38, 0, -50), "radius": 14.0, "zone": "rio"},
 }
 
+# ---------------------------------------------------------------- academy wars
+## Territories: rival academies plant flags at landmarks. Take one with a 3v3; hold it for +10% XP
+## in that zone; rivals counterattack 8-16 real hours later and you have 24 hours to defend.
+const TERRITORIES := {
+	"t_plaza": {"name": "Praça", "zone": "caceres", "pos": Vector3(10, 0, 15), "academy": "Tatame Livre"},
+	"t_river": {"name": "Riverbank", "zone": "caceres", "pos": Vector3(-44, 0, 7), "academy": "Rio Negro Team"},
+	"t_market": {"name": "Feira", "zone": "caceres", "pos": Vector3(30, 0, -11), "academy": "Cuiabá Combat"},
+	"t_ranch": {"name": "Cattle Ranch", "zone": "pantanal", "pos": Vector3(-40, 0, 16), "academy": "Pantanal Fight"},
+	"t_dock": {"name": "Boat Dock", "zone": "pantanal", "pos": Vector3(38, 0, -28), "academy": "Jacaré BJJ"},
+	"t_tower": {"name": "Ranger Tower", "zone": "pantanal", "pos": Vector3(-18, 0, -38), "academy": "Ilha Grappling"},
+	"t_village": {"name": "Vila da Chapada", "zone": "chapada", "pos": Vector3(42, 0, 32), "academy": "Cachoeira Team"},
+	"t_rocks": {"name": "Cidade de Pedra", "zone": "chapada", "pos": Vector3(-30, 0, -38), "academy": "Tatame Livre"},
+	"t_mirante": {"name": "Mirante", "zone": "chapada", "pos": Vector3(30, 0, -60), "academy": "Rio Negro Team"},
+	"t_beach": {"name": "Copacabana", "zone": "rio", "pos": Vector3(8, 0, 36), "academy": "Copacabana Top Team"},
+	"t_arpoador": {"name": "Arpoador", "zone": "rio", "pos": Vector3(-68, 0, 40), "academy": "Arpoador BJJ"},
+	"t_morro": {"name": "The Morro", "zone": "rio", "pos": Vector3(38, 0, -40), "academy": "Projeto Morro"},
+}
+const ACADEMY_COLORS := {"Tatame Livre": Color(0.9, 0.9, 0.85), "Rio Negro Team": Color(0.15, 0.15, 0.2), "Cuiabá Combat": Color(0.85, 0.3, 0.2),
+	"Pantanal Fight": Color(0.3, 0.55, 0.3), "Jacaré BJJ": Color(0.4, 0.45, 0.2), "Ilha Grappling": Color(0.2, 0.6, 0.75),
+	"Cachoeira Team": Color(0.5, 0.75, 0.95), "Copacabana Top Team": Color(0.95, 0.75, 0.2), "Arpoador BJJ": Color(0.95, 0.5, 0.3),
+	"Projeto Morro": Color(0.6, 0.3, 0.75)}
+const YOUR_ACADEMY_COLOR := Color(0.1, 0.55, 0.32)
+
+static func territories_in(zone: String) -> Array:
+	var out: Array = []
+	for id in TERRITORIES:
+		if TERRITORIES[id].zone == zone:
+			out.append(id)
+	return out
+
 static func landmarks_in(zone: String) -> Array:
 	var out: Array = []
 	for id in LANDMARKS:
@@ -471,6 +501,9 @@ const ACHIEVEMENTS := [
 	{"id": "guillotine_win", "name": "Off With His Head", "desc": "Finish someone with a guillotine."},
 	{"id": "grip_master", "name": "Grip Master", "desc": "Max out Grip Control in 10 rolls.", "goal": 10},
 	{"id": "team_win", "name": "Família", "desc": "Win a 5v5 team match."},
+	{"id": "flag_taken", "name": "Plant the Flag", "desc": "Take a territory from a rival academy."},
+	{"id": "flag_defended", "name": "Hold the Line", "desc": "Defend a territory from a counterattack."},
+	{"id": "zone_owner", "name": "Dono da Área", "desc": "Hold every territory in a zone."},
 	{"id": "circuit_final", "name": "Final Boss", "desc": "Reach the final of a Circuito run."},
 	{"id": "circuit_champ", "name": "Campeão do Circuito", "desc": "Win a whole Circuito run."},
 	{"id": "circuit_titles", "name": "Circuit Legend", "desc": "Win 3 Circuito runs.", "goal": 3},

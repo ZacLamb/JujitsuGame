@@ -430,6 +430,17 @@ func _fill_journal() -> void:
 	var q := _scroll_tab("Quests")
 	q.add_child(_daily_box())
 	q.add_child(UiKit.label("Main: " + Game.current_objective(), 22, UiKit.ACCENT))
+	var held := 0
+	var hot: Array = []
+	for tid in Data.TERRITORIES:
+		if Game.holds(tid):
+			held += 1
+			if Game.territory_state(tid) == "attacked":
+				hot.append(Data.TERRITORIES[tid].name)
+	var tl := "Academy wars: Gringo BJJ holds %d / %d territories." % [held, Data.TERRITORIES.size()]
+	if not hot.is_empty():
+		tl += "  UNDER ATTACK: %s" % ", ".join(hot)
+	q.add_child(UiKit.label(tl, 18, Color(1, 0.45, 0.35) if not hot.is_empty() else Color(0.55, 0.9, 0.65)))
 	var act := Game.active_quests()
 	if not act.is_empty():
 		q.add_child(UiKit.label("Quest log", 22, UiKit.ACCENT))

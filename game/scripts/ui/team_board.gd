@@ -40,7 +40,7 @@ func rebuild() -> void:
 		c.queue_free()
 	var head := HBoxContainer.new()
 	_body.add_child(head)
-	var t := CharSheet._head("TEAM CHALLENGE  ·  5v5", 36)
+	var t := CharSheet._head(m.title, 36)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	head.add_child(_ring())

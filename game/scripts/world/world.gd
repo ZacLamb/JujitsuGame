@@ -27,6 +27,7 @@ var _blocked: Array = []  # Rect2 areas with no trees/houses
 
 func build(z := "caceres") -> void:
 	_build_zone(z)
+	_build_territories()
 	_batch_static()
 	apply_graphics()
 
@@ -1950,6 +1951,54 @@ func _comp_board(pos: Vector3, comp_id: String) -> void:
 	if comp_id != "mundial":
 		_team_board(pos + Vector3(3.4, 0, 0))
 		_circuit_board(pos + Vector3(6.8, 0, 0))
+
+# ------------------------------------------------------------ academy wars
+var flags := {}   # territory id -> {cloth: MeshInstance3D, label: Label3D}
+
+## A flag pole per territory, in the holding academy's colours (yours: green and gold).
+func _build_territories() -> void:
+	flags.clear()
+	for tid in Data.territories_in(zone):
+		var t: Dictionary = Data.TERRITORIES[tid]
+		var p: Vector3 = t.pos
+		var gy := ground_y(p.x, p.z)
+		_cyl(0.06, 0.08, 4.2, Vector3(p.x, gy + 2.1, p.z), Color(0.85, 0.85, 0.82), 8)
+		_cyl(0.5, 0.6, 0.18, Vector3(p.x, gy + 0.09, p.z), Color(0.45, 0.42, 0.38), 12)
+		var cloth := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(1.5, 0.95, 0.04)
+		cloth.mesh = bm
+		cloth.position = Vector3(p.x + 0.8, gy + 3.6, p.z)
+		add_child(cloth)
+		var lbl := _label("", Vector3(p.x, gy + 4.7, p.z), 56, Color.WHITE)
+		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		lbl.pixel_size = 0.006
+		flags[tid] = {"cloth": cloth, "label": lbl}
+		_spot(Vector3(p.x, gy, p.z), 2.6, "Territory: %s" % t.name, "territory", tid)
+	refresh_flags()
+
+func refresh_flags() -> void:
+	for tid in flags:
+		var t: Dictionary = Data.TERRITORIES[tid]
+		var st := Game.territory_state(tid)
+		var c: Color = Data.YOUR_ACADEMY_COLOR if st != "rival" else Data.ACADEMY_COLORS.get(t.academy, Color(0.6, 0.6, 0.6))
+		var m := StandardMaterial3D.new()
+		m.albedo_color = c
+		m.emission_enabled = st == "attacked"
+		m.emission = Color(1, 0.2, 0.15)
+		m.emission_energy_multiplier = 0.8
+		(flags[tid].cloth as MeshInstance3D).material_override = m
+		var l: Label3D = flags[tid].label
+		match st:
+			"rival":
+				l.text = "%s\n%s" % [t.name.to_upper(), t.academy]
+				l.modulate = Color(1, 0.85, 0.75)
+			"held":
+				l.text = "%s\nGringo BJJ" % t.name.to_upper()
+				l.modulate = Color(0.6, 1, 0.7)
+			"attacked":
+				l.text = "%s\nUNDER ATTACK!" % t.name.to_upper()
+				l.modulate = Color(1, 0.4, 0.35)
 
 ## The Circuito board (purple): roguelite tournament runs.
 func _circuit_board(pos: Vector3) -> void:

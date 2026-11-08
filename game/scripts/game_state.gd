@@ -21,6 +21,7 @@ var inventory := {}  # item id -> true
 var equipped := {}   # slot -> item id
 var kit := "gi"       # "gi" / "nogi": which outfit is worn (and whose slots count)
 var team := {}        # 5v5 lineup: {order: [5 fighter ids incl "you"], coach: id}
+var territories := {} # territory id -> {owner: "you", attack_at: unix secs}  (absent = held by its rival)
 var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
@@ -69,6 +70,7 @@ func reset() -> void:
 	equipped = {"jacket": "standard_gi", "pants": "standard_gi_pants", "rash": "rash_white", "spats": "spats_black"}
 	kit = "gi"
 	team = {}
+	territories = {}
 	save_game()
 	progress_changed.emit()
 
@@ -80,7 +82,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -120,6 +122,7 @@ func load_game() -> void:
 	equipped = parsed.get("equipped", {})
 	kit = str(parsed.get("kit", "gi"))
 	team = parsed.get("team", {})
+	territories = parsed.get("territories", {})
 	_backfill_gear()
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
@@ -429,6 +432,66 @@ func record_circuit(wins: int, champion: bool) -> int:
 	save_game()
 	progress_changed.emit()
 	return gained
+
+# ------------------------------------------------------------ academy wars
+var clock_override := -1   # tests: fake "now" (unix seconds)
+
+func now() -> int:
+	return clock_override if clock_override >= 0 else int(Time.get_unix_time_from_system())
+
+func holds(tid: String) -> bool:
+	return territories.has(tid) and str(territories[tid].get("owner", "")) == "you"
+
+## "rival" (theirs), "held" (yours, quiet), "attacked" (yours, counterattack running).
+func territory_state(tid: String) -> String:
+	if not holds(tid):
+		return "rival"
+	return "attacked" if now() >= int(territories[tid].get("attack_at", 0)) else "held"
+
+## Seconds left to defend a counterattack before the flag falls.
+func defend_left(tid: String) -> int:
+	return int(territories[tid].get("attack_at", 0)) + 86400 - now()
+
+func held_in(z: String) -> int:
+	var n := 0
+	for tid in Data.territories_in(z):
+		if holds(tid):
+			n += 1
+	return n
+
+func capture(tid: String) -> void:
+	territories[tid] = {"owner": "you", "attack_at": now() + randi_range(8, 16) * 3600}
+	unlock("flag_taken")
+	var z: String = Data.TERRITORIES[tid].zone
+	if held_in(z) == Data.territories_in(z).size():
+		unlock("zone_owner")
+	toast.emit("%s is yours! +10%% XP in %s while you hold it." % [Data.TERRITORIES[tid].name, Data.ZONES[z].name], Data.YOUR_ACADEMY_COLOR.lightened(0.3))
+	save_game()
+	progress_changed.emit()
+
+func defended(tid: String) -> void:
+	territories[tid].attack_at = now() + randi_range(8, 16) * 3600
+	unlock("flag_defended")
+	toast.emit("%s holds! The rivals back off for now." % Data.TERRITORIES[tid].name, Data.YOUR_ACADEMY_COLOR.lightened(0.3))
+	save_game()
+	progress_changed.emit()
+
+func lose_territory(tid: String) -> void:
+	territories.erase(tid)
+	toast.emit("%s fell back to %s." % [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy], UiKit.RED)
+	save_game()
+	progress_changed.emit()
+
+## Flags whose 24-hour defence window ran out fall back to their rivals (call on load / zone entry).
+func expire_territories() -> Array:
+	var lost: Array = []
+	for tid in territories.keys():
+		if holds(tid) and territory_state(tid) == "attacked" and defend_left(tid) <= 0:
+			territories.erase(tid)
+			lost.append(tid)
+	if not lost.is_empty():
+		save_game()
+	return lost
 
 func set_kit(k: String) -> void:
 	if not Gear.KITS.has(k) or k == kit:
@@ -768,6 +831,9 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("points_win")
 		if not first_time:
 			gained = int(gained * 0.5)
+		var zid := Data.zone_of(opp_id)
+		if Data.ZONES.has(zid):
+			gained = int(gained * (1.0 + 0.1 * held_in(zid)))
 		if result.get("signature", false):
 			unlock("signature_win")
 		if result.get("min_stamina", 0.0) >= 30.0:

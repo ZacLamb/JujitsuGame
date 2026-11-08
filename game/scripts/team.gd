@@ -254,6 +254,8 @@ class Match:
 	var their_coach := {}
 	var academy := ""
 	var zone := ""
+	var title := "TEAM CHALLENGE  ·  5v5"
+	var territory := ""
 	var i := 0        # our fighter on the mat
 	var j := 0        # theirs
 	var stam_ours := 1.0
@@ -305,16 +307,18 @@ static func _drain(loser: Dictionary) -> float:
 			return 0.15
 	return 0.0
 
-static func new_match(zone: String, lineup: Dictionary, nonce: int) -> Match:
+## size 5 = Team Challenge; size 3 = territory fights (their best three, held by `academy`).
+static func new_match(zone: String, lineup: Dictionary, nonce: int, size := 5, academy := "") -> Match:
 	var m := Match.new()
 	m.zone = zone
 	var e := make_enemy(zone, nonce, lineup.order)
-	m.theirs = e.fighters
+	m.theirs = e.fighters.slice(5 - size) if size < 5 else e.fighters
 	m.their_coach = e.coach
-	m.academy = e.academy
+	m.academy = academy if academy != "" else e.academy
+	m.title = "TEAM CHALLENGE  ·  5v5" if size == 5 else "TERRITORY FIGHT  ·  %dv%d" % [size, size]
 	for id in lineup.order:
 		var f := find(str(id))
-		if not f.is_empty():
+		if not f.is_empty() and m.ours.size() < size:
 			m.ours.append(f)
 	m.coach = find(str(lineup.get("coach", "")))
 	return m

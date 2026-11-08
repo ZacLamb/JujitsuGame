@@ -118,7 +118,7 @@ func _draw_big() -> void:
 		draw_string(f, Vector2(r.position.x, r.position.y - 16), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, UiKit.ACCENT)
 	var bf := UiKit.body_font()
 	if bf:
-		var legend := "! quest  ·  ? turn in  ·  dots: fighters by difficulty  ·  star: objective  ·  M or Esc closes"
+		var legend := "! quest  ·  ? turn in  ·  dots: fighters  ·  flags: territories (green yours, red under attack)  ·  star: objective  ·  M closes"
 		draw_string(bf, Vector2(r.position.x, r.end.y + 30), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, UiKit.MUTED)
 
 func _draw_player(at: Vector2, k: float) -> void:
@@ -180,6 +180,15 @@ func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
 				draw_circle(p2, 5, Color(0.85, 0.2, 0.2))
 			"daily":
 				draw_circle(p2, 4, Color(0.4, 0.8, 1.0))
+			"territory":
+				var st := Game.territory_state(str(sp.arg))
+				var tc: Color = Data.YOUR_ACADEMY_COLOR.lightened(0.3) if st == "held" else (Color(1, 0.3, 0.25) if st == "attacked" else Data.ACADEMY_COLORS.get(Data.TERRITORIES[sp.arg].academy, Color.GRAY))
+				draw_line(p2 + Vector2(-3, 7), p2 + Vector2(-3, -8), Color(0, 0, 0), 3.0)
+				draw_colored_polygon(PackedVector2Array([p2 + Vector2(-3, -8), p2 + Vector2(7, -5), p2 + Vector2(-3, -1)]), tc)
+				draw_polyline(PackedVector2Array([p2 + Vector2(-3, -8), p2 + Vector2(7, -5), p2 + Vector2(-3, -1)]), Color(0, 0, 0), 1.0)
+				if labels and f:
+					draw_string_outline(f, p2 + Vector2(9, 4), Data.TERRITORIES[sp.arg].name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0))
+					draw_string(f, p2 + Vector2(9, 4), Data.TERRITORIES[sp.arg].name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, tc)
 	# fighters, colored by difficulty; beaten ones fade
 	for id in world.fighters:
 		var npc: Npc = world.fighters[id]

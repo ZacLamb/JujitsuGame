@@ -191,6 +191,24 @@ func _ready() -> void:
 	check(main.circuit_board.state == "done" and int(Game.counters.get("circuit_runs", 0)) == 1, "run recorded")
 	main.circuit_board.close_pressed.emit()
 	check(main.circuit_run == null and main.player.input_enabled, "back to the world after the run")
+	# ---- academy wars: challenge a flag, sim the 3v3
+	var fspot: Dictionary = {}
+	for sp in main.world.spots:
+		if sp.action == "territory":
+			fspot = sp
+	check(not fspot.is_empty(), "zone has territory flags")
+	main._use_spot(fspot)
+	check(main.hud.dialogue_open(), "territory dialogue")
+	main.hud._close_dialogue(true)
+	check(main.team_match != null and main.team_match.territory == str(fspot.arg) and main.team_match.ours.size() == 3, "3v3 territory fight on the team board")
+	main.team_board.start_pressed.emit()
+	var g3 := 0
+	while not main.team_match.over() and g3 < 8:
+		main.team_board.sim_pressed.emit()
+		g3 += 1
+	var took: bool = main.team_match.won()
+	check(Game.holds(str(fspot.arg)) == took, "flag changes hands only on a win (won=%s)" % took)
+	main.team_board.close_pressed.emit()
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
 	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")
