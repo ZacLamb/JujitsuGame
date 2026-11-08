@@ -153,6 +153,7 @@ func engage(a: Unit, b: Unit) -> void:
 		b.target = a
 
 func leave_combat(u: Unit) -> void:
+	u.ooc_t = 0.0
 	if u.in_combat:
 		u.in_combat = false
 		u.cast = {}
@@ -200,7 +201,7 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "Not learned yet"
 	if u.dead:
 		return "You tapped"
-	if u.down() and str(a.type) != "escape":
+	if u.down() and str(a.type) != "escape" and str(a.get("effect", "")) != "jeitinho":
 		return "You're down!"
 	if not u.cast.is_empty():
 		return "Busy"
@@ -268,6 +269,27 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		"guard":
 			_aura(u, "guarded", float(a.get("dur", 6.0)) + _extra(u, "guarded"), u)
 			return
+		"lucky":
+			_aura(u, "lucky", 20.0, u)
+			return
+		"jeitinho":
+			for k in ["down", "pinned"]:
+				if u.auras.has(k):
+					u.auras.erase(k)
+					emit({"t": "aura_off", "u": u, "aura": k})
+			return
+		"lasso":
+			u.grip = mini(u.max_grip, u.grip + 2)
+			return
+		"mate":
+			_aura(u, "mate", 6.0, u)
+			return
+		"ginga":
+			_aura(u, "ginga", 3.0, u)
+			return
+		"rush":
+			_aura(u, "rush", 8.0, u)
+			return
 		"breathe":
 			u.gas = minf(u.max_gas, u.gas + 45.0)
 			_heal(u, u.max_hp * (0.5 if not u.in_combat else 0.08), u)
@@ -315,6 +337,14 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			if t.pct() < 0.35:
 				amount *= 1.0 + float(m.get("exec", 0.0))
 		var crit := rng.randf() < crit_c
+		if u.has("lucky"):
+			crit = true
+			u.auras.erase("lucky")
+			emit({"t": "aura_off", "u": u, "aura": "lucky"})
+		if u.has("rush"):
+			amount *= 1.2
+		if u.has("rattled"):
+			amount *= 0.85
 		if crit:
 			amount *= CRIT_MULT * (float(u.mods.get("struggle_atk", 1.0)) if u.player else 1.0)
 			if u.player and bool(a.get("finisher", false)):
@@ -352,6 +382,8 @@ func _type_bonus(u: Unit, a: Dictionary) -> float:
 func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> void:
 	if t.has("base"):
 		amount *= 0.5
+	if t.has("ginga"):
+		amount *= 0.3
 	if t.has("guarded"):
 		amount *= 0.6
 	if src.has("pinned"):
@@ -418,6 +450,8 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			u.auras.erase(k)
 			emit({"t": "aura_off", "u": u, "aura": k})
 	u.gas = minf(u.max_gas, u.gas + u.gas_regen * delta)
+	if u.has("mate"):
+		u.hp = minf(u.max_hp, u.hp + u.max_hp * 0.25 / 6.0 * delta)
 	if not u.in_combat:
 		u.ooc_t += delta
 		if u.ooc_t > OOC_DELAY and u.hp < u.max_hp:

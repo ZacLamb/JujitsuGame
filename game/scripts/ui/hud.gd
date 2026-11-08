@@ -356,7 +356,10 @@ func set_combat(c: WorldCombat) -> void:
 	if combat_hud == null:
 		combat_hud = CombatHud.new()
 		root.add_child(combat_hud)
+		root.move_child(combat_hud, 0)   # windows / dialogue draw above the bars
 	combat_hud.combat = c
+	if not c.ability_learned.is_connected(combat_hud.learned):
+		c.ability_learned.connect(combat_hud.learned)
 
 func flash_message(head: String, sub: String) -> void:
 	if combat_hud:
@@ -390,7 +393,7 @@ func _build_dialogue() -> void:
 	dialogue.anchor_right = 0.92
 	dialogue.anchor_top = 1.0
 	dialogue.anchor_bottom = 1.0
-	dialogue.offset_bottom = -20
+	dialogue.offset_bottom = -92   # sits above the action bar
 	dialogue.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	dialogue.visible = false
 	root.add_child(dialogue)
@@ -476,11 +479,13 @@ static func window_of(tab: int) -> String:
 			return w
 	return "journal"
 
-func open_window(w: String) -> void:
-	if journal.visible and _window == w:
+func open_window(w: String, tab := -1) -> void:
+	if journal.visible and _window == w and (tab < 0 or tab == _want_tab):
 		toggle_journal()
 		return
 	_want_tab = int(WINDOWS[w].tabs[0]) if w != "talents" else (TAB_TALENTS if Game.talent_points() > 0 or Game.spec != "" else TAB_SPECS)
+	if tab >= 0:
+		_want_tab = tab
 	if not journal.visible:
 		toggle_journal()
 	else:
@@ -1141,11 +1146,31 @@ func _fill_spellbook() -> void:
 	var head := Wow.title(Rpg.STYLES[Game.style].name if Rpg.STYLES.has(Game.style) else "Techniques", 26, Wow.INK)
 	head.add_theme_constant_override("outline_size", 0)
 	v.add_child(head)
+	# --- abilities: drag them onto the action bar
+	var ah := Wow.title("Abilities", 19, Color(0.45, 0.2, 0.05))
+	ah.add_theme_constant_override("outline_size", 0)
+	v.add_child(ah)
+	var asub := Wow.label("Drag an ability onto your action bar · right-click a bar slot to clear it · new ones unlock as you level", 13, Color(0.35, 0.24, 0.12))
+	asub.add_theme_constant_override("outline_size", 0)
+	v.add_child(asub)
+	var ag := GridContainer.new()
+	ag.columns = 3
+	ag.add_theme_constant_override("h_separation", 18)
+	ag.add_theme_constant_override("v_separation", 8)
+	v.add_child(ag)
+	var me = combat_hud.combat.me if combat_hud and combat_hud.combat else null
+	for a in Abilities.player_kit():
+		ag.add_child(AbilityEntry.make(a, me, true))
+	for a in Abilities.future_kit():
+		ag.add_child(AbilityEntry.make(a, me, false))
 	var known_n := 0
 	for id in Data.MOVES:
 		if Game.knows(id):
 			known_n += 1
-	var sub := Wow.label("%d techniques known  ·  hover for details  ·  your class signature and spec techniques glow" % known_n, 13, Color(0.35, 0.24, 0.12))
+	var th := Wow.title("Technique library", 19, Color(0.45, 0.2, 0.05))
+	th.add_theme_constant_override("outline_size", 0)
+	v.add_child(th)
+	var sub := Wow.label("%d techniques known. Each ability button uses the strongest technique of its kind you know." % known_n, 13, Color(0.35, 0.24, 0.12))
 	sub.add_theme_constant_override("outline_size", 0)
 	v.add_child(sub)
 	var tip_layer := Control.new()
@@ -1177,6 +1202,75 @@ func _fill_spellbook() -> void:
 		v.add_child(g)
 		for id in ids:
 			g.add_child(_spell_entry(str(id)))
+
+## A spellbook ability: icon + name + where it sits on your bar. Drag it onto a bar slot.
+class AbilityEntry extends HBoxContainer:
+	var ab := {}
+	var me
+	var ready_ := true
+	var _tip: Control
+	static func make(a: Dictionary, unit, have: bool) -> AbilityEntry:
+		var e := AbilityEntry.new()
+		e.ab = a
+		e.me = unit
+		e.ready_ = have
+		e.add_theme_constant_override("separation", 8)
+		e.custom_minimum_size = Vector2(300, 46)
+		var ic := SpellIcon.new()
+		ic.col = CombatHud.TYPE_COL.get(str(a.get("type", "")), Color(0.8, 0.7, 0.5))
+		ic.glyph = CombatHud.TYPE_GLYPH.get(str(a.get("type", "")), "star")
+		ic.known = have
+		ic.glow = str(a.id) in ["spec", "racial"] and have
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		e.add_child(ic)
+		var tv := VBoxContainer.new()
+		tv.add_theme_constant_override("separation", -2)
+		tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		e.add_child(tv)
+		var nm := Wow.label(str(a.get("name", "")), 16, Wow.INK if have else Color(0.45, 0.4, 0.33))
+		nm.add_theme_constant_override("outline_size", 0)
+		tv.add_child(nm)
+		var where := ""
+		if not have:
+			where = "Unlocks at level %d" % int(a.get("unlock", 1))
+		elif str(a.id) in Abilities.UTILITY:
+			where = "Always on your bar [%s]" % str(Abilities.UTILITY_KEYS[str(a.id)])
+		else:
+			var i := Game.bar_layout.find(str(a.id))
+			where = ("On your bar [%s]" % Abilities.KEYS[i]) if i >= 0 else "Not on your bar: drag it there"
+		var sl := Wow.label(where, 12, Color(0.4, 0.3, 0.18) if have else Color(0.5, 0.25, 0.2))
+		sl.add_theme_constant_override("outline_size", 0)
+		tv.add_child(sl)
+		return e
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_default_cursor_shape = Control.CURSOR_DRAG if ready_ else Control.CURSOR_ARROW
+		mouse_entered.connect(func():
+			_tip = CombatHud.tooltip_for(ab, me)
+			if _tip == null:
+				return
+			_tip.top_level = true
+			add_child(_tip)
+			_tip.reset_size()
+			var gp := global_position + Vector2(size.x + 6, -4)
+			var vs := get_viewport_rect().size
+			if gp.x + _tip.size.x > vs.x:
+				gp.x = global_position.x - _tip.size.x - 6
+			gp.y = clampf(gp.y, 4, vs.y - _tip.size.y - 4)
+			_tip.global_position = gp)
+		mouse_exited.connect(func():
+			if _tip and is_instance_valid(_tip):
+				_tip.queue_free()
+			_tip = null)
+	func _get_drag_data(_at: Vector2) -> Variant:
+		if not ready_ or str(ab.id) in Abilities.UTILITY:
+			return null
+		var prev := Label.new()
+		prev.text = str(ab.get("name", ""))
+		prev.add_theme_font_override("font", Wow.title_font())
+		prev.add_theme_font_size_override("font_size", 16)
+		set_drag_preview(prev)
+		return {"ability": str(ab.id), "from_slot": -1}
 
 class SpellEntry extends HBoxContainer:
 	var move_id := ""

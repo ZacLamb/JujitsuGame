@@ -28,8 +28,31 @@ const TEMPLATES := {
 const ORDER := ["handfight", "takedown", "sweep", "pass", "advance", "back", "sub", "spec", "escape", "guard"]
 const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
-## The player's bar: ten slots (an empty dict = not learned yet) + Base / Frame / Breathe utilities.
-static func player_kit() -> Array:
+## Level each ability unlocks at (WoW: you learn spells as you level). The bar fills itself as
+## they unlock and the player can rearrange it from the spellbook.
+const UNLOCK := {"handfight": 1, "takedown": 1, "racial": 1, "sub": 2, "breathe": 2, "pass": 3, "base": 3,
+	"escape": 4, "frame": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10}
+const UTILITY := ["base", "frame", "breathe", "racial"]
+const UTILITY_KEYS := {"base": "Q", "frame": "R", "breathe": "F", "racial": "G"}
+## How each ability teaches itself the first time you get it.
+const TUTORIAL := {
+	"handfight": "Target someone (Tab or click) and press 1. Hand fighting chips at their Composure and builds Grip (the red dots under your bars).",
+	"takedown": "Puts them Down: they can't act for a moment. Great opener.",
+	"sub": "Your finisher. It spends ALL your Grip: build 3-5 Grip first, then cast it. When their Composure hits zero, they tap.",
+	"pass": "Pins them: Pinned enemies hit 25% softer. Pinned or Down targets also open up Advance.",
+	"breathe": "Press F to recover Gas. Out of combat it also restores Composure.",
+	"base": "Press Q when you're taking a beating: half damage for 5 seconds.",
+	"escape": "Usable while you're Down: break free, heal a little and grab 1 Grip.",
+	"frame": "Watch the cast bar under your target. Press R to Frame and interrupt it, especially their submissions!",
+	"sweep": "Another way to put them Down, from the bottom.",
+	"back": "Takes the back: +2 Grip and they're Exposed (you crit them more).",
+	"guard": "Pull guard to take 40% less damage for a while.",
+	"advance": "Only works on a Down or Pinned target: big damage and +2 Grip. Chain: Pass, then Advance.",
+	"spec": "Your specialization's signature technique.",
+	"racial": "Your origin's special ability, on G.",
+}
+
+static func _all_kit() -> Array:
 	var out: Array = []
 	var best := {}
 	for id in Data.MOVES:
@@ -41,8 +64,7 @@ static func player_kit() -> Array:
 			continue
 		if not best.has(t) or int(m.get("rank", 0)) >= int(Data.MOVES[best[t]].get("rank", 0)):
 			best[t] = id
-	for i in ORDER.size():
-		var t: String = ORDER[i]
+	for t in ORDER:
 		var a := {}
 		if t == "handfight":
 			a = _make("handfight", "", Game.style)
@@ -53,15 +75,28 @@ static func player_kit() -> Array:
 		elif best.has(t):
 			a = _make(t, best[t], Game.style)
 		if not a.is_empty():
-			a["key"] = KEYS[i]
-		out.append(a)
+			out.append(a)
 	out.append({"id": "base", "name": "Base", "type": "defend", "key": "Q", "cost": 0.0, "cd": 30.0, "harm": false, "gcd": false,
 		"effect": "base", "dur": 5.0, "text": "Get your base: take 50% less damage for 5s."})
 	out.append({"id": "frame", "name": "Frame", "type": "defend", "key": "R", "cost": 10.0, "cd": 12.0, "gcd": false,
 		"effect": "interrupt", "text": "Frame and stop whatever they're casting. Interrupts the cast and locks it out for 4s."})
 	out.append({"id": "breathe", "name": "Breathe", "type": "defend", "key": "F", "cost": 0.0, "cd": 45.0, "harm": false,
 		"effect": "breathe", "text": "Slow your breathing: +45 Gas. Out of combat it also restores half your Composure."})
+	if Game.style != "":
+		out.append(Origins.racial(Game.origin))
+	for a in out:
+		a["unlock"] = int(UNLOCK.get(str(a.id), 1))
 	return out
+
+## Abilities you have right now (your spellbook / what the bar can hold).
+static func player_kit() -> Array:
+	var lv := Game.player_level()
+	return _all_kit().filter(func(a): return int(a.unlock) <= lv)
+
+## Abilities still to come, greyed out in the spellbook (WoW shows future spells).
+static func future_kit() -> Array:
+	var lv := Game.player_level()
+	return _all_kit().filter(func(a): return int(a.unlock) > lv)
 
 static func _make(t: String, move_id: String, style: String) -> Dictionary:
 	var tp: Dictionary = TEMPLATES[t]

@@ -83,7 +83,7 @@ func refresh_look() -> void:
 		return
 	_look_key = key
 	Game.dress(rig)
-	rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+	rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Game.skin_color(), Color(0.55, 0.36, 0.18), 0, Game.body)
 
 func make_current() -> void:
 	cam.make_current()

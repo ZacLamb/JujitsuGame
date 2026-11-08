@@ -33,6 +33,10 @@ var player_name := "Gringo"
 var style := ""            # Rpg.STYLES key; "" until chosen
 var spec := ""             # Specs id; "" until chosen at level 10
 var gi_index := 0
+var origin := "gringo"     # Origins id (Tatame's "race")
+var body := "male"         # "male" / "female"
+var skin_t := 0.35         # skin tone 0..1 (UiKit.skin_tone)
+var bar_layout: Array = [] # action bar slots 1-0: ability ids ("" = empty)
 var attr_alloc := {}       # attribute -> points spent
 var talents := {}          # talent id -> rank
 var stripe_xp := 0
@@ -185,6 +189,10 @@ func reset_state() -> void:
 	flags = {}
 	style = ""
 	gi_index = 0
+	origin = "gringo"
+	body = "male"
+	skin_t = 0.35
+	bar_layout = []
 	attr_alloc = {}
 	talents = {}
 	stripe_xp = 0
@@ -221,6 +229,7 @@ func save_game() -> void:
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
+		"origin": origin, "body": body, "skin_t": skin_t, "bar_layout": bar_layout,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -249,6 +258,10 @@ func load_game() -> void:
 	player_name = str(parsed.get("name", "Gringo"))
 	style = str(parsed.get("style", ""))
 	gi_index = int(parsed.get("gi", 0))
+	origin = str(parsed.get("origin", "gringo"))
+	body = str(parsed.get("body", "male"))
+	skin_t = float(parsed.get("skin_t", 0.35))
+	bar_layout = parsed.get("bar_layout", [])
 	attr_alloc = parsed.get("attrs", {})
 	talents = parsed.get("talents", {})
 	stripe_xp = int(parsed.get("stripe_xp", xp % Data.XP_PER_STRIPE if rank < 4 else 0))
@@ -367,6 +380,59 @@ func knows(move_id: String) -> bool:
 	return false
 
 # ------------------------------------------------------------ RPG build
+## Keeps the action bar in step with what you can use: newly unlocked abilities drop into their
+## usual slot (or the first free one). Returns the ids learned since last time (tutorial cards).
+func ensure_bar(pool: Array) -> Array:
+	while bar_layout.size() < 10:
+		bar_layout.append("")
+	var first := not flags.has("abilities_known")
+	var known: Array = flags.get("abilities_known", [])
+	var fresh: Array = []
+	var have := pool.map(func(a): return str(a.id))
+	for i in bar_layout.size():
+		if str(bar_layout[i]) != "" and not str(bar_layout[i]) in have:
+			bar_layout[i] = ""
+	for id in have:
+		if not id in known:
+			known.append(id)
+			fresh.append(id)
+		if id in Abilities.UTILITY or id in bar_layout:
+			continue
+		if not id in fresh and not first:
+			continue   # the player took it off the bar on purpose
+		var want := Abilities.ORDER.find(id)
+		if want >= 0 and str(bar_layout[want]) == "":
+			bar_layout[want] = id
+		else:
+			var free := bar_layout.find("")
+			if free >= 0:
+				bar_layout[free] = id
+	flags["abilities_known"] = known
+	if first and player_level() > 3:
+		fresh = []   # an existing character: no tutorial flood
+	return fresh
+
+## Put an ability in a bar slot (moving it if it's already elsewhere; "" clears the slot).
+func bar_set(slot: int, id: String) -> void:
+	while bar_layout.size() < 10:
+		bar_layout.append("")
+	if slot < 0 or slot >= 10:
+		return
+	var old := bar_layout.find(id) if id != "" else -1
+	if old >= 0:
+		bar_layout[old] = bar_layout[slot]
+	bar_layout[slot] = id
+	save_game()
+
+## Character creation extras: origin, body and skin tone.
+func set_identity(origin_id: String, body_type: String, skin: float) -> void:
+	origin = origin_id if Origins.ORIGINS.has(origin_id) else "gringo"
+	body = "female" if body_type == "female" else "male"
+	skin_t = clampf(skin, 0.0, 1.0)
+
+func skin_color() -> Color:
+	return UiKit.skin_tone(skin_t)
+
 func choose_style(id: String, name_: String, gi: int) -> void:
 	style = id
 	player_name = name_.strip_edges().left(16) if name_.strip_edges() != "" else "Gringo"
@@ -738,6 +804,7 @@ func attr(k: String) -> int:
 	var v := Rpg.ATTR_BASE + int(attr_alloc.get(k, 0)) + train_bonus(k) + gear_bonus(k)
 	if style != "":
 		v += int(Rpg.STYLES[style].attrs.get(k, 0))
+	v += int(Origins.get_origin(origin).attrs.get(k, 0))
 	return v
 
 func attrs() -> Dictionary:
@@ -853,6 +920,7 @@ func mods() -> Dictionary:
 			m[b.effect] = true
 	Specs.apply(m, spec)
 	TalentTrees.apply(m, talents, spec)
+	Origins.apply(m, origin)
 	_buff_mods(m)
 	return m
 
@@ -1508,7 +1576,7 @@ func _buff_mods(m: Dictionary) -> void:
 					m["read_resist"] = float(m.get("read_resist", 1.0)) * float(e[k])
 
 func xp_mult() -> float:
-	var x := 1.0
+	var x := 1.0 + float(Origins.get_origin(origin).mods.get("xp_bonus", 0.0))
 	for id in active_buffs():
 		x += float(Loot.item(id).get("effect", {}).get("xp", 0.0))
 	return x

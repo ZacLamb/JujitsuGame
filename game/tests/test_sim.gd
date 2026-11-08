@@ -97,7 +97,7 @@ func _ready() -> void:
 	# progression
 	game.reset()
 	var gained = game.record_roll("rafa", {"won": true, "by_sub": true, "sub": "triangle", "min_stamina": 50.0})
-	check(gained > 0 and game.xp == gained, "xp awarded")
+	check(gained > 0 and game.xp == int(round(gained * game.xp_mult())), "xp awarded (with origin bonus)")
 	check(game.unlocked.has("first_tap") and game.unlocked.has("triangle_win"), "sub achievements")
 	game.add_xp(1000)
 	check(game.rank == 4, "white belt caps at 4 stripes (rank=%d)" % game.rank)

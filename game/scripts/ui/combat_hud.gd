@@ -19,6 +19,8 @@ var _err: Label
 var _flash: Label
 var _flash_sub: Label
 var _flash_t := 0.0
+var _card_root: VBoxContainer
+var _cards: Array = []
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -37,12 +39,14 @@ func _ready() -> void:
 	bar.add_theme_constant_override("separation", 4)
 	bar.name = "ActionBar"
 	add_child(bar)
-	for i in 13:
+	for i in 14:
 		if i == 10:
 			var gap := Control.new()
 			gap.custom_minimum_size = Vector2(14, 0)
 			bar.add_child(gap)
-		var b := Button.new()
+		var b := BarSlot.new()
+		b.hud = self
+		b.slot = i
 		b.custom_minimum_size = Vector2(50, 50)
 		b.flat = true
 		b.focus_mode = Control.FOCUS_NONE
@@ -54,6 +58,14 @@ func _ready() -> void:
 		b.draw.connect(func(): _draw_slot(b, idx))
 		bar.add_child(b)
 		_slots.append(b)
+	_card_root = VBoxContainer.new()
+	_card_root.anchor_left = 0.5
+	_card_root.anchor_right = 0.5
+	_card_root.offset_left = -230
+	_card_root.offset_right = 230
+	_card_root.offset_top = 150
+	_card_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_card_root)
 	_err = Wow.title("", 22, Color(1, 0.2, 0.15))
 	_err.anchor_left = 0.5
 	_err.anchor_right = 0.5
@@ -84,11 +96,20 @@ func flash(head: String, sub: String) -> void:
 	_flash_sub.text = sub
 	_flash_t = 3.5
 
+## Slot i: 0-9 = the customizable bar (Game.bar_layout), 10-13 = Base / Frame / Breathe / racial.
+func slot_id(i: int) -> String:
+	if i < 10:
+		return str(Game.bar_layout[i]) if i < Game.bar_layout.size() else ""
+	return str(Abilities.UTILITY[i - 10])
+
+func slot_key(i: int) -> String:
+	return Abilities.KEYS[i] if i < 10 else str(Abilities.UTILITY_KEYS[Abilities.UTILITY[i - 10]])
+
 func _ability(i: int) -> Dictionary:
 	if combat == null or combat.me == null:
 		return {}
-	var ab: Array = combat.me.abilities
-	return ab[i] if i < ab.size() else {}
+	var id := slot_id(i)
+	return combat.core.ability(combat.me, id) if id != "" else {}
 
 func _press(i: int) -> void:
 	var a := _ability(i)
@@ -169,7 +190,9 @@ func _draw() -> void:
 
 func _auras(u: CombatCore.Unit, at: Vector2) -> void:
 	var names := {"down": ["DOWN", Color(1, 0.55, 0.2)], "pinned": ["PIN", Color(0.95, 0.8, 0.3)], "exposed": ["EXP", Color(0.75, 0.55, 1.0)],
-		"base": ["BASE", Color(0.98, 0.6, 0.2)], "guarded": ["GRD", Color(0.55, 0.7, 0.95)], "framed": ["FRM", Color(0.4, 0.75, 1.0)]}
+		"base": ["BASE", Color(0.98, 0.6, 0.2)], "guarded": ["GRD", Color(0.55, 0.7, 0.95)], "framed": ["FRM", Color(0.4, 0.75, 1.0)],
+		"rattled": ["RTL", Color(0.75, 0.3, 0.8)], "lucky": ["LCK", Color(0.4, 1.0, 0.5)], "mate": ["MATE", Color(0.4, 0.85, 0.4)],
+		"ginga": ["GNG", Color(0.4, 0.9, 1.0)], "rush": ["RUSH", Color(1.0, 0.45, 0.3)]}
 	var x := 0.0
 	for k in u.auras:
 		if not names.has(k):
@@ -193,6 +216,7 @@ func _draw_slot(b: Button, i: int) -> void:
 	frame.set_corner_radius_all(3)
 	b.draw_style_box(frame, r)
 	if a.is_empty():
+		b.draw_string(Wow.body(), Vector2(4, 13), slot_key(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 0.5, 0.5))
 		return
 	var t := str(a.get("type", "handfight"))
 	var col: Color = TYPE_COL.get(t, Color(0.8, 0.8, 0.8))
@@ -222,25 +246,127 @@ func _draw_slot(b: Button, i: int) -> void:
 	# finisher / advance ready glow
 	if why == "" and (bool(a.get("finisher", false)) and me.grip >= 3 or str(a.get("needs", "")) == "control"):
 		b.draw_rect(r.grow(-1), Color(1, 0.85, 0.3, 0.85), false, 2.0)
-	var key := str(a.get("key", ""))
+	var key := slot_key(i)
 	b.draw_string_outline(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
 	b.draw_string(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.85, 0.85))
 
 func _show_tip(i: int, b: Control) -> void:
 	_hide_tip()
 	var a := _ability(i)
-	if a.is_empty():
+	_tip = tooltip_for(a, combat.me if combat else null, i < 10)
+	if _tip == null:
 		return
-	var tv: Array = Wow.tip(280)
-	for ln in Abilities.tip_lines(a, combat.me):
-		Wow.tline(tv[1], str(ln[0]), ln[1], int(ln[2]), true)
-	_tip = tv[0]
 	add_child(_tip)
-	_tip.reset_size()
+	_place_tip.call_deferred(_tip, b)
+
+## A WoW tooltip panel for an ability (fixed-width wrapped lines).
+static func tooltip_for(a: Dictionary, me, on_bar := false) -> Control:
+	if a.is_empty():
+		return null
+	var tv: Array = Wow.tip(280)
+	var p: PanelContainer = tv[0]
+	p.z_index = 200
+	for ln in Abilities.tip_lines(a, me):
+		var l := Wow.tline(tv[1], str(ln[0]), ln[1], int(ln[2]), true)
+		l.custom_minimum_size = Vector2(280, 0)
+	if on_bar:
+		var h := Wow.tline(tv[1], "Drag to move · right-click to clear", Wow.GREY, 11)
+		h.custom_minimum_size = Vector2(280, 0)
+	return p
+
+func _place_tip(t: Control, b: Control) -> void:
+	if not is_instance_valid(t) or not is_instance_valid(b):
+		return
+	t.reset_size()
 	var gp := b.global_position
-	_tip.global_position = Vector2(clampf(gp.x - 120, 8, size.x - 300), gp.y - _tip.size.y - 10)
+	var vp := get_viewport_rect().size
+	t.global_position = Vector2(clampf(gp.x - t.size.x / 2.0 + 25, 8, vp.x - t.size.x - 8), maxf(8.0, gp.y - t.size.y - 10))
 
 func _hide_tip() -> void:
 	if _tip:
 		_tip.queue_free()
 		_tip = null
+
+# ------------------------------------------------------------ "New technique" tutorial cards
+var _card_queue: Array = []
+
+func learned(a: Dictionary) -> void:
+	_card_queue.append(a)
+	if _card_root.get_child_count() == 0:
+		_next_card()
+
+func _next_card() -> void:
+	if _card_queue.is_empty() or not is_inside_tree():
+		return
+	var a: Dictionary = _card_queue.pop_front()
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", Wow.sb(Color(0.04, 0.035, 0.03, 0.94), Wow.GOLD, 4, 12, 2))
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	p.add_child(h)
+	var icon := Control.new()
+	icon.custom_minimum_size = Vector2(52, 52)
+	var t := str(a.get("type", "handfight"))
+	icon.draw.connect(func():
+		var col: Color = TYPE_COL.get(t, Color(0.8, 0.8, 0.8))
+		icon.draw_rect(Rect2(Vector2.ZERO, icon.size), col.darkened(0.6))
+		icon.draw_rect(Rect2(Vector2.ZERO, icon.size), Wow.GOLD, false, 2.0)
+		CharSheet.draw_glyph(icon, TYPE_GLYPH.get(t, "star"), icon.size / 2.0, 26, col.lightened(0.3)))
+	h.add_child(icon)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	v.add_child(Wow.title("NEW TECHNIQUE", 13, Wow.GREEN))
+	var slot := Game.bar_layout.find(str(a.id))
+	var key: String = Abilities.KEYS[slot] if slot >= 0 else str(Abilities.UTILITY_KEYS.get(str(a.id), ""))
+	v.add_child(Wow.title("%s%s" % [str(a.name), ("   [%s]" % key) if key != "" else "   (in your Spellbook, P)"], 17, Wow.WHITE))
+	var body := Wow.label(str(Abilities.TUTORIAL.get(str(a.id), a.get("text", ""))), 13, Wow.PALE, true)
+	body.custom_minimum_size = Vector2(360, 0)
+	v.add_child(body)
+	var ok := Wow.button("Got it", Vector2(90, 26))
+	ok.pressed.connect(func():
+		p.queue_free()
+		_next_card.call_deferred())
+	h.add_child(ok)
+	_card_root.add_child(p)
+	Sfx.play("levelup", -10.0)
+	var tw := p.create_tween()
+	p.modulate.a = 0.0
+	tw.tween_property(p, "modulate:a", 1.0, 0.3)
+	tw.tween_interval(9.0)
+	tw.tween_property(p, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(func():
+		if is_instance_valid(p):
+			p.queue_free()
+			_next_card.call_deferred())
+
+## An action-bar button: click / key to use, drag to rearrange, drop spellbook entries on it.
+class BarSlot extends Button:
+	var hud: CombatHud
+	var slot := 0
+	func _get_drag_data(_at: Vector2) -> Variant:
+		var id := hud.slot_id(slot)
+		if id == "" or slot >= 10:
+			return null
+		var prev := Label.new()
+		prev.text = str(hud._ability(slot).get("name", id))
+		prev.add_theme_font_override("font", Wow.title_font())
+		prev.add_theme_font_size_override("font_size", 16)
+		set_drag_preview(prev)
+		return {"ability": id, "from_slot": slot}
+	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+		return slot < 10 and data is Dictionary and data.has("ability") and not str(data.ability) in Abilities.UTILITY
+	func _drop_data(_at: Vector2, data: Variant) -> void:
+		Game.bar_set(slot, str(data.ability))
+	func _notification(what: int) -> void:
+		# dragged off the bar onto nothing: take it off (WoW)
+		if what == NOTIFICATION_DRAG_END and is_instance_valid(hud) and not get_viewport().gui_is_drag_successful():
+			var d = get_viewport().gui_get_drag_data()
+			if d is Dictionary and int(d.get("from_slot", -1)) == slot:
+				Game.bar_set(slot, "")
+	func _gui_input(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT and slot < 10:
+			Game.bar_set(slot, "")
+			accept_event()

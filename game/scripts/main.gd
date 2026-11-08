@@ -137,7 +137,7 @@ func _register_inputs() -> void:
 		"journal": [KEY_J, KEY_L], "target_next": [KEY_TAB],
 		"ab_0": [KEY_1], "ab_1": [KEY_2], "ab_2": [KEY_3], "ab_3": [KEY_4], "ab_4": [KEY_5], "ab_5": [KEY_6],
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
-		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_breathe": [KEY_F], "character": [KEY_C], "talents": [KEY_N, KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
+		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_breathe": [KEY_F], "ab_racial": [KEY_G], "character": [KEY_C], "talents": [KEY_N], "spellbook": [KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],
 	}
@@ -310,6 +310,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.open_window("journal")
 	elif event.is_action_pressed("talents") and not hud.dialogue_open():
 		hud.open_window("talents")
+	elif event.is_action_pressed("spellbook") and not hud.dialogue_open():
+		hud.open_window("talents", Hud.TAB_SPELLBOOK)
 	elif event.is_action_pressed("character") and not hud.dialogue_open():
 		hud.open_window("character")
 	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:
@@ -754,6 +756,14 @@ func _interact(target: Npc = null) -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _tap_prompt:
+		_tap_prompt = false
+		combat.resolve_tap(accepted)
+		if not accepted:
+			var sp: Vector3 = Data.ZONES[Game.zone].spawn
+			player.teleport(Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z), 0.0)
+		player.input_enabled = true
+		return
 	if _quest_prompt != "":
 		var qp := _quest_prompt
 		_quest_prompt = ""
@@ -869,11 +879,16 @@ func _on_mob_engaged(npc: Npc) -> void:
 	Game.toast.emit("%s wants to roll!" % npc.mob.name, Color(1, 0.6, 0.4))
 	_start_mob(npc)
 
-## You tapped in the open world: back to the zone's spawn, half Composure, no XP.
-func _on_player_tapped(by_name: String) -> void:
-	hud.flash_message("YOU TAPPED", "%s got you. No XP. Back on your feet." % by_name)
-	var sp: Vector3 = Data.ZONES[Game.zone].spawn
-	player.teleport(Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z), 0.0)
+## You tapped in the open world: no XP, a gloating winner, a coach's note, and a choice.
+var _tap_prompt := false
+
+func _on_player_tapped(info: Dictionary) -> void:
+	_tap_prompt = true
+	player.input_enabled = false
+	var how := " with a %s" % str(info.how) if str(info.how) != "" else ""
+	hud.open_dialogue("You tapped to %s%s" % [str(info.by), how],
+		"No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure)." % str(info.lesson),
+		"Shake it off", "Back to the academy")
 
 ## A named fighter's duel ended (story beats that used to follow a roll).
 func _after_duel(opp_id: String, won: bool) -> void:

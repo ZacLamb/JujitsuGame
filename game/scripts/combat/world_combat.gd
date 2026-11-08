@@ -4,7 +4,10 @@ extends Node
 ## where you stand (several at once), and every core event becomes animation, floating combat
 ## text and sound. Owned by Main; the HUD polls `core` for frames / action bar.
 
-signal player_tapped(by_name: String)
+signal player_tapped(info: Dictionary)
+var tap_pending := false     # the "you tapped" choice is open
+var _last_hit := {}          # the enemy ability that last hit you (for the coach's note)
+signal ability_learned(a: Dictionary)
 signal enemy_tapped(npc: Npc, sub: String)
 
 var core := CombatCore.new()
@@ -43,6 +46,11 @@ func rebuild_player() -> void:
 		me.auto_dmg = me.dmg * 0.8
 		me.abilities = Abilities.player_kit()
 	me.hp = me.max_hp * ratio
+	if Game.style != "":
+		for id in Game.ensure_bar(me.abilities):
+			var a := core.ability(me, str(id))
+			if not a.is_empty():
+				ability_learned.emit(a)
 	me.name = "You"
 
 func set_world(w: World) -> void:
@@ -86,6 +94,10 @@ func is_hostile(npc: Npc) -> bool:
 
 ## A mob noticed you, or you attacked: start fighting.
 func engage_npc(npc: Npc) -> void:
+	if me == null or me.dead or _finishing or tap_pending:
+		return
+	if Time.get_ticks_msec() < int(npc.get_meta("no_aggro_until", 0)):
+		return   # just evaded: it walks home before it can be pulled again
 	var u := unit_for(npc)
 	if u == null or u.dead:
 		return
@@ -176,11 +188,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	for i in 10:
 		if event.is_action_pressed("ab_%d" % i):
-			var a: Dictionary = me.abilities[i] if i < me.abilities.size() else {}
-			press(str(a.get("id", "")) if not a.is_empty() else "")
+			var id: String = str(Game.bar_layout[i]) if i < Game.bar_layout.size() else ""
+			if id == "":
+				_error("Empty slot (drag a technique here from the Spellbook, P)")
+			else:
+				press(id)
 			get_viewport().set_input_as_handled()
 			return
-	for k in ["base", "frame", "breathe"]:
+	for k in ["base", "frame", "breathe", "racial"]:
 		if event.is_action_pressed("ab_" + k):
 			press(k)
 			get_viewport().set_input_as_handled()
@@ -220,6 +235,8 @@ func _process(delta: float) -> void:
 func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	var t := u.target
 	var home_d: float = (npc.global_position - npc._home).length() if not npc.mob.is_empty() else 0.0
+	if _finishing and t != null and t.dead:
+		return   # watching the tap
 	if t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
 		_evade(npc, u)
 		return
@@ -238,7 +255,10 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	npc.rig.animate_locomotion(delta, speed)
 
 ## Leashed (you ran away / pulled it too far): it walks home at full health, like WoW evading.
-func _evade(npc: Npc, u: CombatCore.Unit) -> void:
+func _evade(npc: Npc, u: CombatCore.Unit, quiet := false) -> void:
+	if not u.in_combat and not npc.in_combat:
+		return   # already evading: say it once
+	npc.set_meta("no_aggro_until", Time.get_ticks_msec() + 6000)
 	core.leave_combat(u)
 	u.hp = u.max_hp
 	u.auras.clear()
@@ -249,7 +269,8 @@ func _evade(npc: Npc, u: CombatCore.Unit) -> void:
 	npc.rig.release()
 	npc._chasing = false
 	npc._target = npc._home
-	_float(npc, "Evade", Color(1, 1, 1))
+	if not quiet:
+		_float(npc, "Evade", Color(1, 1, 1))
 	if not npc.mob.is_empty():
 		pass
 	elif npc.opp_id != "":
@@ -304,6 +325,8 @@ func _on_event(e: Dictionary) -> void:
 				r.release(CombatAnim.attack("handfight", r.rotation.y))
 		"dmg":
 			var t: CombatCore.Unit = e.target
+			if t.player:
+				_last_hit = {"ab": e.ab, "by": u.name}
 			var n := _node_of(t)
 			var col := Color(1, 1, 1)
 			if t.player:
@@ -386,6 +409,8 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 # ------------------------------------------------------------ taps (WoW: the kill)
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
+	if victim.player:
+		world.aggro_grace = 15.0   # nobody else jumps you while you're tapping
 	var vr := _rig_of(victim)
 	var ar := _rig_of(by)
 	var sub_id: String = sub if sub != "" and Data.MOVES.has(sub) else ["guard_armbar", "rnc", "triangle", "kimura"][randi() % 4]
@@ -404,13 +429,14 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 		vr.action(fr, true)
 	Sfx.play("squeeze", -6.0)
 	var by_name := by.name if by else "?"
+	var winner_npc := npc_of(by) if victim.player else null
 	await get_tree().create_timer(2.1).timeout
 	Sfx.play("lose" if victim.player else "win", -6.0)
 	if ar:
 		ar.release(CombatAnim.getup(ar.rotation.y))
 	_finishing = false
 	if victim.player:
-		_player_tapped(by_name)
+		_player_tapped(by_name, winner_npc)
 		return
 	var npc := npc_of(victim)
 	if npc == null:
@@ -423,6 +449,10 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	if not npc.mob.is_empty():
 		var loot := Game.record_mob({"won": true, "by_sub": true, "sub": sub_id}, npc.mob)
 		_reward_toasts(int(loot.xp), int(loot.money), loot.items)
+		if npc.mob.get("revenge", false):
+			var bonus := int(loot.xp) / 2 + 5
+			Game.add_xp(bonus)
+			Game.toast.emit("Revenge! +%d XP" % bonus, Color(1, 0.55, 0.3))
 		core.remove(victim)
 		_unit_of.erase(npc.get_instance_id())
 		_npc_of.erase(victim.id)
@@ -467,7 +497,7 @@ func _end_duel(npc: Npc, u: CombatCore.Unit, won: bool, walked := false, sub := 
 signal duel_over(opp_id: String, won: bool)
 
 ## You tapped: no XP. Back on your feet at the zone's spawn with half Composure; fights reset.
-func _player_tapped(by_name: String) -> void:
+func _player_tapped(by_name: String, winner: Npc = null) -> void:
 	for u in core.units.duplicate():
 		if u.player:
 			continue
@@ -478,13 +508,43 @@ func _player_tapped(by_name: String) -> void:
 				npc.refresh_tag()
 				_end_duel(npc, u, false, true)
 			else:
-				_evade(npc, u)
+				_evade(npc, u, true)
+	# the winner gloats, and now you owe them one
+	if winner and not winner.mob.is_empty():
+		winner.mob["revenge"] = true
+		winner.refresh_mob_tag()
+		_float(winner, str(winner.mob.get("win", "Next!")), Color(1, 0.85, 0.5), 0.75)
+		winner.rig.action([[RollPoses.victory(), winner.rig.current_root(), 0.5], [RollPoses.victory(), winner.rig.current_root(), 1.2]])
 	core.leave_combat(me)
-	me.dead = false
-	me.hp = me.max_hp * 0.5
 	me.auras.clear()
 	me.grip = 0
 	target = null
-	player.rig.release()
-	world.aggro_grace = 10.0
-	player_tapped.emit(by_name)
+	tap_pending = true
+	var ab: Dictionary = _last_hit.get("ab", {})
+	player_tapped.emit({"by": by_name, "how": str(ab.get("name", "")), "lesson": _lesson(ab)})
+
+## The coach's note after a tap: what got you and how to stop it.
+func _lesson(ab: Dictionary) -> String:
+	match str(ab.get("type", "")):
+		"sub":
+			return "Coach: \"Their %s has a cast bar under their name. Hit R to Frame it before it lands.\"" % str(ab.get("name", "submission"))
+		"takedown", "sweep":
+			return "Coach: \"When they put you Down, Escape (it works while you're Down) and get your base back.\""
+		"pass":
+			return "Coach: \"Pinned means you hit softer. Escape breaks the pin; Base (Q) halves the damage while you work.\""
+	if core.engaged_enemies().size() > 1:
+		return "Coach: \"Too many at once. Pull one at a time, and press Base (Q) the moment it gets ugly.\""
+	return "Coach: \"Build Grip before you go for the finish, and don't be afraid of Base (Q) and Breathe (F).\""
+
+## The player chose how to come back from a tap.
+func resolve_tap(shake_off: bool) -> void:
+	tap_pending = false
+	me.dead = false
+	player.rig.release(CombatAnim.getup(player.rig.rotation.y))
+	if shake_off:
+		me.hp = me.max_hp * 0.35
+		core._aura(me, "rattled", 60.0, me)
+	else:
+		me.hp = me.max_hp
+	me.gas = me.max_gas
+	world.aggro_grace = 8.0

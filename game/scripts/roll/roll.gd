@@ -161,7 +161,7 @@ func _build_world() -> void:
 	else:
 		Game.dress(player_rig)
 		player_rig.bulk = 1.0
-		player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+		player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Game.skin_color(), Color(0.55, 0.36, 0.18), 0, Game.body)
 	player_rig.set_fighter(TEAM_YOU, 1)
 	var you := Label3D.new()
 	you.text = "YOU"

@@ -107,6 +107,8 @@ func refresh_mob_tag() -> void:
 		kind = "  ★ Rare Elite"
 	elif mob.get("elite", false):
 		kind = "  Elite"
+	if mob.get("revenge", false):
+		kind += "  ⚔ Revenge"
 	tag.text = "%s\nLv %d%s" % [mob.name, lv, kind]
 	tag.modulate = Data.con_color(lv, Game.player_level())
 	if mob.get("rare", false):
@@ -132,7 +134,7 @@ func _mob_process(delta: float) -> bool:
 	to_p.y = 0
 	var d := to_p.length()
 	var home_d := (global_position - _home).length()
-	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Data.display_level(float(mob.level)) >= Game.player_level() - 6
+	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Time.get_ticks_msec() >= int(get_meta("no_aggro_until", 0)) and Data.display_level(float(mob.level)) >= Game.player_level() - 6
 	if can_aggro and d < AGGRO_RANGE and home_d < camp_radius + 10.0:
 		_chasing = true
 	elif _chasing and (d > 14.0 or home_d > camp_radius + 12.0 or world.aggro_grace > 0.0):

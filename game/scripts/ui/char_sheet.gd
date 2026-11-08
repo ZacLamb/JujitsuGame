@@ -180,7 +180,7 @@ class Doll extends SubViewportContainer:
 		rig.bulk = 1.0
 		pivot.add_child(rig)
 		Game.dress(rig)
-		rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+		rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Game.skin_color(), Color(0.55, 0.36, 0.18), 0, Game.body)
 		var cam := Camera3D.new()
 		cam.fov = 30
 		cam.transform = Transform3D(Basis(), Vector3(0, 1.2, 6.2)).looking_at(Vector3(0, 0.98, 0))
