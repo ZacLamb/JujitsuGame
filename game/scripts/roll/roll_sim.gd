@@ -210,6 +210,7 @@ func technique_chance(move_id: String, by_player: bool, spend: int) -> float:
 		p += zone_bonus(move_id) * 0.6
 		if mods.get("champion", false):
 			p += 0.04
+		p += float(mods.get("edge", 0.0))   # team role matchup
 		if opp_off_bal > 0.0:
 			p += 0.28
 		if stamina_pct() < 25.0:
@@ -224,6 +225,7 @@ func technique_chance(move_id: String, by_player: bool, spend: int) -> float:
 			p -= 0.15
 		if stamina_pct() < 25.0:
 			p += 0.12
+		p += float(mods.get("opp_edge", 0.0))
 		p /= float(mods.defense_vs.get(m.type, 1.0))
 	return clampf(p, 0.08, 0.95)
 
@@ -424,7 +426,7 @@ func _resolve_player() -> void:
 	cast = {}
 	match c.kind:
 		"breathe":
-			recover(20.0)
+			recover(30.0 if mods.get("second_breath", false) else 20.0)
 			cds["breathe"] = 6.0
 			events.append({"e": "breathed"})
 		"grip":
@@ -435,7 +437,7 @@ func _resolve_player() -> void:
 			events.append({"e": "grip", "who": "p", "n": control})
 		"wear":
 			spend(6.0 * float(mods.cost))
-			opp_stamina = maxf(0.0, opp_stamina - 10.0)
+			opp_stamina = maxf(0.0, opp_stamina - float(mods.get("wear_dmg", 10.0)))
 			opp_control = maxi(0, opp_control - 1)
 			control = mini(MAX_CONTROL, control + 1)
 			cds["wear"] = 5.0
@@ -690,11 +692,17 @@ func apply_rule(r: String) -> void:
 			min_stamina = stamina
 		"sprint":
 			clock = 120.0
+		"team":
+			clock = 150.0   # 5v5 elimination bouts are short; a draw eliminates both
 
 func finish_on_points() -> void:
 	over = true
 	live = false
 	var won: bool
+	if rule == "team" and player_pts == opp_pts and player_adv == opp_adv:
+		result = {"won": false, "draw": true, "by_sub": false, "sub": "", "min_stamina": 100.0 * min_stamina / max_stamina,
+			"score": [player_pts, opp_pts]}
+		return
 	if rule == "sub_only":
 		won = false
 	elif player_pts != opp_pts:

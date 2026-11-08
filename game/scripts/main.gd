@@ -389,6 +389,8 @@ func _use_spot(spot: Dictionary) -> void:
 			_start_daily()
 		"comp":
 			_open_comp(spot.arg)
+		"team":
+			_open_team(str(spot.arg))
 		"quest":
 			_open_quest(spot.arg)
 		"drill":
@@ -502,6 +504,56 @@ func _comp_after_match(result: Dictionary) -> void:
 	player.input_enabled = false
 	hud.open_dialogue(c.name, text, "", "Oss")
 
+# ------------------------------------------------------------ 5v5 team challenge
+var team_match: Team.Match = null
+var team_board: TeamBoard
+
+func _open_team(zone: String) -> void:
+	if team_board == null:
+		team_board = TeamBoard.new()
+		hud.root.add_child(team_board)
+		team_board.start_pressed.connect(func():
+			team_board.show_match(team_match, "between"))
+		team_board.play_pressed.connect(_team_play)
+		team_board.sim_pressed.connect(_team_sim)
+		team_board.forfeit_pressed.connect(func():
+			Game.record_team(false, team_match.ours.size())
+			_team_close())
+		team_board.close_pressed.connect(_team_close)
+	var nonce := int(Game.counters.get("team_matches", 0))
+	team_match = Team.new_match(zone, Game.team_lineup(), nonce)
+	player.input_enabled = false
+	team_board.result_text = ""
+	team_board.show_match(team_match, "lineup")
+
+func _team_play() -> void:
+	team_board.visible = false
+	_start_roll("team", {}, {}, {"me": team_match.current_ours(), "them": team_match.current_theirs(),
+		"me_stam": team_match.stam_ours, "them_stam": team_match.stam_theirs})
+
+func _team_sim() -> void:
+	var r := Team.sim_bout(team_match.current_ours(), team_match.current_theirs(), team_match.stam_ours, team_match.stam_theirs)
+	_team_after(r, float(r.me_stam), float(r.them_stam))
+
+func _team_after(result: Dictionary, me_stam: float, them_stam: float) -> void:
+	player.input_enabled = false
+	team_match.apply(result, me_stam, them_stam)
+	Sfx.play("hit" if result.get("won", false) else "miss", -4.0)
+	if team_match.over():
+		var won := team_match.won()
+		var xp := Game.record_team(won, team_match.i)
+		team_board.result_text = ("%s beat %s, %d fighters left standing.  +%d XP" % [Team.TEAM_NAMES[0], team_match.academy, team_match.ours.size() - team_match.i, xp]) if won else ("%s win this one.  +%d XP" % [team_match.academy, xp])
+		Sfx.play("win" if won else "lose")
+		team_board.show_match(team_match, "done")
+	else:
+		team_board.show_match(team_match, "between")
+
+func _team_close() -> void:
+	if team_board:
+		team_board.visible = false
+	team_match = null
+	player.input_enabled = true
+
 func _start_daily() -> void:
 	if hud.journal.visible:
 		hud.toggle_journal()
@@ -596,7 +648,7 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		player.input_enabled = true
 	_talking_to = null
 
-func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}) -> void:
+func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, team_bout: Dictionary = {}) -> void:
 	player.input_enabled = false
 	world.visible = false
 	world.process_mode = Node.PROCESS_MODE_DISABLED
@@ -604,7 +656,7 @@ func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}) 
 	roll = RollScene.new()
 	add_child(roll)
 	roll.finished.connect(_end_roll)
-	roll.start(opp_id, daily, comp)
+	roll.start(opp_id, daily, comp, team_bout)
 	Sfx.duck_ambience(true)
 	_fit_screen()
 
@@ -623,6 +675,9 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	hud.set_prompt(world.nearby)
 	if opp_id == "comp":
 		_comp_after_match(result)
+		return
+	if opp_id == "team":
+		_team_after(result, float(result.get("me_stam", 1.0)), float(result.get("them_stam", 1.0)))
 		return
 	if result.won and opp_id == "leao" and not Game.flags.get("black_belt_ending", false):
 		Game.flags["black_belt_ending"] = true

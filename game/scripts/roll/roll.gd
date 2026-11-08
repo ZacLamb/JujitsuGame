@@ -67,17 +67,29 @@ var intro_panel: PanelContainer
 
 var daily := {}  # set for Daily Challenge rolls
 var comp := {}   # set for competition matches: {id, round_name, opp, final}
+var team := {}   # set for 5v5 bouts: {me, them, me_stam, them_stam}
+var me_name := ""
+var me_rank := 0
 var _log: Array = []  # exchange outcomes for the share card (see ShareCard.CODES)
 
-func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Dictionary = {}) -> void:
+func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Dictionary = {}, team_bout: Dictionary = {}) -> void:
 	opp_id = opponent_id
 	daily = daily_challenge
 	comp = comp_match
-	opp = daily.opp if not daily.is_empty() else (comp.opp if not comp.is_empty() else Data.OPPONENTS[opponent_id])
-	sim.setup(opponent_id, Game.level(), Game.knows, -1, Game.mods(), opp if not (daily.is_empty() and comp.is_empty()) else {})
+	team = team_bout
+	me_name = Game.player_name
+	me_rank = Game.rank
+	if not team.is_empty():
+		opp = Team.as_opp(team.them)
+		Team.setup_sim(sim, team.me, team.them, float(team.me_stam), float(team.them_stam))
+		me_name = str(team.me.name)
+		me_rank = int(team.me.get("rank", Game.rank))
+	else:
+		opp = daily.opp if not daily.is_empty() else (comp.opp if not comp.is_empty() else Data.OPPONENTS[opponent_id])
+		sim.setup(opponent_id, Game.level(), Game.knows, -1, Game.mods(), opp if not (daily.is_empty() and comp.is_empty()) else {})
 	if not daily.is_empty():
 		sim.apply_rule(daily.rule)
-	_signature = Rpg.STYLES[Game.style].signature if Game.style != "" else []
+	_signature = Rpg.STYLES[Game.style].signature if Game.style != "" and (team.is_empty() or team.me.get("player", false)) else []
 	sim.signature = _signature
 	_build_world()
 	_build_ui()
@@ -209,8 +221,12 @@ func _build_world() -> void:
 
 	player_rig = BodyRig.new()
 	add_child(player_rig)
-	Game.dress(player_rig)
-	player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+	if not team.is_empty() and not team.me.get("player", false):
+		var tm: Dictionary = team.me
+		player_rig.setup(tm.get("gi", Color.WHITE), Data.BELTS[Data.belt_of(me_rank)].color, tm.get("skin", Color(0.7, 0.5, 0.35)), Color(0.12, 0.08, 0.05), -1, str(tm.get("body", "male")))
+	else:
+		Game.dress(player_rig)
+		player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
 	player_rig.set_fighter(TEAM_YOU, 1)
 	var you := Label3D.new()
 	you.text = "YOU"
@@ -451,13 +467,13 @@ func _on_event(ev: Dictionary) -> void:
 				_count_player_move(ev.id)
 				if ev.id in _signature:
 					_used_signature = true
-				_message(_call(ev.id, Game.player_name, opp.name), 2.0)
+				_message(_call(ev.id, me_name, opp.name), 2.0)
 				_log.append("Y" if int(ev.get("spent", 0)) >= 4 else "G")
 				Sfx.play("hit")
 				if int(Data.MOVES[ev.id].pts) > 0:
 					_float("+%d" % int(Data.MOVES[ev.id].pts), Vector2(0.3, 0.38), UiKit.ACCENT, 40)
 			else:
-				_message(_call(ev.id, opp.name, Game.player_name), 2.0)
+				_message(_call(ev.id, opp.name, me_name), 2.0)
 				_log.append("O")
 				Sfx.play("miss", -4.0, 0.8)
 				if int(Data.MOVES[ev.id].pts) > 0:
@@ -604,7 +620,10 @@ func _end_match() -> void:
 	var res := sim.result
 	res["signature"] = _used_signature and res.won
 	var xp := 0
-	if not daily.is_empty():
+	if not team.is_empty():
+		res["me_stam"] = sim.stamina / sim.max_stamina
+		res["them_stam"] = sim.opp_stamina / 100.0
+	elif not daily.is_empty():
 		xp = Game.record_daily(res, daily.date)
 	elif not comp.is_empty():
 		xp = Game.record_comp_match(res, float(opp.level))
@@ -617,6 +636,8 @@ func _end_match() -> void:
 	loser.tween_pose(RollPoses.defeated(), Transform3D(Basis(Vector3.UP, PI), Vector3(0, 0, -0.7)), 0.8)
 	_clear_action()
 	var head := "VICTORY" if res.won else "DEFEAT"
+	if res.get("draw", false):
+		head = "DRAW: BOTH OUT"
 	action_title.text = ""
 	var big := UiKit.label(head, 56, UiKit.ACCENT if res.won else UiKit.RED, HORIZONTAL_ALIGNMENT_CENTER)
 	action_body.add_child(big)
@@ -631,7 +652,10 @@ func _end_match() -> void:
 	action_body.add_child(UiKit.label(how, 24, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	var line: String = opp.win if res.won else opp.lose
 	action_body.add_child(UiKit.label("%s: \"%s\"" % [opp.name, line], 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-	action_body.add_child(UiKit.label("+%d XP   ·   %s" % [xp, Data.rank_name(Game.rank)], 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+	if team.is_empty():
+		action_body.add_child(UiKit.label("+%d XP   ·   %s" % [xp, Data.rank_name(Game.rank)], 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+	else:
+		action_body.add_child(UiKit.label("%s leaves the mat with %d%% stamina" % [me_name if res.won else opp.name, int(100.0 * float(res.me_stam if res.won else res.them_stam))], 20, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
 	if not daily.is_empty():
 		action_body.add_child(ShareCard.squares(_log))
 		var text := ShareCard.build_text(daily, res, _log, Vector2i(sim.player_pts, sim.opp_pts), int(Game.daily.get("streak", 0)))
@@ -645,6 +669,8 @@ func _end_match() -> void:
 	var back_text := "Back to %s" % Data.ZONES[Game.zone].name
 	if not comp.is_empty():
 		back_text = "Continue"
+	if not team.is_empty():
+		back_text = "Back to the team board"
 	var back := UiKit.button(back_text, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))
@@ -780,7 +806,7 @@ func _build_ui() -> void:
 	top.add_theme_constant_override("separation", 12)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(top)
-	var pbox := _fighter_box(Game.player_name, Game.rank, true)
+	var pbox := _fighter_box(me_name, me_rank, true)
 	pbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(pbox)
 	var mid := VBoxContainer.new()

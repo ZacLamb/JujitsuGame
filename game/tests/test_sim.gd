@@ -215,6 +215,36 @@ func _ready() -> void:
 	for st in Rpg.STYLES:
 		for mid in Rpg.STYLES[st].signature:
 			check(Data.MOVES.has(mid), "%s signature %s exists" % [st, mid])
+	# ---------------- 5v5 teams
+	game.reset()
+	game.choose_style("guard", "Tester", 0)
+	for id in ["rafa", "cida", "tiago"]:
+		game.wins[id] = 1
+	check(Team.edge("finisher", "grinder") == 1 and Team.edge("grinder", "finisher") == -1 and Team.edge("anchor", "finisher") == 0, "role ring")
+	for r in Team.ROLE_ORDER:
+		var beaten_by := Team.ROLE_ORDER.filter(func(x): return Team.ROLES[x].beats == r)
+		check(beaten_by.size() == 1, "%s is countered by exactly one role" % r)
+	var lu: Dictionary = game.team_lineup()
+	check(lu.order.size() == 5 and lu.order[0] == "you" and "tiago" in lu.order, "lineup: you + recruits + partners (%s)" % str(lu.order))
+	var tm := Team.new_match("caceres", lu, 3)
+	check(tm.ours.size() == 5 and tm.theirs.size() == 5, "5 a side")
+	var their_ids: Array = tm.theirs.map(func(f): return str(f.id).trim_prefix("e_"))
+	check(not "tiago" in their_ids and not "rafa" in their_ids, "recruits never appear on the enemy team")
+	tm.apply({"won": true, "by_sub": false, "score": [2, 0]}, 0.5, 0.0)
+	check(tm.j == 1 and tm.i == 0 and tm.stam_ours > 0.5 and tm.stam_theirs == 1.0, "winner stays on and recovers some gas (%.2f)" % tm.stam_ours)
+	tm.apply({"won": false, "draw": true, "by_sub": false, "score": [0, 0]}, 0.3, 0.3)
+	check(tm.i == 1 and tm.j == 2, "a draw eliminates both")
+	var dr := RollSim.new()
+	dr.setup("rafa", 2.0, func(_id): return true, 4)
+	dr.apply_rule("team")
+	dr.finish_on_points()
+	check(dr.result.get("draw", false) and dr.clock <= 150.0, "team bouts: level score is a draw")
+	var b := Team.sim_bout(Team.you(), tm.theirs[2], 0.8, 1.0, 11)
+	check(b.has("won") and float(b.me_stam) >= 0.0 and float(b.me_stam) <= 1.0, "simulated bout returns a result and stamina")
+	var xp0: int = game.xp
+	game.record_team(true, 0)
+	check(game.unlocked.has("team_win") and game.unlocked.has("team_clean") and game.xp > xp0, "team win: achievements + xp")
+	check(Gear.SETS.familia.pieces.any(func(p): return game.has_item(p)), "team win drops a Família piece")
 	# ---------------- belts, zones, drills
 	game.reset()
 	game.add_xp(450)

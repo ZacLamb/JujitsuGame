@@ -152,6 +152,26 @@ func _ready() -> void:
 		var r2 = await play_comp(cid)
 		check(r2.matches >= 1 and main.comp_run.is_empty(), "%s bracket played: %d match(es), medal=%s" % [cid, r2.matches, Game.best_medal(cid)])
 	check(Game.unlocked.has("first_roll"), "comp matches count as rolls")
+	# ---- 5v5 team challenge: board spot, lineup, one live bout, the rest simulated
+	var tspot: Dictionary = {}
+	for sp in main.world.spots:
+		if sp.action == "team":
+			tspot = sp
+	check(not tspot.is_empty(), "zone has a team challenge board")
+	main._use_spot(tspot)
+	check(main.team_match != null and main.team_board.visible and main.team_board.state == "lineup", "team board opens on the lineup")
+	main.team_board.start_pressed.emit()
+	main.team_board.play_pressed.emit()
+	check(main.roll != null and not main.roll.team.is_empty(), "taking the mat starts a team bout")
+	var tb = await play_roll_existing("team")
+	check(tb.done and main.team_match != null and main.team_match.bouts == 1, "team bout finished and recorded on the board")
+	var guard_t := 0
+	while main.team_match != null and not main.team_match.over() and guard_t < 12:
+		main.team_board.sim_pressed.emit()
+		guard_t += 1
+	check(main.team_match.over() and main.team_board.state == "done", "team match ends (won=%s, bouts=%d)" % [main.team_match.won(), main.team_match.bouts])
+	main.team_board.close_pressed.emit()
+	check(main.team_match == null and main.player.input_enabled, "closing the board returns to the world")
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
 	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")

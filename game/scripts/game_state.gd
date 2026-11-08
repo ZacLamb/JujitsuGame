@@ -20,6 +20,7 @@ var flags := {}  # misc quest flags
 var inventory := {}  # item id -> true
 var equipped := {}   # slot -> item id
 var kit := "gi"       # "gi" / "nogi": which outfit is worn (and whose slots count)
+var team := {}        # 5v5 lineup: {order: [5 fighter ids incl "you"], coach: id}
 var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
@@ -67,6 +68,7 @@ func reset() -> void:
 		inventory[id] = true
 	equipped = {"jacket": "standard_gi", "pants": "standard_gi_pants", "rash": "rash_white", "spats": "spats_black"}
 	kit = "gi"
+	team = {}
 	save_game()
 	progress_changed.emit()
 
@@ -78,7 +80,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -117,6 +119,7 @@ func load_game() -> void:
 	inventory = parsed.get("inventory", {})
 	equipped = parsed.get("equipped", {})
 	kit = str(parsed.get("kit", "gi"))
+	team = parsed.get("team", {})
 	_backfill_gear()
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
@@ -356,6 +359,59 @@ func equip(id: String) -> bool:
 	save_game()
 	progress_changed.emit()
 	return true
+
+# ------------------------------------------------------------ 5v5 teams
+## The saved lineup, repaired against who is actually available (falls back to the default).
+func team_lineup() -> Dictionary:
+	var ok := {}
+	for f in Team.roster():
+		ok[f.id] = true
+	var cok := {}
+	for c in Team.coaches():
+		cok[c.id] = true
+	var order: Array = []
+	for id in team.get("order", []):
+		if ok.has(id) and not id in order:
+			order.append(id)
+	var d := Team.default_lineup()
+	if not "you" in order:
+		order.push_front("you")
+	for id in d.order:
+		if order.size() >= 5:
+			break
+		if not id in order:
+			order.append(id)
+	for f in Team.roster():
+		if order.size() >= 5:
+			break
+		if not f.id in order:
+			order.append(f.id)
+	var coach := str(team.get("coach", ""))
+	if not cok.has(coach) or coach in order:
+		coach = d.coach if not d.coach in order else ""
+	return {"order": order.slice(0, 5), "coach": coach}
+
+func set_team_lineup(order: Array, coach: String) -> void:
+	team = {"order": order, "coach": coach}
+	save_game()
+
+## Records a finished 5v5. Returns XP gained.
+func record_team(won: bool, lost_fighters: int) -> int:
+	counters["team_matches"] = int(counters.get("team_matches", 0)) + 1
+	var gained := 20
+	if won:
+		gained = 90 + 10 * maxi(0, 4 - lost_fighters)
+		unlock("team_win")
+		if lost_fighters == 0:
+			unlock("team_clean")
+		bump("team_wins")
+		var miss: Array = Gear.SETS.familia.pieces.filter(func(p): return not inventory.has(p))
+		if not miss.is_empty():
+			give_item(miss[randi() % miss.size()])
+	add_xp(gained)
+	save_game()
+	progress_changed.emit()
+	return gained
 
 func set_kit(k: String) -> void:
 	if not Gear.KITS.has(k) or k == kit:
