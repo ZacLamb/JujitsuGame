@@ -558,7 +558,7 @@ func set_team_lineup(order: Array, coach: String) -> void:
 ## Records a finished 5v5. Returns XP gained.
 func record_team(won: bool, lost_fighters: int) -> int:
 	counters["team_matches"] = int(counters.get("team_matches", 0)) + 1
-	var gained := 20
+	var gained := 0
 	if won:
 		gained = 90 + 10 * maxi(0, 4 - lost_fighters)
 		unlock("team_win")
@@ -1009,7 +1009,7 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("rio_king")
 	else:
 		losses[opp_id] = int(losses.get(opp_id, 0)) + 1
-		gained = 12
+		gained = 0   # a loss (tapping out included) pays nothing, like dying in WoW
 		if result.by_sub:
 			unlock("tapped")
 	drills_ready = true
@@ -1179,7 +1179,7 @@ func best_medal(comp_id: String, belt := -1) -> String:
 func record_comp_match(result: Dictionary, opp_level: float) -> int:
 	unlock("first_roll")
 	drills_ready = true
-	var gained := 14
+	var gained := 0
 	if result.won:
 		gained = int(20 + 10 * opp_level)
 		if result.by_sub:
@@ -1254,7 +1254,7 @@ func record_daily(result: Dictionary, date_str := "") -> int:
 	unlock("first_roll")
 	drills_ready = true
 	daily["last_try"] = date_str
-	var gained := 15
+	var gained := 0
 	if result.won:
 		quest_event("daily_wins")
 		if result.by_sub:
@@ -1477,9 +1477,7 @@ func record_mob(result: Dictionary, mob: Dictionary) -> Dictionary:
 	var lv := float(mob.level)
 	var out := {"xp": 0, "money": 0, "items": [], "lost": []}
 	if not result.won:
-		out.xp = int(6 + 2 * lv)
-		add_xp(out.xp)
-		return out
+		return out   # no XP for losing / tapping out
 	var gained := int(16 + 9 * lv)
 	if mob.get("elite", false):
 		gained = int(gained * 1.6)

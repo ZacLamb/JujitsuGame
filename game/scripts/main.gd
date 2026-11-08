@@ -5,6 +5,7 @@ var world: World
 var player: Player
 var hud: Hud
 var roll: RollScene
+var combat: WorldCombat   # WoW-style open-world fights (mobs, named fighters)
 var _talking_to: Npc
 var _title_cam: Camera3D
 var _title_t := 0.0
@@ -131,9 +132,12 @@ func _register_inputs() -> void:
 	var map := {
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
-		"look_left": [KEY_Q], "look_right": [KEY_R], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
+		"look_left": [], "look_right": [], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
 		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E, KEY_ENTER],
-		"journal": [KEY_J, KEY_TAB, KEY_L], "character": [KEY_C], "talents": [KEY_N, KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
+		"journal": [KEY_J, KEY_L], "target_next": [KEY_TAB],
+		"ab_0": [KEY_1], "ab_1": [KEY_2], "ab_2": [KEY_3], "ab_3": [KEY_4], "ab_4": [KEY_5], "ab_5": [KEY_6],
+		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
+		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_breathe": [KEY_F], "character": [KEY_C], "talents": [KEY_N, KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],
 	}
@@ -173,6 +177,8 @@ func _process(delta: float) -> void:
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
 	_mouse_process()
+	if hud and combat and hud.combat_hud == null:
+		hud.set_combat(combat)
 	if not _in_title and roll == null:
 		_adapt_quality(delta)
 
@@ -288,6 +294,9 @@ func _on_world_click(screen: Vector2) -> void:
 	var n := _npc_at(screen)
 	if n == null:
 		return
+	if combat and combat.is_hostile(n):
+		combat.set_target_npc(n)   # click a mob to target it (WoW); press an ability to attack
+		return
 	if player.global_position.distance_to(n.global_position) < 2.8:
 		_interact(n)
 	else:
@@ -355,6 +364,17 @@ func _make_world(z: String) -> void:
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
 	world.mob_engaged.connect(_on_mob_engaged)
+	if combat == null:
+		combat = WorldCombat.new()
+		combat.name = "WorldCombat"
+		add_child(combat)
+		combat.setup(world, player)
+		combat.player_tapped.connect(_on_player_tapped)
+		combat.duel_over.connect(_after_duel)
+	else:
+		combat.set_world(world)
+	if hud:
+		hud.set_combat(combat)
 	if is_instance_valid(_title_cam):
 		world.add_child(_title_cam)
 
@@ -700,7 +720,8 @@ func _interact(target: Npc = null) -> void:
 		_open_quest(npc.giver_id)
 		return
 	if npc != null and not npc.mob.is_empty():
-		_start_mob(npc)
+		combat.set_target_npc(npc)
+		combat.engage_npc(npc)
 		return
 	if npc == null:
 		if not world.nearby_spot.is_empty():
@@ -768,7 +789,8 @@ func _on_dialogue_choice(accepted: bool) -> void:
 			player.input_enabled = true
 		return
 	if accepted and _talking_to != null:
-		_start_roll(_talking_to.opp_id)
+		player.input_enabled = true
+		combat.duel(_talking_to)
 	else:
 		player.input_enabled = true
 	_talking_to = null
@@ -836,6 +858,9 @@ func _queue_names() -> Array:
 	return out
 
 func _on_mob_engaged(npc: Npc) -> void:
+	if combat and roll == null and not _in_title:
+		combat.engage_npc(npc)
+		return
 	if roll != null and _mob_npc != null:
 		_queue_mob(npc)
 		return
@@ -843,6 +868,23 @@ func _on_mob_engaged(npc: Npc) -> void:
 		return
 	Game.toast.emit("%s wants to roll!" % npc.mob.name, Color(1, 0.6, 0.4))
 	_start_mob(npc)
+
+## You tapped in the open world: back to the zone's spawn, half Composure, no XP.
+func _on_player_tapped(by_name: String) -> void:
+	hud.flash_message("YOU TAPPED", "%s got you. No XP. Back on your feet." % by_name)
+	var sp: Vector3 = Data.ZONES[Game.zone].spawn
+	player.teleport(Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z), 0.0)
+
+## A named fighter's duel ended (story beats that used to follow a roll).
+func _after_duel(opp_id: String, won: bool) -> void:
+	world.refresh_beacon()
+	hud.refresh()
+	if won and opp_id == "leao" and not Game.flags.get("black_belt_ending", false):
+		Game.flags["black_belt_ending"] = true
+		Game.save_game()
+		hud.open_dialogue("Black Belt", "From a tourist on the plaza in Cáceres to a black belt in Rio. Onça, Jacaré, Cachoeira and Leão all put their hands on that belt.\n\nThe journey doesn't end here. Every Daily Challenge is still waiting, and every fighter in Brazil still wants a roll with the gringo black belt. Oss.", "", "Oss")
+	if won and opp_id == "rafa" and not Game.flags.get("met_professor", false):
+		Game.toast.emit("Rafa: the academia is behind the cathedral. Follow the light.", Color(1, 0.95, 0.8))
 
 func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, team_bout: Dictionary = {}, mob: Dictionary = {}) -> void:
 	player.input_enabled = false

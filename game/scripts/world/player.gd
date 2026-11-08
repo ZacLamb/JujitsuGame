@@ -15,6 +15,7 @@ var arm: SpringArm3D
 var cam: Camera3D
 
 var input_enabled := false
+var rooted := false   # knocked down / finishing in combat: no walking
 var touch_move := Vector2.ZERO   # from virtual joystick, -1..1
 var touch_sprint := false
 var cam_yaw := 0.0
@@ -46,6 +47,7 @@ func _ready() -> void:
 	col.position.y = 0.9
 	add_child(col)
 	rig = BodyRig.new()
+	rig.bulk = 1.0
 	add_child(rig)
 	refresh_look()
 	Game.progress_changed.connect(refresh_look)
@@ -159,9 +161,11 @@ func _physics_process(delta: float) -> void:
 		var kl := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 		if kl != Vector2.ZERO:
 			look(kl * delta * 2.4)
+	if rooted:
+		dir2 = Vector2.ZERO
 	var basis_y := Basis(Vector3.UP, cam_yaw)
 	var move := basis_y * Vector3(dir2.x, 0, dir2.y)
-	if walk_target != null:
+	if walk_target != null and not rooted:
 		if not is_instance_valid(walk_target) or not input_enabled:
 			walk_target = null
 		elif dir2 == Vector2.ZERO:
@@ -172,8 +176,10 @@ func _physics_process(delta: float) -> void:
 		move = move.normalized()
 	var speed := RUN if sprint else WALK
 	var target_v := move * speed
-	velocity.x = move_toward(velocity.x, target_v.x, delta * 40.0)
-	velocity.z = move_toward(velocity.z, target_v.z, delta * 40.0)
+	# ease into and out of a run (accelerate a bit softer than we brake)
+	var accel := 22.0 if target_v.length() > Vector2(velocity.x, velocity.z).length() else 30.0
+	velocity.x = move_toward(velocity.x, target_v.x, delta * accel)
+	velocity.z = move_toward(velocity.z, target_v.z, delta * accel)
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	elif input_enabled and Input.is_action_just_pressed("jump"):
@@ -195,7 +201,8 @@ func _physics_process(delta: float) -> void:
 		var face := atan2(-velocity.x, -velocity.z)
 		if _rmb and input_enabled:
 			face = cam_yaw  # right mouse held: the character faces where the camera looks
-		rig.rotation.y = lerp_angle(rig.rotation.y, face, clampf(delta * 12.0, 0, 1))
+		if not rig.in_action():
+			rig.rotation.y = lerp_angle(rig.rotation.y, face, clampf(delta * 12.0, 0, 1))
 		# follow camera: swing in behind the runner unless the player is steering the camera
 		if input_enabled and Time.get_ticks_msec() - _last_look_ms > 1200:
 			var off := wrapf(face - cam_yaw, -PI, PI)
@@ -226,5 +233,7 @@ func teleport(p: Vector3, yaw := 0.0) -> void:
 	velocity = Vector3.ZERO
 	cam_yaw = yaw
 	rig.rotation.y = yaw
+	if rig.smoother:
+		rig.smoother.reset()
 	if yaw_node:
 		yaw_node.global_position = p + Vector3(0, 1.5, 0)

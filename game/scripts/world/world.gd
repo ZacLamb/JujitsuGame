@@ -42,6 +42,7 @@ func build(z := "caceres") -> void:
 			var vp: Vector3 = v[0]
 			_label(str(v[1]).trim_prefix("Shop: ").to_upper(), Vector3(vp.x, ground_y(vp.x, vp.z) + 2.8, vp.z), 56, Color(1, 0.95, 0.75))
 	_build_territories()
+	_dress_props()
 	_batch_static()
 	apply_graphics()
 
@@ -576,6 +577,12 @@ func _build_academia() -> void:
 			var col := Color(0.13, 0.38, 0.26) if (x + z) % 2 == 0 else Color(0.78, 0.62, 0.22)
 			_box(Vector3(1.96, 0.08, 1.96), c + Vector3(-7 + x * 2, 0.34, -5 + z * 2), col, false)
 	_label("ACADEMIA ONÇA", c + Vector3(0, 6.3, 7.4), 140, Color(0.98, 0.82, 0.3))
+	# the founder in bronze on one side of the door, the kids-class mascot on the other
+	_statue("statue_mestre", c + Vector3(-6.2, 0, 10.5), 0.25, 1.25, "O MESTRE", "Fundador · Academia Onça")
+	var kid := _place_model("mascot_junior", c + Vector3(6.2, 0.55, 10.5), 1.0, -0.25, Vector3(1.2, 1.6, 1.2))
+	if kid:
+		_box(Vector3(1.4, 0.55, 1.4), c + Vector3(6.2, 0.27, 10.5), Color(0.13, 0.38, 0.26))
+		_label("AULA KIDS · 17h", c + Vector3(6.2, 2.25, 10.5), 44, Color(1, 0.9, 0.4))
 	_label("JIU-JITSU · OSS", c + Vector3(0, 4.3, 7.35), 70, Color(1, 1, 1))
 	var lamp := OmniLight3D.new()
 	lamp.position = c + Vector3(0, 4.2, 0)
@@ -851,6 +858,102 @@ func _place_model(n: String, pos: Vector3, scale_v: float, rot_y := 0.0, box := 
 		cs.rotation.y = rot_y
 		_static.add_child(cs)
 	return inst
+
+# ================================================================ dressing (tools/propbuild)
+## A Blender-built prop at (x, z) on the ground. Skips spots that would land in a building unless
+## `inside` (for gym interiors). box > 0 adds a collider.
+func _prop(n: String, x: float, z: float, rot := 0.0, box := Vector3.ZERO, inside := false, sc := 1.0) -> void:
+	if not inside and _is_blocked(x, z, 0.4):
+		return
+	_place_model("props/" + n, Vector3(x, ground_y(x, z), z), sc, rot, box)
+
+## Props by zone: gym gear, plaza lamps and boteco tables, market stalls, beach kiosks...
+func _dress_props() -> void:
+	match zone:
+		"caceres":
+			var c := Vector3(0, 0, -54)   # Academia Onça
+			_prop("heavy_bag", c.x - 7.2, c.z - 5.6, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("heavy_bag", c.x + 7.2, c.z - 5.6, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("mat_stack", c.x - 7.6, c.z + 4.0, 0.3, Vector3(1, 0.5, 2), true)
+			_prop("weights", c.x + 7.8, c.z + 2.5, -PI / 2, Vector3(0.5, 0.6, 1.2), true)
+			var g := Vector3(59, 0, -64)  # Galpão
+			_prop("heavy_bag", g.x - 6.0, g.z - 4.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("heavy_bag", g.x + 6.0, g.z - 4.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("weights", g.x + 7.0, g.z + 2.0, -PI / 2, Vector3(0.5, 0.6, 1.2), true)
+			_prop("mat_stack", g.x - 7.0, g.z + 3.0, 0.0, Vector3(1, 0.5, 2), true)
+			for p in [Vector2(-11, 8), Vector2(11, 8), Vector2(0, -2), Vector2(0, 18)]:   # Praça lamps
+				_prop("street_lamp", p.x, p.y, 0.0, Vector3(0.3, 3.6, 0.3), true)
+			for p in [Vector2(-17, 20), Vector2(-14, 23), Vector2(17, 20)]:   # boteco tables
+				_prop("bar_table", p.x, p.y, randf() * TAU)
+			var sq := Vector3(28, 0, 60)  # Praça Vila Nova
+			_prop("acai_cart", sq.x - 6.5, sq.z + 2.0, 0.4, Vector3(1.4, 1.2, 0.9))
+			_prop("street_lamp", sq.x - 8.5, sq.z - 6.5, 0.0, Vector3(0.3, 3.6, 0.3), true)
+			_prop("street_lamp", sq.x + 8.5, sq.z + 6.5, 0.0, Vector3(0.3, 3.6, 0.3), true)
+			for x in [12.0, 46.0]:   # Feira: two more stalls
+				_prop("market_stall", x, -22.0, 0.0, Vector3(2.2, 1.0, 1.0))
+			var q := Vector3(62, 0, 66)   # Quadra benches
+			_prop("bench", q.x - 4, q.z + 7.6, PI, Vector3(1.8, 0.8, 0.5))
+			_prop("bench", q.x + 4, q.z + 7.6, PI, Vector3(1.8, 0.8, 0.5))
+			var pr := Vector3(-40, 0, 70)  # Prainha
+			_prop("kiosk", pr.x + 11, pr.z - 5, PI, Vector3(2.8, 3, 2.8), true)
+			_prop("bar_table", pr.x + 8, pr.z - 1, 0.6, Vector3.ZERO, true)
+			_prop("bar_table", pr.x + 13, pr.z + 0, 1.8, Vector3.ZERO, true)
+			_prop("hammock", pr.x - 10, pr.z - 4, 0.3, Vector3.ZERO, true)
+			_prop("canoe", pr.x - 3, pr.z + 6, 1.1, Vector3(4.2, 0.6, 1.0), true)
+			_prop("bus_stop", 20, 4, 0.0, Vector3(2.6, 2.4, 1.2))
+		"pantanal":
+			_dress_camp("pesca", [["canoe", 1.1], ["pier", 0.0], ["hammock", 0.4], ["bench", 2.0]])
+			_dress_camp("fazenda_hands", [["hammock", 0.0], ["bar_table", 0.5], ["bench", 1.2]])
+			_dress_near(VENDOR_SPOTS.pantanal[0], [["bar_table", 0.3], ["bar_table", 1.5], ["hammock", 0.8]])
+		"chapada":
+			_dress_camp("trail", [["bench", 0.3], ["hammock", 1.0]])
+			_dress_camp("poco", [["hammock", 0.6], ["bench", 2.4]])
+			_dress_near(VENDOR_SPOTS.chapada[0], [["bar_table", 0.0], ["acai_cart", 1.0], ["bench", 2.2]])
+		"rio":
+			_dress_camp("orla", [["kiosk", 0.0], ["surf_rack", 0.8], ["bar_table", 1.4], ["bar_table", 2.0], ["acai_cart", 2.6]])
+			_dress_camp("lapa", [["street_lamp", 0.0], ["street_lamp", 1.6], ["bar_table", 0.7], ["bar_table", 2.2], ["bus_stop", 3.1]])
+			_dress_near(VENDOR_SPOTS.rio[0], [["surf_rack", 0.5], ["bar_table", 1.1], ["street_lamp", 2.0]])
+
+## Props in a ring just outside a mob camp (so they frame it without blocking the pulls).
+func _dress_camp(camp_id: String, items: Array) -> void:
+	for camp in Loot.CAMPS.get(zone, []):
+		if str(camp.id) == camp_id:
+			var c: Vector3 = camp.pos
+			var r := float(camp.radius) * MOB_SPREAD + 2.0
+			for i in items.size():
+				var a: float = float(items[i][1]) * 1.3 + i * 0.4
+				_prop(str(items[i][0]), c.x + cos(a) * r, c.z + sin(a) * r, -a)
+
+func _dress_near(p: Vector3, items: Array) -> void:
+	for i in items.size():
+		var a: float = float(items[i][1]) * 2.0
+		_prop(str(items[i][0]), p.x + cos(a) * 6.0, p.z + sin(a) * 6.0, -a + PI / 2)
+
+## A bronze (or stone) statue of a Meshy figure on a pedestal with a plaque label.
+func _statue(n: String, pos: Vector3, rot_y: float, scale_v: float, title: String, sub: String,
+		metal := Color(0.62, 0.42, 0.22)) -> void:
+	var gy := ground_y(pos.x, pos.z)
+	var base := Vector3(pos.x, gy, pos.z)
+	_box(Vector3(1.6, 0.9, 1.6), base + Vector3(0, 0.45, 0), Color(0.72, 0.7, 0.66))
+	_box(Vector3(1.8, 0.15, 1.8), base + Vector3(0, 0.95, 0), Color(0.6, 0.58, 0.55), false)
+	var inst := _place_model(n, base + Vector3(0, 1.02, 0), scale_v, rot_y, Vector3(1.2, 3.0, 1.2))
+	if inst == null:
+		return
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = metal
+	mat.metallic = 0.75
+	mat.roughness = 0.38
+	mat.rim_enabled = true
+	mat.rim = 0.25
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		for i in mi.mesh.get_surface_count():
+			mi.set_surface_override_material(i, mat)
+	var fwd := Vector3(sin(rot_y), 0, cos(rot_y))
+	var plaque := _label(title, base + Vector3(0, 0.62, 0) + fwd * 0.82, 40, Color(1, 0.88, 0.55), rot_y)
+	plaque.outline_size = 6
+	var l2 := _label(sub, base + Vector3(0, 0.38, 0) + fwd * 0.82, 26, Color(0.95, 0.92, 0.85), rot_y)
+	l2.outline_size = 4
 
 ## Animated CC0 animal (Quaternius). length = rough body length in metres.
 func _animal(n: String, pos: Vector3, length: float, rot_y := 0.0) -> void:
@@ -2459,6 +2562,9 @@ func _build_vila_nova() -> void:
 	_box(Vector3(5, 1.0, 1.0), shop + Vector3(0, 0.5, 1.4), Color(0.5, 0.35, 0.2))
 	_label("MERCADINHO DO SEU JORGE", shop + Vector3(0, 4.0, 1.2), 56, Color(1, 0.95, 0.75))
 	_spot(shop + Vector3(0, 0, 3.0), 4.0, "Shop: Mercadinho do Seu Jorge", "vendor", "Seu Jorge")
+	# a gi on a stand by the counter: what's for sale
+	if _place_model("gi_mannequin", shop + Vector3(3.6, 0, 1.5), 1.0, -0.35, Vector3(0.9, 1.7, 0.6)):
+		_cyl(0.05, 0.05, 0.1, shop + Vector3(3.6, 0.05, 1.5), Color(0.3, 0.3, 0.3), 8)
 	# Quadra da Vila (camp)
 	var q := Vector3(62, ground_y(62, 66), 66)
 	_box(Vector3(20, 0.2, 12), q + Vector3(0, 0.06, 0), Color(0.3, 0.45, 0.55), false)
@@ -2492,10 +2598,14 @@ func _build_vila_nova() -> void:
 			var col := Color(0.13, 0.38, 0.26) if (x + z) % 2 == 0 else Color(0.25, 0.25, 0.28)
 			_box(Vector3(1.96, 0.08, 1.96), g + Vector3(-5 + x * 2, 0.25, -3 + z * 2), col, false)
 	_label("GALPÃO  ·  ELITE", g + Vector3(0, 6.2, 5.2), 80, Color(1, 0.55, 0.35))
+	_statue("statue_faixa_preta", g + Vector3(-10.5, 0, 6.5), 0.5, 1.2, "FAIXA PRETA", "Only the elite train here", Color(0.18, 0.18, 0.2))
 	# a second vendor at the Feira
 	_spot(Vector3(30, 0, -19), 4.0, "Shop: Barraca da Dona Cida", "vendor", "Dona Cida")
 
 # ================================================================ mobs
+const MOB_SPREAD := 1.6   # camps cover more ground than their nominal radius
+const MOB_GAP := 9.0       # min metres between mobs of one camp at spawn
+
 func _build_mobs() -> void:
 	for camp in Loot.CAMPS.get(zone, []):
 		var c: Dictionary = camp
@@ -2518,10 +2628,25 @@ func _spawn_mob(e: Dictionary) -> void:
 	var n := Npc.new()
 	add_child(n)
 	var p: Vector3 = c.pos
-	n.setup_mob(m, self, p, float(c.radius))
-	var a := rng.randf() * TAU
-	var r := rng.randf() * float(c.radius) * 0.8
-	var at := p + Vector3(cos(a) * r, 0, sin(a) * r)
+	var rad := float(c.radius) * MOB_SPREAD
+	n.setup_mob(m, self, p, rad)
+	# spread the camp out (WoW-style pulls): keep MOB_GAP metres from the camp's other mobs
+	var at := p
+	var best := -1.0
+	for k in 24:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * rad * 0.9
+		var cand := p + Vector3(cos(a) * r, 0, sin(a) * r)
+		var near := INF
+		for o in mobs:
+			if o.npc and is_instance_valid(o.npc) and o.camp == c:
+				near = minf(near, Vector2(cand.x, cand.z).distance_to(Vector2(o.npc.position.x, o.npc.position.z)))
+		if near >= MOB_GAP:
+			at = cand
+			break
+		if near > best:
+			best = near
+			at = cand
 	n.position = Vector3(at.x, ground_y(at.x, at.z), at.z)
 	if player:
 		n.set_player(player)

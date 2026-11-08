@@ -52,7 +52,9 @@ func setup_villager(seed_v: int, w, area_center: Vector3) -> Npc:
 # ------------------------------------------------------------ mobs
 ## A roaming mob: wanders its camp; aggressive ones walk up and challenge you when you get close.
 var mob := {}
+var in_combat := false   # WorldCombat drives movement / facing while true
 var camp_radius := 8.0
+const AGGRO_RANGE := 6.5   # metres; camps are spaced so you can pull one at a time
 var _chasing := false
 var _queue_pos := Vector3.INF   # waiting at the edge of your fight for the winner
 var _queue_look := Vector3.ZERO
@@ -82,6 +84,8 @@ func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	display_name = str(m.name)
 	rig = BodyRig.new()
 	add_child(rig)
+	if m.get("rare", false) or m.get("elite", false):
+		rig.bulk = 1.14   # elites and rares are built heavier
 	rig.setup(m.gi, Data.BELTS[Data.belt_of(int(m.rank))].color, m.skin, Color(0.12, 0.08, 0.05), -1, str(m.get("body", "male")))
 	tag = Label3D.new()
 	tag.font = Wow.title_font()
@@ -129,7 +133,7 @@ func _mob_process(delta: float) -> bool:
 	var d := to_p.length()
 	var home_d := (global_position - _home).length()
 	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Data.display_level(float(mob.level)) >= Game.player_level() - 6
-	if can_aggro and d < 9.0 and home_d < camp_radius + 10.0:
+	if can_aggro and d < AGGRO_RANGE and home_d < camp_radius + 10.0:
 		_chasing = true
 	elif _chasing and (d > 14.0 or home_d > camp_radius + 12.0 or world.aggro_grace > 0.0):
 		_chasing = false
@@ -216,6 +220,8 @@ func _pick_target() -> void:
 	_wait = rng.randf_range(1.0, 4.0)
 
 func _process(delta: float) -> void:
+	if in_combat:
+		return
 	if _mob_process(delta):
 		return
 	if wander:

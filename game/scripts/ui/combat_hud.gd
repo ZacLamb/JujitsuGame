@@ -1,0 +1,246 @@
+class_name CombatHud
+extends Control
+## WoW-style combat UI for WorldCombat: player bars (Composure / Gas / Grip pips) under the unit
+## frame, a target frame with its cast bar and auras, the action bar (1-0, Q R F) with cooldown
+## sweeps, GCD, out-of-range / no-gas tints and tooltips, the player's cast bar and red error text.
+
+const TYPE_COL := {"handfight": Color(0.78, 0.78, 0.74), "takedown": Color(0.95, 0.45, 0.25), "sweep": Color(0.35, 0.8, 0.5),
+	"pass": Color(0.95, 0.75, 0.25), "advance": Color(0.95, 0.6, 0.2), "back": Color(0.6, 0.45, 0.95), "sub": Color(0.95, 0.25, 0.3),
+	"escape": Color(0.4, 0.85, 1.0), "guard": Color(0.55, 0.7, 0.95), "defend": Color(0.98, 0.6, 0.2)}
+const TYPE_GLYPH := {"handfight": "link", "takedown": "down", "sweep": "loop", "pass": "chevron", "advance": "chevron",
+	"back": "loop", "sub": "bolt", "escape": "wave", "guard": "shield", "defend": "shield"}
+const HP_COL := Color(0.2, 0.75, 0.25)
+const GAS_COL := Color(1.0, 0.82, 0.15)
+
+var combat: WorldCombat
+var _slots: Array = []
+var _tip: Control
+var _err: Label
+var _flash: Label
+var _flash_sub: Label
+var _flash_t := 0.0
+
+func _init() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+func _ready() -> void:
+	# action bar: 10 numbered + 3 utility buttons, bottom centre
+	var bar := HBoxContainer.new()
+	bar.anchor_left = 0.5
+	bar.anchor_right = 0.5
+	bar.anchor_top = 1.0
+	bar.anchor_bottom = 1.0
+	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bar.offset_bottom = -14
+	bar.add_theme_constant_override("separation", 4)
+	bar.name = "ActionBar"
+	add_child(bar)
+	for i in 13:
+		if i == 10:
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(14, 0)
+			bar.add_child(gap)
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(50, 50)
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.mouse_filter = Control.MOUSE_FILTER_STOP
+		var idx := i
+		b.pressed.connect(func(): _press(idx))
+		b.mouse_entered.connect(func(): _show_tip(idx, b))
+		b.mouse_exited.connect(_hide_tip)
+		b.draw.connect(func(): _draw_slot(b, idx))
+		bar.add_child(b)
+		_slots.append(b)
+	_err = Wow.title("", 22, Color(1, 0.2, 0.15))
+	_err.anchor_left = 0.5
+	_err.anchor_right = 0.5
+	_err.offset_left = -300
+	_err.offset_right = 300
+	_err.offset_top = 96
+	_err.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_err.add_theme_constant_override("outline_size", 6)
+	add_child(_err)
+	_flash = Wow.title("", 64, Color(1, 0.3, 0.25))
+	_flash.set_anchors_preset(Control.PRESET_CENTER)
+	_flash.offset_left = -400
+	_flash.offset_right = 400
+	_flash.offset_top = -120
+	_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_flash.add_theme_constant_override("outline_size", 10)
+	add_child(_flash)
+	_flash_sub = Wow.label("", 20, Wow.WHITE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	_flash_sub.set_anchors_preset(Control.PRESET_CENTER)
+	_flash_sub.offset_left = -400
+	_flash_sub.offset_right = 400
+	_flash_sub.offset_top = -40
+	_flash_sub.add_theme_constant_override("outline_size", 6)
+	add_child(_flash_sub)
+
+func flash(head: String, sub: String) -> void:
+	_flash.text = head
+	_flash_sub.text = sub
+	_flash_t = 3.5
+
+func _ability(i: int) -> Dictionary:
+	if combat == null or combat.me == null:
+		return {}
+	var ab: Array = combat.me.abilities
+	return ab[i] if i < ab.size() else {}
+
+func _press(i: int) -> void:
+	var a := _ability(i)
+	if not a.is_empty():
+		combat.press(str(a.id))
+
+func _process(delta: float) -> void:
+	visible = combat != null and combat.me != null
+	if not visible:
+		return
+	_err.text = combat.error_text if combat.error_t > 0.0 else ""
+	_err.modulate.a = clampf(combat.error_t, 0.0, 1.0)
+	_flash_t = maxf(0.0, _flash_t - delta)
+	_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)
+	_flash_sub.modulate.a = _flash.modulate.a
+	for b in _slots:
+		(b as Control).queue_redraw()
+	queue_redraw()
+
+# ------------------------------------------------------------ frames (drawn)
+func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, text: String, back := Color(0.05, 0.05, 0.06, 0.9)) -> void:
+	draw_rect(Rect2(pos - Vector2(1, 1), size + Vector2(2, 2)), Color(0, 0, 0, 0.9))
+	draw_rect(Rect2(pos, size), back)
+	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y)), col)
+	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y * 0.4)), Color(1, 1, 1, 0.12))
+	if text != "":
+		var f := Wow.body()
+		var fs := int(size.y * 0.85)
+		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string_outline(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0))
+		draw_string(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1))
+
+func _draw() -> void:
+	var me: CombatCore.Unit = combat.me
+	# player bars, under the unit frame (top-left)
+	var x0 := 94.0
+	_bar(Vector2(x0, 112), Vector2(246, 16), me.pct(), HP_COL, "%d / %d" % [int(me.hp), int(me.max_hp)])
+	_bar(Vector2(x0, 131), Vector2(246, 11), me.gas / me.max_gas, GAS_COL, "")
+	for g in me.max_grip:
+		var c := Vector2(x0 + 8 + g * 18, 154)
+		draw_circle(c, 7, Color(0, 0, 0, 0.85))
+		draw_circle(c, 5.5, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
+	var f := Wow.title_font()
+	if me.grip > 0:
+		draw_string_outline(f, Vector2(x0 + 8 + me.max_grip * 18, 159), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
+		draw_string(f, Vector2(x0 + 8 + me.max_grip * 18, 159), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.55, 0.35))
+	_auras(me, Vector2(x0, 166))
+	# player cast bar (above the action bar)
+	if not me.cast.is_empty():
+		var w := 300.0
+		var p := Vector2((size.x - w) / 2.0, size.y - 120)
+		_bar(p, Vector2(w, 16), float(me.cast.t) / float(me.cast.dur), Color(1, 0.75, 0.2), str(me.cast.ab.name))
+	# target frame
+	var t: CombatCore.Unit = combat.target
+	if t == null:
+		return
+	var tp := Vector2(370, 14)
+	var plate := Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Color(1, 0.82, 0.3, 0.9) if t.elite else Color(Wow.FRAME, 0.9), 4, 0, 2 if t.elite else 1)
+	draw_style_box(plate, Rect2(tp, Vector2(270, 74)))
+	var nm := "%s" % t.name
+	var lvl := "%d%s" % [t.level, "+" if t.elite else ""]
+	var ncol := Data.con_color(t.level, Game.player_level())
+	draw_string_outline(f, tp + Vector2(10, 22), nm, HORIZONTAL_ALIGNMENT_LEFT, 200, 16, 4, Color.BLACK)
+	draw_string(f, tp + Vector2(10, 22), nm, HORIZONTAL_ALIGNMENT_LEFT, 200, 16, Wow.GOLD if not t.dead else Color(0.6, 0.6, 0.6))
+	draw_string_outline(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, 4, Color.BLACK)
+	draw_string(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, ncol)
+	_bar(tp + Vector2(10, 30), Vector2(250, 20), t.pct(), HP_COL if not t.in_combat else Color(0.85, 0.25, 0.2), "%d%%" % int(round(t.pct() * 100.0)))
+	if t.elite:
+		var tag := "Rare Elite" if t.boss else "Elite"
+		draw_string(Wow.body(), tp + Vector2(12, 64), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.82, 0.3))
+	if not t.cast.is_empty():
+		var interruptible := true
+		_bar(tp + Vector2(10, 82), Vector2(250, 14), float(t.cast.t) / float(t.cast.dur),
+			Color(1, 0.7, 0.15) if interruptible else Color(0.6, 0.6, 0.6), str(t.cast.ab.name))
+		draw_string_outline(Wow.body(), tp + Vector2(12, 112), "Frame it! [R]", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color.BLACK)
+		draw_string(Wow.body(), tp + Vector2(12, 112), "Frame it! [R]", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 0.85, 1.0))
+	_auras(t, tp + Vector2(150, 54))
+
+func _auras(u: CombatCore.Unit, at: Vector2) -> void:
+	var names := {"down": ["DOWN", Color(1, 0.55, 0.2)], "pinned": ["PIN", Color(0.95, 0.8, 0.3)], "exposed": ["EXP", Color(0.75, 0.55, 1.0)],
+		"base": ["BASE", Color(0.98, 0.6, 0.2)], "guarded": ["GRD", Color(0.55, 0.7, 0.95)], "framed": ["FRM", Color(0.4, 0.75, 1.0)]}
+	var x := 0.0
+	for k in u.auras:
+		if not names.has(k):
+			continue
+		var r := Rect2(at + Vector2(x, 0), Vector2(30, 18))
+		draw_rect(r, Color(0, 0, 0, 0.85))
+		draw_rect(r.grow(-1.5), Color(names[k][1], 0.35))
+		draw_string(Wow.body(), r.position + Vector2(2, 13), str(names[k][0]), HORIZONTAL_ALIGNMENT_LEFT, 28, 10, Color.WHITE)
+		draw_string(Wow.body(), r.position + Vector2(2, 30), "%d" % ceili(float(u.auras[k].t)), HORIZONTAL_ALIGNMENT_LEFT, 28, 11, Color(1, 1, 0.8))
+		x += 34.0
+
+# ------------------------------------------------------------ action buttons
+func _draw_slot(b: Button, i: int) -> void:
+	var a := _ability(i)
+	var r := Rect2(Vector2.ZERO, b.size)
+	var me: CombatCore.Unit = combat.me
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = Color(0.05, 0.05, 0.06, 0.92)
+	frame.border_color = Color(0.55, 0.45, 0.28)
+	frame.set_border_width_all(2)
+	frame.set_corner_radius_all(3)
+	b.draw_style_box(frame, r)
+	if a.is_empty():
+		return
+	var t := str(a.get("type", "handfight"))
+	var col: Color = TYPE_COL.get(t, Color(0.8, 0.8, 0.8))
+	var inner := r.grow(-3)
+	b.draw_rect(inner, col.darkened(0.6))
+	CharSheet.draw_glyph(b, TYPE_GLYPH.get(t, "star"), b.size / 2.0, 22, col.lightened(0.3))
+	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
+	var cd := float(me.cds.get(a.id, 0.0))
+	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
+	# tints: red = out of range / no target, blue = no gas, dark = cooldown
+	if why == "Out of range":
+		b.draw_rect(inner, Color(0.8, 0.1, 0.1, 0.35))
+	elif why == "Not enough gas" or why.begins_with("Needs grip") or why.begins_with("They must"):
+		b.draw_rect(inner, Color(0.15, 0.2, 0.6, 0.5))
+	var rem := maxf(cd, gcd)
+	if rem > 0.0:
+		var total := maxf(float(a.get("cd", 0.0)), 1.0) if cd >= gcd else CombatCore.GCD
+		var frac := clampf(rem / total, 0.0, 1.0)
+		# cooldown wipe (top-down shade, clipped to the button)
+		b.draw_rect(Rect2(inner.position, Vector2(inner.size.x, inner.size.y * frac)), Color(0, 0, 0, 0.62))
+		if cd > 1.5:
+			var s := str(ceili(cd))
+			var f := Wow.title_font()
+			var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+			b.draw_string_outline(f, Vector2((b.size.x - w) / 2.0, 36), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color.BLACK)
+			b.draw_string(f, Vector2((b.size.x - w) / 2.0, 36), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 0.85))
+	# finisher / advance ready glow
+	if why == "" and (bool(a.get("finisher", false)) and me.grip >= 3 or str(a.get("needs", "")) == "control"):
+		b.draw_rect(r.grow(-1), Color(1, 0.85, 0.3, 0.85), false, 2.0)
+	var key := str(a.get("key", ""))
+	b.draw_string_outline(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
+	b.draw_string(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.85, 0.85))
+
+func _show_tip(i: int, b: Control) -> void:
+	_hide_tip()
+	var a := _ability(i)
+	if a.is_empty():
+		return
+	var tv: Array = Wow.tip(280)
+	for ln in Abilities.tip_lines(a, combat.me):
+		Wow.tline(tv[1], str(ln[0]), ln[1], int(ln[2]), true)
+	_tip = tv[0]
+	add_child(_tip)
+	_tip.reset_size()
+	var gp := b.global_position
+	_tip.global_position = Vector2(clampf(gp.x - 120, 8, size.x - 300), gp.y - _tip.size.y - 10)
+
+func _hide_tip() -> void:
+	if _tip:
+		_tip.queue_free()
+		_tip = null

@@ -177,6 +177,7 @@ class Doll extends SubViewportContainer:
 		pivot.add_child(ring)
 		rig = BodyRig.new()
 		rig.lod_enabled = false
+		rig.bulk = 1.0
 		pivot.add_child(rig)
 		Game.dress(rig)
 		rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")

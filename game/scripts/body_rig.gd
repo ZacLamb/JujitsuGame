@@ -67,6 +67,33 @@ const FIGHTERS := {"male": "res://assets/models/fighter_male.scn", "female": "re
 const MESHY := {"male": "res://assets/models/meshy_male.scn", "female": "res://assets/models/meshy_female.scn"}
 static var use_meshy := true
 var _meshy := false
+## Body width for the Meshy bodies (1 = as modelled). 0 = pick from the look hash (0.92-1.1) so
+## NPCs sharing a body still read as lighter / heavier builds.
+var bulk := 0.0
+## In-world combat (WorldCombat): stance when idle, short pose actions that lock locomotion.
+var combat_ready := false
+var _in_stance := false
+var _action_until := 0.0
+
+func in_action() -> bool:
+	return Time.get_ticks_msec() * 0.001 < _action_until
+
+## Plays [pose, root, seconds(, ease)] frames; locomotion waits until they finish (hold = until release()).
+func action(frames: Array, hold := false) -> void:
+	if frames.is_empty() or skel == null:
+		return
+	var tot := 0.0
+	for f in frames:
+		tot += float(f[2])
+	_action_until = INF if hold else Time.get_ticks_msec() * 0.001 + tot
+	_in_stance = false
+	tween_frames(frames)
+
+func release(frames: Array = []) -> void:
+	_action_until = 0.0
+	if not frames.is_empty():
+		action(frames)
+var smoother: PoseSmoother
 const HAIR_NAMES := ["short", "buzz", "bun", "curly", "", "long", "ponytail"]
 var look := {}            # gear look (Game.dress); empty = derived from the setup colours
 var _pieces := {}         # piece name -> MeshInstance3D
@@ -319,6 +346,15 @@ static func lerp_pose(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 ## Procedural walk / idle cycle for exploration. speed01: 0 idle .. 1 run.
 func animate_locomotion(delta: float, speed01: float, airborne := false) -> void:
 	if skel:
+		if in_action():
+			return
+		# in a fight and standing still: hold a grappling stance instead of the idle clip
+		if combat_ready and speed01 < 0.05 and not airborne:
+			if _anim_mode or not _in_stance:
+				_in_stance = true
+				tween_pose(CombatAnim.stance(), current_root(), 0.22)
+			return
+		_in_stance = false
 		_play_locomotion(speed01, airborne)
 		return
 	if airborne:
@@ -378,6 +414,8 @@ func _build_skinned() -> void:
 		skinned = null
 		return
 	skel = sk[0]
+	smoother = PoseSmoother.new()
+	skel.add_child(smoother)
 	var ap := skinned.find_children("*", "AnimationPlayer", true, false)
 	anim = ap[0] if not ap.is_empty() else null
 	if anim:
@@ -420,6 +458,11 @@ func _build_skinned() -> void:
 			_build_ponytail()
 	if body == "female":
 		skinned.scale *= Vector3(0.95, 0.94, 0.95)
+	if _meshy:
+		var w := bulk
+		if w <= 0.0:
+			w = 0.92 + float(absi(hash(gi_color.to_html() + skin_color.to_html() + belt_color.to_html())) % 1000) / 1000.0 * 0.18
+		skinned.scale *= Vector3(w, 1.0, w)
 	_play_locomotion(0.0, false)
 	_collect_lod()
 
@@ -872,18 +915,28 @@ func _play_locomotion(speed01: float, airborne: bool) -> void:
 		return
 	_anim_mode = true
 	var want := "Idle"
+	# hysteresis so the clip doesn't flicker when speed hovers at a threshold
+	var cur := anim.current_animation
+	var run_at := 0.55 if cur == _anim_names.get("Run", "") else 0.66
+	var walk_at := 0.03 if cur == _anim_names.get("Walk", "") or cur == _anim_names.get("Run", "") else 0.08
 	if airborne and _anim_names.has("Jump"):
 		want = "Jump"
-	elif speed01 > 0.62 and _anim_names.has("Run"):
+	elif speed01 > run_at and _anim_names.has("Run"):
 		want = "Run"
-	elif speed01 > 0.05 and _anim_names.has("Walk"):
+	elif speed01 > walk_at and _anim_names.has("Walk"):
 		want = "Walk"
 	var full: String = _anim_names.get(want, "")
 	if full == "":
 		return
 	if anim.current_animation != full or not anim.is_playing():
-		anim.play(full, 0.2)
-	anim.speed_scale = 1.0 if want != "Walk" else lerpf(0.7, 1.3, speed01 / 0.62)
+		anim.play(full, 0.3)
+	# keep cadence continuous across the walk -> run switch (no foot-skate jump)
+	if want == "Walk":
+		anim.speed_scale = lerpf(0.75, 1.25, clampf(speed01 / 0.62, 0.0, 1.0))
+	elif want == "Run":
+		anim.speed_scale = lerpf(0.85, 1.1, clampf((speed01 - 0.62) / 0.38, 0.0, 1.0))
+	else:
+		anim.speed_scale = 1.0
 
 func _enter_pose_mode() -> void:
 	if skel and _anim_mode:
@@ -992,6 +1045,10 @@ func _update_lod(delta: float) -> void:
 
 func _apply_lod() -> void:
 	visible = _lod < 3 and not force_hidden
+	if smoother:
+		smoother.active = _lod < 2
+		if _lod >= 2:
+			smoother.reset()
 	for e in _lod_surfaces:
 		if not is_instance_valid(e[0]):
 			continue

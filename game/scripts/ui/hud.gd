@@ -327,12 +327,12 @@ func set_prompt(npc: Npc) -> void:
 		touch.interact_btn.visible = false
 		return
 	if not npc.mob.is_empty():
-		prompt.text = "[E]  Roll with %s (Lv %d)" % [npc.mob.name, Data.display_level(float(npc.mob.level))]
+		prompt.text = "[E] / [1]  Attack %s (Lv %d)    [Tab] target" % [npc.mob.name, Data.display_level(float(npc.mob.level))]
 		touch.interact_btn.visible = true
 		touch.interact_btn.text = "ROLL"
 		return
 	var o: Dictionary = Data.OPPONENTS[npc.opp_id]
-	var verb := "Talk to" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "Roll with"
+	var verb := "Talk to" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "Challenge"
 	prompt.text = "[E]  %s %s" % [verb, o.name]
 	touch.interact_btn.visible = true
 	touch.interact_btn.text = "TALK" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "ROLL"
@@ -349,6 +349,18 @@ func _build_toasts() -> void:
 	toasts.add_theme_constant_override("separation", 8)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toasts)
+
+var combat_hud: CombatHud
+
+func set_combat(c: WorldCombat) -> void:
+	if combat_hud == null:
+		combat_hud = CombatHud.new()
+		root.add_child(combat_hud)
+	combat_hud.combat = c
+
+func flash_message(head: String, sub: String) -> void:
+	if combat_hud:
+		combat_hud.flash(head, sub)
 
 func show_toast(text: String, color := Color.WHITE) -> void:
 	var p := PanelContainer.new()
