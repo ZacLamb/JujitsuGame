@@ -4,7 +4,7 @@ extends Control
 ## per zone from the world's height/color functions with hillshading; icons are drawn live.
 
 const MAP_RES := 2.0          # metres per map pixel
-const MINI_SIZE := 190.0
+const MINI_SIZE := 148.0
 const MINI_RANGE := 70.0      # metres from the player to the minimap edge
 
 var world: World
@@ -58,7 +58,7 @@ func _process(delta: float) -> void:
 # ------------------------------------------------------------ drawing
 func _mini_rect() -> Rect2:
 	var vs := get_viewport_rect().size
-	var s := MINI_SIZE if vs.x > 700 else 150.0
+	var s := MINI_SIZE if vs.x > 700 else 120.0
 	if vs.y > vs.x:   # portrait phones: under the status panel, top-left
 		return Rect2(Vector2(14, 270), Vector2(s, s))
 	return Rect2(Vector2(vs.x - s - 26, 38), Vector2(s, s))   # top-right, round, like WoW

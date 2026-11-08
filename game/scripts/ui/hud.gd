@@ -86,8 +86,9 @@ func _ready() -> void:
 func _build_status() -> void:
 	# --- player unit frame (top-left, like WoW): round emblem + level badge, name, belt, XP
 	var uf := Control.new()
-	uf.position = Vector2(12, 10)
+	uf.position = Vector2(10, 8)
 	uf.size = Vector2(340, 96)
+	uf.scale = Vector2(0.8, 0.8)   # compact, like WoW's player frame
 	uf.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(uf)
 	status_panels.append(uf)
@@ -134,7 +135,7 @@ func _build_status() -> void:
 	right.anchor_right = 1.0
 	right.offset_left = -330
 	right.offset_right = -14
-	right.offset_top = 262
+	right.offset_top = 214
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_theme_constant_override("separation", 2)
 	root.add_child(right)
@@ -226,7 +227,7 @@ func set_portrait(p: bool) -> void:
 	else:
 		_obj_panel.anchor_left = 1.0
 		_obj_panel.offset_left = -330
-		_obj_panel.offset_top = 262
+		_obj_panel.offset_top = 214
 		objective.custom_minimum_size = Vector2(300, 0)
 		toasts.offset_top = 110
 		toasts.offset_left = -300
@@ -1217,8 +1218,9 @@ class AbilityEntry extends HBoxContainer:
 		e.add_theme_constant_override("separation", 8)
 		e.custom_minimum_size = Vector2(300, 46)
 		var ic := SpellIcon.new()
-		ic.col = CombatHud.TYPE_COL.get(str(a.get("type", "")), Color(0.8, 0.7, 0.5))
-		ic.glyph = CombatHud.TYPE_GLYPH.get(str(a.get("type", "")), "star")
+		var icn: Array = CombatHud.icon_of(a)
+		ic.col = icn[1]
+		ic.glyph = str(icn[0])
 		ic.known = have
 		ic.glow = str(a.id) in ["spec", "racial"] and have
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1304,6 +1306,9 @@ class SpellIcon extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	func _draw() -> void:
 		var r := Rect2(Vector2(2, 2), size - Vector2(4, 4))
+		if true:
+			IconArt.draw(self, r, glyph, col, Wow.GOLD if glow else Color(0, 0, 0, 0), not known)
+			return
 		var bg := StyleBoxFlat.new()
 		bg.bg_color = col.darkened(0.55) if known else Color(0.3, 0.27, 0.22)
 		bg.border_color = Color(1, 0.85, 0.35) if glow else Color(0.35, 0.25, 0.12)

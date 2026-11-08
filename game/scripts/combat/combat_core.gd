@@ -47,6 +47,10 @@ class Unit:
 	var ai_t := 2.0
 	var last_sub := ""
 	var second_wind_used := false
+	var known: Array = []          # player: known move ids, strongest first
+	var gpos := "standing"         # enemy units: the grappling position with the player
+	var ptop := false              # enemy units: is the player the one on top
+	var rank := 0
 
 	func has(a: String) -> bool:
 		return auras.has(a)
@@ -82,6 +86,7 @@ func add_player(name: String, level: int, mods: Dictionary, abilities: Array) ->
 	u.auto_dmg = u.dmg * 0.8
 	u.swing_time = 2.0
 	u.abilities = abilities
+	u.known = Abilities.known_moves()
 	return _add(u)
 
 ## Enemy from a mob or opponent dict. kind: "mob" | "named" | "boss".
@@ -90,12 +95,13 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	u.data = d
 	u.name = str(d.get("name", "?"))
 	u.level = Data.display_level(float(d.get("level", 1.0)))
+	u.rank = int(d.get("rank", 0))
 	u.elite = bool(d.get("elite", false)) or kind != "mob"
 	u.boss = kind == "boss" or bool(d.get("rare", false))
 	var hm := 1.0
 	var dm := 1.0
 	if bool(d.get("rare", false)):
-		hm = 2.6
+		hm = 2.3
 		dm = 1.5
 	elif kind == "boss":
 		hm = 4.0
@@ -195,6 +201,60 @@ func cd_of(u: Unit, a: Dictionary) -> float:
 func haste(u: Unit) -> float:
 	return float(u.mods.get("decision", 1.0)) if u.player else 1.0
 
+# ------------------------------------------------------------ positions (the grappling layer)
+## Every fight with your target has a position (standing, guard, half, side, mount, back) and a
+## top / bottom. Techniques only work from where they belong, move you along the position graph,
+## and dominant spots hit harder and take less.
+const POSITIONAL := ["takedown", "sweep", "pass", "advance", "back", "sub", "escape", "guard"]
+const DOM := {"standing": 0, "guard": 1, "half": 1, "side": 2, "mount": 3, "back": 4}
+const KIND_KEY := {"base": "Q", "frame": "R", "defend": "T"}
+const KIND_VERB := {"base": "Sprawl", "frame": "Frame", "defend": "Defend"}
+
+## [position, is u on top] for u fighting t (one of them must be the player).
+func pos_info(u: Unit, t: Unit) -> Array:
+	if t == null or u == null:
+		return ["standing", false]
+	var e := t if u.player else u
+	if e.player:
+		return ["standing", false]
+	return [e.gpos, e.ptop if u.player else not e.ptop]
+
+## How dominant u is over t: +4 on the back ... -4 with their back taken.
+func dom(u: Unit, t: Unit) -> int:
+	var pi := pos_info(u, t)
+	if str(pi[0]) == "standing":
+		return 0
+	var d := int(DOM.get(str(pi[0]), 0))
+	if str(pi[0]) == "guard":
+		return 1 if pi[1] else 0     # closed guard is a fine place to be on the bottom
+	return d if pi[1] else -d
+
+static func pos_label(pos: String, top: bool) -> String:
+	if pos == "standing":
+		return "Standing"
+	return "%s (%s)" % [Data.POSITION_NAMES.get(pos, pos), "top" if top else "bottom"]
+
+## The technique an ability button means right now (strongest known move of that type from this
+## position), "@stand" for a generic scramble up, or "" if there's nothing from here.
+func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
+	var tp := str(a.get("type", ""))
+	if not u.player or not (tp in POSITIONAL or str(a.get("id", "")) == "spec"):
+		return str(a.get("_mv", a.get("move", "")))
+	var pi := pos_info(u, t)
+	var pos := str(pi[0])
+	var role := "top" if pi[1] else "bottom"
+	var ok := func(mv: String) -> bool:
+		var m: Dictionary = Data.MOVES.get(mv, {})
+		return not m.is_empty() and str(m.pos) == pos and (str(m.role) == "any" or str(m.role) == role or pos == "standing")
+	if str(a.get("id", "")) == "spec":
+		return str(a.move) if ok.call(str(a.move)) else ""
+	for mv in u.known:
+		if str(Data.MOVES[mv].type) == tp and ok.call(mv):
+			return mv
+	if tp == "escape" and pos != "standing" and (pos in ["guard", "half"] or pi[1]):
+		return "@stand"
+	return ""
+
 ## Why `a` can't be used on `t` right now ("" = ok). Shown as a red WoW-style error.
 func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 	if a.is_empty():
@@ -215,9 +275,10 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "Needs grip (build it first)"
 	if bool(a.get("ooc", false)) and u.in_combat:
 		return "Can't do that in combat"
-	var needs := str(a.get("needs", ""))
-	if needs == "control" and t != null and not (t.down() or t.has("pinned")):
-		return "They must be down or pinned"
+	if u.player and (str(a.get("type", "")) in POSITIONAL or str(a.get("id", "")) == "spec"):
+		var pi := pos_info(u, t if t != null else u.target)
+		if move_for(u, a, t if t != null else u.target) == "":
+			return "Not from %s" % pos_label(str(pi[0]), bool(pi[1]))
 	if bool(a.get("harm", true)):
 		if t == null or t.dead:
 			return "No target"
@@ -229,7 +290,9 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 
 ## Starts (or instantly resolves) an ability. Returns "" or the error text.
 func use(u: Unit, id: String, t: Unit = null) -> String:
-	var a := ability(u, id)
+	return use_ab(u, ability(u, id), t)
+
+func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 	if t == null:
 		t = u.target
 	var why := block_reason(u, a, t)
@@ -238,6 +301,15 @@ func use(u: Unit, id: String, t: Unit = null) -> String:
 	if bool(a.get("harm", true)):
 		engage(u, t)
 		u.target = t
+	if u.player:
+		var mv := move_for(u, a, t)
+		if mv != "" and mv != str(a.get("move", "")) or mv == "@stand":
+			a = a.duplicate()
+			a["_mv"] = mv
+			a["name"] = "Scramble Up" if mv == "@stand" else str(Data.MOVES[mv].name)
+		elif mv != "":
+			a = a.duplicate()
+			a["_mv"] = mv
 	u.gas -= cost_of(u, a)
 	if bool(a.get("gcd", true)):
 		u.gcd = GCD / haste(u)
@@ -265,9 +337,15 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			if u.player and u.mods.get("base_grip", false):
 				u.grip = mini(u.max_grip, u.grip + 2)
 				u.gas = minf(u.max_gas, u.gas + 30.0)
+			_counter(u, u.target, "base")
+			return
+		"defend":
+			_aura(u, "defending", 3.0, u)
+			_counter(u, u.target, "defend")
 			return
 		"guard":
 			_aura(u, "guarded", float(a.get("dur", 6.0)) + _extra(u, "guarded"), u)
+			_transition(u, u.target, str(a.get("_mv", "")), a)
 			return
 		"lucky":
 			_aura(u, "lucky", 20.0, u)
@@ -303,14 +381,11 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			if u.player:
 				u.grip = mini(u.max_grip, u.grip + 1)
 				u.gas = minf(u.max_gas, u.gas + float(u.mods.get("escape_gas", 0.0)))
+			_transition(u, u.target if u.player else t, str(a.get("_mv", "")), a)
 			return
 		"interrupt":
 			if t and not t.cast.is_empty():
-				var ab: Dictionary = t.cast.ab
-				t.cast = {}
-				t.cds[ab.id] = maxf(float(t.cds.get(ab.id, 0.0)), 4.0)
-				_aura(t, "framed", 2.0, u)
-				emit({"t": "interrupt", "u": u, "target": t, "ab": ab})
+				_counter(u, t, "frame")
 			else:
 				emit({"t": "miss", "u": u, "target": t, "text": "Nothing to frame"})
 			return
@@ -366,6 +441,72 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 				u.grip = mini(u.max_grip, u.grip + 1)
 		"expose":
 			_aura(t, "exposed", float(a.get("dur", 8.0)) + _extra(u, "exposed"), u)
+	if not t.dead:
+		_transition(u, t, str(a.get("_mv", "")), a)
+
+## The counter for a technique: sprawl / base on takedowns and sweeps, frame on passes and
+## positional moves, defend on submissions.
+static func counter_kind(a: Dictionary) -> String:
+	match str(a.get("type", "")):
+		"sub":
+			return "defend"
+		"takedown", "sweep":
+			return "base"
+	return "frame"
+
+## u answers t's cast with a counter of `kind`. The right counter stops it cold (+1 Grip); the
+## wrong one only buys a little time.
+func _counter(u: Unit, t: Unit, kind: String) -> void:
+	if t == null or t.cast.is_empty():
+		return
+	var ab: Dictionary = t.cast.ab
+	if counter_kind(ab) == kind:
+		t.cast = {}
+		t.cds[ab.get("id", "")] = maxf(float(t.cds.get(ab.get("id", ""), 0.0)), 4.0)
+		_aura(t, "framed", 1.5, u)
+		u.grip = mini(u.max_grip, u.grip + 1)
+		emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "text": "%s!" % KIND_VERB[kind]})
+	elif kind == "frame":
+		t.cast.dur = float(t.cast.dur) + 0.7
+		emit({"t": "miss", "u": u, "target": t, "text": "Wrong counter: %s it! [%s]" % [KIND_VERB[counter_kind(ab)], KIND_KEY[counter_kind(ab)]]})
+
+const POINTS := {"guard": 2, "half": 2, "side": 3, "mount": 4, "back": 4}
+
+## Moves the pair along the position graph after technique `mv` by u against t.
+func _transition(u: Unit, t: Unit, mv: String, a: Dictionary) -> void:
+	if t == null or mv == "":
+		return
+	var e := t if u.player else u
+	if e.player:
+		return
+	var newpos := ""
+	var u_top := false
+	if mv == "@stand":
+		newpos = "standing"
+	else:
+		var r = Data.MOVES.get(mv, {}).get("result", "")
+		if not r is Array:
+			return
+		newpos = str(r[0])
+		u_top = bool(r[1])
+	var player_top := u_top if u.player else not u_top
+	if newpos == e.gpos and (player_top == e.ptop or newpos == "standing"):
+		return
+	var pts := 0
+	if u_top and newpos != "standing" and str(a.get("type", "")) != "escape":
+		pts = int(POINTS.get(newpos, 0))
+		if newpos == "side" and str(a.get("type", "")) != "pass":
+			pts = 2
+	e.gpos = newpos
+	e.ptop = player_top
+	emit({"t": "position", "e": e, "pos": newpos, "ptop": player_top, "by": u, "pts": pts, "move": mv})
+
+## Back to standing (target switched, someone walked off, a tap...).
+func stand_up(e: Unit) -> void:
+	if e != null and not e.player and e.gpos != "standing":
+		e.gpos = "standing"
+		e.ptop = false
+		emit({"t": "position", "e": e, "pos": "standing", "ptop": false, "by": e, "pts": 0, "move": ""})
 
 func _extra(u: Unit, aura: String) -> float:
 	return float(u.mods.get("aura_dur", {}).get(aura, 0.0)) if u.player else 0.0
@@ -380,6 +521,11 @@ func _type_bonus(u: Unit, a: Dictionary) -> float:
 	return b
 
 func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> void:
+	var dm := dom(src, t)
+	if dm != 0:
+		amount *= 1.0 + 0.08 * dm if dm > 0 else 1.0 / (1.0 - 0.08 * dm)
+	if t.has("defending"):
+		amount *= 0.8
 	if t.has("base"):
 		amount *= 0.5
 	if t.has("ginga"):
@@ -497,20 +643,77 @@ func _ai(u: Unit, delta: float) -> void:
 	u.ai_t -= delta
 	if u.ai_t > 0.0 or dist(u, t) > MELEE:
 		return
-	# pick: finish when the player is low, else the best ready special
-	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "")
+	# grappling the player: real techniques from this position
+	if t.player and (t.target == u or u.gpos != "standing"):
+		var mv := _ai_move(u, t)
+		if mv != "":
+			var why := use_ab(u, move_ability(mv), t)
+			if why == "":
+				u.ai_t = rng.randf_range(3.0, 5.5) * (0.75 if u.boss else 1.0)
+				return
+	# otherwise: the standing kit (hand fighting pressure)
+	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "" and not bool(a.get("finisher", false)))
 	if ready.is_empty():
 		u.ai_t = 0.5
 		return
-	var pick: Dictionary = ready[0]
-	for a in ready:
-		if bool(a.get("finisher", false)) and t.pct() < 0.45:
-			pick = a
-			break
-		if not bool(a.get("finisher", false)) and rng.randf() < 0.6:
-			pick = a
-	if bool(pick.get("finisher", false)) and t.pct() >= 0.45:
-		u.ai_t = 0.6
-		return
-	use(u, str(pick.id), t)
+	use(u, str(ready[rng.randi() % ready.size()].id), t)
 	u.ai_t = rng.randf_range(3.5, 6.0) * (0.75 if u.boss else 1.0)
+
+const E_CAST := {"takedown": 1.4, "sweep": 1.3, "pass": 1.5, "advance": 1.3, "back": 1.4, "sub": 2.2, "escape": 1.2, "guard": 0.9}
+const E_DMG := {"takedown": 1.4, "sweep": 1.2, "pass": 1.2, "advance": 1.4, "back": 0.9, "sub": 1.3, "escape": 0.4, "guard": 0.3}
+
+## An enemy's cast of technique mv (cast bar, damage, the position change on landing).
+static func move_ability(mv: String) -> Dictionary:
+	var m: Dictionary = Data.MOVES[mv]
+	var t := str(m.type)
+	var a := {"id": "m_" + mv, "name": str(m.name), "type": t, "cast": float(E_CAST.get(t, 1.3)), "cd": 0.0, "cost": 0.0,
+		"dmg": float(E_DMG.get(t, 1.0)) * (1.0 + 0.03 * int(m.get("diff", 0))), "grip": 0 if t == "sub" else 1, "_mv": mv}
+	if t == "sub":
+		a["finisher"] = true
+		a["per_grip"] = 0.45
+	if t == "takedown":
+		a["effect"] = "down"
+		a["dur"] = 1.2
+	return a
+
+## What an enemy goes for from its spot: escape or sweep from underneath, pass and climb on top,
+## submit when it has the grips and you're fading.
+func _ai_move(u: Unit, t: Unit) -> String:
+	var top := not u.ptop
+	var role := "top" if top else "bottom"
+	var cap := u.rank + (3 if u.boss else 1)
+	var picks: Array = []
+	var total := 0.0
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		if m.has("spec") or int(m.get("rank", 0)) > cap or str(m.pos) != u.gpos:
+			continue
+		if u.gpos != "standing" and str(m.role) != "any" and str(m.role) != role:
+			continue
+		var tp := str(m.type)
+		if not tp in POSITIONAL:
+			continue
+		var w := 1.0
+		match tp:
+			"sub":
+				w = 0.0 if u.grip < 1 else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
+			"escape", "sweep":
+				w = 3.0 if not top else 1.0
+			"pass", "advance", "back":
+				w = 2.5
+			"takedown":
+				w = 2.0
+			"guard":
+				w = 0.7
+		if w <= 0.0:
+			continue
+		picks.append([mv, w])
+		total += w
+	if picks.is_empty():
+		return ""
+	var r := rng.randf() * total
+	for p in picks:
+		r -= float(p[1])
+		if r <= 0.0:
+			return str(p[0])
+	return str(picks[-1][0])

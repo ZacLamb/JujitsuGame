@@ -14,8 +14,8 @@ const TEMPLATES := {
 		"text": "Off-balance and sweep: damage, +1 Grip, Down for %ss."},
 	"pass": {"label": "Guard Pass", "cost": 25.0, "cd": 8.0, "dmg": 0.95, "grip": 1, "effect": "pin", "dur": 6.0,
 		"text": "Pass and pin: damage, +1 Grip. Pinned for %ss: they deal 25%% less."},
-	"advance": {"label": "Advance", "cost": 30.0, "cd": 9.0, "dmg": 1.35, "grip": 2, "needs": "control",
-		"text": "Climb to mount: heavy damage and +2 Grip. Only on a Down or Pinned target."},
+	"advance": {"label": "Advance", "cost": 30.0, "cd": 9.0, "dmg": 1.35, "grip": 2,
+		"text": "Climb to a better position: heavy damage and +2 Grip."},
 	"back": {"label": "Back Take", "cost": 25.0, "cd": 15.0, "dmg": 0.6, "grip": 2, "effect": "expose", "dur": 8.0,
 		"text": "Take the back: +2 Grip. Exposed for %ss: your crit chance on them +25%%."},
 	"sub": {"label": "Submission", "cost": 25.0, "cd": 0.0, "cast": 1.2, "dmg": 0.6, "per_grip": 0.6, "finisher": true,
@@ -30,24 +30,25 @@ const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 ## Level each ability unlocks at (WoW: you learn spells as you level). The bar fills itself as
 ## they unlock and the player can rearrange it from the spellbook.
-const UNLOCK := {"handfight": 1, "takedown": 1, "racial": 1, "sub": 2, "breathe": 2, "pass": 3, "base": 3,
+const UNLOCK := {"handfight": 1, "takedown": 1, "racial": 1, "sub": 2, "defend": 2, "breathe": 2, "pass": 3, "base": 3,
 	"escape": 4, "frame": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10}
-const UTILITY := ["base", "frame", "breathe", "racial"]
-const UTILITY_KEYS := {"base": "Q", "frame": "R", "breathe": "F", "racial": "G"}
+const UTILITY := ["base", "frame", "defend", "breathe", "racial"]
+const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G"}
 ## How each ability teaches itself the first time you get it.
 const TUTORIAL := {
-	"handfight": "Target someone (Tab or click) and press 1. Hand fighting chips at their Composure and builds Grip (the red dots under your bars).",
-	"takedown": "Puts them Down: they can't act for a moment. Great opener.",
+	"handfight": "Target someone (Tab or click) and press 1. Hand fighting chips at their Composure and builds Grip (the red dots under your bars). Every fight has a POSITION (shown on their frame): your buttons change to the techniques that work from where you are.",
+	"takedown": "Takes the fight to the ground with you on top. From there, pass, climb to mount and take the back: better positions hit harder.",
 	"sub": "Your finisher. It spends ALL your Grip: build 3-5 Grip first, then cast it. When their Composure hits zero, they tap.",
 	"pass": "Pins them: Pinned enemies hit 25% softer. Pinned or Down targets also open up Advance.",
 	"breathe": "Press F to recover Gas. Out of combat it also restores Composure.",
-	"base": "Press Q when you're taking a beating: half damage for 5 seconds.",
-	"escape": "Usable while you're Down: break free, heal a little and grab 1 Grip.",
-	"frame": "Watch the cast bar under your target. Press R to Frame and interrupt it, especially their submissions!",
+	"base": "Q: Sprawl / base. Counters takedowns and sweeps (their cast bar says SPRAWL), and halves damage for 5 seconds.",
+	"defend": "T: Defend. Counters submissions (their cast bar says DEFEND): hide the arm, fight the hands.",
+	"escape": "Stuck underneath? Escape works its way back: side control to guard, mount to half guard, or scramble back up to your feet.",
+	"frame": "R: Frame. Counters passes and positional moves (their cast bar says FRAME). Each enemy technique has ONE right counter: Q, R or T.",
 	"sweep": "Another way to put them Down, from the bottom.",
 	"back": "Takes the back: +2 Grip and they're Exposed (you crit them more).",
 	"guard": "Pull guard to take 40% less damage for a while.",
-	"advance": "Only works on a Down or Pinned target: big damage and +2 Grip. Chain: Pass, then Advance.",
+	"advance": "Climb to a better position (side control to mount). Big damage and +2 Grip.",
 	"spec": "Your specialization's signature technique.",
 	"racial": "Your origin's special ability, on G.",
 }
@@ -76,10 +77,12 @@ static func _all_kit() -> Array:
 			a = _make(t, best[t], Game.style)
 		if not a.is_empty():
 			out.append(a)
-	out.append({"id": "base", "name": "Base", "type": "defend", "key": "Q", "cost": 0.0, "cd": 30.0, "harm": false, "gcd": false,
-		"effect": "base", "dur": 5.0, "text": "Get your base: take 50% less damage for 5s."})
-	out.append({"id": "frame", "name": "Frame", "type": "defend", "key": "R", "cost": 10.0, "cd": 12.0, "gcd": false,
-		"effect": "interrupt", "text": "Frame and stop whatever they're casting. Interrupts the cast and locks it out for 4s."})
+	out.append({"id": "base", "name": "Sprawl / Base", "type": "defend", "key": "Q", "cost": 0.0, "cd": 20.0, "harm": false, "gcd": false,
+		"effect": "base", "dur": 5.0, "text": "Counters a takedown or sweep being cast, and you take 50% less damage for 5s."})
+	out.append({"id": "frame", "name": "Frame", "type": "defend", "key": "R", "cost": 10.0, "cd": 10.0, "gcd": false,
+		"effect": "interrupt", "text": "Counters a pass or positional move being cast. Wrong counter: it only slows them down."})
+	out.append({"id": "defend", "name": "Defend", "type": "defend", "key": "T", "cost": 5.0, "cd": 8.0, "harm": false, "gcd": false,
+		"effect": "defend", "text": "Hide the arm, fight the hands: counters a submission being cast, and you take 20% less damage for 3s."})
 	out.append({"id": "breathe", "name": "Breathe", "type": "defend", "key": "F", "cost": 0.0, "cd": 45.0, "harm": false,
 		"effect": "breathe", "text": "Slow your breathing: +45 Gas. Out of combat it also restores half your Composure."})
 	if Game.style != "":
@@ -87,6 +90,15 @@ static func _all_kit() -> Array:
 	for a in out:
 		a["unlock"] = int(UNLOCK.get(str(a.id), 1))
 	return out
+
+## Techniques the player knows, strongest first (what the position buttons pick from).
+static func known_moves() -> Array:
+	var known: Array = []
+	for id in Data.MOVES:
+		if not Data.MOVES[id].has("spec") and Game.knows(id):
+			known.append(id)
+	known.sort_custom(func(x, y): return int(Data.MOVES[x].get("rank", 0)) > int(Data.MOVES[y].get("rank", 0)))
+	return known
 
 ## Abilities you have right now (your spellbook / what the bar can hold).
 static func player_kit() -> Array:
@@ -157,9 +169,25 @@ static func enemy_kit(d: Dictionary, elite: bool, boss: bool) -> Array:
 	return kit
 
 ## Tooltip lines for an ability: [[text, color], ...] (HUD renders with Wow fonts).
-static func tip_lines(a: Dictionary, u) -> Array:
+static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 	var out: Array = []
-	out.append([str(a.get("name", "")), Wow.WHITE, 16])
+	if core != null and u != null and str(a.get("type", "")) in CombatCore.POSITIONAL:
+		var mv: String = core.move_for(u, a, t)
+		var pi: Array = core.pos_info(u, t)
+		var here := CombatCore.pos_label(str(pi[0]), bool(pi[1]))
+		if mv == "":
+			out.append(["%s: nothing from %s" % [str(TEMPLATES.get(str(a.type), {}).get("label", a.type)), here], Wow.RED, 15])
+		elif mv == "@stand":
+			out.append(["Scramble Up", Wow.WHITE, 16])
+			out.append(["From %s: back to your feet" % here, Wow.GREEN, 12])
+		else:
+			var m: Dictionary = Data.MOVES[mv]
+			out.append([str(m.name), Wow.WHITE, 16])
+			var res = m.result
+			var to := "submission" if not res is Array else CombatCore.pos_label(str(res[0]), bool(res[1]))
+			out.append(["From %s  →  %s" % [here, to], Wow.GREEN, 12])
+	else:
+		out.append([str(a.get("name", "")), Wow.WHITE, 16])
 	var lab := str(TEMPLATES.get(str(a.get("type", "")), {}).get("label", str(a.get("type", "")).capitalize()))
 	if str(a.get("id", "")) == "spec":
 		lab = "Spec Signature"

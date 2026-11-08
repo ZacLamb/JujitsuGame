@@ -46,6 +46,7 @@ func rebuild_player() -> void:
 		me.auto_dmg = me.dmg * 0.8
 		me.abilities = Abilities.player_kit()
 	me.hp = me.max_hp * ratio
+	me.known = Abilities.known_moves()
 	if Game.style != "":
 		for id in Game.ensure_bar(me.abilities):
 			var a := core.ability(me, str(id))
@@ -195,7 +196,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				press(id)
 			get_viewport().set_input_as_handled()
 			return
-	for k in ["base", "frame", "breathe", "racial"]:
+	for k in ["base", "frame", "defend", "breathe", "racial"]:
 		if event.is_action_pressed("ab_" + k):
 			press(k)
 			get_viewport().set_input_as_handled()
@@ -220,17 +221,22 @@ func _process(delta: float) -> void:
 		u.pos = npc.global_position
 		if u.in_combat and not u.dead:
 			_drive_npc(npc, u, delta)
+	# a ground fight only lasts while you're tangled up with that one opponent
+	var g := _ground_unit()
+	if g and (g != target or g.dead or core.dist(me, g) > 3.2 or not g.in_combat):
+		if not _finishing:
+			core.stand_up(g)
 	core.tick(delta)
 	if target and (target.dead and npc_of(target) == null or not core.units.has(target)):
 		target = null
 	# face your target while standing and fighting
-	if me.in_combat and target and not target.dead and not player.rig.in_action():
+	if me.in_combat and target and not target.dead and not player.rig.in_action() and _ground_unit() == null:
 		var hv := Vector2(player.velocity.x, player.velocity.z).length()
 		if hv < 0.3:
 			var to := target.pos - player.global_position
 			player.rig.rotation.y = lerp_angle(player.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 10.0, 0, 1))
 	player.rig.combat_ready = me.in_combat
-	player.rooted = me.down() or _finishing
+	player.rooted = me.down() or _finishing or _ground_unit() != null
 
 func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	var t := u.target
@@ -240,7 +246,7 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	if t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
 		_evade(npc, u)
 		return
-	if u.down() or not u.cast.is_empty() or npc.rig.in_action():
+	if u.down() or not u.cast.is_empty() or npc.rig.in_action() or u.gpos != "standing":
 		return
 	var to := t.pos - npc.global_position
 	to.y = 0
@@ -279,6 +285,45 @@ func _evade(npc: Npc, u: CombatCore.Unit, quiet := false) -> void:
 		core.leave_combat(me)
 
 # ------------------------------------------------------------ events -> visuals
+## The enemy unit grappling the player on the ground, if any.
+func _ground_unit() -> CombatCore.Unit:
+	for u in core.units:
+		if not u.player and not u.dead and u.gpos != "standing":
+			return u
+	return null
+
+func _grounded(u: CombatCore.Unit) -> bool:
+	if u == null:
+		return false
+	if u.player:
+		return _ground_unit() != null
+	return u.gpos != "standing"
+
+## Both bodies go to the position's pair pose, where they are (or stand back up).
+func _show_position(e: CombatCore.Unit) -> void:
+	var npc := npc_of(e)
+	if npc == null:
+		return
+	var pr := player.rig
+	var nr := npc.rig
+	if e.gpos == "standing":
+		pr.release(CombatAnim.getup(pr.rotation.y))
+		nr.release(CombatAnim.getup(nr.rotation.y))
+		return
+	var pair := RollPoses.get_pair(e.gpos)
+	var mid := (player.global_position + npc.global_position) * 0.5
+	var to := npc.global_position - player.global_position
+	var yaw := atan2(-to.x, -to.z)
+	var anchor := Transform3D(Basis(Vector3.UP, yaw), Vector3(mid.x, world.ground_y(mid.x, mid.z), mid.z))
+	var top_rig := pr if e.ptop else nr
+	var bot_rig := nr if e.ptop else pr
+	for pair_side in [["top", top_rig], ["bottom", bot_rig]]:
+		var rig: BodyRig = pair_side[1]
+		var pose: Dictionary = pair[pair_side[0]][0]
+		var xf: Transform3D = pair[pair_side[0]][1]
+		var local: Transform3D = (rig.get_parent() as Node3D).global_transform.affine_inverse() * anchor * xf
+		rig.action([[pose, local, 0.45]], true)
+
 func _rig_of(u: CombatCore.Unit) -> BodyRig:
 	if u == null:
 		return null
@@ -302,10 +347,18 @@ func _yaw_to(u: CombatCore.Unit, t: CombatCore.Unit) -> float:
 func _on_event(e: Dictionary) -> void:
 	var u: CombatCore.Unit = e.get("u")
 	match str(e.t):
+		"position":
+			_show_position(e.e)
+			var mover := _node_of(e.by)
+			if int(e.pts) > 0 and mover:
+				_float(mover, "+%d  %s" % [int(e.pts), Data.POSITION_NAMES.get(str(e.pos), "")], Color(0.5, 1.0, 0.6), 0.9)
+			elif mover and str(e.pos) != "standing":
+				_float(mover, str(Data.POSITION_NAMES.get(str(e.pos), "")), Color(0.8, 0.85, 1.0), 0.7)
+			Sfx.play("hit", -6.0, 0.8)
 		"use":
 			var a: Dictionary = e.ab
 			var r := _rig_of(u)
-			if r and not u.down():
+			if r and not u.down() and not _grounded(u) and not _grounded(e.get("target")):
 				var kind := str(a.get("type", "handfight"))
 				if str(a.get("effect", "")) == "base":
 					kind = "base"
@@ -316,12 +369,12 @@ func _on_event(e: Dictionary) -> void:
 				Sfx.play("click", -14.0)
 		"cast":
 			var r := _rig_of(u)
-			if r:
+			if r and not _grounded(u):
 				r.action(CombatAnim.squeeze(_yaw_to(u, e.get("target"))), true)
 				Sfx.play("squeeze", -10.0)
 		"cast_stop":
 			var r := _rig_of(u)
-			if r and not u.down() and not u.dead:
+			if r and not u.down() and not u.dead and not _grounded(u):
 				r.release(CombatAnim.attack("handfight", r.rotation.y))
 		"dmg":
 			var t: CombatCore.Unit = e.target
@@ -337,11 +390,11 @@ func _on_event(e: Dictionary) -> void:
 			if n:
 				_float(n, txt, col, 1.35 if bool(e.crit) else 1.0)
 			var tr := _rig_of(t)
-			if tr and not tr.in_action() and not t.down() and not t.dead:
+			if tr and not tr.in_action() and not t.down() and not t.dead and not _grounded(t):
 				tr.action(CombatAnim.recoil(tr.rotation.y))
 			if str(e.ab.get("id", "")) == "auto":
 				var ar := _rig_of(u)
-				if ar and not ar.in_action() and not u.down():
+				if ar and not ar.in_action() and not u.down() and not _grounded(u):
 					ar.action(CombatAnim.attack("auto", _yaw_to(u, t)))
 				Sfx.play("hit", -16.0, randf_range(0.9, 1.1))
 			else:
@@ -353,7 +406,7 @@ func _on_event(e: Dictionary) -> void:
 		"aura":
 			if str(e.aura) == "down":
 				var r := _rig_of(u)
-				if r:
+				if r and not _grounded(u):
 					r.action(CombatAnim.fall(r.rotation.y), true)
 				var n := _node_of(u)
 				if n and bool(e.fresh):
@@ -366,12 +419,12 @@ func _on_event(e: Dictionary) -> void:
 		"aura_off":
 			if str(e.aura) == "down" and not u.dead:
 				var r := _rig_of(u)
-				if r:
+				if r and not _grounded(u):
 					r.release(CombatAnim.getup(r.rotation.y))
 		"interrupt":
 			var n := _node_of(e.target)
 			if n:
-				_float(n, "Interrupted", Color(0.6, 0.85, 1.0))
+				_float(n, str(e.get("text", "Interrupted")), Color(0.6, 0.85, 1.0))
 		"miss":
 			if u.player:
 				_error(str(e.get("text", "Missed")))
@@ -409,6 +462,9 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 # ------------------------------------------------------------ taps (WoW: the kill)
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
+	var gu := victim if not victim.player else by
+	if gu:
+		gu.gpos = "standing"
 	if victim.player:
 		world.aggro_grace = 15.0   # nobody else jumps you while you're tapping
 	var vr := _rig_of(victim)

@@ -18,11 +18,11 @@ var frozen := false             # tests / screenshots
 
 const DAY_TOP := Color(0.16, 0.4, 0.82)
 const GOLD_TOP := Color(0.32, 0.36, 0.66)
-const NIGHT_TOP := Color(0.015, 0.025, 0.07)
+const NIGHT_TOP := Color(0.05, 0.08, 0.19)
 const GOLD_HORIZON := Color(1.0, 0.6, 0.34)
-const NIGHT_HORIZON := Color(0.05, 0.07, 0.15)
+const NIGHT_HORIZON := Color(0.15, 0.19, 0.34)
 const DAY_AMBIENT := Color(0.62, 0.68, 0.78)
-const NIGHT_AMBIENT := Color(0.3, 0.34, 0.5)
+const NIGHT_AMBIENT := Color(0.48, 0.53, 0.72)
 const SUN_DAY := Color(1.0, 0.92, 0.78)
 const SUN_GOLD := Color(1.0, 0.56, 0.3)
 const MOON := Color(0.7, 0.76, 0.95)
@@ -106,18 +106,18 @@ func apply() -> void:
 	env.fog_light_color = hor.lerp(top, 0.25)
 	EnvShaders.set_sky_tint(hor.lerp(top, 0.35))
 	env.ambient_light_color = NIGHT_AMBIENT.lerp(DAY_AMBIENT, d).lerp(Color(1.0, 0.75, 0.6), gold * 0.25)
-	env.ambient_light_energy = lerpf(0.3, 0.42, d)
-	env.tonemap_exposure = base_exposure * lerpf(1.08, 1.0, d)
+	env.ambient_light_energy = lerpf(0.52, 0.42, d)
+	env.tonemap_exposure = base_exposure * lerpf(1.22, 1.0, d)
 	# sun by day, moon by night
 	if elev > -2.0:
 		sun.rotation_degrees = Vector3(-maxf(elev, 4.0), -35.0 + (hour - 12.0) * 6.0, 0)
 		sun.light_color = SUN_DAY.lerp(SUN_GOLD, gold)
-		sun.light_energy = lerpf(0.12, 1.05, d)
+		sun.light_energy = lerpf(0.3, 1.05, d)
 	else:
 		var night_t := fmod(hour + 6.0, 24.0) / 12.0  # 0 at 18:00 .. 1 at 06:00
 		sun.rotation_degrees = Vector3(-(18.0 + sin(night_t * PI) * 40.0), 150.0 + night_t * 60.0, 0)
 		sun.light_color = MOON
-		sun.light_energy = 0.22
+		sun.light_energy = 0.45
 	sun.shadow_opacity = lerpf(0.45, 0.7, d)
 	_star_mat.albedo_color.a = clampf(1.0 - d * 1.6, 0.0, 0.95)
 	stars.visible = d < 0.6

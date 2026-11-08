@@ -28,13 +28,9 @@ class ItemSlot extends Control:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var col := Loot.color(id) if id != "" else Color(1, 1, 1, 0.12)
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color(0.06, 0.07, 0.09, 0.95) if id == "" else Color(col.darkened(0.78), 0.95)
-		bg.border_color = col if id != "" else Color(1, 1, 1, 0.1)
-		bg.set_border_width_all(2)
-		bg.set_corner_radius_all(8)
-		draw_style_box(bg, r)
 		if id == "":
+			draw_rect(r, Color(0.03, 0.03, 0.04, 0.9))
+			draw_rect(r.grow(-1.5), Color(0.3, 0.24, 0.14, 0.6), false, 1.5)
 			return
 		var it := Loot.item(id)
 		var glyph: String = {"junk": "loop", "food": "heart", "bag": "lock", "gear": "shield"}.get(str(it.get("kind", "")), "star")
@@ -42,7 +38,8 @@ class ItemSlot extends Control:
 			glyph = "star"
 		elif str(it.get("icon", "")) in ["drop", "cup", "bottle", "fish"]:
 			glyph = "wave"
-		CharSheet.draw_glyph(self, glyph, size / 2.0, 24, col.lightened(0.25))
+		var tint: Color = {"junk": Color(0.6, 0.55, 0.5), "food": Color(0.95, 0.55, 0.3), "bag": Color(0.75, 0.55, 0.3), "gear": Color(0.55, 0.7, 0.95)}.get(str(it.get("kind", "")), Color(0.9, 0.8, 0.4))
+		IconArt.draw(self, r, glyph, tint, col if Loot.color(id) != Color.WHITE else Color(0, 0, 0, 0))
 		if n > 1:
 			var f := CombatUi.font()
 			draw_string(f, Vector2(size.x - 22, size.y - 6), str(n), HORIZONTAL_ALIGNMENT_RIGHT, 18, 14, Color.WHITE)

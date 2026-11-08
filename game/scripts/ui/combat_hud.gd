@@ -9,7 +9,17 @@ const TYPE_COL := {"handfight": Color(0.78, 0.78, 0.74), "takedown": Color(0.95,
 	"escape": Color(0.4, 0.85, 1.0), "guard": Color(0.55, 0.7, 0.95), "defend": Color(0.98, 0.6, 0.2)}
 const TYPE_GLYPH := {"handfight": "link", "takedown": "down", "sweep": "loop", "pass": "chevron", "advance": "chevron",
 	"back": "loop", "sub": "bolt", "escape": "wave", "guard": "shield", "defend": "shield"}
+const ID_ICON := {"base": ["down", Color(1.0, 0.6, 0.2)], "frame": ["chevron", Color(0.4, 0.7, 1.0)], "defend": ["lock", Color(1.0, 0.35, 0.35)],
+	"breathe": ["wave", Color(0.45, 0.85, 1.0)], "racial": ["star", Color(0.45, 1.0, 0.55)], "spec": ["star", Color(0.75, 0.5, 1.0)]}
 const HP_COL := Color(0.2, 0.75, 0.25)
+
+## [glyph, colour] for an ability's icon.
+static func icon_of(a: Dictionary) -> Array:
+	var id := str(a.get("id", ""))
+	if ID_ICON.has(id):
+		return ID_ICON[id]
+	var t := str(a.get("type", ""))
+	return [TYPE_GLYPH.get(t, "star"), TYPE_COL.get(t, Color(0.8, 0.8, 0.8))]
 const GAS_COL := Color(1.0, 0.82, 0.15)
 
 var combat: WorldCombat
@@ -36,18 +46,18 @@ func _ready() -> void:
 	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	bar.offset_bottom = -14
-	bar.add_theme_constant_override("separation", 4)
+	bar.add_theme_constant_override("separation", 3)
 	bar.name = "ActionBar"
 	add_child(bar)
-	for i in 14:
+	for i in 15:
 		if i == 10:
 			var gap := Control.new()
-			gap.custom_minimum_size = Vector2(14, 0)
+			gap.custom_minimum_size = Vector2(10, 0)
 			bar.add_child(gap)
 		var b := BarSlot.new()
 		b.hud = self
 		b.slot = i
-		b.custom_minimum_size = Vector2(50, 50)
+		b.custom_minimum_size = Vector2(44, 44)
 		b.flat = true
 		b.focus_mode = Control.FOCUS_NONE
 		b.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -145,18 +155,18 @@ func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, text: String, ba
 func _draw() -> void:
 	var me: CombatCore.Unit = combat.me
 	# player bars, under the unit frame (top-left)
-	var x0 := 94.0
-	_bar(Vector2(x0, 112), Vector2(246, 16), me.pct(), HP_COL, "%d / %d" % [int(me.hp), int(me.max_hp)])
-	_bar(Vector2(x0, 131), Vector2(246, 11), me.gas / me.max_gas, GAS_COL, "")
+	var x0 := 75.0
+	_bar(Vector2(x0, 84), Vector2(200, 14), me.pct(), HP_COL, "%d / %d" % [int(me.hp), int(me.max_hp)])
+	_bar(Vector2(x0, 100), Vector2(200, 8), me.gas / me.max_gas, GAS_COL, "")
 	for g in me.max_grip:
-		var c := Vector2(x0 + 8 + g * 18, 154)
-		draw_circle(c, 7, Color(0, 0, 0, 0.85))
-		draw_circle(c, 5.5, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
+		var c := Vector2(x0 + 7 + g * 15, 118)
+		draw_circle(c, 6, Color(0, 0, 0, 0.85))
+		draw_circle(c, 4.5, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
 	var f := Wow.title_font()
 	if me.grip > 0:
-		draw_string_outline(f, Vector2(x0 + 8 + me.max_grip * 18, 159), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
-		draw_string(f, Vector2(x0 + 8 + me.max_grip * 18, 159), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.55, 0.35))
-	_auras(me, Vector2(x0, 166))
+		draw_string_outline(f, Vector2(x0 + 6 + me.max_grip * 15, 122), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
+		draw_string(f, Vector2(x0 + 6 + me.max_grip * 15, 122), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.55, 0.35))
+	_auras(me, Vector2(x0, 130))
 	# player cast bar (above the action bar)
 	if not me.cast.is_empty():
 		var w := 300.0
@@ -166,7 +176,7 @@ func _draw() -> void:
 	var t: CombatCore.Unit = combat.target
 	if t == null:
 		return
-	var tp := Vector2(370, 14)
+	var tp := Vector2(300, 12)
 	var plate := Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Color(1, 0.82, 0.3, 0.9) if t.elite else Color(Wow.FRAME, 0.9), 4, 0, 2 if t.elite else 1)
 	draw_style_box(plate, Rect2(tp, Vector2(270, 74)))
 	var nm := "%s" % t.name
@@ -177,15 +187,25 @@ func _draw() -> void:
 	draw_string_outline(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, 4, Color.BLACK)
 	draw_string(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, ncol)
 	_bar(tp + Vector2(10, 30), Vector2(250, 20), t.pct(), HP_COL if not t.in_combat else Color(0.85, 0.25, 0.2), "%d%%" % int(round(t.pct() * 100.0)))
+	# where the fight is: position, who's on top, and how dominant you are
+	var pi: Array = combat.core.pos_info(me, t)
+	var dm: int = combat.core.dom(me, t)
+	var ptxt := CombatCore.pos_label(str(pi[0]), bool(pi[1])).replace("(top)", "(you on top)").replace("(bottom)", "(you underneath)")
+	if dm != 0:
+		ptxt += "   %+d" % dm
+	var pcol := Color(0.5, 1.0, 0.6) if dm > 0 else (Color(1, 0.5, 0.4) if dm < 0 else Wow.PALE)
+	draw_string_outline(Wow.body(), tp + Vector2(12, 66), ptxt, HORIZONTAL_ALIGNMENT_LEFT, 250, 13, 3, Color.BLACK)
+	draw_string(Wow.body(), tp + Vector2(12, 66), ptxt, HORIZONTAL_ALIGNMENT_LEFT, 250, 13, pcol)
 	if t.elite:
 		var tag := "Rare Elite" if t.boss else "Elite"
-		draw_string(Wow.body(), tp + Vector2(12, 64), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.82, 0.3))
+		draw_string(Wow.body(), tp + Vector2(222, 66), tag, HORIZONTAL_ALIGNMENT_RIGHT, 40, 11, Color(1, 0.82, 0.3))
 	if not t.cast.is_empty():
-		var interruptible := true
-		_bar(tp + Vector2(10, 82), Vector2(250, 14), float(t.cast.t) / float(t.cast.dur),
-			Color(1, 0.7, 0.15) if interruptible else Color(0.6, 0.6, 0.6), str(t.cast.ab.name))
-		draw_string_outline(Wow.body(), tp + Vector2(12, 112), "Frame it! [R]", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color.BLACK)
-		draw_string(Wow.body(), tp + Vector2(12, 112), "Frame it! [R]", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.6, 0.85, 1.0))
+		var kind := CombatCore.counter_kind(t.cast.ab)
+		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind]
+		_bar(tp + Vector2(10, 82), Vector2(250, 16), float(t.cast.t) / float(t.cast.dur), kc, str(t.cast.ab.name))
+		var hint := "%s it!  [%s]" % [CombatCore.KIND_VERB[kind].to_upper(), CombatCore.KIND_KEY[kind]]
+		draw_string_outline(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
+		draw_string(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
 	_auras(t, tp + Vector2(150, 54))
 
 func _auras(u: CombatCore.Unit, at: Vector2) -> void:
@@ -209,25 +229,23 @@ func _draw_slot(b: Button, i: int) -> void:
 	var a := _ability(i)
 	var r := Rect2(Vector2.ZERO, b.size)
 	var me: CombatCore.Unit = combat.me
-	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color(0.05, 0.05, 0.06, 0.92)
-	frame.border_color = Color(0.55, 0.45, 0.28)
-	frame.set_border_width_all(2)
-	frame.set_corner_radius_all(3)
-	b.draw_style_box(frame, r)
 	if a.is_empty():
+		b.draw_rect(r, Color(0.02, 0.02, 0.02, 0.85))
+		b.draw_rect(r.grow(-1.5), Color(0.3, 0.24, 0.14, 0.7), false, 1.5)
 		b.draw_string(Wow.body(), Vector2(4, 13), slot_key(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.5, 0.5, 0.5))
 		return
 	var t := str(a.get("type", "handfight"))
-	var col: Color = TYPE_COL.get(t, Color(0.8, 0.8, 0.8))
-	var inner := r.grow(-3)
-	b.draw_rect(inner, col.darkened(0.6))
-	CharSheet.draw_glyph(b, TYPE_GLYPH.get(t, "star"), b.size / 2.0, 22, col.lightened(0.3))
+	var st: Array = icon_of(a)
+	var col: Color = st[1]
+	var inner := r.grow(-4)
+	IconArt.draw(b, r, str(st[0]), col)
 	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
 	var cd := float(me.cds.get(a.id, 0.0))
 	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
 	# tints: red = out of range / no target, blue = no gas, dark = cooldown
-	if why == "Out of range":
+	if why.begins_with("Not from"):
+		b.draw_rect(inner, Color(0.05, 0.05, 0.05, 0.72))
+	elif why == "Out of range":
 		b.draw_rect(inner, Color(0.8, 0.1, 0.1, 0.35))
 	elif why == "Not enough gas" or why.begins_with("Needs grip") or why.begins_with("They must"):
 		b.draw_rect(inner, Color(0.15, 0.2, 0.6, 0.5))
@@ -266,7 +284,14 @@ static func tooltip_for(a: Dictionary, me, on_bar := false) -> Control:
 	var tv: Array = Wow.tip(280)
 	var p: PanelContainer = tv[0]
 	p.z_index = 200
-	for ln in Abilities.tip_lines(a, me):
+	var core = null
+	var tg = null
+	if me != null and Engine.get_main_loop() != null:
+		var wc = (Engine.get_main_loop() as SceneTree).root.find_child("WorldCombat", true, false)
+		if wc:
+			core = wc.core
+			tg = wc.target
+	for ln in Abilities.tip_lines(a, me, core, tg):
 		var l := Wow.tline(tv[1], str(ln[0]), ln[1], int(ln[2]), true)
 		l.custom_minimum_size = Vector2(280, 0)
 	if on_bar:

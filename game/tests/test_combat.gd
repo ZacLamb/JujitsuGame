@@ -5,11 +5,12 @@ func _rotate(core: CombatCore, me: CombatCore.Unit) -> void:
 		core.use(me, "escape")
 		return
 	var t := me.target
-	if t and not t.cast.is_empty() and t.cast.ab.get("finisher", false):
-		core.use(me, "frame")
+	if t and not t.cast.is_empty() and float(t.cast.t) > 0.4:
+		var k := CombatCore.counter_kind(t.cast.ab)
+		core.use(me, {"base": "base", "frame": "frame", "defend": "defend"}[k])
 	if me.pct() < 0.35:
 		core.use(me, "base")
-	for id in ["sub", "advance", "takedown", "pass", "back", "sweep", "spec", "handfight"]:
+	for id in ["sub", "advance", "back", "takedown", "pass", "sweep", "escape", "spec", "handfight"]:
 		if id == "sub" and me.grip < 4 and (t == null or t.pct() > 0.25):
 			continue
 		if core.use(me, id) == "":
@@ -26,6 +27,12 @@ func _fight(level: int, mobs: Array) -> Dictionary:
 		core.engage(u, me)
 		es.append(u)
 	me.target = es[0]
+	if mobs.size() == 1 and not mobs[0].has("elite"):
+		core.event.connect(func(e):
+			if str(e.t) == "position":
+				print("  pos -> %s, player on top: %s  (by %s, %s +%d)" % [e.pos, e.ptop, e.by.name, e.move, e.pts])
+			elif str(e.t) == "interrupt":
+				print("  counter: %s" % e.get("text", "")))
 	if false:
 		core.event.connect(func(e):
 			if str(e.t) == "dmg":
@@ -55,6 +62,7 @@ func _ready() -> void:
 	var mob := {"name": "Mob", "level": lv, "style": "wrestler"}
 	var elite := {"name": "Elite", "level": lv, "style": "passer", "elite": true}
 	var rare := {"name": "Rare", "level": lv + 0.3, "style": "guard", "elite": true, "rare": true}
+	var pos_log := []
 	print("normal   ", _fight(5, [mob]))
 	print("two      ", _fight(5, [mob, mob]))
 	print("three    ", _fight(5, [mob, mob, mob]))
