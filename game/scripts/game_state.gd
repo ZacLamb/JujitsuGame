@@ -267,7 +267,11 @@ func load_game() -> void:
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
 		attr_alloc = {}
-	if talent_points() < 0:
+	# the talent trees were rebuilt: refund anything that isn't a node of the current trees
+	for k in talents.keys():
+		if TalentTrees.node(str(k), str(parsed.get("spec", ""))).is_empty():
+			talents.erase(k)
+	if points_left("class") < 0 or points_left("spec") < 0:
 		talents = {}
 
 # ------------------------------------------------------------ rank / xp
@@ -358,12 +362,8 @@ func knows(move_id: String) -> bool:
 		return true
 	if style != "" and move_id in Rpg.STYLES[style].signature:
 		return true
-	for tid in talents:
-		if int(talents[tid]) <= 0 or not Rpg.TALENTS.has(tid):
-			continue
-		var t: Dictionary = Rpg.TALENTS[tid]
-		if t.get("move", "") == move_id or move_id in t.get("moves", []):
-			return true
+	if move_id in TalentTrees.taught_moves(talents, spec):
+		return true
 	return false
 
 # ------------------------------------------------------------ RPG build
@@ -755,8 +755,19 @@ func _sum(d: Dictionary) -> int:
 func attr_points() -> int:
 	return (player_level() - 1) * Rpg.ATTR_POINTS_PER_LEVEL - _sum(attr_alloc)
 
+## Class-tree points: 1 + one every other level. Spec-tree points start once you pick a spec.
+func class_points_total() -> int:
+	return Rpg.START_TALENT_POINTS + player_level() / Rpg.LEVELS_PER_TALENT_POINT
+
+func spec_points_total() -> int:
+	return 0 if spec == "" else maxi(0, (player_level() - Specs.UNLOCK_LEVEL) / 2 + 1)
+
+func points_left(tree: String) -> int:
+	var total := class_points_total() if tree == "class" else spec_points_total()
+	return total - TalentTrees.spent_in(talents, tree, spec)
+
 func talent_points() -> int:
-	return Rpg.START_TALENT_POINTS + player_level() / Rpg.LEVELS_PER_TALENT_POINT - _sum(talents)
+	return points_left("class") + points_left("spec")
 
 func raise_attr(k: String) -> bool:
 	if attr_points() <= 0 or attr(k) >= Rpg.ATTR_CAP:
@@ -769,38 +780,69 @@ func raise_attr(k: String) -> bool:
 	return true
 
 func tree_points(tree: String) -> int:
-	var n := 0
-	for tid in talents:
-		if Rpg.TALENTS.has(tid) and Rpg.TALENTS[tid].tree == tree:
-			n += int(talents[tid])
-	return n
+	return TalentTrees.spent_in(talents, tree, spec)
 
 func talent_rank(tid: String) -> int:
 	return int(talents.get(tid, 0))
 
+## Gate (points spent in the tree) and path (a learned node right above it) both open.
 func talent_unlocked(tid: String) -> bool:
-	var t: Dictionary = Rpg.TALENTS[tid]
-	return tree_points(t.tree) >= Rpg.TIER_REQ[int(t.tier)]
+	var nd := TalentTrees.node(tid, spec)
+	if nd.is_empty():
+		return false
+	var tr := TalentTrees.tree_of(tid)
+	if tr == "spec" and spec == "":
+		return false
+	if tree_points(tr) < TalentTrees.gate_need(tr, int(nd.row)):
+		return false
+	var req: Array = nd.get("req", [])
+	if req.is_empty():
+		return true
+	for r in req:
+		if talent_rank(str(r)) > 0:
+			return true
+	return false
 
 func can_learn(tid: String) -> bool:
-	var t: Dictionary = Rpg.TALENTS[tid]
-	return talent_points() > 0 and talent_rank(tid) < int(t.max) and talent_unlocked(tid)
+	var nd := TalentTrees.node(tid, spec)
+	if nd.is_empty() or not talent_unlocked(tid):
+		return false
+	var full := talent_rank(tid) >= (1 if str(nd.get("kind", "")) == "choice" else int(nd.max))
+	return not full and points_left(TalentTrees.tree_of(tid)) > 0
 
-func learn(tid: String) -> bool:
+## Learn one rank (choice nodes: option 0 or 1).
+func learn(tid: String, choice := 0) -> bool:
 	if not can_learn(tid):
 		return false
-	talents[tid] = talent_rank(tid) + 1
-	var t: Dictionary = Rpg.TALENTS[tid]
-	toast.emit("Talent: %s (%d/%d)" % [t.name, talents[tid], int(t.max)], Rpg.TREES[t.tree].color)
+	var nd := TalentTrees.node(tid, spec)
+	if str(nd.get("kind", "")) == "choice":
+		talents[tid] = clampi(choice, 0, 1) + 1
+		toast.emit("Talent: %s" % str(nd.choice[choice].name), Color(0.75, 0.55, 1.0))
+	else:
+		talents[tid] = talent_rank(tid) + 1
+		toast.emit("Talent: %s (%d/%d)" % [nd.name, talents[tid], int(nd.max)], Color(0.75, 0.55, 1.0))
 	bump("talented")
-	if int(t.tier) == 3:
+	if nd.get("capstone", false):
 		unlock("capstone")
 	save_game()
 	progress_changed.emit()
 	return true
 
-func reset_talents() -> void:
-	talents = {}
+## Swap a learned choice node to its other option (free, like WoW).
+func swap_choice(tid: String, choice: int) -> void:
+	var nd := TalentTrees.node(tid, spec)
+	if str(nd.get("kind", "")) == "choice" and talent_rank(tid) > 0:
+		talents[tid] = clampi(choice, 0, 1) + 1
+		save_game()
+		progress_changed.emit()
+
+func reset_talents(tree := "") -> void:
+	if tree == "":
+		talents = {}
+	else:
+		for k in talents.keys():
+			if TalentTrees.tree_of(k) == tree:
+				talents.erase(k)
 	save_game()
 	progress_changed.emit()
 
@@ -810,6 +852,7 @@ func mods() -> Dictionary:
 		if b.has("effect"):
 			m[b.effect] = true
 	Specs.apply(m, spec)
+	TalentTrees.apply(m, talents, spec)
 	_buff_mods(m)
 	return m
 
@@ -1524,6 +1567,7 @@ func choose_spec(id: String) -> String:
 	if money < cost:
 		return "Changing spec costs R$ %d." % cost
 	money -= cost
+	reset_talents("spec")
 	spec = id
 	var s := Specs.get_spec(id)
 	toast.emit("Specialization: %s. New technique: %s" % [s.name, Data.MOVES[s.move].name], Color(0.75, 0.55, 1.0))

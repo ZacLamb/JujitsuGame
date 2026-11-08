@@ -617,6 +617,26 @@ class TalentNode extends Control:
 		title = t.name
 		S = s * (1.15 if capstone else 1.0)
 		custom_minimum_size = Vector2(maxf(S + 36, 98), S + (30 if show_name else 8))
+	var node := {}
+	func setup_node(nd: Dictionary, col: Color, s := 46.0) -> void:
+		node = nd
+		tid = str(nd.id)
+		tree_col = col
+		icon = str(nd.get("icon", "chevron"))
+		var choice := str(nd.get("kind", "")) == "choice"
+		rank = mini(Game.talent_rank(tid), 1) if choice else Game.talent_rank(tid)
+		max_rank = 1 if choice else int(nd.max)
+		unlocked = Game.talent_unlocked(tid)
+		can_learn = Game.can_learn(tid)
+		capstone = choice or bool(nd.get("capstone", false))
+		technique = str(nd.get("kind", "")) == "active"
+		title = str(nd.name)
+		if choice and Game.talent_rank(tid) > 0:
+			title = str(nd.choice[Game.talent_rank(tid) - 1].name)
+		show_name = true
+		S = s * (1.12 if nd.get("capstone", false) else 1.0)
+		custom_minimum_size = Vector2(maxf(S + 30, 92), S + 26)
+		size = custom_minimum_size
 	func _process(_d: float) -> void:
 		if can_learn and rank == 0:
 			queue_redraw()   # pulsing "available" glow
@@ -1252,78 +1272,143 @@ static func build_talents_wow(hud) -> Control:
 	body.add_theme_constant_override("separation", 8)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_child(body)
-	var tip_holder := page
-	for tree in Rpg.TREE_ORDER:
-		body.add_child(_tree_wow(hud, tree, tip_holder))
+	var cls: Dictionary = Rpg.STYLES.get(Game.style, {})
+	body.add_child(_tree2(hud, "class", "%s" % str(cls.get("name", "Class")).to_upper(), Color(0.95, 0.7, 0.3), page))
+	var sp := Specs.get_spec(Game.spec)
+	body.add_child(_tree2(hud, "spec", str(sp.get("name", "Specialization")).to_upper(), Color(0.7, 0.5, 1.0), page))
 	# bottom bar
-	var tp := Game.talent_points()
-	var spent := 0
-	for tr in Rpg.TREE_ORDER:
-		spent += Game.tree_points(tr)
 	var bar := PanelContainer.new()
 	bar.add_theme_stylebox_override("panel", Wow.sb(Color(0.05, 0.04, 0.04, 0.95), Wow.FRAME, 3, 10))
 	page.add_child(bar)
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 14)
 	bar.add_child(bh)
-	bh.add_child(Wow.title("%d" % tp, 20, Wow.GREEN if tp > 0 else Wow.GREY))
-	var lt := Wow.label("talent point%s available  ·  %d spent  ·  next point at level %d" % ["" if tp == 1 else "s", spent, _next_tp_level()], 14, Wow.PALE)
+	var lt := Wow.label("Click a glowing node to learn it  ·  octagons: pick one of two  ·  squares teach a technique  ·  next class point at level %d" % _next_tp_level(), 12, Wow.PALE)
 	lt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	bh.add_child(lt)
-	var hint := Wow.label("Click a glowing talent to learn it  ·  tiers open at 2 / 4 / 6 points  ·  ◆ = teaches a technique", 12, Wow.GREY)
-	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bh.add_child(hint)
 	var rs := Wow.button("Reset Talents", Vector2(120, 26))
-	rs.disabled = spent == 0
+	rs.disabled = Game.talents.is_empty()
 	rs.pressed.connect(func():
 		hud._sel_talent = ""
 		Game.reset_talents())
 	bh.add_child(rs)
 	return page
 
-static func _tree_wow(hud, tree: String, tip_holder: Control) -> Control:
-	var info: Dictionary = Rpg.TREES[tree]
-	var col: Color = info.color
+## One tree: header with points left / spent, then the node graph.
+static func _tree2(hud, tree: String, title: String, col: Color, holder: Control) -> Control:
 	var p := PanelContainer.new()
 	var st := Wow.sb(Color(0.025, 0.03, 0.045, 0.97), Color(col.darkened(0.3), 0.6), 4, 10, 1)
-	st.shadow_color = Color(col, 0.08)
-	st.shadow_size = 0
 	p.add_theme_stylebox_override("panel", st)
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
+	v.add_theme_constant_override("separation", 2)
 	p.add_child(v)
 	var h := HBoxContainer.new()
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 12)
 	v.add_child(h)
-	h.add_child(Wow.title(str(info.name).to_upper(), 19, Wow.WHITE))
-	var pts := Game.tree_points(tree)
-	h.add_child(Wow.title(str(pts), 22, Wow.GOLD if pts > 0 else Wow.GREY))
-	var sub := Wow.label(str(info.pt), 12, Color(col.lightened(0.2), 0.8), false, HORIZONTAL_ALIGNMENT_CENTER)
-	v.add_child(sub)
-	var grid := TreeGrid.new()
-	grid.wow = true
-	grid.ROW = 104.0
-	grid.custom_minimum_size = Vector2(226, grid.ROW * 4 + 6)
-	grid.tree = tree
-	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(grid)
-	for tid in Rpg.talents_in(tree):
+	h.add_child(Wow.title(title, 18, Wow.WHITE))
+	var left := Game.points_left(tree)
+	h.add_child(Wow.title("%d" % left, 20, Wow.GREEN if left > 0 else Wow.GREY))
+	h.add_child(Wow.label("points  ·  %d spent" % Game.tree_points(tree), 12, Wow.PALE))
+	if tree == "spec" and Game.spec == "":
+		var msg := Wow.label("Pick a Specialization at level %d (Specialization tab) to open its tree." % Specs.UNLOCK_LEVEL, 14, Wow.GREY, true, HORIZONTAL_ALIGNMENT_CENTER)
+		msg.custom_minimum_size = Vector2(300, 200)
+		msg.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		v.add_child(msg)
+		return p
+	var g := TalentGraph.new()
+	g.tree = tree
+	g.col = col
+	v.add_child(g)
+	for nd in TalentTrees.tree(tree, Game.spec):
 		var n := TalentNode.new()
 		n.wow = true
-		n.configure(tid, 48)
-		n.custom_minimum_size.y = n.S + 26
-		n.learn_requested.connect(func(id: String):
-			hud._sel_talent = id
-			Game.learn(id))
-		n.picked.connect(func(id: String):
-			hud._sel_talent = id
-			Game.learn(id))
-		n.hovered.connect(func(id: String, on: bool): _talent_tip(n, id, on, tip_holder))
-		grid.add_node(n, int(Rpg.TALENTS[tid].tier))
+		n.setup_node(nd, col, 34)
+		g.add_child(n)
+		g.nodes[str(nd.id)] = n
+		n.learn_requested.connect(func(id: String): _talent_click(hud, id, n, holder))
+		n.picked.connect(func(id: String): _talent_click(hud, id, n, holder))
+		n.hovered.connect(func(id: String, on: bool): _talent_tip(n, id, on, holder))
+	g.layout()
 	return p
+
+static func _talent_click(hud, id: String, n: Control, holder: Control) -> void:
+	hud._sel_talent = id
+	var nd := TalentTrees.node(id, Game.spec)
+	if str(nd.get("kind", "")) != "choice":
+		Game.learn(id)
+		return
+	if not Game.can_learn(id) and Game.talent_rank(id) == 0:
+		return
+	# choice: a small two-option picker (also swaps a learned choice for free)
+	var tp := Wow.tip(300.0)
+	var pop: PanelContainer = tp[0]
+	var v: VBoxContainer = tp[1]
+	pop.top_level = true
+	pop.z_index = 120
+	pop.mouse_filter = Control.MOUSE_FILTER_STOP
+	Wow.tline(v, "Choose one", Wow.GOLD, 14)
+	for i in nd.choice.size():
+		var opt: Dictionary = nd.choice[i]
+		var b := Wow.button(str(opt.name), Vector2(280, 30))
+		b.tooltip_text = str(opt.desc)
+		var idx: int = i
+		b.pressed.connect(func():
+			pop.queue_free()
+			if Game.talent_rank(id) > 0:
+				Game.swap_choice(id, idx)
+			else:
+				Game.learn(id, idx))
+		v.add_child(b)
+		Wow.tline(v, str(opt.desc), Wow.WHITE.lerp(Wow.GOLD, 0.4), 12, true)
+	var cancel := Wow.button("Cancel", Vector2(120, 24))
+	cancel.pressed.connect(pop.queue_free)
+	v.add_child(cancel)
+	holder.add_child(pop)
+	pop.global_position = n.global_position + Vector2(n.size.x + 6, -10)
+
+## Draws the connector lines and gate markers behind a tree's nodes.
+class TalentGraph extends Control:
+	var tree := "class"
+	var col := Color.WHITE
+	var nodes := {}
+	const CW := 82.0
+	const RH := 55.0
+	func layout() -> void:
+		var rows := 0
+		for id in nodes:
+			var nd := TalentTrees.node(id, Game.spec)
+			rows = maxi(rows, int(nd.row) + 1)
+			var n: Control = nodes[id]
+			n.position = Vector2(int(nd.col) * CW + (CW - n.size.x) / 2.0, int(nd.row) * RH)
+		custom_minimum_size = Vector2(TalentTrees.COLS * CW, rows * RH + 8)
+	func _draw() -> void:
+		for id in nodes:
+			var nd := TalentTrees.node(id, Game.spec)
+			var a: Control = nodes[id]
+			for r in nd.get("req", []):
+				if not nodes.has(r):
+					continue
+				var b: Control = nodes[r]
+				var p0: Vector2 = b.position + Vector2(b.size.x / 2.0, 4 + b.S)
+				var p1: Vector2 = a.position + Vector2(a.size.x / 2.0, 4)
+				var lit := Game.talent_rank(str(r)) > 0
+				var c := Wow.GOLD if lit and Game.talent_rank(id) > 0 else (Color(0.55, 0.85, 0.45) if lit else Color(0.3, 0.28, 0.25))
+				draw_line(p0, p1, Color(0, 0, 0, 0.8), 6.0, true)
+				draw_line(p0, p1, c, 2.5, true)
+		for g in TalentTrees.GATES[tree]:
+			var y := float(g[0]) * RH - 3
+			var need := int(g[1])
+			var open := Game.tree_points(tree) >= need
+			var lc := Color(0.55, 0.85, 0.45, 0.4) if open else Color(0.8, 0.3, 0.25, 0.55)
+			draw_dashed_line(Vector2(4, y), Vector2(size.x - 4, y), lc, 1.5, 6.0)
+			if not open:
+				var f := Wow.body()
+				var txt := "%d more" % (need - Game.tree_points(tree))
+				draw_string_outline(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, 3, Color.BLACK)
+				draw_string(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, Color(1, 0.55, 0.45))
 
 static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> void:
 	if holder.has_meta("tip"):
@@ -1333,37 +1418,48 @@ static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> v
 		holder.remove_meta("tip")
 	if not on or not is_instance_valid(n):
 		return
-	var t: Dictionary = Rpg.TALENTS[tid]
-	var info: Dictionary = Rpg.TREES[t.tree]
+	var nd := TalentTrees.node(tid, Game.spec)
+	if nd.is_empty():
+		return
 	var rank := Game.talent_rank(tid)
-	var tp := Wow.tip(280.0)
+	var tp := Wow.tip(290.0)
 	var p: PanelContainer = tp[0]
 	var v: VBoxContainer = tp[1]
 	p.top_level = true
 	p.z_index = 100
-	Wow.tline(v, str(t.name), Wow.WHITE, 16)
-	Wow.tline(v, "Rank %d/%d" % [rank, int(t.max)], Wow.WHITE, 13)
+	var choice := str(nd.get("kind", "")) == "choice"
+	Wow.tline(v, str(nd.name), Wow.WHITE, 16)
+	if choice:
+		Wow.tline(v, "Choice node: pick one", Wow.PALE, 12)
+		for i in nd.choice.size():
+			var o: Dictionary = nd.choice[i]
+			var mine: bool = rank == i + 1
+			Wow.tgap(v, 3)
+			Wow.tline(v, ("✓ " if mine else "") + str(o.name), Wow.GREEN if mine else Wow.WHITE, 14)
+			Wow.tline(v, str(o.desc), Wow.GOLD, 13, true)
+	else:
+		Wow.tline(v, "Rank %d/%d" % [rank, int(nd.max)], Wow.WHITE, 13)
+		Wow.tline(v, "Technique" if str(nd.get("kind", "")) == "active" else ("Capstone" if nd.get("capstone", false) else "Passive"), Wow.PALE, 12)
+		Wow.tgap(v, 3)
+		Wow.tline(v, str(nd.desc), Wow.GOLD, 13, true)
 	Wow.tgap(v, 4)
-	var kind := "Capstone" if int(t.tier) == 3 else ("Technique" if t.has("move") or t.has("moves") else "Passive")
-	Wow.tline(v, kind, Wow.WHITE, 13)
-	Wow.tline(v, str(t.desc), Wow.GOLD, 13, true)
-	if t.has("move") and Game.style != "" and t.move in Rpg.STYLES[Game.style].signature:
-		Wow.tline(v, "You already know this from your style; it still counts toward deeper tiers.", Wow.GREY, 12, true)
-	Wow.tgap(v, 4)
-	if rank >= int(t.max):
-		Wow.tline(v, "Maxed", Wow.GOLD, 13)
+	var tr := TalentTrees.tree_of(tid)
+	var full := rank >= (1 if choice else int(nd.max))
+	if full:
+		Wow.tline(v, "Click to change your pick" if choice else "Maxed", Wow.GREEN if choice else Wow.GOLD, 13)
+	elif Game.tree_points(tr) < TalentTrees.gate_need(tr, int(nd.row)):
+		Wow.tline(v, "Requires %d points spent in this tree" % TalentTrees.gate_need(tr, int(nd.row)), Wow.RED, 13, true)
 	elif not Game.talent_unlocked(tid):
-		Wow.tline(v, "Requires %d points in %s" % [Rpg.TIER_REQ[int(t.tier)], info.name], Wow.RED, 13, true)
-	elif Game.talent_points() <= 0:
-		Wow.tline(v, "No talent points (next at level %d)" % _next_tp_level(), Wow.RED, 13, true)
+		Wow.tline(v, "Learn a connected talent above first", Wow.RED, 13, true)
+	elif Game.points_left(tr) <= 0:
+		Wow.tline(v, "No points left in this tree", Wow.RED, 13, true)
 	else:
 		Wow.tline(v, "Click to learn", Wow.GREEN, 13)
 	holder.add_child(p)
 	holder.set_meta("tip", p)
 	p.reset_size()
-	var gp := n.global_position + Vector2(n.size.x - 6, 0)
-	var vs := n.get_viewport_rect().size
-	if gp.x + p.size.x > vs.x:
-		gp.x = n.global_position.x - p.size.x + 6
-	gp.y = clampf(gp.y, 4, vs.y - p.size.y - 4)
-	p.global_position = gp
+	var gp := n.global_position + Vector2(n.size.x + 8, 0)
+	var vp := n.get_viewport_rect().size
+	if gp.x + p.size.x > vp.x - 8:
+		gp.x = n.global_position.x - p.size.x - 8
+	p.global_position = Vector2(gp.x, clampf(gp.y, 8, vp.y - p.size.y - 8))

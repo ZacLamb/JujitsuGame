@@ -109,24 +109,39 @@ func _ready() -> void:
 	game.choose_style("wrestler", "Tester", 1)
 	check(game.attr("strength") == 7 and game.attr("cardio") == 7, "wrestler starts +2 STR +2 CRD")
 	check(game.knows("snap_down") and not game.knows("omoplata"), "style signature known, others not")
-	check(not game.can_learn("scramble"), "tier 2 locked with 0 points in tree")
-	check(game.learn("shot_speed"), "learn tier-1 talent")
-	check(not game.learn("shot_speed"), "no points left")
+	check(not game.can_learn("c_good_base"), "row 2 needs a learned node above it")
+	check(game.learn("c_iron_grip"), "learn the root talent")
+	check(not game.learn("c_iron_grip"), "no points left")
 	game.set_level(11)
 	check(game.player_level() == 11 and game.belt_index() == 1, "level 11 is blue belt")
-	check(game.attr_points() == 10 and game.talent_points() == 5, "points per level (attr=%d tal=%d)" % [game.attr_points(), game.talent_points()])
-	game.learn("shot_speed")
-	check(game.can_learn("scramble"), "tier 2 opens at 2 points")
-	game.learn("t_snap_down")
-	game.learn("sprawl")
-	game.learn("t_uchi_mata")
+	check(game.attr_points() == 10 and game.points_left("class") == 5, "points per level (attr=%d class=%d)" % [game.attr_points(), game.points_left("class")])
+	check(game.can_learn("c_good_base") and not game.can_learn("c_scramble"), "path opens row by row")
+	game.learn("c_good_base")
+	game.learn("c_snap_down")
+	check(game.learn("c_grip_style", 1) and int(game.talents.c_grip_style) == 2, "choice node stores the pick")
+	check(game.mods().get("grip_bonus", {}).get("handfight", 0.0) == 1.0, "choice effect reaches combat mods")
+	game.learn("c_good_base")
+	check(game.tree_points("class") == 5 and not game.can_learn("c_scramble"), "row 4 gated until 6 points (spent %d)" % game.tree_points("class"))
+	game.set_level(13)
+	game.learn("c_deep_lungs")
+	check(game.learn("c_scramble"), "gate opens at 6 points")
+	game.set_level(21)
+	game.learn("c_uchi_mata")
 	check(game.knows("uchi_mata"), "talent unlocks technique")
+	check(game.spec_points_total() == 0, "no spec points before choosing a spec")
+	game.money = 999
+	check(game.choose_spec("chain_wrestler") == "", "choose spec")
+	check(game.points_left("spec") > 0 and game.learn("s_chain_wrestler_0_2"), "spec tree opens with its own points")
+	check(TalentTrees.spec_tree("chain_wrestler").size() == 10, "spec tree generated")
+	game.choose_spec("rider")
+	check(game.tree_points("spec") == 0, "changing spec clears the old spec tree")
+	game.set_level(11)
 	for i in 10:
 		game.raise_attr("grip")
 	check(game.attr("grip") == 15 and game.unlocked.has("peak"), "attributes raise + Peak Physique")
 	check(not game.raise_attr("grip"), "no attribute points left")
 	game.reset_talents()
-	check(game.talent_points() == 6 and not game.knows("uchi_mata"), "reset refunds talents")
+	check(game.points_left("class") == game.class_points_total() and not game.knows("uchi_mata"), "reset refunds talents")
 	# ---------------- gear
 	game.reset()
 	game.choose_style("guard", "Tester", 0)
@@ -208,10 +223,18 @@ func _ready() -> void:
 	onca.player_top = false
 	check("darce" in onca.opp_options(), "boss uses talent techniques (D'Arce)")
 	# every talent technique exists and every talent tree is reachable
-	for tid in Rpg.TALENTS:
-		var t: Dictionary = Rpg.TALENTS[tid]
-		if t.has("move"):
-			check(Data.MOVES.has(t.move), "talent %s move exists" % tid)
+	for nd in TalentTrees.CLASS:
+		for k in [0, 1, 2]:
+			var fx: Dictionary = TalentTrees.fx_of(nd, k) if str(nd.get("kind", "")) == "choice" and k > 0 else nd.get("fx", {})
+			if fx.has("move"):
+				check(Data.MOVES.has(str(fx.move)), "talent %s move exists" % nd.id)
+			for mv in fx.get("moves", []):
+				check(Data.MOVES.has(str(mv)), "talent %s move %s exists" % [nd.id, mv])
+	for st in Specs.SPECS:
+		for sp in Specs.SPECS[st]:
+			for nd in TalentTrees.spec_tree(sp.id):
+				for r in nd.get("req", []):
+					check(not TalentTrees.node(str(r), sp.id).is_empty(), "spec node %s link ok" % nd.id)
 	for st in Rpg.STYLES:
 		for mid in Rpg.STYLES[st].signature:
 			check(Data.MOVES.has(mid), "%s signature %s exists" % [st, mid])

@@ -111,7 +111,7 @@ func _dev_hash() -> void:
 		elif kv[0] == "journal":
 			hud.toggle_journal()
 		elif kv[0] == "char":
-			hud._sel_talent = kv[1] if Rpg.TALENTS.has(kv[1]) else ""
+			hud._sel_talent = kv[1] if not TalentTrees.node(kv[1]).is_empty() else ""
 			hud._want_tab = 1 if hud._sel_talent != "" else 0
 			hud.toggle_journal()
 

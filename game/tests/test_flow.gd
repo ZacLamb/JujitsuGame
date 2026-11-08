@@ -28,8 +28,8 @@ func _ready() -> void:
 	check(Game.style == "judoka" and Game.gi_index == 2, "style chosen")
 	main.hud._close_dialogue(false)
 	check(main.player.input_enabled, "player can move after intro")
-	var talents_by_style := {"judoka": ["shot_speed", "sprawl", "t_snap_down", "t_uchi_mata"], "guard": ["hip_mobility", "retention", "t_omoplata", "slippery"],
-		"wrestler": ["shot_speed", "shot_speed", "scramble"], "athlete": ["hip_mobility", "heavy_hips"], "passer": ["heavy_hips", "heavy_top", "t_leg_drag", "killer_instinct"]}
+	var talents_by_style := {"judoka": ["c_iron_grip", "c_good_base", "c_snap_down"], "guard": ["c_iron_grip", "c_deep_lungs", "c_omoplata"],
+		"wrestler": ["c_iron_grip", "c_iron_grip", "c_good_base"], "athlete": ["c_iron_grip", "c_deep_lungs"], "passer": ["c_iron_grip", "c_good_base", "c_good_base"]}
 	for st in Rpg.STYLE_ORDER:
 		Game.reset()
 		Game.choose_style(st, "Bot", 0)
@@ -72,7 +72,7 @@ func _ready() -> void:
 	Game.reset()
 	Game.choose_style("athlete", "Bot", 1)
 	Game.set_level(8)
-	for t in ["hip_mobility", "hip_mobility", "heavy_hips", "heavy_hips", "t_leg_drag", "killer_instinct"]:
+	for t in ["c_iron_grip", "c_iron_grip", "c_deep_lungs", "c_good_base", "c_omoplata"]:
 		Game.learn(t)
 	while Game.attr_points() > 0:
 		Game.raise_attr(Rpg.ATTR_ORDER[randi() % 5])

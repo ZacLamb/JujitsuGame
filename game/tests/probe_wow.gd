@@ -6,10 +6,15 @@ func _ready() -> void:
 	Game.test_mode = true
 	Game.reset()
 	Game.choose_style("guard", "Gringo", 0)
-	Game.set_level(17)
+	Game.set_level(30)
 	Game.raise_attr("flexibility")
-	Game.learn("hip_mobility")
+	Game.money = 999
 	Game.choose_spec("sub_hunter")
+	for id in ["c_iron_grip", "c_iron_grip", "c_good_base", "c_deep_lungs", "c_omoplata", "c_good_base", "c_pressure", "c_scramble"]:
+		Game.learn(id)
+	Game.learn("c_grip_style", 1)
+	for id in ["s_sub_hunter_0_2", "s_sub_hunter_1_1", "s_sub_hunter_1_3", "s_sub_hunter_0_2"]:
+		Game.learn(id)
 	for id in ["onca_gi", "onca_gi_pants", "onca_tape", "rash_arara"]:
 		Game.give_item(id, true)
 	Game.equip("onca_gi")

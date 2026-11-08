@@ -142,6 +142,9 @@ func engage(a: Unit, b: Unit) -> void:
 	for u in [a, b]:
 		if not u.in_combat:
 			u.in_combat = true
+			if u.player:
+				u.grip = maxi(u.grip, int(u.mods.get("grip_start", 0.0)))
+				u.second_wind_used = false
 			emit({"t": "combat", "u": u, "on": true})
 		u.ooc_t = 0.0
 	if a.target == null:
@@ -168,16 +171,25 @@ func ability(u: Unit, id: String) -> Dictionary:
 func cost_of(u: Unit, a: Dictionary) -> float:
 	var c := float(a.get("cost", 0.0))
 	if u.player:
-		c *= float(u.mods.get("cost", 1.0))
-		if str(a.get("move", "")) in u.mods.get("free_moves", []):
+		var m := u.mods
+		c += float(m.get("cost_add", {}).get(str(a.get("id", "")), 0.0))
+		c *= float(m.get("cost", 1.0)) * (1.0 - float(m.get("cost_mult", 0.0)))
+		if str(a.get("move", "")) in m.get("free_moves", []):
 			c = 0.0
-	return c
+		if bool(a.get("finisher", false)) and m.get("free_sub", false):
+			c = 0.0
+	return maxf(c, 0.0)
 
 func cd_of(u: Unit, a: Dictionary) -> float:
 	var c := float(a.get("cd", 0.0))
-	if u.player and str(a.type) == "escape" and u.mods.get("scramble", false):
-		c *= 0.5
-	return c
+	if u.player:
+		if str(a.get("type", "")) == "escape" and u.mods.get("scramble", false):
+			c *= 0.5
+		c *= 1.0 - float(u.mods.get("cd", {}).get(str(a.get("id", "")), 0.0))
+		if str(a.get("id", "")) == "spec":
+			pass
+		c *= 1.0 - float(u.mods.get("cd", {}).get(str(a.get("type", "")), 0.0)) if str(a.get("type", "")) != str(a.get("id", "")) else 1.0
+	return maxf(c, 0.0)
 
 func haste(u: Unit) -> float:
 	return float(u.mods.get("decision", 1.0)) if u.player else 1.0
@@ -229,6 +241,10 @@ func use(u: Unit, id: String, t: Unit = null) -> String:
 	if bool(a.get("gcd", true)):
 		u.gcd = GCD / haste(u)
 	var ct := float(a.get("cast", 0.0)) / haste(u)
+	if u.player and bool(a.get("finisher", false)):
+		if u.mods.get("instant_sub", false):
+			ct = 0.0
+		ct *= 1.0 - float(u.mods.get("haste_sub", 0.0))
 	if ct > 0.0:
 		u.cast = {"ab": a, "t": 0.0, "dur": ct, "target": t}
 		emit({"t": "cast", "u": u, "ab": a, "target": t, "dur": ct})
@@ -244,10 +260,13 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 	emit({"t": "use", "u": u, "ab": a, "target": t})
 	match eff:
 		"base":
-			_aura(u, "base", float(a.get("dur", 5.0)), u)
+			_aura(u, "base", float(a.get("dur", 5.0)) + _extra(u, "base"), u)
+			if u.player and u.mods.get("base_grip", false):
+				u.grip = mini(u.max_grip, u.grip + 2)
+				u.gas = minf(u.max_gas, u.gas + 30.0)
 			return
 		"guard":
-			_aura(u, "guarded", float(a.get("dur", 6.0)), u)
+			_aura(u, "guarded", float(a.get("dur", 6.0)) + _extra(u, "guarded"), u)
 			return
 		"breathe":
 			u.gas = minf(u.max_gas, u.gas + 45.0)
@@ -261,6 +280,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			_heal(u, u.max_hp * 0.12, u)
 			if u.player:
 				u.grip = mini(u.max_grip, u.grip + 1)
+				u.gas = minf(u.max_gas, u.gas + float(u.mods.get("escape_gas", 0.0)))
 			return
 		"interrupt":
 			if t and not t.cast.is_empty():
@@ -286,29 +306,46 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		var amount := u.dmg * mult * _type_bonus(u, a)
 		var crit_c := CRIT + (0.25 if t.has("exposed") and t.auras.exposed.src == u else 0.0)
 		if u.player:
-			crit_c += (float(u.mods.get("perfect", 1.0)) - 1.0) * 0.5
+			var m := u.mods
+			crit_c += (float(m.get("perfect", 1.0)) - 1.0) * 0.5 + float(m.get("crit", 0.0))
+			if t.has("pinned"):
+				amount *= 1.0 + float(m.get("pinned_vuln", 0.0))
+			if t.down():
+				amount *= 1.0 + float(m.get("down_dmg", 0.0))
+			if t.pct() < 0.35:
+				amount *= 1.0 + float(m.get("exec", 0.0))
 		var crit := rng.randf() < crit_c
 		if crit:
 			amount *= CRIT_MULT * (float(u.mods.get("struggle_atk", 1.0)) if u.player else 1.0)
+			if u.player and bool(a.get("finisher", false)):
+				amount *= 1.0 + float(u.mods.get("sub_crit", 0.0))
 		_damage(u, t, amount, crit, a)
 	if t.dead:
 		return
 	var g := int(a.get("grip", 0))
+	if u.player:
+		g += int(u.mods.get("grip_bonus", {}).get(str(a.get("id", "")), 0.0))
 	if g > 0:
 		u.grip = mini(u.max_grip, u.grip + g)
 	match eff:
 		"down":
-			_aura(t, "down", float(a.get("dur", 1.8)), u)
+			_aura(t, "down", float(a.get("dur", 1.8)) + _extra(u, "down"), u)
 		"pin":
-			_aura(t, "pinned", float(a.get("dur", 6.0)), u)
+			_aura(t, "pinned", float(a.get("dur", 6.0)) + _extra(u, "pinned"), u)
+			if u.player and u.mods.get("pin_grip", false):
+				u.grip = mini(u.max_grip, u.grip + 1)
 		"expose":
-			_aura(t, "exposed", float(a.get("dur", 8.0)), u)
+			_aura(t, "exposed", float(a.get("dur", 8.0)) + _extra(u, "exposed"), u)
+
+func _extra(u: Unit, aura: String) -> float:
+	return float(u.mods.get("aura_dur", {}).get(aura, 0.0)) if u.player else 0.0
 
 func _type_bonus(u: Unit, a: Dictionary) -> float:
 	if not u.player:
 		return 1.0
 	var m := u.mods
 	var b := 1.0 + float(m.get("zone", {}).get(str(a.type), 0.0)) + float(m.get("zone_move", {}).get(str(a.get("move", "")), 0.0))
+	b += float(m.get("dmg_all", 0.0)) + float(m.get("ab_dmg", {}).get(str(a.get("id", "")), 0.0))
 	b += float(m.get("zone_role", {}).get(str(a.get("role", "any")), 0.0)) * 0.5
 	return b
 
@@ -320,6 +357,7 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 	if src.has("pinned"):
 		amount *= 0.75
 	if t.player:
+		amount *= 1.0 - clampf(float(t.mods.get("dr", 0.0)), 0.0, 0.6)
 		amount /= float(t.mods.get("defense", 1.0))
 		amount /= float(t.mods.get("defense_vs", {}).get(str(a.get("type", "")), 1.0))
 	amount = maxf(1.0, round(amount))
@@ -336,6 +374,11 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		t.cast = {}
 		var how := src.last_sub if bool(a.get("finisher", false)) else ""
 		emit({"t": "tap", "u": t, "by": src, "sub": how})
+		if src.player and not t.player:
+			src.gas = minf(src.max_gas, src.gas + float(src.mods.get("tap_gas", 0.0)))
+			_heal(src, src.max_hp * float(src.mods.get("tap_heal", 0.0)), src)
+			if src.mods.get("tap_reset", false):
+				src.cds.clear()
 		if not t.player:
 			_check_ooc(src)
 
@@ -407,7 +450,7 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			u.swing = u.swing_time / haste(u)
 			var crit := rng.randf() < CRIT
 			_damage(u, tg, u.auto_dmg * (CRIT_MULT if crit else 1.0) * rng.randf_range(0.85, 1.15), crit, {"id": "auto", "type": "auto", "name": "Hand fighting"})
-			if u.player and rng.randf() < 0.25:
+			if u.player and rng.randf() < 0.25 + float(u.mods.get("auto_grip", 0.0)):
 				u.grip = mini(u.max_grip, u.grip + 1)
 	if not u.player:
 		_ai(u, delta)
