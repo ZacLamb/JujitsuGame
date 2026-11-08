@@ -183,6 +183,10 @@ static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator)
 			if g.has("set") or gid in Gear.STARTER:
 				continue   # set pieces come from masters; starter kit everyone already has
 			var rq := str(g.get("rarity", ""))
+			# item level near the mob's level (WoW-style): no level-2 tape off a level-25 mob
+			var dl := Data.display_level(lv)
+			if absi(Gear.ilvl(gid) - dl) > 8:
+				continue
 			if rq in ["common", "uncommon"] or (rq == "rare" and (elite or rare)):
 				pool.append(gid)
 		if not pool.is_empty():

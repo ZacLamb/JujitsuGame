@@ -385,7 +385,10 @@ static func item_tooltip(id: String, slot: String) -> Control:
 	Wow.tline(v, it.name, Gear.rarity_color(id), 17, true)
 	if it.has("set"):
 		Wow.tline(v, "Set piece", Wow.GREEN, 13)
+	Wow.tline(v, "Item Level %d" % Gear.ilvl(id), Wow.GOLD, 13)
 	Wow.tpair(v, Gear.SLOT_NAMES[it.slot], Gear.RARITY[it.rarity].name)
+	Wow.tline(v, "+%d Composure" % Gear.composure(id), Wow.WHITE)
+	Wow.tline(v, "+%s%% Power (move damage)" % str(Gear.power_pct(id)), Wow.WHITE)
 	for k in Rpg.ATTR_ORDER:
 		var val := int(it.attrs.get(k, 0))
 		if val > 0:

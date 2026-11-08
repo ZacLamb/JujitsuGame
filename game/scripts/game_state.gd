@@ -557,7 +557,7 @@ func give_item(id: String, quiet := false) -> bool:
 		toast.emit("LOOT: %s  (%s)" % [it.name, Gear.RARITY[it.rarity].name], Gear.rarity_color(id))
 		Sfx.play("collect")
 	var cur := str(equipped.get(it.slot, ""))
-	if cur == "" or Gear.power(id) > Gear.power(cur):
+	if cur == "" or Gear.score(id) > Gear.score(cur):
 		equipped[it.slot] = id
 		if not quiet:
 			toast.emit("Equipped %s" % it.name, Gear.rarity_color(id))
@@ -921,6 +921,14 @@ func mods() -> Dictionary:
 	Specs.apply(m, spec)
 	TalentTrees.apply(m, talents, spec)
 	Origins.apply(m, origin)
+	# gear item levels: flat Composure and % Power from what you're wearing
+	var hp_flat := 0
+	var pw := 0.0
+	for id in worn():
+		hp_flat += Gear.composure(id)
+		pw += Gear.power_pct(id)
+	m["hp_flat"] = float(m.get("hp_flat", 0.0)) + hp_flat
+	m["dmg_all"] = float(m.get("dmg_all", 0.0)) + pw / 100.0
 	_buff_mods(m)
 	return m
 

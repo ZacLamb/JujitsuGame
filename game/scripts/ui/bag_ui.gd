@@ -78,9 +78,16 @@ static func tooltip(id: String, n := 1, price_mode := "") -> PanelContainer:
 	v.add_child(MoveInfo._line(kline, 13, UiKit.MUTED))
 	if kind == "gear":
 		var gid := str(it.gear)
+		v.add_child(MoveInfo._line(Gear.ilvl_text(gid), 13, Color(1, 0.85, 0.35), true))
 		v.add_child(MoveInfo._line(Gear.stat_text(gid), 14, Color(0.45, 1.0, 0.55), true))
 		if Game.has_item(gid):
 			v.add_child(MoveInfo._line("Already in your wardrobe", 13, UiKit.RED))
+		else:
+			var cur := str(Game.equipped.get(str(Gear.ITEMS[gid].slot), ""))
+			if cur == "" or Gear.score(gid) > Gear.score(cur):
+				v.add_child(MoveInfo._line("▲ Upgrade" + ("" if cur == "" else " over your %s (item level %d)" % [Gear.ITEMS[cur].name, Gear.ilvl(cur)]), 13, Color(0.45, 1.0, 0.55), true))
+			else:
+				v.add_child(MoveInfo._line("▼ Weaker than your %s (item level %d)" % [Gear.ITEMS[cur].name, Gear.ilvl(cur)], 13, UiKit.RED, true))
 	if kind == "food":
 		v.add_child(MoveInfo._line("Use: " + str(it.desc), 14, Color(0.45, 1.0, 0.55), true))
 	elif str(it.get("desc", "")) != "":

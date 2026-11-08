@@ -39,7 +39,7 @@ func rebuild_player() -> void:
 	else:
 		me.level = Game.player_level()
 		me.mods = mods
-		me.max_hp = (140.0 + 18.0 * me.level) * float(mods.get("hp_mult", 1.0))
+		me.max_hp = (140.0 + 18.0 * me.level + float(mods.get("hp_flat", 0.0))) * float(mods.get("hp_mult", 1.0))
 		me.max_gas = float(mods.get("stamina_max", 100.0))
 		me.gas_regen = 15.0 * float(mods.get("regen", 1.0))
 		me.dmg = CombatCore.dmg_scale(me.level)

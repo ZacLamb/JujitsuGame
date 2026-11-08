@@ -77,7 +77,7 @@ func add_player(name: String, level: int, mods: Dictionary, abilities: Array) ->
 	u.name = name
 	u.level = level
 	u.mods = mods
-	u.max_hp = (140.0 + 18.0 * level) * float(mods.get("hp_mult", 1.0))
+	u.max_hp = (140.0 + 18.0 * level + float(mods.get("hp_flat", 0.0))) * float(mods.get("hp_mult", 1.0))
 	u.hp = u.max_hp
 	u.max_gas = float(mods.get("stamina_max", 100.0))
 	u.gas = u.max_gas

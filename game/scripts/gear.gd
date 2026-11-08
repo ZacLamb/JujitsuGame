@@ -156,6 +156,15 @@ const STARTER := ["standard_gi", "standard_gi_pants", "rash_white", "spats_black
 
 static var ITEMS := {}
 
+## Item level: where a piece comes from sets how strong it is (WoW-style). Every piece adds
+## Composure (flat health) and Power (% damage) from ilvl x rarity x slot, on top of its attributes.
+const RARITY_MULT := {"common": 0.6, "uncommon": 0.8, "rare": 1.0, "epic": 1.25, "legendary": 1.5}
+const SLOT_WEIGHT := {"jacket": 1.0, "pants": 0.8, "rash": 0.7, "spats": 0.6, "knees": 0.5, "head": 0.5, "tape": 0.5}
+const RARITY_ILVL := {"common": 2, "uncommon": 6, "rare": 12, "epic": 20, "legendary": 30}
+const ILVL := {"standard_gi": 1, "rash_white": 1, "spats_black": 1,
+	"familia": 16, "rash_circuito": 28, "tape_pro": 22, "mundial_gi": 48}
+const PROMOTION_ILVL := {1: 10, 2: 20, 3: 30, 4: 42}
+
 static func _static_init() -> void:
 	for id in GIS:
 		var g: Dictionary = GIS[id]
@@ -169,7 +178,47 @@ static func _static_init() -> void:
 		p.merge({"slot": "pants", "name": g.name + " Pants", "attrs": g.pants_attrs, "desc": "Matching pants.", "gi": id})
 		ITEMS[id + "_pants"] = p
 	for id in OTHER:
-		ITEMS[id] = OTHER[id]
+		ITEMS[id] = (OTHER[id] as Dictionary).duplicate(true)
+	for id in ITEMS:
+		ITEMS[id]["ilvl"] = _source_ilvl(id)
+
+static func _source_ilvl(id: String) -> int:
+	var it: Dictionary = ITEMS[id]
+	var base := id.trim_suffix("_pants")
+	if ILVL.has(base):
+		return ILVL[base]
+	if it.has("set") and ILVL.has(str(it.set)):
+		return ILVL[str(it.set)]
+	if it.has("set"):
+		for boss in BOSS_SET:
+			if BOSS_SET[boss] == it.set and Data.OPPONENTS.has(boss):
+				return Data.display_level(float(Data.OPPONENTS[boss].level)) + 1
+	for q in QUEST_LOOT:
+		if QUEST_LOOT[q] == base and Data.QUESTS.has(q):
+			return int(Data.QUESTS[q].get("min_level", 1)) + 2
+	for b in PROMOTION_LOOT:
+		if PROMOTION_LOOT[b] == id:
+			return PROMOTION_ILVL[b]
+	return RARITY_ILVL.get(str(it.get("rarity", "common")), 2)
+
+static func ilvl(id: String) -> int:
+	return int(ITEMS.get(id, {}).get("ilvl", 1))
+
+static func _budget(id: String) -> float:
+	var it: Dictionary = ITEMS[id]
+	return float(ilvl(id)) * float(RARITY_MULT.get(str(it.rarity), 0.6)) * float(SLOT_WEIGHT.get(str(it.slot), 0.5))
+
+## Flat Composure (health) this piece adds.
+static func composure(id: String) -> int:
+	return int(round(1.5 * _budget(id)))
+
+## Power: % damage this piece adds (0.18% per budget point).
+static func power_pct(id: String) -> float:
+	return snappedf(0.18 * _budget(id), 0.1)
+
+## One number to compare pieces in the same slot (auto-equip, upgrade arrows).
+static func score(id: String) -> float:
+	return _budget(id) * 2.0 + float(power(id)) * 3.0
 
 static func power(id: String) -> int:
 	var n := 0
@@ -182,6 +231,9 @@ static func rarity_color(id: String) -> Color:
 
 static func look(id: String) -> Dictionary:
 	return ITEMS.get(id, {}).get("look", {})
+
+static func ilvl_text(id: String) -> String:
+	return "Item Level %d  ·  +%d Composure  ·  +%s%% Power" % [ilvl(id), composure(id), str(power_pct(id))]
 
 static func stat_text(id: String) -> String:
 	var parts: Array[String] = []
