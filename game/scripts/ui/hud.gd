@@ -8,6 +8,7 @@ signal journal_toggled(open: bool)
 signal travel_chosen(zone: String)
 signal daily_requested
 signal graphics_changed
+signal shop_closed
 
 var root: Control
 var minimap: Minimap
@@ -65,6 +66,14 @@ func _ready() -> void:
 	status_panels.append(minimap)
 	root.add_child(touch)
 	touch.visible = false
+	wallet = BagUi.Wallet.new()
+	root.add_child(wallet)
+	status_panels.append(wallet)
+	wallet.open_bags.connect(toggle_bag)
+	bag_panel = BagUi.BagPanel.new()
+	bag_panel.visible = false
+	root.add_child(bag_panel)
+	bag_panel.visibility_changed.connect(func(): wallet.visible = not bag_panel.visible and title != null and not title.visible)
 	_build_title()
 	for p in status_panels:
 		p.visible = false
@@ -231,6 +240,11 @@ func set_prompt(npc: Npc) -> void:
 	if npc == null:
 		prompt.text = ""
 		touch.interact_btn.visible = false
+		return
+	if not npc.mob.is_empty():
+		prompt.text = "[E]  Roll with %s (Lv %d)" % [npc.mob.name, Data.display_level(float(npc.mob.level))]
+		touch.interact_btn.visible = true
+		touch.interact_btn.text = "ROLL"
 		return
 	var o: Dictionary = Data.OPPONENTS[npc.opp_id]
 	var verb := "Talk to" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "Roll with"
@@ -765,3 +779,39 @@ func _build_settings() -> void:
 		Game.save_game()
 		get_tree().reload_current_scene())
 	row.add_child(quit)
+
+# ------------------------------------------------------------ bags & vendors
+var wallet: BagUi.Wallet
+var bag_panel: BagUi.BagPanel
+var shop_panel: BagUi.ShopPanel
+
+func toggle_bag() -> void:
+	if shop_open():
+		return
+	bag_panel.shop_mode = false
+	bag_panel.visible = not bag_panel.visible
+	if bag_panel.visible:
+		bag_panel.move_to_front()
+
+func shop_open() -> bool:
+	return shop_panel != null and is_instance_valid(shop_panel)
+
+func open_shop(vendor_name: String) -> void:
+	if shop_open():
+		return
+	shop_panel = BagUi.ShopPanel.new()
+	root.add_child(shop_panel)
+	shop_panel.build(vendor_name)
+	shop_panel.closed.connect(close_shop)
+	bag_panel.shop_mode = true
+	bag_panel.visible = true
+	bag_panel.refresh()
+	bag_panel.move_to_front()
+
+func close_shop() -> void:
+	if shop_open():
+		shop_panel.queue_free()
+	shop_panel = null
+	bag_panel.shop_mode = false
+	bag_panel.visible = false
+	shop_closed.emit()

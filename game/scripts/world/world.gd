@@ -5,6 +5,7 @@ extends Node3D
 signal nearby_changed(npc: Npc)
 signal landmark_entered(id: String)
 signal spot_changed(spot: Dictionary)
+signal mob_engaged(npc: Npc)
 
 const HALF := 100
 const WATER_Y := -1.25
@@ -24,9 +25,22 @@ var spots: Array = []       # interactable spots: {pos, radius, label, action, a
 var nearby_spot: Dictionary = {}
 var _jaguar_area: Area3D
 var _blocked: Array = []  # Rect2 areas with no trees/houses
+var mobs: Array = []      # [{npc: Npc or null, camp: Dictionary, rare: bool, t: respawn seconds left}]
+var aggro_grace := 0.0    # seconds during which mobs won't pull you (after a fight, on arrival)
+
+const VENDOR_SPOTS := {"pantanal": [Vector3(-76, 0, 2), "Shop: Bar do Pantaneiro", "Seu Bené"],
+	"chapada": [Vector3(38, 0, 44), "Shop: Lanchonete da Trilha", "Dona Lia"],
+	"rio": [Vector3(6, 0, 40), "Shop: Quiosque da Orla", "Tio Beto"]}
 
 func build(z := "caceres") -> void:
 	_build_zone(z)
+	if zone != "caceres":
+		_build_mobs()
+		if VENDOR_SPOTS.has(zone):
+			var v: Array = VENDOR_SPOTS[zone]
+			_spot(v[0], 4.0, v[1], "vendor", v[2])
+			var vp: Vector3 = v[0]
+			_label(str(v[1]).trim_prefix("Shop: ").to_upper(), Vector3(vp.x, ground_y(vp.x, vp.z) + 2.8, vp.z), 56, Color(1, 0.95, 0.75))
 	_build_territories()
 	_batch_static()
 	apply_graphics()
@@ -128,6 +142,14 @@ func _build_zone(z: String) -> void:
 		Rect2(66, -12, 30, 24),     # gate
 		Rect2(-44, 44, 16, 16),     # nest tree
 		Rect2(-64, 22, 16, 16),     # pier
+		# Vila Nova (south-east neighbourhood) + outskirts camps
+		Rect2(8, 30, 80, 20),       # Rua Vila Nova (E-W) and its houses
+		Rect2(16, 16, 8, 16),       # connector from the plaza
+		Rect2(42, 48, 8, 40),       # Rua do Campo (N-S)
+		Rect2(19, 52, 18, 16),      # Praça Vila Nova
+		Rect2(50, 56, 26, 20),      # Quadra da Vila (camp)
+		Rect2(-54, 60, 30, 20),     # Prainha (camp)
+		Rect2(46, -74, 26, 24),     # Galpão (camp)
 	]
 	_build_environment()
 	_build_terrain()
@@ -141,6 +163,7 @@ func _build_zone(z: String) -> void:
 	_build_ground_detail()
 	_build_props()
 	_build_caceres_life()
+	_build_vila_nova()
 	_build_gate()
 	_build_pier()
 	_build_nest_tree()
@@ -150,6 +173,7 @@ func _build_zone(z: String) -> void:
 	_build_landmarks()
 	_build_fighters()
 	_build_villagers()
+	_build_mobs()
 	_build_bounds()
 	_build_beacon()
 
@@ -1338,6 +1362,10 @@ func attach_player(p: Player) -> void:
 	player = p
 	for id in fighters:
 		fighters[id].set_player(p)
+	for e in mobs:
+		if e.npc:
+			(e.npc as Npc).set_player(p)
+	aggro_grace = 4.0
 
 func _process(_delta: float) -> void:
 	if _falls_mat:
@@ -1356,6 +1384,20 @@ func _process(_delta: float) -> void:
 		if d < bd:
 			bd = d
 			best = n
+	aggro_grace = maxf(0.0, aggro_grace - _delta)
+	for e in mobs:
+		if e.npc == null:
+			e.t = float(e.t) - _delta
+			if float(e.t) <= 0.0:
+				_spawn_mob(e)
+			continue
+		var mn: Npc = e.npc
+		if not mn.visible:
+			continue
+		var md := mn.global_position.distance_to(player.global_position)
+		if md < bd:
+			bd = md
+			best = mn
 	if best != nearby:
 		nearby = best
 		nearby_changed.emit(nearby)
@@ -2351,3 +2393,161 @@ func _r_sugarloaf() -> void:
 	var car := _box(Vector3(2.0, 1.6, 2.6), a.lerp(b, 0.42) - Vector3(0, 1.1, 0), Color(0.95, 0.75, 0.2), false)
 	car.look_at(car.global_position + Vector3(d.x, 0, d.z).normalized(), Vector3.UP)
 	_label("PÃO DE AÇÚCAR", b + Vector3(0, 3.0, 0), 110, Color(1, 1, 1, 0.95)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+
+# ================================================================ Vila Nova (Cáceres expansion)
+## A new neighbourhood south-east of the plaza: a long street of houses, a small square with the
+## Mercadinho (vendor), and the Quadra da Vila (an outdoor court where street rollers hang out).
+## Plus two outskirts camps: the Prainha on the river and the Galpão warehouse gym (elites).
+func _road(a: Vector3, b: Vector3, w: float) -> void:
+	var d := b - a
+	d.y = 0
+	var n := maxi(1, int(d.length() / 6.0))
+	var step := d / n
+	for i in n:
+		var c := a + step * (i + 0.5)
+		var gy := ground_y(c.x, c.z)
+		var size := Vector3(absf(step.x) + 0.2 if absf(step.x) > 0.1 else w, 0.14, absf(step.z) + 0.2 if absf(step.z) > 0.1 else w)
+		_box(size, Vector3(c.x, gy + 0.05, c.z), Color(0.42, 0.4, 0.38), false)
+
+func _house(p: Vector3, front: Vector3, palette: Array) -> void:
+	var w := _rng.randf_range(5, 7)
+	var d := _rng.randf_range(5, 6.5)
+	var hgt := _rng.randf_range(3.2, 4.4)
+	var gy := ground_y(p.x, p.z)
+	var col: Color = palette[_rng.randi() % palette.size()]
+	var size := Vector3(w, hgt, d) if front.z != 0.0 else Vector3(d, hgt, w)
+	_box(size, Vector3(p.x, gy + hgt / 2.0, p.z), col)
+	var roof := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(size.x + 0.6, 1.6, size.z + 0.6)
+	roof.mesh = pm
+	roof.material_override = _mat(Color(0.72, 0.33, 0.2))
+	roof.position = Vector3(p.x, gy + hgt + 0.8, p.z)
+	if front.x != 0.0:
+		roof.rotation.y = PI / 2
+		pm.size = Vector3(size.z + 0.6, 1.6, size.x + 0.6)
+	add_child(roof)
+	_facade(Vector3(p.x, gy, p.z), size, front, col)
+
+func _build_vila_nova() -> void:
+	var palette := [Color(0.97, 0.85, 0.35), Color(0.45, 0.7, 0.9), Color(0.95, 0.55, 0.6), Color(0.55, 0.8, 0.5), Color(0.98, 0.95, 0.88), Color(0.95, 0.6, 0.3), Color(0.7, 0.55, 0.85)]
+	_road(Vector3(20, 0, 18), Vector3(20, 0, 40), 5.0)
+	_road(Vector3(10, 0, 40), Vector3(84, 0, 40), 6.0)
+	_road(Vector3(46, 0, 40), Vector3(46, 0, 86), 5.0)
+	for x in range(12, 84, 9):
+		if absf(x - 20) < 4 or absf(x - 46) < 5:
+			continue
+		_house(Vector3(x, 0, 33.5), Vector3(0, 0, 1), palette)
+		if x < 19 or x > 37:
+			if absf(x - 46) >= 6:
+				_house(Vector3(x, 0, 46.5), Vector3(0, 0, -1), palette)
+	for z in [74, 83]:
+		_house(Vector3(39.5, 0, z), Vector3(1, 0, 0), palette)
+	_label("VILA NOVA", Vector3(30, ground_y(30, 40) + 4.0, 40), 90, Color(1, 0.95, 0.8))
+	# Praça Vila Nova + Mercadinho (vendor)
+	var sq := Vector3(28, ground_y(28, 60), 60)
+	_box(Vector3(16, 0.24, 14), sq + Vector3(0, 0.08, 0), Color(0.68, 0.6, 0.5), false)
+	_mango_tree(sq + Vector3(-5, 0, -4), 1.0)
+	_mango_tree(sq + Vector3(5, 0, 4), 0.9)
+	for bx in [-3.0, 3.0]:
+		_box(Vector3(2.4, 0.5, 0.7), sq + Vector3(bx, 0.35, 3.5), Color(0.45, 0.3, 0.18), true)
+	var shop := sq + Vector3(0, 0, -5.5)
+	_box(Vector3(6, 3.2, 3.4), shop + Vector3(0, 1.6, -0.6), Color(0.95, 0.75, 0.35))
+	var awn := _box(Vector3(6.6, 0.15, 2.2), shop + Vector3(0, 3.1, 1.4), Color(0.2, 0.6, 0.35), false)
+	awn.rotation.x = 0.25
+	_box(Vector3(5, 1.0, 1.0), shop + Vector3(0, 0.5, 1.4), Color(0.5, 0.35, 0.2))
+	_label("MERCADINHO DO SEU JORGE", shop + Vector3(0, 4.0, 1.2), 56, Color(1, 0.95, 0.75))
+	_spot(shop + Vector3(0, 0, 3.0), 4.0, "Shop: Mercadinho do Seu Jorge", "vendor", "Seu Jorge")
+	# Quadra da Vila (camp)
+	var q := Vector3(62, ground_y(62, 66), 66)
+	_box(Vector3(20, 0.2, 12), q + Vector3(0, 0.06, 0), Color(0.3, 0.45, 0.55), false)
+	_box(Vector3(19, 0.02, 0.15), q + Vector3(0, 0.18, 0), Color(1, 1, 1), false)
+	_box(Vector3(0.15, 0.02, 11), q + Vector3(0, 0.18, 0), Color(1, 1, 1), false)
+	for gx in [-9.6, 9.6]:
+		_box(Vector3(0.15, 1.6, 3.0), q + Vector3(gx, 0.8, 0), Color(0.95, 0.95, 0.95), false)
+	for k in 12:
+		var fx := -10.5 + k * (21.0 / 11.0)
+		_box(Vector3(0.12, 2.6, 0.12), q + Vector3(fx, 1.3, -6.4), Color(0.5, 0.5, 0.5), false)
+	_label("QUADRA DA VILA", q + Vector3(0, 3.6, -6.4), 70, Color(1, 0.85, 0.5))
+	# Prainha (camp): sand on the riverbank, umbrellas
+	var pr := Vector3(-40, 0, 70)
+	_box(Vector3(26, 0.16, 16), Vector3(pr.x, ground_y(pr.x, pr.z) + 0.02, pr.z), Color(0.92, 0.84, 0.62), false)
+	var umb := [Color(0.95, 0.3, 0.25), Color(0.2, 0.55, 0.9), Color(1, 0.85, 0.2)]
+	for k in 3:
+		var up := pr + Vector3(-8 + k * 8, 0, -4 + (k % 2) * 7)
+		var gy := ground_y(up.x, up.z)
+		_cyl(0.06, 0.06, 2.4, Vector3(up.x, gy + 1.2, up.z), Color(0.9, 0.9, 0.9), 6)
+		_cyl(0.0, 1.6, 0.6, Vector3(up.x, gy + 2.5, up.z), umb[k], 8)
+	_label("PRAINHA DO RIO", Vector3(pr.x, ground_y(pr.x, pr.z) + 3.2, pr.z - 7), 70, Color(1, 0.9, 0.6))
+	# Galpão (elite camp): an open-front warehouse gym
+	var g := Vector3(59, ground_y(59, -64), -64)
+	_box(Vector3(16, 0.2, 10), g + Vector3(0, 0.1, 0), Color(0.55, 0.52, 0.5))
+	_box(Vector3(16, 5, 0.4), g + Vector3(0, 2.5, -5), Color(0.6, 0.62, 0.66))
+	_box(Vector3(0.4, 5, 10), g + Vector3(-8, 2.5, 0), Color(0.6, 0.62, 0.66))
+	_box(Vector3(0.4, 5, 10), g + Vector3(8, 2.5, 0), Color(0.6, 0.62, 0.66))
+	_box(Vector3(17, 0.3, 11), g + Vector3(0, 5.15, 0), Color(0.45, 0.47, 0.5), false)
+	for x in 6:
+		for z in 4:
+			var col := Color(0.13, 0.38, 0.26) if (x + z) % 2 == 0 else Color(0.25, 0.25, 0.28)
+			_box(Vector3(1.96, 0.08, 1.96), g + Vector3(-5 + x * 2, 0.25, -3 + z * 2), col, false)
+	_label("GALPÃO  ·  ELITE", g + Vector3(0, 6.2, 5.2), 80, Color(1, 0.55, 0.35))
+	# a second vendor at the Feira
+	_spot(Vector3(30, 0, -19), 4.0, "Shop: Barraca da Dona Cida", "vendor", "Dona Cida")
+
+# ================================================================ mobs
+func _build_mobs() -> void:
+	for camp in Loot.CAMPS.get(zone, []):
+		var c: Dictionary = camp
+		var p: Vector3 = c.pos
+		if zone != "caceres":
+			_label("%s  ·  Lv %d-%d" % [str(c.title).to_upper(), Data.display_level(float(c.lv[0])), Data.display_level(float(c.lv[1]))], Vector3(p.x, ground_y(p.x, p.z) + 3.4, p.z - c.radius), 56, Color(1, 0.85, 0.5))
+		for i in int(c.count):
+			var e := {"npc": null, "camp": c, "rare": false, "t": 0.0}
+			mobs.append(e)
+			_spawn_mob(e)
+		if c.has("rare"):
+			var r := {"npc": null, "camp": c, "rare": true, "t": _rng.randf_range(20.0, float(c.rare.respawn))}
+			mobs.append(r)
+
+func _spawn_mob(e: Dictionary) -> void:
+	var c: Dictionary = e.camp
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var m := Loot.make_mob(c, rng, bool(e.rare))
+	var n := Npc.new()
+	add_child(n)
+	var p: Vector3 = c.pos
+	n.setup_mob(m, self, p, float(c.radius))
+	var a := rng.randf() * TAU
+	var r := rng.randf() * float(c.radius) * 0.8
+	var at := p + Vector3(cos(a) * r, 0, sin(a) * r)
+	n.position = Vector3(at.x, ground_y(at.x, at.z), at.z)
+	if player:
+		n.set_player(player)
+	n.engaged.connect(func(npc): if game_started: mob_engaged.emit(npc))
+	e.npc = n
+
+## Called after a fight: a beaten mob despawns and respawns later; a winner walks home.
+func mob_done(npc: Npc, beaten: bool) -> void:
+	aggro_grace = 6.0
+	for e in mobs:
+		if e.npc == npc:
+			if beaten:
+				npc.queue_free()
+				e.npc = null
+				var c: Dictionary = e.camp
+				e.t = float(c.rare.respawn) if bool(e.rare) else float(c.respawn)
+			else:
+				npc.visible = true
+				npc.position = c_home(e)
+			return
+
+func c_home(e: Dictionary) -> Vector3:
+	var p: Vector3 = e.camp.pos
+	return Vector3(p.x, ground_y(p.x, p.z), p.z)
+
+func refresh_mob_tags() -> void:
+	for e in mobs:
+		if e.npc:
+			(e.npc as Npc).refresh_mob_tag()

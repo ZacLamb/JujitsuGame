@@ -69,18 +69,25 @@ var phase_lbl: Label
 var daily := {}  # set for Daily Challenge rolls
 var comp := {}   # set for competition matches: {id, round_name, opp, final}
 var team := {}   # set for 5v5 bouts: {me, them, me_stam, them_stam}
+var mob := {}    # set for open-world mobs (Loot.make_mob)
+var loot := {}   # what the mob dropped (filled at the end)
 var me_name := ""
 var me_rank := 0
 var _log: Array = []  # exchange outcomes for the share card (see ShareCard.CODES)
 
-func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Dictionary = {}, team_bout: Dictionary = {}) -> void:
+func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Dictionary = {}, team_bout: Dictionary = {}, mob_dict: Dictionary = {}) -> void:
 	opp_id = opponent_id
 	daily = daily_challenge
 	comp = comp_match
 	team = team_bout
+	mob = mob_dict
 	me_name = Game.player_name
 	me_rank = Game.rank
-	if not team.is_empty():
+	if not mob.is_empty():
+		opp = mob
+		sim.setup("mob", Game.level(), Game.knows, -1, Game.mods(), mob)
+		sim.clock = 150.0   # street rolls are short
+	elif not team.is_empty():
 		opp = Team.as_opp(team.them)
 		Team.setup_sim(sim, team.me, team.them, float(team.me_stam), float(team.them_stam), -1, team.get("opts", {}))
 		me_name = str(team.me.name)
@@ -102,7 +109,7 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	if tut:
 		Game.flags["roll_tut"] = int(Game.flags.get("roll_tut", 0)) + 1
 	intro_panel.visible = tut
-	var t := 6.0 if tut else 2.4
+	var t := 6.0 if tut else (1.4 if not mob.is_empty() else 2.4)
 	if not daily.is_empty():
 		var rd: Dictionary = Data.DAILY_RULES[daily.rule]
 		_show_message("DAILY CHALLENGE: %s\n%s" % [rd.name, rd.desc], maxf(t, 2.6), _go_live)
@@ -708,6 +715,9 @@ func _end_match() -> void:
 		xp = Game.record_daily(res, daily.date)
 	elif not comp.is_empty():
 		xp = Game.record_comp_match(res, float(opp.level))
+	elif not mob.is_empty():
+		loot = Game.record_mob(res, mob)
+		xp = int(loot.xp)
 	else:
 		xp = Game.record_roll(opp_id, res)
 	Sfx.play("win" if res.won else "lose")
@@ -737,6 +747,8 @@ func _end_match() -> void:
 		action_body.add_child(UiKit.label("+%d XP   ·   %s" % [xp, Data.rank_name(Game.rank)], 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
 	else:
 		action_body.add_child(UiKit.label("%s leaves the mat with %d%% stamina" % [me_name if res.won else opp.name, int(100.0 * float(res.me_stam if res.won else res.them_stam))], 20, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+	if not loot.is_empty() and (int(loot.money) > 0 or not loot.items.is_empty()):
+		action_body.add_child(_loot_box())
 	if not daily.is_empty():
 		action_body.add_child(ShareCard.squares(_log))
 		var text := ShareCard.build_text(daily, res, _log, Vector2i(sim.player_pts, sim.opp_pts), int(Game.daily.get("streak", 0)))
@@ -756,6 +768,24 @@ func _end_match() -> void:
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))
 	action_body.add_child(back)
+
+## The mob's drops, WoW loot-window style.
+func _loot_box() -> Control:
+	var p := PanelContainer.new()
+	p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	p.add_theme_stylebox_override("panel", UiKit.box(Color(0.03, 0.04, 0.06, 0.9), 10, Color(1, 0.85, 0.4, 0.5), 1))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.custom_minimum_size = Vector2(320, 0)
+	p.add_child(v)
+	v.add_child(UiKit.label("LOOT", 14, UiKit.ACCENT))
+	if int(loot.money) > 0:
+		v.add_child(UiKit.label("R$ %d" % int(loot.money), 18, Color(1, 0.85, 0.35)))
+	for id in loot.items:
+		v.add_child(UiKit.label(str(Loot.item(str(id)).get("name", id)), 17, Loot.color(str(id))))
+	for id in loot.get("lost", []):
+		v.add_child(UiKit.label("%s  (bags full!)" % str(Loot.item(str(id)).get("name", id)), 15, UiKit.RED))
+	return p
 
 ## Intro / blocking message (calls `then` when it ends).
 func _show_message(text: String, seconds: float, then: Callable) -> void:

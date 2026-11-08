@@ -502,6 +502,7 @@ const ACHIEVEMENTS := [
 	{"id": "leglock_win", "name": "Leg Locker", "desc": "Finish someone with a straight ankle lock or a kneebar."},
 	{"id": "guillotine_win", "name": "Off With His Head", "desc": "Finish someone with a guillotine."},
 	{"id": "grip_master", "name": "Grip Master", "desc": "Max out Grip Control in 10 rolls.", "goal": 10},
+	{"id": "mob_kills", "name": "Dono da Rua", "desc": "Beat 25 street rollers in the open world.", "goal": 25},
 	{"id": "team_win", "name": "Família", "desc": "Win a 5v5 team match."},
 	{"id": "flag_taken", "name": "Plant the Flag", "desc": "Take a territory from a rival academy."},
 	{"id": "flag_defended", "name": "Hold the Line", "desc": "Defend a territory from a counterattack."},

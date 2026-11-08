@@ -37,6 +37,7 @@ func _ready() -> void:
 		if z != "":
 			_travel(z))
 	hud.daily_requested.connect(_start_daily)
+	hud.shop_closed.connect(func(): player.input_enabled = true)
 	hud.dialogue_choice.connect(_on_dialogue_choice)
 	hud.graphics_changed.connect(func(): if is_instance_valid(world): world.apply_graphics())
 	hud.journal_toggled.connect(func(open): player.input_enabled = not open and not _in_title)
@@ -132,7 +133,7 @@ func _register_inputs() -> void:
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"look_left": [KEY_Q], "look_right": [KEY_R], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
 		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E, KEY_ENTER],
-		"journal": [KEY_J, KEY_TAB], "character": [KEY_C], "confirm": [KEY_SPACE, KEY_ENTER],
+		"journal": [KEY_J, KEY_TAB], "character": [KEY_C], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],
 	}
@@ -303,7 +304,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			hud.toggle_journal()
 		else:
 			hud.open_character()
-	elif event.is_action_pressed("interact") and not hud.dialogue_open() and not hud.journal.visible:
+	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:
+		hud.toggle_bag()
+	elif event.is_action_pressed("pause") and hud.shop_open():
+		hud.close_shop()
+	elif event.is_action_pressed("pause") and hud.bag_panel.visible:
+		hud.bag_panel.visible = false
+	elif event.is_action_pressed("interact") and not hud.dialogue_open() and not hud.journal.visible and not hud.shop_open():
 		_interact()
 	elif event.is_action_pressed("map") and not hud.dialogue_open() and not hud.journal.visible:
 		hud.minimap.toggle_big()
@@ -348,6 +355,7 @@ func _make_world(z: String) -> void:
 	Sfx.ambience(z)
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
+	world.mob_engaged.connect(_on_mob_engaged)
 	if is_instance_valid(_title_cam):
 		world.add_child(_title_cam)
 
@@ -406,6 +414,9 @@ func _use_spot(spot: Dictionary) -> void:
 			_open_territory(str(spot.arg))
 		"quest":
 			_open_quest(spot.arg)
+		"vendor":
+			player.input_enabled = false
+			hud.open_shop(str(spot.arg))
 		"drill":
 			if not Game.drills_ready:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
@@ -689,6 +700,9 @@ func _interact(target: Npc = null) -> void:
 	if npc != null and npc.giver_id != "":
 		_open_quest(npc.giver_id)
 		return
+	if npc != null and not npc.mob.is_empty():
+		_start_mob(npc)
+		return
 	if npc == null:
 		if not world.nearby_spot.is_empty():
 			_use_spot(world.nearby_spot)
@@ -774,12 +788,27 @@ func _npc_for(opp_id: String) -> Npc:
 		stack.append_array(n.get_children())
 	return null
 
-func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, team_bout: Dictionary = {}) -> void:
+var _mob_npc: Npc
+
+## Walk up to a mob (or get pulled by one): the fight starts right there.
+func _start_mob(npc: Npc) -> void:
+	if roll != null or npc == null or npc.mob.is_empty():
+		return
+	_mob_npc = npc
+	_start_roll("mob", {}, {}, {}, npc.mob)
+
+func _on_mob_engaged(npc: Npc) -> void:
+	if roll != null or _in_title or hud.dialogue_open() or hud.journal.visible or hud.travel_open() or _drill != null or not player.input_enabled:
+		return
+	Game.toast.emit("%s wants to roll!" % npc.mob.name, Color(1, 0.6, 0.4))
+	_start_mob(npc)
+
+func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, team_bout: Dictionary = {}, mob: Dictionary = {}) -> void:
 	player.input_enabled = false
 	hud.visible = false
 	# Fights happen where you stand: the pair takes the spot between you and your opponent, the
 	# world keeps living around you, and the world-side bodies hide while the fight rigs take over.
-	var npc := _npc_for(opp_id)
+	var npc := _mob_npc if opp_id == "mob" else _npc_for(opp_id)
 	var me_pos: Vector3 = player.global_position
 	var mid := me_pos
 	var face := Vector3(sin(player.rig.global_rotation.y), 0, cos(player.rig.global_rotation.y)) if player.rig else Vector3.FORWARD
@@ -804,7 +833,7 @@ func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, 
 	roll.ground_fn = world.ground_y
 	add_child(roll)
 	roll.finished.connect(_end_roll)
-	roll.start(opp_id, daily, comp, team_bout)
+	roll.start(opp_id, daily, comp, team_bout, mob)
 	Sfx.duck_ambience(true)
 	_fit_screen()
 
@@ -828,6 +857,12 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	world.refresh_beacon()
 	hud.refresh()
 	hud.set_prompt(world.nearby)
+	if opp_id == "mob":
+		if is_instance_valid(_mob_npc):
+			world.mob_done(_mob_npc, bool(result.won))
+		_mob_npc = null
+		world.refresh_mob_tags()
+		return
 	if opp_id == "comp":
 		_comp_after_match(result)
 		return

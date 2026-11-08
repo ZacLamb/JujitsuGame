@@ -394,5 +394,35 @@ func _ready() -> void:
 	game.record_daily({"won": true, "by_sub": false}, "2026-11-09")
 	check(int(game.daily.streak) == 1, "missing a day resets the streak")
 	check(game.yesterday_of("2026-03-01") == "2026-02-28", "date math across months")
+	# ---- bags, money, vendors, buffs, mobs
+	game.reset()
+	check(game.bag_capacity() == Loot.BACKPACK and game.money == 25, "new character: 16-slot backpack, R$ 25")
+	check(game.add_item("torn_rash", 12) == 0 and game.count_item("torn_rash") == 12, "junk stacks across slots")
+	var before_m: int = int(game.money)
+	check(game.sell_junk() == 36 and game.money == before_m + 36 and game.count_item("torn_rash") == 0, "sell all junk")
+	check(game.buy("bag_lona") == "" and game.count_item("bag_lona") == 1, "buy a bag")
+	var bk := -1
+	for k in game.bag.size():
+		if game.bag[k] != null and game.bag[k].id == "bag_lona":
+			bk = k
+	check(game.use_slot(bk) == "" and game.bag_capacity() == Loot.BACKPACK + 6, "equip a bag: +6 slots")
+	check(game.unequip_bag(0) == "" and game.bag_capacity() == Loot.BACKPACK, "unequip an empty bag back into the backpack")
+	game.money = 0
+	check(game.buy("acai") != "", "can't buy without money")
+	var base_regen := float(game.mods().regen)
+	game.add_item("acai")
+	for k in game.bag.size():
+		if game.bag[k] != null and game.bag[k].id == "acai":
+			game.use_slot(k)
+			break
+	check(float(game.mods().regen) > base_regen and game.active_buffs().has("acai"), "açaí buff raises stamina regen")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var m := Loot.make_mob(Loot.CAMPS.caceres[0], rng)
+	check(m.mob and float(m.level) >= 1.0 and float(m.level) <= 1.6, "mobs roll a level inside their camp's range")
+	var r: Dictionary = game.record_mob({"won": true, "by_sub": false}, m)
+	check(int(r.xp) > 0 and int(r.money) > 0, "beating a mob pays XP and R$ (%d xp, R$ %d)" % [int(r.xp), int(r.money)])
+	var rare := Loot.make_mob(Loot.CAMPS.caceres[1], rng, true)
+	check(rare.rare and rare.elite, "rare spawns are elite")
 	print("\n%s (%d failures)" % ["PASS" if fails == 0 else "FAILED", fails])
 	get_tree().quit(1 if fails > 0 else 0)

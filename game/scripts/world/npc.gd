@@ -48,6 +48,73 @@ func setup_villager(seed_v: int, w, area_center: Vector3) -> Npc:
 	_pick_target()
 	return self
 
+# ------------------------------------------------------------ mobs
+## A roaming mob: wanders its camp; aggressive ones walk up and challenge you when you get close.
+var mob := {}
+var camp_radius := 8.0
+var _chasing := false
+signal engaged(npc: Npc)
+
+func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
+	mob = m
+	world = w
+	wander = true
+	camp_radius = radius
+	rng.randomize()
+	_home = center
+	display_name = str(m.name)
+	rig = BodyRig.new()
+	add_child(rig)
+	rig.setup(m.gi, Data.BELTS[Data.belt_of(int(m.rank))].color, m.skin, Color(0.12, 0.08, 0.05), -1, str(m.get("body", "male")))
+	tag = Label3D.new()
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.font_size = 44
+	tag.pixel_size = 0.01
+	tag.outline_size = 12
+	tag.position = Vector3(0, 2.25, 0)
+	add_child(tag)
+	refresh_mob_tag()
+	_pick_target()
+	return self
+
+func refresh_mob_tag() -> void:
+	var lv := Data.display_level(float(mob.level))
+	var kind := ""
+	if mob.get("rare", false):
+		kind = "  ★ Rare Elite"
+	elif mob.get("elite", false):
+		kind = "  Elite"
+	tag.text = "%s\nLv %d%s" % [mob.name, lv, kind]
+	tag.modulate = Data.con_color(lv, Game.player_level())
+	if mob.get("rare", false):
+		tag.outline_modulate = Color(0.5, 0.5, 0.6)
+
+func _mob_process(delta: float) -> bool:
+	if mob.is_empty() or _player == null:
+		return false
+	var to_p: Vector3 = _player.global_position - global_position
+	to_p.y = 0
+	var d := to_p.length()
+	var home_d := (global_position - _home).length()
+	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Data.display_level(float(mob.level)) >= Game.player_level() - 6
+	if can_aggro and d < 9.0 and home_d < camp_radius + 10.0:
+		_chasing = true
+	elif _chasing and (d > 14.0 or home_d > camp_radius + 12.0 or world.aggro_grace > 0.0):
+		_chasing = false
+		_target = _home
+	if not _chasing:
+		return false
+	if d < 1.9:
+		_chasing = false
+		engaged.emit(self)
+		return true
+	global_position += to_p.normalized() * 3.4 * delta
+	global_position.y = world.ground_y(global_position.x, global_position.z)
+	rig.rotation.y = lerp_angle(rig.rotation.y, atan2(-to_p.x, -to_p.z), clampf(delta * 8.0, 0, 1))
+	rig.animate_locomotion(delta, 0.7)
+	return true
+
 # ------------------------------------------------------------ quest givers
 const FEMALE_GIVERS := ["lurdes", "rosa", "lia", "ana", "cristal", "nanda", "jaci", "dandara"]
 var giver_id := ""
@@ -111,10 +178,13 @@ func set_player(p: Node3D) -> void:
 	_player = p
 
 func _pick_target() -> void:
-	_target = _home + Vector3(rng.randf_range(-14, 14), 0, rng.randf_range(-14, 14))
+	var r := camp_radius if not mob.is_empty() else 14.0
+	_target = _home + Vector3(rng.randf_range(-r, r), 0, rng.randf_range(-r, r))
 	_wait = rng.randf_range(1.0, 4.0)
 
 func _process(delta: float) -> void:
+	if _mob_process(delta):
+		return
 	if wander:
 		if _wait > 0.0:
 			_wait -= delta

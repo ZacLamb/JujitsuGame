@@ -39,6 +39,10 @@ var zone := "caceres"
 var train := {}            # attribute -> drill successes
 var drills_ready := true   # drills refresh after every roll
 var daily := {}            # {"last_win": date, "last_try": date, "streak": n, "best": n}
+var money := 0           # Reais (R$)
+var bag: Array = []       # slot -> {"id": item id, "n": count} or null; size = bag_capacity()
+var bags: Array = ["", "", "", ""]   # equipped extra bags (Loot item ids)
+var buffs := {}           # item id -> unix time it wears off
 var test_mode := false  # set by tests to avoid writing saves
 
 func _ready() -> void:
@@ -196,6 +200,14 @@ func reset_state() -> void:
 	kit = "gi"
 	team = {}
 	territories = {}
+	money = 0
+	bags = ["", "", "", ""]
+	bag = []
+	buffs = {}
+	_fit_bag()
+	money = 25
+	bag[0] = {"id": "acai", "n": 2}
+	bag[1] = {"id": "pao_queijo", "n": 3}
 
 func save_game() -> void:
 	if test_mode:
@@ -206,6 +218,7 @@ func save_game() -> void:
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"money": money, "bag": bag, "bags": bags, "buffs": buffs,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -256,6 +269,17 @@ func load_game() -> void:
 		talents = {}
 
 # ------------------------------------------------------------ rank / xp
+	money = int(parsed.get("money", 0))
+	bags = parsed.get("bags", ["", "", "", ""])
+	while bags.size() < Loot.BAG_SLOTS:
+		bags.append("")
+	bag = parsed.get("bag", [])
+	for k in bag.size():
+		if bag[k] != null:
+			bag[k] = {"id": str(bag[k].get("id", "")), "n": int(bag[k].get("n", 1))}
+	buffs = parsed.get("buffs", {})
+	_fit_bag()
+
 func level() -> float:
 	return Data.rank_level(rank)
 
@@ -270,6 +294,7 @@ func at_stripe_cap() -> bool:
 	return rank % 5 == 4
 
 func add_xp(amount: int) -> void:
+	amount = int(round(amount * xp_mult()))
 	var before := player_level()
 	xp += amount
 	stripe_xp += amount
@@ -777,6 +802,7 @@ func mods() -> Dictionary:
 	for b in set_bonuses():
 		if b.has("effect"):
 			m[b.effect] = true
+	_buff_mods(m)
 	return m
 
 # ------------------------------------------------------------ achievements
@@ -1250,3 +1276,226 @@ func record_daily(result: Dictionary, date_str := "") -> int:
 	save_game()
 	progress_changed.emit()
 	return gained
+
+# ------------------------------------------------------------ bags, money, buffs
+signal bag_changed
+
+func bag_capacity() -> int:
+	var n := Loot.BACKPACK
+	for b in bags:
+		if str(b) != "":
+			n += int(Loot.item(str(b)).get("slots", 0))
+	return n
+
+func _fit_bag() -> void:
+	while bag.size() < bag_capacity():
+		bag.append(null)
+
+func free_slots() -> int:
+	var n := 0
+	for k in bag_capacity():
+		if k >= bag.size() or bag[k] == null:
+			n += 1
+	return n
+
+## Adds items, stacking first. Returns how many didn't fit (bags full).
+func add_item(id: String, n := 1) -> int:
+	var it := Loot.item(id)
+	if it.is_empty():
+		return n
+	_fit_bag()
+	var stack := int(it.get("stack", 1))
+	for k in bag_capacity():
+		if n <= 0:
+			break
+		var s = bag[k]
+		if s != null and s.id == id and int(s.n) < stack:
+			var put := mini(n, stack - int(s.n))
+			s.n = int(s.n) + put
+			n -= put
+	for k in bag_capacity():
+		if n <= 0:
+			break
+		if bag[k] == null:
+			var put := mini(n, stack)
+			bag[k] = {"id": id, "n": put}
+			n -= put
+	bag_changed.emit()
+	return n
+
+func count_item(id: String) -> int:
+	var c := 0
+	for s in bag:
+		if s != null and s.id == id:
+			c += int(s.n)
+	return c
+
+func _take(k: int, n := 1) -> void:
+	var s = bag[k]
+	if s == null:
+		return
+	s.n = int(s.n) - n
+	if int(s.n) <= 0:
+		bag[k] = null
+
+func add_money(amount: int) -> void:
+	money = maxi(0, money + amount)
+	bag_changed.emit()
+
+## Use the item in a bag slot: eat/drink (buff), equip a bag, or learn a gear drop.
+func use_slot(k: int) -> String:
+	if k < 0 or k >= bag.size() or bag[k] == null:
+		return ""
+	var id: String = bag[k].id
+	var it := Loot.item(id)
+	match str(it.get("kind", "")):
+		"food":
+			buffs[id] = int(Time.get_unix_time_from_system()) + int(it.mins) * 60
+			_take(k)
+			toast.emit("%s: %s" % [it.name, it.desc], Loot.color(id))
+		"bag":
+			var free := bags.find("")
+			if free < 0:
+				return "Your bag slots are full."
+			bags[free] = id
+			_take(k)
+			_fit_bag()
+			toast.emit("Equipped %s (+%d slots)" % [it.name, int(it.slots)], Loot.color(id))
+		"gear":
+			var gid: String = it.gear
+			if has_item(gid):
+				return "Already in your wardrobe. Sell it to a vendor."
+			give_item(gid)
+			equip(gid)
+			_take(k)
+		_:
+			return "Sell this to a vendor."
+	save_game()
+	bag_changed.emit()
+	progress_changed.emit()
+	return ""
+
+func sell_slot(k: int) -> int:
+	if k < 0 or k >= bag.size() or bag[k] == null:
+		return 0
+	var it := Loot.item(str(bag[k].id))
+	var got := int(it.get("sell", 0)) * int(bag[k].n)
+	bag[k] = null
+	money += got
+	save_game()
+	bag_changed.emit()
+	return got
+
+func sell_junk() -> int:
+	var got := 0
+	for k in bag.size():
+		if bag[k] != null and str(Loot.item(str(bag[k].id)).get("kind", "")) == "junk":
+			got += sell_slot(k)
+	return got
+
+func buy(id: String) -> String:
+	var it := Loot.item(id)
+	var price := int(it.get("buy", 0))
+	if price <= 0:
+		return "Not for sale."
+	if money < price:
+		return "Not enough R$."
+	if add_item(id) > 0:
+		return "Your bags are full."
+	money -= price
+	save_game()
+	bag_changed.emit()
+	return ""
+
+## Unequip an extra bag back into the backpack (only if its slots are empty).
+func unequip_bag(i: int) -> String:
+	if str(bags[i]) == "":
+		return ""
+	var start := Loot.BACKPACK
+	for b in range(i):
+		if str(bags[b]) != "":
+			start += int(Loot.item(str(bags[b])).get("slots", 0))
+	var n := int(Loot.item(str(bags[i])).get("slots", 0))
+	for k in range(start, start + n):
+		if k < bag.size() and bag[k] != null:
+			return "Empty that bag first."
+	var id: String = bags[i]
+	for k in n:
+		bag.remove_at(start)
+	bags[i] = ""
+	add_item(id)
+	save_game()
+	bag_changed.emit()
+	return ""
+
+## Active buffs: {id: seconds left}. Expired ones are cleared.
+func active_buffs() -> Dictionary:
+	var now := int(Time.get_unix_time_from_system())
+	var out := {}
+	for id in buffs.keys():
+		var left := int(buffs[id]) - now
+		if left <= 0:
+			buffs.erase(id)
+		else:
+			out[id] = left
+	return out
+
+func _buff_mods(m: Dictionary) -> void:
+	for id in active_buffs():
+		var e: Dictionary = Loot.item(id).get("effect", {})
+		for k in e:
+			match k:
+				"regen":
+					m.regen = float(m.regen) * (1.0 + float(e[k]))
+				"stamina_max":
+					m.stamina_max = float(m.stamina_max) + float(e[k])
+				"decision":
+					m.decision = float(m.decision) * (1.0 + float(e[k]))
+				"defense":
+					m.defense = float(m.defense) * (1.0 + float(e[k]))
+				"read_resist":
+					m["read_resist"] = float(m.get("read_resist", 1.0)) * float(e[k])
+
+func xp_mult() -> float:
+	var x := 1.0
+	for id in active_buffs():
+		x += float(Loot.item(id).get("effect", {}).get("xp", 0.0))
+	return x
+
+## A beaten (or lost-to) mob: XP, money and loot. Returns {xp, money, items, lost: [ids that didn't fit]}.
+func record_mob(result: Dictionary, mob: Dictionary) -> Dictionary:
+	unlock("first_roll")
+	drills_ready = true
+	var lv := float(mob.level)
+	var out := {"xp": 0, "money": 0, "items": [], "lost": []}
+	if not result.won:
+		out.xp = int(6 + 2 * lv)
+		add_xp(out.xp)
+		return out
+	var gained := int(16 + 9 * lv)
+	if mob.get("elite", false):
+		gained = int(gained * 1.6)
+	if mob.get("rare", false):
+		gained *= 3
+	if result.by_sub:
+		gained += 8
+		quest_event("sub_wins")
+	# grey mobs (far below you) give almost nothing, like WoW
+	if Data.display_level(lv) < player_level() - 6:
+		gained = int(gained * 0.15)
+	out.xp = gained
+	add_xp(gained)
+	bump("mob_kills")
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var loot := Loot.roll_loot(mob, zone, rng)
+	out.money = int(loot.money)
+	money += out.money
+	for id in loot.items:
+		if add_item(str(id)) > 0:
+			out.lost.append(id)
+		else:
+			out.items.append(id)
+	save_game()
+	bag_changed.emit()
+	return out
