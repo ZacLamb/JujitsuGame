@@ -91,8 +91,19 @@ uniform vec4 gi_ref : source_color = vec4(0.85, 0.85, 0.85, 1.0);
 uniform vec4 belt : source_color = vec4(0.05, 0.05, 0.05, 1.0);
 uniform vec4 skin : source_color = vec4(0.6, 0.45, 0.4, 1.0);
 uniform vec4 skin_ref : source_color = vec4(0.6, 0.45, 0.4, 1.0);
+uniform vec4 pants : source_color = vec4(1.0);
+uniform vec4 accent : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+uniform int pattern = 0;
+uniform float pscale = 1.0;
 uniform float rim_amount = 0.2;
+varying vec4 bpw;
+%PATLIB%
+void vertex() {
+	bpw = CUSTOM0;
+}
 void fragment() {
+	vec3 bp = bpw.xyz * pscale;
+%PATBODY%
 	vec3 c = texture(albedo_tex, UV).rgb;
 	vec2 mk = texture(mask_tex, UV).rg;
 	vec3 cs = pow(c, vec3(1.0 / 2.2));
@@ -107,7 +118,9 @@ void fragment() {
 	float bm = mk.r;
 	vec3 W = vec3(0.2126, 0.7152, 0.0722);
 	vec3 o = c;
-	o = mix(o, c * (gi.rgb / max(gi_ref.rgb, vec3(0.05))), gm);
+	vec3 cloth = mix(gi.rgb, pants.rgb, step(0.5, bpw.w));
+	cloth = mix(cloth, accent.rgb, clamp(m, 0.0, 1.0) * accent.a);
+	o = mix(o, c * (cloth / max(gi_ref.rgb, vec3(0.05))), gm);
 	float sk = dot(c, W) / max(dot(skin_ref.rgb, W), 0.01);
 	o = mix(o, skin.rgb * min(sk, 1.1), sm);
 	o = mix(o, belt.rgb * clamp(0.6 + lum * 1.6, 0.0, 1.1), bm);
@@ -150,15 +163,26 @@ static var _tex := {}
 static func tex_shader(ref: int) -> Shader:
 	if not _tex.has(ref):
 		var s := Shader.new()
-		s.code = TEX_CODE.replace("%STENCIL%", "stencil_mode write, compare_always, %d;" % ref if ref > 0 else "")
+		var lib := MAIN_CODE.substr(MAIN_CODE.find("vec3 h3("), MAIN_CODE.find("void vertex()") - MAIN_CODE.find("vec3 h3("))
+		var a := MAIN_CODE.find("\tfloat m = 0.0;")
+		var body := MAIN_CODE.substr(a, MAIN_CODE.find("\tALBEDO = mix(base") - a)
+		s.code = TEX_CODE.replace("%STENCIL%", "stencil_mode write, compare_always, %d;" % ref if ref > 0 else "") \
+			.replace("%PATLIB%", lib).replace("%PATBODY%", body)
 		_tex[ref] = s
 	return _tex[ref]
 
 ## Material for a textured Meshy body (see TEX_CODE). mi carries the albedo path and colour refs.
-static func textured(mi: MeshInstance3D, gi_c: Color, belt_c: Color, skin_c: Color, grow: float, ref := 0,
-		team := Color(0, 0, 0, 0), ink := Color(0.09, 0.07, 0.06)) -> ShaderMaterial:
+static func textured(mi: MeshInstance3D, jacket: Dictionary, pants_l: Dictionary, belt_c: Color, skin_c: Color,
+		grow: float, ref := 0, team := Color(0, 0, 0, 0), ink := Color(0.09, 0.07, 0.06)) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = tex_shader(ref)
+	var gi_c: Color = jacket.get("color", Color.WHITE)
+	m.set_shader_parameter("pants", pants_l.get("color", gi_c))
+	# one pattern for the whole gi: the jacket's, else the pants'
+	var pl: Dictionary = jacket if str(jacket.get("pattern", "none")) != "none" else pants_l
+	m.set_shader_parameter("accent", pl.get("accent", Color(0, 0, 0, 0)))
+	m.set_shader_parameter("pattern", int(PATTERNS.get(str(pl.get("pattern", "none")), 0)))
+	m.set_shader_parameter("pscale", float(pl.get("pscale", 1.0)))
 	m.set_shader_parameter("albedo_tex", load(str(mi.get_meta("albedo"))))
 	m.set_shader_parameter("mask_tex", load(str(mi.get_meta("albedo")).replace("_albedo", "_mask")))
 	m.set_shader_parameter("gi", gi_c)

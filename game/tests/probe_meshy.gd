@@ -31,7 +31,11 @@ func _ready() -> void:
 		var r: Array = rows[i]
 		var rig := BodyRig.new()
 		add_child(rig)
-		rig.setup(r[1], r[2], r[3], Color(0.1, 0.07, 0.05), 4, r[0])
+		if i == 0:
+			rig.look = Gear.set_look(Gear.SETS.keys()[0])
+		if i == 3:
+			rig.look = Gear.set_look(Gear.SETS.keys()[5 % Gear.SETS.size()])
+		rig.setup(r[1], r[2], r[3], Color(0.1, 0.07, 0.05), [0, 0, 3, 0, 2][i], r[0])
 		rig.position = Vector3((i - 2) * 1.1, 0, 0)
 		rig.rotation.y = PI + (0.5 if i == 2 else 0.0)
 		rig.set_meta("walk", r[4])
@@ -54,7 +58,7 @@ func _ready() -> void:
 		if c is BodyRig:
 			var b: MeshInstance3D = (c as BodyRig)._pieces.get("Body")
 			if b:
-				print("RIG ", c.body, " belt ", (b.material_override as ShaderMaterial).get_shader_parameter("belt"), " col ", c.belt_color, " mat ", b.material_override)
+				print("RIG ", c.body, " pieces ", (c as BodyRig)._pieces.keys(), " meshy ", (c as BodyRig)._meshy, " belt ", (b.material_override as ShaderMaterial).get_shader_parameter("belt"), " col ", c.belt_color, " mat ", b.material_override)
 	for c in get_children():
 		if c is BodyRig and c.get_meta("walk", 0.0) > 0.0:
 			(c as BodyRig).animate_locomotion(0.1, 1.0)

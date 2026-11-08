@@ -31,6 +31,7 @@ func _init():
 		var a: Array = J[n]
 		return Vector3(a[0], a[1], a[2])
 	var skin := wskin.duplicate() as Skin
+	var fmap := {}   # bind index -> mesh-to-worker transform
 	for bnv in bind_of:
 		var bn := str(bnv)
 		if not J.has(bn):
@@ -73,6 +74,7 @@ func _init():
 				rot = Basis(Quaternion(md.normalized(), wd.normalized()))
 			f = Transform3D(rot, w0 - rot * m0)
 		skin.set_bind_pose(bind_of[bn], wskin.get_bind_pose(bind_of[bn]) * f)
+		fmap[bind_of[bn]] = f
 	# mesh
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
@@ -95,6 +97,25 @@ func _init():
 			var bn: String = d.b[k][j]
 			bones.append(int(bind_of.get(bn, bind_of["Hips"])))
 			wts.append(float(d.w[k][j]))
+	# worker-space rest position per vertex (CUSTOM0.xyz) for the gear pattern shader, plus how much
+	# the vertex belongs to the legs (CUSTOM0.w) so pants can take their own colour
+	var leg_ids := []
+	for ln in ["UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Foot.L", "Foot.R"]:
+		leg_ids.append(bind_of[ln])
+	var cust := PackedFloat32Array()
+	for k in v.size():
+		var rp := Vector3.ZERO
+		var legw := 0.0
+		for j in 4:
+			var bi := bones[k * 4 + j]
+			var w := wts[k * 4 + j]
+			var f: Transform3D = fmap.get(bi, Transform3D.IDENTITY)
+			rp += (f * v[k]) * w
+			if bi in leg_ids:
+				legw += w
+		cust.append(rp.x); cust.append(rp.y); cust.append(rp.z); cust.append(legw)
+	arr[Mesh.ARRAY_CUSTOM0] = cust
+
 	var idx := PackedInt32Array()
 	for t in d.i:
 		idx.append(int(t[0])); idx.append(int(t[2])); idx.append(int(t[1]))   # Godot winds clockwise
@@ -107,7 +128,8 @@ func _init():
 	arr[Mesh.ARRAY_WEIGHTS] = wts
 	arr[Mesh.ARRAY_INDEX] = idx
 	var im := ImporterMesh.new()
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, null, "Body")
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, null, "Body",
+		Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	im.generate_lods(25.0, 60.0, [])
 	var root := Node3D.new()
 	root.name = "Fighter"

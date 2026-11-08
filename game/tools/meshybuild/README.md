@@ -17,5 +17,7 @@ else. Needs `bpy`, `numpy`, `scipy`, `Pillow`; Python 3.13.
    worker bone, so no re-posing is needed.
 
 `viz.py <glb> <joints.json> <out.png>` plots the estimated joints for a quick check.
-BodyRig uses these bodies for plain gi looks (`BodyRig.MESHY`); patterned gear sets, no-gi and
-casual clothes stay on the sculpted piece models.
+The importer also stores each vertex's worker-space rest position (CUSTOM0.xyz) so gear-set patterns
+(jaguar rosettes, croc scales...) paint onto the gi, and a leg weight (CUSTOM0.w) so pants can take
+their own colour. BodyRig uses these bodies for every gi look (`BodyRig.MESHY`); no-gi and casual
+clothes stay on the sculpted piece models, and sculpted hair / head gear are not shown on them.

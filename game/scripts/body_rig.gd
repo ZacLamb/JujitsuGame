@@ -580,6 +580,8 @@ func _attach_fighter() -> void:
 		bmi.skeleton = bmi.get_path_to(base.get_node(base.skeleton))
 		_pieces["Body"] = bmi
 		ms.free()
+		# Sculpted hair / head gear are built for the cartoon cranium and sit wrong on these realistic
+		# heads, so Meshy bodies show neither (head gear stats still apply).
 		base.queue_free()
 		_apply_materials()
 		return
@@ -603,12 +605,8 @@ func _wants_meshy() -> bool:
 	if not use_meshy or casual or not ResourceLoader.exists(MESHY.get(body, "")):
 		return false
 	var lk := current_look()
-	if str(lk.get("kit", "gi")) != "gi" or lk.has("head"):
+	if str(lk.get("kit", "gi")) != "gi":
 		return false
-	for slot in ["jacket", "pants"]:
-		var l: Dictionary = lk.get(slot, {})
-		if str(l.get("pattern", "none")) != "none":
-			return false
 	return true
 
 ## The look actually worn: gear look if set, else derived from the setup colours.
@@ -679,7 +677,8 @@ func _apply_materials() -> void:
 	if _meshy:
 		var bm: MeshInstance3D = _pieces.Body
 		var jk: Dictionary = want.get("Jacket", {"color": gi_color})
-		bm.material_override = FighterLook.textured(bm, jk.get("color", gi_color), belt_color, skin_color, grow * 0.8, _ref, _team)
+		var pt: Dictionary = want.get("Pants", jk)
+		bm.material_override = FighterLook.textured(bm, jk, pt, belt_color, skin_color, grow * 0.8, _ref, _team)
 		_collect_lod()
 		return
 	for n in _pieces:
