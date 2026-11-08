@@ -621,9 +621,11 @@ class TalentNode extends Control:
 		S = s * (1.15 if capstone else 1.0)
 		custom_minimum_size = Vector2(maxf(S + 36, 98), S + (30 if show_name else 8))
 	var node := {}
+	var tex_key := ""
 	func setup_node(nd: Dictionary, col: Color, s := 46.0) -> void:
 		node = nd
 		tid = str(nd.id)
+		tex_key = IconArt.talent_key(nd, Game.spec)
 		tree_col = col
 		icon = str(nd.get("icon", "chevron"))
 		var choice := str(nd.get("kind", "")) == "choice"
@@ -771,13 +773,19 @@ class TalentNode extends Control:
 		for p in shape:
 			inner.append(c + (p - c) * 0.86)
 		draw_colored_polygon(inner, fill)
+		var painted := IconArt.tex(tex_key)
+		if painted != null:
+			# painted art: full colour when learned / learnable, greyed when locked (like WoW)
+			var tint := Color.WHITE if (lit or can_learn) else (Color(0.55, 0.55, 0.55) if unlocked else Color(0.32, 0.32, 0.34))
+			IconArt.draw_in_poly(self, inner, painted, tint)
 		var loop := shape.duplicate()
 		loop.append(shape[0])
 		draw_polyline(loop, ring, 3.0 if (lit or can_learn) else 2.0, true)
 		var gcol := Color(1, 1, 1, 0.95) if (lit or can_learn) else Color(1, 1, 1, 0.25)
 		if maxed:
 			gcol = Color(1.0, 0.93, 0.7)
-		CharSheet.draw_glyph(self, icon, c, S * 0.5, gcol)
+		if painted == null:
+			CharSheet.draw_glyph(self, icon, c, S * 0.5, gcol)
 		if not unlocked and rank == 0:
 			draw_colored_polygon(inner, Color(0, 0, 0, 0.35))
 		# rank chip (bottom-right), like WoW's little number

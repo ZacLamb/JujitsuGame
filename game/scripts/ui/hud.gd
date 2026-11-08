@@ -266,6 +266,7 @@ func refresh() -> void:
 	xp_bar.add_theme_stylebox_override("fill", Wow.sb(XP_CAP_COLOR if capped else XP_COLOR, Color(0, 0, 0, 0), 2, 0))
 	var lv := Game.player_level()
 	_portrait.glyph = STYLE_GLYPH.get(Game.style, "shield")
+	_portrait.key = ("spec_" + Game.spec) if Game.spec != "" else ("class_" + Game.style)
 	var sp := Specs.get_spec(Game.spec)
 	_portrait.col = Team.ROLES[sp.role].color if not sp.is_empty() else Wow.GOLD
 	_portrait.queue_redraw()
@@ -1069,9 +1070,26 @@ func _spec_card(sp: Dictionary) -> Control:
 	var em := Wow.Emblem.new()
 	em.glyph = str(role.icon)
 	em.col = rc
+	em.key = "spec_" + str(sp.id)
 	em.custom_minimum_size = Vector2(0, 66)
 	var emc := CenterContainer.new()
-	emc.add_child(em)
+	var art := IconArt.tex("spec_" + str(sp.id))
+	if art != null:
+		# big painted crest in a bronze frame (gold when active)
+		var fr := PanelContainer.new()
+		var fs := Wow.sb(Color(0, 0, 0, 1), Wow.GOLD if mine else Wow.FRAME, 3, 6, 3)
+		fr.add_theme_stylebox_override("panel", fs)
+		var tr := TextureRect.new()
+		tr.texture = art
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tr.custom_minimum_size = Vector2(112, 112)
+		if not mine and Game.spec != "":
+			tr.modulate = Color(0.75, 0.75, 0.75)
+		fr.add_child(tr)
+		emc.add_child(fr)
+	else:
+		emc.add_child(em)
 	col.add_child(emc)
 	col.add_child(Wow.title(str(sp.name), 19, Wow.WHITE))
 	(col.get_child(col.get_child_count() - 1) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

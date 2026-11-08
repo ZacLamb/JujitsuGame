@@ -14,6 +14,19 @@ var _player: Node3D
 var world  # World, for ground height
 var rng := RandomNumberGenerator.new()
 
+## WoW-style nameplate: the same size on screen at any distance, so it never fills the view
+## when the camera is close.
+const PLATE_PX := 0.0007
+static func _plate(l: Label3D) -> void:
+	l.fixed_size = true
+	l.visibility_range_end = 26.0        # only nearby plates, like WoW
+	l.visibility_range_end_margin = 4.0
+	l.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	l.font_size = 30
+	l.pixel_size = PLATE_PX
+	l.outline_size = 8
+	l.line_spacing = -6.0
+
 func setup_fighter(id: String, w) -> Npc:
 	opp_id = id
 	world = w
@@ -26,10 +39,7 @@ func setup_fighter(id: String, w) -> Npc:
 	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.fixed_size = false
-	tag.font_size = 48
-	tag.pixel_size = 0.01
-	tag.outline_size = 14
+	_plate(tag)
 	tag.position = Vector3(0, 2.25, 0)
 	add_child(tag)
 	refresh_tag()
@@ -91,9 +101,7 @@ func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.font_size = 44
-	tag.pixel_size = 0.01
-	tag.outline_size = 12
+	_plate(tag)
 	tag.position = Vector3(0, 2.25, 0)
 	add_child(tag)
 	refresh_mob_tag()
@@ -170,9 +178,7 @@ func setup_quest_giver(id: String, w) -> Npc:
 	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
-	tag.font_size = 44
-	tag.pixel_size = 0.0095
-	tag.outline_size = 12
+	_plate(tag)
 	tag.position = Vector3(0, 2.2, 0)
 	tag.text = g.name
 	tag.modulate = Color(0.85, 1.0, 0.85)
@@ -181,9 +187,10 @@ func setup_quest_giver(id: String, w) -> Npc:
 	marker.font = Wow.title_font()
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	marker.no_depth_test = true
-	marker.font_size = 140
-	marker.pixel_size = 0.012
-	marker.outline_size = 22
+	marker.fixed_size = true
+	marker.font_size = 80
+	marker.pixel_size = 0.0009
+	marker.outline_size = 14
 	marker.outline_modulate = Color(0.25, 0.15, 0.0)
 	marker.position = Vector3(0, 3.1, 0)
 	if UiKit.head_font():
@@ -222,6 +229,8 @@ func _pick_target() -> void:
 	_wait = rng.randf_range(1.0, 4.0)
 
 func _process(delta: float) -> void:
+	if tag:
+		tag.visible = not in_combat   # the target frame names who you're fighting; no stacked plates
 	if in_combat:
 		return
 	if _mob_process(delta):

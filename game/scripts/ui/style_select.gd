@@ -72,6 +72,11 @@ func _ready() -> void:
 		var b := _choice_btn("%s   ·   %s" % [st.name, st.tag])
 		b.pressed.connect(func(): _pick_style(id))
 		right.add_child(b)
+		var ct := IconArt.tex("class_" + str(id))
+		if ct != null:
+			b.icon = ct
+			b.expand_icon = true
+			b.add_theme_constant_override("icon_max_width", 24)
 		_style_btns[id] = b
 	_class_info = VBoxContainer.new()
 	_class_info.add_theme_constant_override("separation", 3)
@@ -263,12 +268,17 @@ func _pick_style(id: String) -> void:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 6)
 		var ic := Control.new()
-		ic.custom_minimum_size = Vector2(22, 22)
+		ic.custom_minimum_size = Vector2(30, 30)
 		var col: Color = ri.col
 		var gl: String = ri.glyph
+		var stx := IconArt.tex("spec_" + str(sp.id))
 		ic.draw.connect(func():
-			ic.draw_circle(Vector2(11, 11), 11, col.darkened(0.55))
-			CharSheet.draw_glyph(ic, gl, Vector2(11, 11), 13, col))
+			if stx != null:
+				ic.draw_rect(Rect2(0, 0, 30, 30), Color(0.42, 0.32, 0.16))
+				ic.draw_texture_rect(stx, Rect2(1.5, 1.5, 27, 27), false)
+			else:
+				ic.draw_circle(Vector2(15, 15), 13, col.darkened(0.55))
+				CharSheet.draw_glyph(ic, gl, Vector2(15, 15), 15, col))
 		h.add_child(ic)
 		var l := Wow.label("%s  ·  %s (%s)" % [str(sp.name), str(ri.name), str(ri.wow)], 13, col)
 		h.add_child(l)

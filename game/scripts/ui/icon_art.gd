@@ -89,3 +89,65 @@ static func _draw_painted(ci: CanvasItem, r: Rect2, t: Texture2D, edge: Color, d
 		ci.draw_rect(r.grow(-1.0), edge, false, 2.0)
 	if dim:
 		ci.draw_rect(inner, Color(0, 0, 0, 0.4))
+
+## Painted texture clipped to a polygon (talent circles / diamonds, round emblems).
+static func draw_in_poly(ci: CanvasItem, pts: PackedVector2Array, t: Texture2D, tint := Color.WHITE) -> void:
+	var lo := pts[0]
+	var hi := pts[0]
+	for q in pts:
+		lo = Vector2(minf(lo.x, q.x), minf(lo.y, q.y))
+		hi = Vector2(maxf(hi.x, q.x), maxf(hi.y, q.y))
+	var sz := hi - lo
+	var side := maxf(sz.x, sz.y)
+	var org := lo + (sz - Vector2(side, side)) / 2.0
+	var uvs := PackedVector2Array()
+	for q in pts:
+		uvs.append((q - org) / side)
+	ci.draw_colored_polygon(pts, tint, uvs, t)
+
+## Circle as a polygon.
+static func circle(c: Vector2, r: float, n := 40) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for i in n:
+		out.append(c + Vector2(cos(TAU * i / n), sin(TAU * i / n)) * r)
+	return out
+
+## Painted icon for a talent node: techniques show their move; passives show what they do.
+static func talent_key(nd: Dictionary, spec_id := "") -> String:
+	var fx: Dictionary = nd.get("fx", {})
+	if str(nd.get("kind", "")) == "choice":
+		var ch: Array = nd.get("choice", [])
+		var pick := Game.talent_rank(str(nd.get("id", ""))) - 1
+		if not ch.is_empty():
+			fx = ch[clampi(pick, 0, ch.size() - 1)].get("fx", {})
+	if bool(nd.get("capstone", false)) or str(nd.get("name", "")) in ["Tap Machine", "Flow State", "Immovable", "Crushing Weight"]:
+		return "capstone"
+	if str(nd.get("name", "")) == "Mastery" and spec_id != "":
+		return "spec_" + spec_id
+	if fx.has("move"):
+		return move_key(str(fx.move))
+	if fx.has("moves"):
+		return move_key(str(fx.moves[0]))
+	var ad: Dictionary = fx.get("aura_dur", {})
+	var dmg: Dictionary = fx.get("ab_dmg", {})
+	if fx.has("hp") or fx.has("dr") or ad.has("guarded") or ad.has("base"):
+		return "t_tough"
+	if fx.has("gas") or fx.has("regen") or fx.has("cost_mult") or fx.has("escape_gas") or fx.has("cost") :
+		return "t_lungs"
+	if fx.has("haste") or fx.has("haste_sub"):
+		return "t_haste"
+	if fx.has("crit") or fx.has("sub_crit") or ad.has("exposed"):
+		return "t_crit"
+	if fx.has("exec") or fx.has("free_sub") or fx.has("instant_sub") or dmg.has("sub"):
+		return "t_squeeze"
+	if fx.has("pinned_vuln") or fx.has("pin_grip") or ad.has("pinned") or dmg.has("advance") or dmg.has("pass"):
+		return "t_pressure"
+	if fx.has("down_dmg") or ad.has("down"):
+		return "t_offbalance"
+	if fx.has("grip_start") or fx.has("auto_grip") or fx.has("grip_bonus") or fx.has("base_grip"):
+		return "t_grip"
+	if fx.has("cd") or fx.has("scramble"):
+		return "t_drill"
+	if fx.has("second_wind") or fx.has("tap_heal") or fx.has("tap_gas") or fx.has("tap_reset"):
+		return "t_secondwind"
+	return "t_damage"

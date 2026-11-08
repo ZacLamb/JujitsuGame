@@ -316,6 +316,7 @@ class Frame extends Control:
 ## Round class emblem breaking the top-left corner (like WoW's portrait ring).
 class Emblem extends Control:
 	var glyph := "shield"
+	var key := ""   # painted icon (IconArt); falls back to the glyph
 	var col := Wow.GOLD
 	func _init() -> void:
 		custom_minimum_size = Vector2(62, 62)
@@ -327,8 +328,13 @@ class Emblem extends Control:
 		draw_circle(c, 29, Wow.FRAME)
 		draw_circle(c, 25, Color(0.05, 0.08, 0.14))
 		draw_arc(c, 29, 0, TAU, 48, Wow.FRAME_HI, 2.0, true)
-		draw_arc(c, 24.5, 0, TAU, 48, Color(col, 0.7), 1.5, true)
-		CharSheet.draw_glyph(self, glyph, c, 30, col)
+		var painted := IconArt.tex(key)
+		if painted != null:
+			IconArt.draw_in_poly(self, IconArt.circle(c, 25.5), painted)
+			draw_arc(c, 25.5, 0, TAU, 48, Color(0, 0, 0, 0.7), 1.5, true)
+		else:
+			draw_arc(c, 24.5, 0, TAU, 48, Color(col, 0.7), 1.5, true)
+			CharSheet.draw_glyph(self, glyph, c, 30, col)
 
 ## Parchment page (spellbook).
 static func parchment() -> StyleBoxFlat:

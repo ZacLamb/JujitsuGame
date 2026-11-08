@@ -17,7 +17,7 @@ func _ready() -> void:
 	Game.test_mode = true
 	Game.reset()
 	Game.choose_style("guard", "Gringo", 0)
-	Game.set_level(10)
+	Game.set_level(12)
 	for id in ["torn_rash", "belt_tip", "mouthguard", "flip_flop", "tape_ball", "bottle", "patch", "medal_scrap", "acai", "coco", "guarana", "tape", "terere", "pao_queijo", "pacu"]:
 		Game.add_item(id, 2)
 	DayNight.hour = 11.0
@@ -41,4 +41,13 @@ func _ready() -> void:
 	if tn:
 		tn.hovered.emit(str(tn.tid), true)
 	await _shot("talent_tip")
+	tn = null
+	Game.choose_spec("sweeper")
+	Game.learn("c_iron_grip")
+	main.hud.open_window("talents", main.hud.TAB_TALENTS)
+	main.hud._fill_journal()
+	await _shot("talents_spec")
+	main.hud.open_window("talents", main.hud.TAB_SPECS)
+	main.hud._fill_journal()
+	await _shot("specs")
 	get_tree().quit()
