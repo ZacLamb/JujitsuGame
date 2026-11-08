@@ -92,6 +92,8 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 		sim.apply_rule(daily.rule)
 	_signature = Rpg.STYLES[Game.style].signature if Game.style != "" and (team.is_empty() or team.me.get("player", false)) else []
 	sim.signature = _signature
+	pace = clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0)
+	sim.clock_scale = 1.0 / pace * 0.85   # a slower fight, but the round only runs ~20% longer
 	_build_world()
 	_build_ui()
 	_pose_now(0.01)
@@ -220,8 +222,11 @@ func _build_world() -> void:
 		s.rotation.x = 0
 		s.animate_locomotion(0.016, 0.0)
 
+	pair = Node3D.new()
+	pair.name = "Pair"
+	add_child(pair)
 	player_rig = BodyRig.new()
-	add_child(player_rig)
+	pair.add_child(player_rig)
 	if not team.is_empty() and not team.me.get("player", false):
 		var tm: Dictionary = team.me
 		player_rig.setup(tm.get("gi", Color.WHITE), Data.BELTS[Data.belt_of(me_rank)].color, tm.get("skin", Color(0.7, 0.5, 0.35)), Color(0.12, 0.08, 0.05), -1, str(tm.get("body", "male")))
@@ -241,11 +246,12 @@ func _build_world() -> void:
 	add_child(you)
 	_you = you
 	opp_rig = BodyRig.new()
-	add_child(opp_rig)
+	pair.add_child(opp_rig)
 	if Gear.BOSS_SET.has(opp_id):
 		opp_rig.look = Gear.set_look(Gear.BOSS_SET[opp_id])   # bosses wear their own set
 	opp_rig.setup(opp.gi, Data.BELTS[Data.belt_of(int(opp.rank))].color, opp.skin, Color(0.12, 0.08, 0.05), -1, opp.get("body", "male"))
 	opp_rig.set_fighter(TEAM_OPP, 2)
+	motion = FightMotion.new(pair, player_rig, opp_rig)
 	_ring_p = _team_ring(TEAM_YOU)
 	_ring_o = _team_ring(TEAM_OPP)
 
@@ -276,6 +282,10 @@ func _team_ring(c: Color) -> MeshInstance3D:
 	return mi
 
 var _shake := 0.0
+var pair: Node3D             # both fighters live under this node; it circles and drifts around the mat
+var motion: FightMotion
+var pace := 0.7              # sim seconds per real second (Settings > Fight speed)
+var _cam_yaw := PI / 2
 var _sub_pose := {}          # RollPoses.sub_pair result while a submission is locked in
 var _sub_by_player := false
 
@@ -293,9 +303,9 @@ func _animate_move(id: String, actor_player: bool) -> void:
 		var mid_r: Transform3D = rig.current_root().interpolate_with(fin[1], 0.5)
 		var partner: BodyRig = other if rig == actor else actor
 		var res := RollPoses.apply_flavor(mid_p, mid_r, fl.actor if rig == actor else fl.other, partner.position - rig.position)
-		rig.tween_frames([[res[0], res[1], 0.3], [fin[0], fin[1], 0.4]])
+		rig.tween_frames([[res[0], res[1], 0.42], [fin[0], fin[1], 0.58]])
 	if m.type in ["takedown", "sweep"]:
-		get_tree().create_timer(0.62).timeout.connect(_impact)
+		get_tree().create_timer(0.86).timeout.connect(_impact)
 
 ## Landing: camera shake, a puff of dust off the mat, a thud.
 func _impact() -> void:
@@ -327,7 +337,7 @@ func _impact() -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	p.material_override = mat
-	p.position = (player_rig.position + opp_rig.position) * 0.5 + Vector3(0, 0.1, 0)
+	p.position = (player_rig.global_position + opp_rig.global_position) * 0.5 + Vector3(0, 0.1, 0)
 	add_child(p)
 	p.emitting = true
 	get_tree().create_timer(1.2).timeout.connect(p.queue_free)
@@ -341,9 +351,14 @@ func _process(delta: float) -> void:
 	if not sim.struggle.is_empty():
 		radius = 3.1
 		h = 1.6
-	var target := Vector3(sin(yaw) * radius, h, cos(yaw) * radius)
+	motion.update(delta, sim, phase == Phase.LIVE)
+	# the broadcast camera stays side-on to the pair as they circle (with a little lag so you see it)
+	_cam_yaw = lerp_angle(_cam_yaw, pair.rotation.y + PI / 2, clampf(delta * 1.4, 0, 1))
+	yaw += _cam_yaw - PI / 2
+	var center := pair.position + Vector3(0, 0.45, 0)
+	var target := center + Vector3(sin(yaw) * radius, h - 0.45, cos(yaw) * radius)
 	cam.position = cam.position.lerp(target, clampf(delta * 3.0, 0, 1)) if cam.position != Vector3.ZERO else target
-	cam.look_at(Vector3(0, 0.45, 0), Vector3.UP)
+	cam.look_at(center, Vector3.UP)
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 1.6)
 		cam.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * _shake * 0.12
@@ -361,7 +376,8 @@ func _process(delta: float) -> void:
 			if cb.is_valid():
 				cb.call()
 	if phase == Phase.LIVE:
-		sim.tick(delta)
+		# slower pace for the fight itself; submission scrambles stay at full speed (you're mashing)
+		sim.tick(delta if not sim.struggle.is_empty() else delta * pace)
 		if sim.second_wind_fired:
 			sim.second_wind_fired = false
 			_float("SECOND WIND! +40", Vector2(0.25, 0.3), Color(0.5, 1, 0.6), 30)
@@ -433,6 +449,8 @@ func _on_event(ev: Dictionary) -> void:
 			Sfx.play("hit", 0.0, 0.5)
 			_pose_now(0.4)
 		"grip":
+			motion.bump(player_rig if who_p else opp_rig, FightMotion.YANK, 0.45)
+			motion.bump(opp_rig if who_p else player_rig, FightMotion.PULLED, 0.45)
 			if who_p:
 				_float("+GRIP  %d" % ev.n, Vector2(0.3, 0.55), UiKit.ACCENT, 24)
 				Sfx.play("hit", -14.0, 1.6)
@@ -442,6 +460,7 @@ func _on_event(ev: Dictionary) -> void:
 			else:
 				_float("+GRIP", Vector2(0.7, 0.55), Color(1, 0.75, 0.6), 20)
 		"wear":
+			motion.bump(opp_rig if who_p else player_rig, FightMotion.SLUMP, 0.7)
 			if who_p:
 				_float("%s  -10 gas" % ev.name, Vector2(0.7, 0.5), Color(0.8, 0.65, 1), 22)
 			else:
@@ -449,6 +468,10 @@ func _on_event(ev: Dictionary) -> void:
 		"breathed":
 			_float("+20 STAMINA", Vector2(0.3, 0.5), Color(0.5, 0.9, 1), 24)
 		"interrupt":
+			var by_rig := player_rig if ev.by == "p" else opp_rig
+			var hit_rig := opp_rig if ev.by == "p" else player_rig
+			motion.bump(by_rig, FightMotion.BRACE.get(str(ev.get("kind", "base")), FightMotion.BRACE.base), 0.5)
+			motion.bump(hit_rig, FightMotion.RECOIL, 0.6)
 			if ev.by == "p":
 				cast_o.interrupted = 0.7
 				if ev.was == "special":
@@ -479,12 +502,15 @@ func _on_event(ev: Dictionary) -> void:
 				else:
 					_float("Grip stripped", Vector2(0.3, 0.55), Color(1, 0.6, 0.55), 20)
 		"wrong":
+			motion.bump(player_rig, FightMotion.STUMBLE, 0.5)
 			_float("WRONG COUNTER (needed %s)" % RollSim.DEF_NAMES.get(ev.need, "?").to_upper(), Vector2(0.5, 0.62), UiKit.RED, 24)
 			Sfx.play("miss", -8.0)
 		"whiff":
 			_float("Nothing to counter", Vector2(0.5, 0.62), UiKit.MUTED, 18)
 		"stuffed":
 			var m: Dictionary = Data.MOVES[ev.id]
+			motion.bump(player_rig if who_p else opp_rig, FightMotion.LUNGE, 0.55)
+			motion.bump(opp_rig if who_p else player_rig, FightMotion.BRACE.base, 0.55)
 			if who_p:
 				_message("%s shuts down your %s." % [opp.name, m.name], 1.4)
 				_float("STUFFED", Vector2(0.3, 0.42), UiKit.RED, 30)
@@ -550,8 +576,8 @@ func _start_struggle(attacking: bool, sub_id: String) -> void:
 	var atk_top: bool = sim.player_top if attacking else not sim.player_top
 	_sub_pose = RollPoses.sub_pair(sub_id, sim.pos, atk_top)
 	_sub_by_player = attacking
-	atk_rig.tween_pose(_sub_pose.atk[0], _sub_pose.atk[1], 0.55)
-	def_rig.tween_pose(_sub_pose.def[0], _sub_pose.def[1], 0.55)
+	atk_rig.tween_pose(_sub_pose.atk[0], _sub_pose.atk[1], 0.75)
+	def_rig.tween_pose(_sub_pose.def[0], _sub_pose.def[1], 0.75)
 	var m: Dictionary = Data.MOVES[sub_id]
 	var flavor: String = Data.SUB_FLAVOR.get(sub_id, "")
 	if attacking:
@@ -1041,9 +1067,10 @@ func _build_intro_panel() -> void:
 		"Watch their cast bar and answer with the matching counter: BASE (orange), FRAME (blue), DEFEND (red).",
 		"They can read you too. Bait their counter with a grip before you commit.",
 		"Lock a submission? Mash SPACE to finish it, or to escape theirs.",
+		"WASD / left stick: circle and step in or out. Watch them set up: a level change means a shot is coming.",
 	]:
 		v.add_child(UiKit.label("•  " + line, 16))
-	v.add_child(UiKit.label("Keys: 1-8 techniques · Q/E/R counters · F breathe   ·   Pad: A/B/X/Y (LB for 5-8) · D-pad counters", 13, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("Keys: 1-8 techniques · Q/E/R counters · F breathe · WASD move   ·   Pad: A/B/X/Y (LB for 5-8) · D-pad counters", 13, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("Press any key to start", 14, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 
 func _live_ui(on: bool) -> void:

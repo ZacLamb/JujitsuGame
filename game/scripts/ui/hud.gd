@@ -723,6 +723,7 @@ func _build_settings() -> void:
 		Sfx.play("click", -6.0))
 	v.add_child(UiKit.label("Controls", 22, UiKit.ACCENT))
 	_slider_row(v, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
+	_slider_row(v, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
 	var inv := CheckButton.new()
 	inv.text = "Invert camera up/down"
 	inv.button_pressed = bool(Sfx.pref("invert_y", false))
@@ -753,7 +754,7 @@ func _build_settings() -> void:
 	var keys := "WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n" + \
 		"Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n" + \
 		"E or click: talk / roll   ·   C: character   ·   J or Tab: journal   ·   M: map   ·   Esc: this menu\n" + \
-		"In a roll: 1-9 pick a move   ·   Space: stop the bar   ·   arrows: defend   ·   mash Space: squeeze / escape"
+		"In a roll: 1-8 techniques   ·   Q / E / R: Base / Frame / Defend   ·   F: breathe   ·   WASD: circle & step   ·   mash Space: squeeze / escape"
 	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER

@@ -77,6 +77,7 @@ var ai_t := 1.0              # seconds until the AI's next decision
 var reset_t := 0.0
 var struggle := {}           # {atk_player, sub, value, gain, decay, t, limit}
 var events: Array = []
+var clock_scale := 1.0       # the scene slows the fight down (pace) and speeds the clock back up
 # ---- boss phases (see Boss)
 var boss_phases: Array = []
 var phase := 0
@@ -408,7 +409,7 @@ func tap() -> void:
 func tick(delta: float) -> void:
 	if over:
 		return
-	clock = maxf(0.0, clock - delta * CLOCK_SPEED)
+	clock = maxf(0.0, clock - delta * CLOCK_SPEED * clock_scale)
 	opp_stamina = minf(100.0, opp_stamina + delta * (2.0 + 0.4 * opp_level) * float(traits.cardio))
 	if live:
 		_live_tick(delta)

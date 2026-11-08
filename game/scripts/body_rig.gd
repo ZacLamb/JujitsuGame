@@ -978,11 +978,32 @@ func _process(_delta: float) -> void:
 			if not _anim_mode:
 				_retarget()
 			return
+	var layered := not _anim_mode and not layer.is_empty()
+	if layered:
+		_layer_apply(1.0)
 	if not _anim_mode:
 		_retarget()
 	if not casual:
 		_update_gi_parts()
 	_update_hair()
+	if layered:
+		_layer_apply(-1.0)
+
+## Additive "live" motion on top of the tweened pose (breathing, hand fighting, wind-ups, braces).
+## Keys: joint names / "hip_rot" -> Vector3 rotation offsets, "hip_h" -> float. Applied only while
+## the skeleton is driven, then removed, so tweens keep owning the base pose.
+var layer := {}
+
+func _layer_apply(sign_: float) -> void:
+	for k in layer:
+		match k:
+			"hip_h":
+				hips.position.y += float(layer[k]) * sign_
+			"hip_rot":
+				hips.rotation += (layer[k] as Vector3) * sign_
+			_:
+				if joints.has(k):
+					(joints[k] as Node3D).rotation += (layer[k] as Vector3) * sign_
 
 ## Drive the skinned skeleton so its segments point the same way as this rig's (hidden) joints.
 func _retarget() -> void:
