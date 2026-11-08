@@ -588,6 +588,7 @@ class TalentNode extends Control:
 	var technique := false
 	var title := ""
 	var show_name := true
+	var wow := false
 	var _hover := false
 	var S := 64.0
 	func _init() -> void:
@@ -626,6 +627,9 @@ class TalentNode extends Control:
 				picked.emit(tid)
 			accept_event()
 	func _draw() -> void:
+		if wow:
+			_draw_wow()
+			return
 		var sq := Rect2(Vector2((size.x - S) / 2.0, 4), Vector2(S, S))
 		var maxed := rank >= max_rank
 		var lit := unlocked or rank > 0
@@ -704,6 +708,75 @@ class TalentNode extends Control:
 			draw_string_outline(font, Vector2(0, sq.end.y + 20), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 4, Color(0, 0, 0, 0.8))
 			draw_string(font, Vector2(0, sq.end.y + 20), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, UiKit.TEXT if lit else Color(1, 1, 1, 0.4))
 
+	## WoW talent look: round passives, square techniques, octagon capstones; gold ring when
+	## learned, green when you can learn it, dull grey when locked; small rank chip.
+	func _draw_wow() -> void:
+		var c := Vector2(size.x / 2.0, 4 + S / 2.0)
+		var r := S / 2.0
+		var maxed := rank >= max_rank
+		var lit := rank > 0
+		var ring := Color(0.32, 0.3, 0.28)
+		if maxed:
+			ring = Wow.GOLD
+		elif lit:
+			ring = Color(0.95, 0.75, 0.25)
+		elif can_learn:
+			ring = Color(0.3, 0.95, 0.35)
+		elif unlocked:
+			ring = Color(0.6, 0.55, 0.45)
+		var fill := tree_col.darkened(0.55) if (lit or can_learn) else Color(0.09, 0.09, 0.1)
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 260.0) if can_learn and rank == 0 else 0.0
+		var shape := PackedVector2Array()
+		var n := 32 if not technique else 4
+		if capstone:
+			n = 8
+		for i in n:
+			var a := TAU * i / n + (PI / 4.0 if n == 4 else (PI / 8.0 if n == 8 else 0.0))
+			var rr := r * (1.25 if n == 4 else 1.0)
+			shape.append(c + Vector2(cos(a), sin(a)) * rr)
+		if can_learn or _hover or maxed:
+			var gl := ring
+			gl.a = 0.25 + 0.25 * pulse
+			for k in 3:
+				var grown := PackedVector2Array()
+				for p in shape:
+					grown.append(c + (p - c) * (1.12 + k * 0.08))
+				draw_colored_polygon(grown, Color(gl, gl.a * (1.0 - k * 0.3)))
+		draw_colored_polygon(shape, Color(0, 0, 0, 0.9))
+		var inner := PackedVector2Array()
+		for p in shape:
+			inner.append(c + (p - c) * 0.86)
+		draw_colored_polygon(inner, fill)
+		var loop := shape.duplicate()
+		loop.append(shape[0])
+		draw_polyline(loop, ring, 3.0 if (lit or can_learn) else 2.0, true)
+		var gcol := Color(1, 1, 1, 0.95) if (lit or can_learn) else Color(1, 1, 1, 0.25)
+		if maxed:
+			gcol = Color(1.0, 0.93, 0.7)
+		CharSheet.draw_glyph(self, icon, c, S * 0.5, gcol)
+		if not unlocked and rank == 0:
+			draw_colored_polygon(inner, Color(0, 0, 0, 0.35))
+		# rank chip (bottom-right), like WoW's little number
+		var font: Font = Wow.body() if Wow.body() else ThemeDB.fallback_font
+		var txt := ("%d" % rank) if max_rank == 1 or maxed or rank == 0 else "%d/%d" % [rank, max_rank]
+		if rank > 0 or can_learn:
+			var w := maxf(18.0, font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 8)
+			var pr := Rect2(c + Vector2(r * 0.55, r * 0.5), Vector2(w, 17))
+			var ps := StyleBoxFlat.new()
+			ps.bg_color = Color(0.02, 0.02, 0.03, 0.95)
+			ps.border_color = ring
+			ps.set_border_width_all(1)
+			ps.set_corner_radius_all(8)
+			draw_style_box(ps, pr)
+			draw_string(font, pr.position + Vector2(0, 13), txt, HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 12, Wow.GOLD if maxed else (Color(0.4, 1, 0.45) if can_learn and rank < max_rank else Wow.WHITE))
+		if show_name:
+			var fs := 12
+			while fs > 9 and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
+				fs -= 1
+			var y := 4 + S + 16
+			draw_string_outline(font, Vector2(0, y), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 3, Color(0, 0, 0, 0.9))
+			draw_string(font, Vector2(0, y), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
+
 ## Simple vector glyphs (no icon art needed).
 static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: Color) -> void:
 	var w := maxf(2.0, s * 0.11)
@@ -764,7 +837,8 @@ static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: 
 
 ## One tree's node field: tier rows, gate labels and connector lines.
 class TreeGrid extends Control:
-	const ROW := 112.0
+	var ROW := 112.0
+	var wow := false
 	const GUTTER := 34.0
 	var tree := ""
 	var nodes := {}   # tier -> [TalentNode]
@@ -792,7 +866,9 @@ class TreeGrid extends Control:
 	func _draw() -> void:
 		var col: Color = Rpg.TREES[tree].color
 		var pts := Game.tree_points(tree)
-		var font := UiKit.body_font() if UiKit.body_font() else ThemeDB.fallback_font
+		var font: Font = (Wow.body() if wow else UiKit.body_font())
+		if font == null:
+			font = ThemeDB.fallback_font
 		for tier in 4:
 			var y := tier * ROW + 4
 			var open: bool = pts >= int(Rpg.TIER_REQ[tier])
@@ -1162,3 +1238,131 @@ static func _wow_attr_row(k: String, ap: int) -> Control:
 		plus.pressed.connect(func(): Game.raise_attr(k))
 		h.add_child(plus)
 	return h
+
+# ================================================================== WoW-style talents
+## Three dark trees side by side, round/square/octagon nodes, hover tooltips instead of a detail
+## pane, click to learn; a bottom bar with points left and Reset (like WoW's talent frame).
+static func build_talents_wow(hud) -> Control:
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 6)
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(body)
+	var tip_holder := page
+	for tree in Rpg.TREE_ORDER:
+		body.add_child(_tree_wow(hud, tree, tip_holder))
+	# bottom bar
+	var tp := Game.talent_points()
+	var spent := 0
+	for tr in Rpg.TREE_ORDER:
+		spent += Game.tree_points(tr)
+	var bar := PanelContainer.new()
+	bar.add_theme_stylebox_override("panel", Wow.sb(Color(0.05, 0.04, 0.04, 0.95), Wow.FRAME, 3, 10))
+	page.add_child(bar)
+	var bh := HBoxContainer.new()
+	bh.add_theme_constant_override("separation", 14)
+	bar.add_child(bh)
+	bh.add_child(Wow.title("%d" % tp, 20, Wow.GREEN if tp > 0 else Wow.GREY))
+	var lt := Wow.label("talent point%s available  ·  %d spent  ·  next point at level %d" % ["" if tp == 1 else "s", spent, _next_tp_level()], 14, Wow.PALE)
+	lt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bh.add_child(lt)
+	var hint := Wow.label("Click a glowing talent to learn it  ·  tiers open at 2 / 4 / 6 points  ·  ◆ = teaches a technique", 12, Wow.GREY)
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bh.add_child(hint)
+	var rs := Wow.button("Reset Talents", Vector2(120, 26))
+	rs.disabled = spent == 0
+	rs.pressed.connect(func():
+		hud._sel_talent = ""
+		Game.reset_talents())
+	bh.add_child(rs)
+	return page
+
+static func _tree_wow(hud, tree: String, tip_holder: Control) -> Control:
+	var info: Dictionary = Rpg.TREES[tree]
+	var col: Color = info.color
+	var p := PanelContainer.new()
+	var st := Wow.sb(Color(0.025, 0.03, 0.045, 0.97), Color(col.darkened(0.3), 0.6), 4, 10, 1)
+	st.shadow_color = Color(col, 0.08)
+	st.shadow_size = 0
+	p.add_theme_stylebox_override("panel", st)
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	p.add_child(v)
+	var h := HBoxContainer.new()
+	h.alignment = BoxContainer.ALIGNMENT_CENTER
+	h.add_theme_constant_override("separation", 12)
+	v.add_child(h)
+	h.add_child(Wow.title(str(info.name).to_upper(), 19, Wow.WHITE))
+	var pts := Game.tree_points(tree)
+	h.add_child(Wow.title(str(pts), 22, Wow.GOLD if pts > 0 else Wow.GREY))
+	var sub := Wow.label(str(info.pt), 12, Color(col.lightened(0.2), 0.8), false, HORIZONTAL_ALIGNMENT_CENTER)
+	v.add_child(sub)
+	var grid := TreeGrid.new()
+	grid.wow = true
+	grid.ROW = 104.0
+	grid.custom_minimum_size = Vector2(226, grid.ROW * 4 + 6)
+	grid.tree = tree
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(grid)
+	for tid in Rpg.talents_in(tree):
+		var n := TalentNode.new()
+		n.wow = true
+		n.configure(tid, 48)
+		n.custom_minimum_size.y = n.S + 26
+		n.learn_requested.connect(func(id: String):
+			hud._sel_talent = id
+			Game.learn(id))
+		n.picked.connect(func(id: String):
+			hud._sel_talent = id
+			Game.learn(id))
+		n.hovered.connect(func(id: String, on: bool): _talent_tip(n, id, on, tip_holder))
+		grid.add_node(n, int(Rpg.TALENTS[tid].tier))
+	return p
+
+static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> void:
+	if holder.has_meta("tip"):
+		var old = holder.get_meta("tip")
+		if is_instance_valid(old):
+			old.queue_free()
+		holder.remove_meta("tip")
+	if not on or not is_instance_valid(n):
+		return
+	var t: Dictionary = Rpg.TALENTS[tid]
+	var info: Dictionary = Rpg.TREES[t.tree]
+	var rank := Game.talent_rank(tid)
+	var tp := Wow.tip(280.0)
+	var p: PanelContainer = tp[0]
+	var v: VBoxContainer = tp[1]
+	p.top_level = true
+	p.z_index = 100
+	Wow.tline(v, str(t.name), Wow.WHITE, 16)
+	Wow.tline(v, "Rank %d/%d" % [rank, int(t.max)], Wow.WHITE, 13)
+	Wow.tgap(v, 4)
+	var kind := "Capstone" if int(t.tier) == 3 else ("Technique" if t.has("move") or t.has("moves") else "Passive")
+	Wow.tline(v, kind, Wow.WHITE, 13)
+	Wow.tline(v, str(t.desc), Wow.GOLD, 13, true)
+	if t.has("move") and Game.style != "" and t.move in Rpg.STYLES[Game.style].signature:
+		Wow.tline(v, "You already know this from your style; it still counts toward deeper tiers.", Wow.GREY, 12, true)
+	Wow.tgap(v, 4)
+	if rank >= int(t.max):
+		Wow.tline(v, "Maxed", Wow.GOLD, 13)
+	elif not Game.talent_unlocked(tid):
+		Wow.tline(v, "Requires %d points in %s" % [Rpg.TIER_REQ[int(t.tier)], info.name], Wow.RED, 13, true)
+	elif Game.talent_points() <= 0:
+		Wow.tline(v, "No talent points (next at level %d)" % _next_tp_level(), Wow.RED, 13, true)
+	else:
+		Wow.tline(v, "Click to learn", Wow.GREEN, 13)
+	holder.add_child(p)
+	holder.set_meta("tip", p)
+	p.reset_size()
+	var gp := n.global_position + Vector2(n.size.x - 6, 0)
+	var vs := n.get_viewport_rect().size
+	if gp.x + p.size.x > vs.x:
+		gp.x = n.global_position.x - p.size.x + 6
+	gp.y = clampf(gp.y, 4, vs.y - p.size.y - 4)
+	p.global_position = gp

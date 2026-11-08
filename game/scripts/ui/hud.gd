@@ -361,8 +361,8 @@ const TAB_SPELLBOOK := 6
 const TAB_FIGHTERS := 7
 const WINDOWS := {
 	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(860, 530), "at": "left", "glyph": "shield"},
-	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Spellbook"], "size": Vector2(1160, 600), "at": "center", "glyph": "star"},
-	"journal": {"tabs": [4, 5, 7], "names": ["Quests", "Achievements", "Fighters"], "size": Vector2(900, 560), "at": "center", "glyph": "link"},
+	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Spellbook"], "size": Vector2(1160, 580), "at": "center", "glyph": "star"},
+	"journal": {"tabs": [4, 5, 7], "names": ["Quests", "Achievements", "Fighters"], "size": Vector2(900, 540), "at": "center", "glyph": "link"},
 }
 var _window := "character"
 
@@ -389,7 +389,7 @@ func _layout_window() -> void:
 	sz = Vector2(minf(sz.x, vs.x - 40), minf(sz.y, vs.y - 60))
 	journal.size = sz
 	# below the player frame (top-left) so the emblem doesn't cover it, tabs above the screen edge
-	journal.position = Vector2(48, 140) if g.at == "left" else Vector2(floorf((vs.x - sz.x) * 0.5), maxf(80.0, vs.y - sz.y - 44.0))
+	journal.position = Vector2(48, 140) if g.at == "left" else Vector2(floorf((vs.x - sz.x) * 0.5), maxf(100.0, vs.y - sz.y - 44.0))
 	if journal.position.y + sz.y + 32 > vs.y:
 		journal.position.y = maxf(8.0, vs.y - sz.y - 34)
 	var cur := journal_tabs.current_tab
@@ -599,7 +599,8 @@ func _fill_talents() -> void:
 	var t := _scroll_tab("Talents")
 	var tp := Game.talent_points()
 	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Talents (%d)" % tp if tp > 0 else "Talents")
-	t.add_child(CharSheet.build_talents(self))
+	t.add_child(CharSheet.build_talents_wow(self))
+	t.get_parent().set_meta("wow", true)
 
 func _daily_box() -> Control:
 	var dc := Game.daily_challenge()
@@ -884,68 +885,91 @@ func close_shop() -> void:
 
 # ------------------------------------------------------------ specs tab
 func _fill_specs() -> void:
-	var v := _scroll_tab("Specs")
+	var sc := ScrollContainer.new()
+	sc.name = "Specs"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.set_meta("wow", true)
+	journal_tabs.add_child(sc)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 6)
+	sc.add_child(v)
 	if Game.style == "":
 		return
 	var cur := Specs.get_spec(Game.spec)
-	var head := "SPECIALIZATION  ·  %s" % Rpg.STYLES[Game.style].name
-	v.add_child(UiKit.label(head, 26, UiKit.ACCENT))
 	var sub := ""
 	if not Game.can_choose_spec():
-		sub = "Specs unlock at level %d (you're level %d). Pick one of three paths for your %s: it sets your 5v5 role, adds a passive, and teaches a technique nobody else can use." % [Specs.UNLOCK_LEVEL, Game.player_level(), Rpg.STYLES[Game.style].name]
+		sub = "Specializations unlock at level %d (you're level %d)." % [Specs.UNLOCK_LEVEL, Game.player_level()]
 	elif cur.is_empty():
 		sub = "Choose your path. Your first choice is free; switching later costs R$ %d." % Specs.RESPEC_COST
 	else:
-		sub = "Current spec: %s (%s). Switching costs R$ %d (you have R$ %d)." % [cur.name, Team.ROLES[cur.role].name, Specs.RESPEC_COST, Game.money]
-	v.add_child(UiKit.label(sub, 16, UiKit.MUTED))
+		sub = "Switching specialization costs R$ %d  ·  you have R$ %d" % [Specs.RESPEC_COST, Game.money]
+	v.add_child(Wow.label(sub, 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(row)
 	for sp in Specs.list(Game.style):
 		row.add_child(_spec_card(sp))
 
+## WoW spec column: big emblem, name, role, description, passive, its technique, Activate.
 func _spec_card(sp: Dictionary) -> Control:
 	var role: Dictionary = Team.ROLES[sp.role]
 	var rc: Color = role.color
 	var mine: bool = Game.spec == sp.id
-	var p := CharSheet._panel(Color(rc.darkened(0.85), 0.95), rc if mine else Color(rc, 0.35), 14, 12)
+	var p := PanelContainer.new()
+	var st := Wow.sb(Color(0.03, 0.03, 0.045, 0.96), Wow.GOLD if mine else Color(Wow.FRAME, 0.8), 4, 14, 2 if mine else 1)
+	if mine:
+		st.shadow_color = Color(Wow.GOLD, 0.25)
+		st.shadow_size = 8
+	p.add_theme_stylebox_override("panel", st)
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	p.size_flags_stretch_ratio = 1.0
-	p.custom_minimum_size.x = 300
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
 	p.add_child(col)
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	col.add_child(top)
-	var badge := TeamBoard._RoleBadge.new()
-	badge.role = sp.role
-	top.add_child(badge)
-	var nv := VBoxContainer.new()
-	nv.add_theme_constant_override("separation", 0)
-	top.add_child(nv)
-	nv.add_child(CharSheet._head(str(sp.name).to_upper(), 24, UiKit.TEXT))
-	nv.add_child(CharSheet._small("%s role%s" % [role.name, "  ·  CURRENT" if mine else ""], 13, rc.lightened(0.25)))
-	col.add_child(CharSheet._small(str(sp.desc), 14, UiKit.TEXT, true))
-	col.add_child(CharSheet._small("Passive: " + str(sp.passive), 14, Color(0.45, 1.0, 0.55), true))
-	col.add_child(CharSheet._small("EXCLUSIVE TECHNIQUE", 12, Color(0.8, 0.6, 1.0)))
-	var tip := MoveInfo.panel(str(sp.move), null, clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0), str(sp.name))
-	for n in tip.find_children("*", "Control", true, false):
-		var c := n as Control
-		if c.custom_minimum_size.x >= 300.0:
-			c.custom_minimum_size.x = 0.0
-	col.add_child(tip)
-	var b := UiKit.button("", Vector2(0, 46))
-	b.add_theme_font_size_override("font_size", 17)
+	var em := Wow.Emblem.new()
+	em.glyph = str(role.icon)
+	em.col = rc
+	em.custom_minimum_size = Vector2(0, 66)
+	var emc := CenterContainer.new()
+	emc.add_child(em)
+	col.add_child(emc)
+	col.add_child(Wow.title(str(sp.name), 19, Wow.WHITE))
+	(col.get_child(col.get_child_count() - 1) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(Wow.label("%s%s" % [role.name, "  ·  ACTIVE" if mine else ""], 13, rc.lightened(0.25), false, HORIZONTAL_ALIGNMENT_CENTER))
+	col.add_child(Wow.label(str(sp.desc), 13, Wow.PALE, true, HORIZONTAL_ALIGNMENT_CENTER))
+	col.add_child(Wow.banner("Passive"))
+	col.add_child(Wow.label(str(sp.passive), 13, Wow.GREEN, true))
+	col.add_child(Wow.banner("Technique"))
+	var e := SpellEntry.new()
+	e.move_id = str(sp.move)
+	e.add_theme_constant_override("separation", 8)
+	var ic := SpellIcon.new()
+	ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(str(sp.move))]
+	ic.glyph = CombatUi.slot_icon(str(sp.move), "move")
+	ic.glow = true
+	e.add_child(ic)
+	var tv := VBoxContainer.new()
+	tv.add_theme_constant_override("separation", -2)
+	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tv.add_child(Wow.label(str(Data.MOVES[sp.move].name), 15, Wow.WHITE))
+	tv.add_child(Wow.label("%s  ·  hover for details" % MoveInfo.TYPE_NAMES.get(str(Data.MOVES[sp.move].type), ""), 12, Wow.GREY))
+	e.add_child(tv)
+	col.add_child(e)
+	var fill := Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(fill)
+	var b := Wow.button("", Vector2(0, 30))
 	if mine:
-		b.text = "Your spec"
+		b.text = "Active"
 		b.disabled = true
 	elif not Game.can_choose_spec():
 		b.text = "Unlocks at level %d" % Specs.UNLOCK_LEVEL
 		b.disabled = true
 	else:
 		var cost := Game.spec_cost(sp.id)
-		b.text = "Choose (free)" if cost == 0 else "Switch  (R$ %d)" % cost
+		b.text = "Activate" if cost == 0 else "Activate  (R$ %d)" % cost
 		var sid: String = sp.id
 		b.pressed.connect(func():
 			var why := Game.choose_spec(sid)
@@ -956,9 +980,6 @@ func _spec_card(sp: Dictionary) -> Control:
 	col.add_child(b)
 	return p
 
-# ------------------------------------------------------------ WoW skin pass
-## Older tab pages were built with the big app-style kit; shrink and re-skin them to fit the
-## WoW windows (serif type, smaller sizes, bronze buttons). New pages are built with Wow directly.
 func _wowify(n: Node) -> void:
 	if n == null or n.has_meta("wow"):
 		return
@@ -966,7 +987,7 @@ func _wowify(n: Node) -> void:
 	for c in n.find_children("*", "", true, false):
 		if c is Label:
 			var l := c as Label
-			if l.has_theme_font_override("font") and l.get_theme_font("font") == Wow.body():
+			if l.has_theme_font_override("font") and (l.get_theme_font("font") == Wow.body() or l.get_theme_font("font") == Wow.title_font()):
 				continue
 			var fs := l.get_theme_font_size("font_size")
 			var head := l.has_theme_font_override("font") and l.get_theme_font("font") == UiKit.head_font()
