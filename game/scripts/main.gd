@@ -758,12 +758,48 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		player.input_enabled = true
 	_talking_to = null
 
+var _hidden_npc: Npc
+
+## The world NPC for an opponent id (the one you walked up to), if there is one nearby.
+func _npc_for(opp_id: String) -> Npc:
+	if world.nearby and world.nearby.opp_id == opp_id:
+		return world.nearby
+	var stack: Array = [world]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is Npc and (n as Npc).opp_id == opp_id and opp_id != "":
+			return n
+		stack.append_array(n.get_children())
+	return null
+
 func _start_roll(opp_id: String, daily: Dictionary = {}, comp: Dictionary = {}, team_bout: Dictionary = {}) -> void:
 	player.input_enabled = false
-	world.visible = false
-	world.process_mode = Node.PROCESS_MODE_DISABLED
 	hud.visible = false
+	# Fights happen where you stand: the pair takes the spot between you and your opponent, the
+	# world keeps living around you, and the world-side bodies hide while the fight rigs take over.
+	var npc := _npc_for(opp_id)
+	var me_pos: Vector3 = player.global_position
+	var mid := me_pos
+	var face := Vector3(sin(player.rig.global_rotation.y), 0, cos(player.rig.global_rotation.y)) if player.rig else Vector3.FORWARD
+	if npc and npc.global_position.distance_to(me_pos) < 6.0:
+		mid = (me_pos + npc.global_position) * 0.5
+		face = npc.global_position - me_pos
+	else:
+		mid = me_pos + face.normalized() * 0.5
+	face.y = 0
+	var to_me := -face.normalized() if face.length() > 0.01 else Vector3.BACK
+	mid.y = world.ground_y(mid.x, mid.z)
+	_hidden_npc = npc
+	if npc:
+		npc.visible = false
+		npc.process_mode = Node.PROCESS_MODE_DISABLED
+	if player.rig:
+		player.rig.force_hidden = true
+		player.rig.visible = false
 	roll = RollScene.new()
+	roll.in_world = true
+	roll.anchor = Transform3D(Basis(Vector3.UP, atan2(to_me.x, to_me.z)), mid)
+	roll.ground_fn = world.ground_y
 	add_child(roll)
 	roll.finished.connect(_end_roll)
 	roll.start(opp_id, daily, comp, team_bout)
@@ -777,6 +813,13 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 	roll = null
 	world.visible = true
 	world.process_mode = Node.PROCESS_MODE_INHERIT
+	if is_instance_valid(_hidden_npc):
+		_hidden_npc.visible = true
+		_hidden_npc.process_mode = Node.PROCESS_MODE_INHERIT
+	_hidden_npc = null
+	if player.rig:
+		player.rig.force_hidden = false
+		player.rig.visible = true
 	hud.visible = true
 	player.make_current()
 	player.input_enabled = true

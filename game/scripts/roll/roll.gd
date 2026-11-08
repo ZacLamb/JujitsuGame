@@ -133,6 +133,50 @@ func _pm(c: Color, rough := 0.85) -> StandardMaterial3D:
 	return m
 
 func _build_world() -> void:
+	if not in_world:
+		_build_arena()
+	pair = Node3D.new()
+	pair.name = "Pair"
+	add_child(pair)
+	pair.transform = anchor
+	player_rig = BodyRig.new()
+	pair.add_child(player_rig)
+	if not team.is_empty() and not team.me.get("player", false):
+		var tm: Dictionary = team.me
+		player_rig.setup(tm.get("gi", Color.WHITE), Data.BELTS[Data.belt_of(me_rank)].color, tm.get("skin", Color(0.7, 0.5, 0.35)), Color(0.12, 0.08, 0.05), -1, str(tm.get("body", "male")))
+	else:
+		Game.dress(player_rig)
+		player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+	player_rig.set_fighter(TEAM_YOU, 1)
+	var you := Label3D.new()
+	you.text = "YOU"
+	you.font_size = 40
+	you.pixel_size = 0.0035
+	you.outline_size = 10
+	you.modulate = UiKit.ACCENT
+	you.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	you.no_depth_test = true
+	you.name = "YouMarker"
+	add_child(you)
+	_you = you
+	opp_rig = BodyRig.new()
+	pair.add_child(opp_rig)
+	if Gear.BOSS_SET.has(opp_id):
+		opp_rig.look = Gear.set_look(Gear.BOSS_SET[opp_id])   # bosses wear their own set
+	opp_rig.setup(opp.gi, Data.BELTS[Data.belt_of(int(opp.rank))].color, opp.skin, Color(0.12, 0.08, 0.05), -1, opp.get("body", "male"))
+	opp_rig.set_fighter(TEAM_OPP, 2)
+	motion = FightMotion.new(pair, player_rig, opp_rig)
+	_cam_yaw = pair.rotation.y + PI / 2
+	_ring_p = _team_ring(TEAM_YOU)
+	_ring_o = _team_ring(TEAM_OPP)
+
+	cam = Camera3D.new()
+	cam.fov = 55
+	add_child(cam)
+	cam.make_current()
+
+## The standalone arena (mat, sky, spectators): only for rolls that aren't fought in the open world.
+func _build_arena() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	var sky := Sky.new()
@@ -222,43 +266,6 @@ func _build_world() -> void:
 		s.rotation.x = 0
 		s.animate_locomotion(0.016, 0.0)
 
-	pair = Node3D.new()
-	pair.name = "Pair"
-	add_child(pair)
-	player_rig = BodyRig.new()
-	pair.add_child(player_rig)
-	if not team.is_empty() and not team.me.get("player", false):
-		var tm: Dictionary = team.me
-		player_rig.setup(tm.get("gi", Color.WHITE), Data.BELTS[Data.belt_of(me_rank)].color, tm.get("skin", Color(0.7, 0.5, 0.35)), Color(0.12, 0.08, 0.05), -1, str(tm.get("body", "male")))
-	else:
-		Game.dress(player_rig)
-		player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
-	player_rig.set_fighter(TEAM_YOU, 1)
-	var you := Label3D.new()
-	you.text = "YOU"
-	you.font_size = 40
-	you.pixel_size = 0.0035
-	you.outline_size = 10
-	you.modulate = UiKit.ACCENT
-	you.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	you.no_depth_test = true
-	you.name = "YouMarker"
-	add_child(you)
-	_you = you
-	opp_rig = BodyRig.new()
-	pair.add_child(opp_rig)
-	if Gear.BOSS_SET.has(opp_id):
-		opp_rig.look = Gear.set_look(Gear.BOSS_SET[opp_id])   # bosses wear their own set
-	opp_rig.setup(opp.gi, Data.BELTS[Data.belt_of(int(opp.rank))].color, opp.skin, Color(0.12, 0.08, 0.05), -1, opp.get("body", "male"))
-	opp_rig.set_fighter(TEAM_OPP, 2)
-	motion = FightMotion.new(pair, player_rig, opp_rig)
-	_ring_p = _team_ring(TEAM_YOU)
-	_ring_o = _team_ring(TEAM_OPP)
-
-	cam = Camera3D.new()
-	cam.fov = 55
-	add_child(cam)
-	cam.make_current()
 
 var _ring_p: MeshInstance3D
 var _ring_o: MeshInstance3D
@@ -282,6 +289,11 @@ func _team_ring(c: Color) -> MeshInstance3D:
 	return mi
 
 var _shake := 0.0
+var in_world := false        # fought where you stand in the open world (no arena, world camera feel)
+var anchor := Transform3D()  # where the pair stands; local +Z points at the player's side
+var cam_user_yaw := 0.0      # right-drag orbit / wheel zoom while fighting in the world
+var cam_zoom := 1.0
+var ground_fn: Callable      # (x, z) -> ground height, keeps the camera out of hills
 var pair: Node3D             # both fighters live under this node; it circles and drifts around the mat
 var motion: FightMotion
 var pace := 0.7              # sim seconds per real second (Settings > Fight speed)
@@ -348,9 +360,13 @@ func _process(delta: float) -> void:
 	var yaw := PI / 2 + sin(cam_angle * 0.11) * 0.5
 	var radius := 4.1
 	var h := 2.0
+	if in_world:
+		yaw = PI / 2 + sin(cam_angle * 0.11) * 0.25 + cam_user_yaw
+		radius = 4.6 * cam_zoom
+		h = 1.5 + 1.0 * cam_zoom
 	if not sim.struggle.is_empty():
-		radius = 3.1
-		h = 1.6
+		radius *= 0.76
+		h *= 0.8
 	motion.update(delta, sim, phase == Phase.LIVE)
 	# the broadcast camera stays side-on to the pair as they circle (with a little lag so you see it)
 	_cam_yaw = lerp_angle(_cam_yaw, pair.rotation.y + PI / 2, clampf(delta * 1.4, 0, 1))
@@ -358,6 +374,8 @@ func _process(delta: float) -> void:
 	var center := pair.position + Vector3(0, 0.45, 0)
 	var target := center + Vector3(sin(yaw) * radius, h - 0.45, cos(yaw) * radius)
 	cam.position = cam.position.lerp(target, clampf(delta * 3.0, 0, 1)) if cam.position != Vector3.ZERO else target
+	if in_world and ground_fn.is_valid():
+		cam.position.y = maxf(cam.position.y, float(ground_fn.call(cam.position.x, cam.position.z)) + 0.6)
 	cam.look_at(center, Vector3.UP)
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 1.6)
@@ -773,6 +791,17 @@ func _float(text: String, at: Vector2, col: Color, size := 24) -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_echo():
 		return
+	if in_world:
+		if event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_RIGHT):
+			cam_user_yaw -= event.relative.x * 0.006
+			return
+		if event is InputEventMouseButton and event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				cam_zoom = clampf(cam_zoom - 0.08, 0.55, 1.8)
+				return
+			if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				cam_zoom = clampf(cam_zoom + 0.08, 0.55, 1.8)
+				return
 	if phase == Phase.INTRO:
 		if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed() and _message_left > 0.6:
 			_message_left = 0.05   # skip the intro
@@ -858,6 +887,7 @@ func _build_ui() -> void:
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(ui)
+	_build_plates()
 
 	# unit frames + clock
 	var top := HBoxContainer.new()
@@ -1225,6 +1255,7 @@ func _refresh_hud() -> void:
 	if not sim.opp_cast.is_empty():
 		cast_o.t = float(sim.opp_cast.t)
 		cast_o.dur = float(sim.opp_cast.dur)
+	_refresh_plates()
 	var big: bool = not sim.opp_cast.is_empty() and sim.opp_cast.kind in ["move", "special"]
 	alert.visible = (big or alert.interrupted > 0.0) and alert.title != ""
 	if big:
@@ -1239,3 +1270,82 @@ func _refresh_hud() -> void:
 func _clear_action() -> void:
 	for c in action_body.get_children():
 		c.queue_free()
+
+# ================================================================= nameplates
+## WoW-style nameplates that ride above the fighters' heads in the world: the opponent's name,
+## gas and cast bar (coloured by the counter it needs, with the key), and your own cast bar.
+var _plate_o: Control
+var _plate_o_name: Label
+var _plate_o_gas: ProgressBar
+var _plate_o_cast: CombatUi.CastBar
+var _plate_p_cast: CombatUi.CastBar
+
+func _build_plates() -> void:
+	var holder := Control.new()
+	holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(holder)
+	_plate_o = VBoxContainer.new()
+	_plate_o.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_o.add_theme_constant_override("separation", 2)
+	_plate_o.custom_minimum_size = Vector2(190, 0)
+	holder.add_child(_plate_o)
+	_plate_o_name = UiKit.label(str(opp.name), 15, TEAM_OPP.lightened(0.25), HORIZONTAL_ALIGNMENT_CENTER)
+	_plate_o_name.add_theme_constant_override("outline_size", 6)
+	_plate_o_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_plate_o.add_child(_plate_o_name)
+	_plate_o_gas = UiKit.bar(TEAM_OPP, Vector2(190, 9))
+	_plate_o_gas.max_value = 100.0
+	_plate_o_gas.step = 0.0
+	_plate_o.add_child(_plate_o_gas)
+	_plate_o_cast = CombatUi.CastBar.new()
+	_plate_o_cast.custom_minimum_size = Vector2(190, 22)
+	_plate_o.add_child(_plate_o_cast)
+	_plate_p_cast = CombatUi.CastBar.new()
+	_plate_p_cast.custom_minimum_size = Vector2(170, 20)
+	_plate_p_cast.size = Vector2(170, 20)
+	holder.add_child(_plate_p_cast)
+
+func _plate_anchor(rig: BodyRig) -> Vector3:
+	var neck := (rig.joints["neck"] as Node3D).global_position
+	return Vector3(neck.x, maxf(neck.y, rig.global_position.y + 0.4) + 0.6, neck.z)
+
+func _place(c: Control, world_pos: Vector3, lift := 0.0) -> bool:
+	if cam == null or cam.is_position_behind(world_pos):
+		c.visible = false
+		return false
+	var sp := cam.unproject_position(world_pos)
+	var vs := get_viewport().get_visible_rect().size
+	var cs := ui.size
+	if vs.x > 0.0:
+		sp *= cs.x / vs.x
+	var sz := c.get_combined_minimum_size()
+	c.position = Vector2(sp.x - sz.x * 0.5, sp.y - sz.y - lift)
+	return true
+
+func _refresh_plates() -> void:
+	if _plate_o == null:
+		return
+	var showing := phase != Phase.OVER and sim.struggle.is_empty()
+	_plate_o.visible = showing and _place(_plate_o, _plate_anchor(opp_rig))
+	_plate_o_gas.value = sim.opp_stamina
+	_plate_o_cast.visible = cast_o.visible
+	_plate_o_cast.title = cast_o.title
+	_plate_o_cast.col = cast_o.col
+	_plate_o_cast.t = cast_o.t
+	_plate_o_cast.dur = cast_o.dur
+	_plate_o_cast.interrupted = cast_o.interrupted
+	_plate_o_cast.special = alert.special and alert.visible
+	_plate_o_cast.tag = ""
+	if not sim.opp_cast.is_empty():
+		var need := sim.cast_counter(sim.opp_cast)
+		if need != "grip" and DEF_KEYS.has(need):
+			_plate_o_cast.tag = DEF_KEYS[need]
+		elif need == "grip":
+			_plate_o_cast.tag = "any"
+	_plate_p_cast.visible = showing and cast_p.visible and _place(_plate_p_cast, _plate_anchor(player_rig))
+	_plate_p_cast.title = cast_p.title
+	_plate_p_cast.col = cast_p.col
+	_plate_p_cast.t = cast_p.t
+	_plate_p_cast.dur = cast_p.dur
+	_plate_p_cast.interrupted = cast_p.interrupted

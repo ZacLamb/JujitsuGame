@@ -901,6 +901,7 @@ static func _themed(m: Material, team: Color, ref: int, cache: Dictionary) -> Ma
 ## 0 full (outlines) · 1 mid (no outlines) · 2 far (no gi details) · 3 not drawn
 const LOD_DIST := [18.0, 40.0, 85.0]
 var lod_enabled := true
+var force_hidden := false   # e.g. the world body while its fight rig is on screen
 var _lod := 0
 var _lod_t := 0.0
 var _lod_surfaces: Array = []   # [MeshInstance3D, surface index or -1, full material, plain material]
@@ -951,11 +952,11 @@ func _update_lod(delta: float) -> void:
 		_apply_lod()
 
 func _apply_lod() -> void:
-	visible = _lod < 3
+	visible = _lod < 3 and not force_hidden
 	for e in _lod_surfaces:
-		var mi := e[0] as MeshInstance3D
-		if not is_instance_valid(mi):
+		if not is_instance_valid(e[0]):
 			continue
+		var mi := e[0] as MeshInstance3D
 		var m: Material = e[2] if _lod == 0 else e[3]
 		if int(e[1]) < 0:
 			mi.material_override = m

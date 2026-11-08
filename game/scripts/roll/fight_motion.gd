@@ -20,11 +20,13 @@ var input := Vector2.ZERO
 var test_input := Vector2.ZERO   # probes: pretend the stick is held
 var _bumps: Array = []  # [{rig, offs, t, dur}]
 var _rng := RandomNumberGenerator.new()
+var home := Vector3.ZERO  # the spot the pair drifts around (the fight's anchor)
 
 func _init(pair_node: Node3D, player: BodyRig, opponent: BodyRig) -> void:
 	pair = pair_node
 	me = player
 	them = opponent
+	home = pair_node.position
 	_rng.randomize()
 
 ## Reads WASD / arrows-free keys and the left stick. Returns (x = circle, y = step in).
@@ -70,7 +72,7 @@ func update(delta: float, sim: RollSim, live: bool) -> void:
 	pair.rotation.y += yaw_vel * delta
 	# drift around the mat while standing (keeps it from looking like a turntable)
 	if standing:
-		var drift := Vector3(sin(t * 0.21) * 0.55, 0, cos(t * 0.17) * 0.45)
+		var drift := home + Vector3(sin(t * 0.21) * 0.55, 0, cos(t * 0.17) * 0.45)
 		pair.position = pair.position.lerp(drift, clampf(delta * 0.6, 0.0, 1.0))
 	# ---- footwork distance (rig-local -Z is "toward the partner")
 	var want_me := 0.0
