@@ -263,19 +263,23 @@ func play_roll_existing(opp: String) -> Dictionary:
 			result.done = true
 			break
 		match roll.phase:
-			RollScene.Phase.CHOOSE:
-				var opts = roll.sim.player_options()
-				roll._choose(opts[randi() % opts.size()])
-			RollScene.Phase.TIMING:
-				if absf(roll.timing.marker - roll.timing.center) < roll.timing.width * 0.4:
-					roll._resolve_timing(roll.timing.marker)
-			RollScene.Phase.DEFEND:
-				roll._resolve_defense(roll.defend_dir if randf() < 0.8 else "x")
-			RollScene.Phase.STRUGGLE_ATK, RollScene.Phase.STRUGGLE_DEF:
-				if steps % 3 == 0:
-					roll._struggle_tap()
+			RollScene.Phase.LIVE:
+				var sim: RollSim = roll.sim
+				if not sim.struggle.is_empty():
+					if steps % 3 == 0:
+						roll._struggle_tap()
+				elif not sim.opp_cast.is_empty() and float(sim.opp_cast.t) > 0.3:
+					var need := RollSim.counter_kind(sim.opp_cast.id)
+					roll._defend((need if need != "grip" else "frame") if randf() < 0.8 else "base")
+				elif sim.cast.is_empty() and steps % 10 == 0:
+					var moves: Array = sim.player_bar().filter(func(sl): return sl.kind == "move" and sim.block_reason(sl) == "")
+					if not moves.is_empty() and sim.control >= 2:
+						roll._use(moves[randi() % moves.size()].id)
+					else:
+						roll._use("grip")
 			RollScene.Phase.OVER:
-				result.won = roll.sim.result.won
-				result.by_sub = roll.sim.result.by_sub
-				roll.finished.emit(opp, roll.sim.result, 0)
+				if roll.action_body.get_child_count() > 0:
+					result.won = roll.sim.result.won
+					result.by_sub = roll.sim.result.by_sub
+					roll.finished.emit(opp, roll.sim.result, 0)
 	return result

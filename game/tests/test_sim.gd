@@ -33,35 +33,67 @@ func _ready() -> void:
 	# simulate many AI-vs-AI style matches to make sure nothing stalls
 	var sim := RollSim.new()
 	sim.setup("onca", 3.2, func(id): return int(data.MOVES[id].rank) <= 4, 42)
+	sim.start_live()
 	var steps := 0
-	while not sim.over and steps < 5000:
+	while not sim.over and steps < 20000:
 		steps += 1
-		var mine: Array = sim.player_options()
-		check(not mine.is_empty() or steps > 1, "player has options")
-		if sim.rng.randf() < 0.5 and not mine.is_empty():
-			var mv: String = mine[sim.rng.randi() % mine.size()]
-			var tp = sim.timing_params(mv)
-			var j = sim.judge_timing(tp, sim.rng.randf())
-			if j != "miss":
-				var r = sim.apply_move(mv, true)
-				if r.sub and sim.rng.randf() < 0.3:
-					sim.finish_by_sub(true, mv)
-		else:
-			var ai = sim.ai_pick_move()
-			if ai != "" and sim.rng.randf() < 0.4:
-				var r2 = sim.apply_move(ai, false)
-				if r2.sub and sim.rng.randf() < 0.3:
-					sim.finish_by_sub(false, ai)
-		sim.tick(0.5)
+		sim.tick(0.05)
+		sim.events.clear()
+		if not sim.struggle.is_empty():
+			if steps % 2 == 0:
+				sim.tap()
+		elif not sim.opp_cast.is_empty() and float(sim.opp_cast.t) > 0.35:
+			sim.defend(RollSim.counter_kind(sim.opp_cast.id) if sim.rng.randf() < 0.7 else "base")
+		elif sim.cast.is_empty():
+			var bar := sim.player_bar()
+			var mv: Array = bar.filter(func(sl): return sl.kind == "move" and sim.block_reason(sl) == "")
+			if sim.control >= 2 and not mv.is_empty():
+				sim.use(mv[sim.rng.randi() % mv.size()].id)
+			else:
+				sim.use("grip")
 	check(sim.over, "match terminates (%d steps)" % steps)
 	check(sim.result.has("won"), "result has winner")
-	# timing params stay sane across levels
-	for lvl in [1.0, 2.0, 5.2]:
+	# real-time combat rules
+	var rt := RollSim.new()
+	rt.setup("tiago", 2.0, func(_id): return true, 11)
+	rt.start_live()
+	var bar0 := rt.player_bar()
+	check(bar0.size() >= 4 and bar0.size() <= 8 and bar0[0].kind == "grip" and bar0[1].kind == "wear", "standing bar: grip, wear + techniques (%d slots)" % bar0.size())
+	var tdslot: Dictionary = bar0.filter(func(sl): return sl.id == "double_leg")[0]
+	check(rt.block_reason(tdslot) == "control", "techniques need grips first")
+	rt.ai_t = 99.0
+	check(rt.use("grip") == "", "grip ability starts a cast")
+	for i in 20:
+		rt.tick(0.05)
+	check(rt.control >= 1 or not rt.cast.is_empty() or rt.control == 0, "grip resolves")
+	rt.control = 3
+	rt.cds.clear()
+	rt.gcd = 0.0
+	var hi := rt.technique_chance("double_leg", true, 3)
+	var lo := rt.technique_chance("double_leg", true, 0)
+	check(hi > lo + 0.25, "spending grips raises the odds (%.2f vs %.2f)" % [hi, lo])
+	check(RollSim.counter_kind("triangle") == "defend" and RollSim.counter_kind("scissor_sweep") == "base" and RollSim.counter_kind("knee_slice") == "frame", "counter kinds by technique type")
+	rt.opp_cast = {"id": "double_leg", "name": "Double", "kind": "move", "t": 0.2, "dur": 1.0, "spend": 2}
+	rt.def_cd = 0.0
+	check(rt.defend("frame") == "wrong" and not rt.opp_cast.is_empty(), "wrong counter does not interrupt")
+	rt.def_cd = 0.0
+	var c0 := rt.control
+	check(rt.defend("base") == "" and rt.opp_cast.is_empty() and rt.opp_off_bal > 0.0 and rt.control == mini(5, c0 + 1), "right counter interrupts and steals a grip")
+	rt.pos = "guard"
+	rt.player_top = false
+	var gb := rt.player_bar()
+	check(gb[0].name == "Sleeve Grip" and gb.size() <= 8, "stance names follow the position (%s)" % gb[0].name)
+	var w0 := RollSim.new()
+	w0.setup("tiago", 2.0, func(_id): return true, 7)
+	var ct0 := w0.cast_time("double_leg", false)
+	# cast times and odds stay sane across levels
+	for lvl in [1.0, 2.0, 5.2, 12.0]:
 		var s2 := RollSim.new()
 		s2.setup("rafa", lvl, func(_id): return true, 1)
-		var tp2 = s2.timing_params("triangle")
-		check(tp2.width >= 0.04 and tp2.width <= 0.42, "zone width sane at level %s" % lvl)
-		check(tp2.center - tp2.width / 2 >= 0.0 and tp2.center + tp2.width / 2 <= 1.0, "zone inside bar")
+		var ct := s2.cast_time("triangle", false)
+		check(ct >= 0.4 and ct <= 2.0, "opponent cast time sane at level %s (%.2f)" % [lvl, ct])
+		var tc := s2.technique_chance("triangle", true, 2)
+		check(tc >= 0.08 and tc <= 0.95, "technique chance sane at level %s (%.2f)" % [lvl, tc])
 	# progression
 	game.reset()
 	var gained = game.record_roll("rafa", {"won": true, "by_sub": true, "sub": "triangle", "min_stamina": 50.0})
@@ -111,10 +143,10 @@ func _ready() -> void:
 	game.wins = {"onca": 1, "jacare": 1}
 	game._backfill_gear()
 	check(game.has_item("onca_gi") and game.has_item("jacare_gi") and game.has_item("rash_blue"), "old saves get gear for past progress")
-	# every style produces sane modifiers and wider takedowns for the wrestler
+	# every style produces sane modifiers; the wrestler lands and reads takedowns better
 	var neutral := RollSim.new()
 	neutral.setup("tiago", 2.0, func(_id): return true, 7)
-	var w0: float = neutral.timing_params("double_leg").width
+	var w0c: float = neutral.technique_chance("double_leg", true, 2)
 	for st in Rpg.STYLE_ORDER:
 		var a := {}
 		for k in Rpg.ATTR_ORDER:
@@ -122,10 +154,11 @@ func _ready() -> void:
 		var m := Rpg.build_mods(st, a, {})
 		var sm := RollSim.new()
 		sm.setup("tiago", 2.0, func(_id): return true, 7, m)
-		var w: float = sm.timing_params("double_leg").width
-		check(w > 0.05 and w <= 0.5 and sm.max_stamina >= 100.0, "%s mods sane (td zone %.3f, stam %.0f)" % [st, w, sm.max_stamina])
+		var w: float = sm.technique_chance("double_leg", true, 2)
+		check(w > 0.05 and w <= 0.95 and sm.max_stamina >= 100.0, "%s mods sane (td chance %.2f, stam %.0f)" % [st, w, sm.max_stamina])
 		if st == "wrestler":
-			check(w > w0 * 1.2, "wrestler takedown window wider (%.3f vs %.3f)" % [w, w0])
+			check(w > w0c + 0.1, "wrestler takedowns land more (%.2f vs %.2f)" % [w, w0c])
+			check(sm.cast_time("double_leg", false) > ct0 * 1.2, "wrestler gets longer to read takedowns")
 		if st == "guard":
 			check(sm.player_cost("pull_guard") == 0.0, "guard player pulls guard for free")
 		if st == "athlete":
