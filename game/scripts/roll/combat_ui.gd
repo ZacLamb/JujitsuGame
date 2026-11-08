@@ -14,6 +14,8 @@ const TYPE_ICONS := {
 const PAD_LABELS := ["A", "B", "X", "Y", "LB+A", "LB+B", "LB+X", "LB+Y"]
 
 static func font() -> Font:
+	if Wow.body():
+		return Wow.body()
 	return UiKit.body_font() if UiKit.body_font() else ThemeDB.fallback_font
 
 ## Colour of a bar slot or a cast: what it is answered by.
@@ -72,22 +74,27 @@ class Slot extends Control:
 			var g := StyleBoxFlat.new()
 			g.bg_color = Color(0, 0, 0, 0)
 			g.shadow_color = Color(col, 0.55 if casting else 0.35 + 0.4 * _flash)
-			g.shadow_size = 12
-			g.set_corner_radius_all(14)
+			g.shadow_size = 10
+			g.set_corner_radius_all(4)
 			draw_style_box(g, r)
+		# WoW action button: black socket, bronze bevel, square "icon" tinted by what stops it
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(col.darkened(0.72), 0.95) if usable else Color(0.08, 0.08, 0.08, 0.9)
-		sb.border_color = Color(col, 1.0 if usable else 0.35)
+		sb.bg_color = Color(0.02, 0.02, 0.02, 0.95)
+		sb.border_color = Wow.FRAME if not casting else Wow.GOLD
 		if signature and usable:
-			sb.border_color = UiKit.ACCENT
+			sb.border_color = Wow.GOLD
 		sb.set_border_width_all(3 if casting else 2)
-		sb.set_corner_radius_all(14)
+		sb.set_corner_radius_all(3)
 		draw_style_box(sb, r)
+		var ic := StyleBoxFlat.new()
+		ic.bg_color = Color(col.darkened(0.55), 1.0) if usable else Color(0.12, 0.12, 0.12)
+		ic.border_color = Color(col, 0.8 if usable else 0.25)
+		ic.set_border_width_all(1)
+		ic.set_corner_radius_all(2)
+		draw_style_box(ic, r.grow(-4))
 		var sh := StyleBoxFlat.new()
-		sh.bg_color = Color(1, 1, 1, 0.07)
-		sh.corner_radius_top_left = 12
-		sh.corner_radius_top_right = 12
-		draw_style_box(sh, Rect2(Vector2(2, 2), Vector2(size.x - 4, size.y * 0.4)))
+		sh.bg_color = Color(1, 1, 1, 0.08)
+		draw_style_box(sh, Rect2(Vector2(5, 5), Vector2(size.x - 10, size.y * 0.36)))
 		var icol := Color(1, 1, 1, 0.92) if usable else Color(1, 1, 1, 0.25)
 		CharSheet.draw_glyph(self, CombatUi.slot_icon(id, kind), Vector2(size.x / 2.0, size.y * 0.4), size.x * 0.36, icol)
 		# name (up to two lines)
@@ -106,12 +113,9 @@ class Slot extends Control:
 			draw_string(f, Vector2(0, y), l, HORIZONTAL_ALIGNMENT_CENTER, size.x, 11, Color(1, 1, 1, 0.95 if usable else 0.4))
 			y += 12.0
 		# keybind
-		var kb := StyleBoxFlat.new()
-		kb.bg_color = Color(0, 0, 0, 0.75)
-		kb.set_corner_radius_all(6)
-		var kw := maxf(20.0, f.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 8)
-		draw_style_box(kb, Rect2(Vector2(4, 4), Vector2(kw, 18)))
-		draw_string(f, Vector2(4, 17), key, HORIZONTAL_ALIGNMENT_CENTER, kw, 12, UiKit.ACCENT)
+		# keybind in the top-left corner, WoW style (plain text, outlined)
+		draw_string_outline(f, Vector2(7, 19), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 3, Color(0, 0, 0, 0.95))
+		draw_string(f, Vector2(7, 19), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.9, 0.9, 0.9) if usable else Color(0.8, 0.2, 0.2))
 		# grip requirement pips
 		for i in req:
 			var c := Vector2(size.x - 10 - i * 11, 12)
@@ -123,7 +127,7 @@ class Slot extends Control:
 			var k := clampf(cd / maxf(cd_max, 0.01), 0.0, 1.0)
 			var ov := StyleBoxFlat.new()
 			ov.bg_color = Color(0, 0, 0, 0.62)
-			ov.set_corner_radius_all(14)
+			ov.set_corner_radius_all(3)
 			draw_style_box(ov, Rect2(Vector2(0, size.y * (1.0 - k)), Vector2(size.x, size.y * k)))
 			if cd > 0.6:
 				draw_string_outline(f, Vector2(0, size.y * 0.46), "%.0f" % ceilf(cd), HORIZONTAL_ALIGNMENT_CENTER, size.x, 26, 5, Color(0, 0, 0, 0.9))
@@ -151,10 +155,10 @@ class CastBar extends Control:
 		var f := CombatUi.font()
 		var r := Rect2(Vector2.ZERO, size)
 		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color(0, 0, 0, 0.72)
-		bg.border_color = Color(col, 0.9)
+		bg.bg_color = Color(0, 0, 0, 0.78)
+		bg.border_color = Wow.FRAME if not big else Color(col, 0.95)
 		bg.set_border_width_all(2)
-		bg.set_corner_radius_all(8)
+		bg.set_corner_radius_all(3)
 		if big:
 			bg.shadow_color = Color(col, 0.45)
 			bg.shadow_size = 10
@@ -166,8 +170,8 @@ class CastBar extends Control:
 		draw_style_box(bg, r)
 		var k := clampf(t / maxf(dur, 0.01), 0.0, 1.0)
 		var fill := StyleBoxFlat.new()
-		fill.bg_color = col if interrupted <= 0.0 else Color(0.5, 0.5, 0.5)
-		fill.set_corner_radius_all(6)
+		fill.bg_color = col if interrupted <= 0.0 else Color(0.7, 0.15, 0.1)
+		fill.set_corner_radius_all(2)
 		draw_style_box(fill, Rect2(Vector2(3, 3), Vector2((size.x - 6) * k, size.y - 6)))
 		draw_rect(Rect2(Vector2(3, 3), Vector2((size.x - 6) * k, (size.y - 6) * 0.4)), Color(1, 1, 1, 0.18))
 		var fs := 22 if big else 14

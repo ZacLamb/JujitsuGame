@@ -109,6 +109,7 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	sim.can_disengage = in_world and team.is_empty() and comp.is_empty() and daily.is_empty()
 	_build_world()
 	_build_ui()
+	Wow.reskin(ui, 1.0, false)
 	_pose_now(0.01)
 	Sfx.music("roll")
 	var tut := int(Game.flags.get("roll_tut", 0)) < 3
@@ -1061,10 +1062,10 @@ func _build_ui() -> void:
 		b.custom_minimum_size = Vector2(74, 74)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", 15)
-		b.add_theme_stylebox_override("normal", UiKit.box(c.darkened(0.6), 12, c, 2))
-		b.add_theme_stylebox_override("hover", UiKit.box(c.darkened(0.4), 12, Color.WHITE, 2))
-		b.add_theme_stylebox_override("pressed", UiKit.box(c.darkened(0.2), 12, Color.WHITE, 3))
-		b.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(c, 0.3), 2))
+		b.add_theme_stylebox_override("normal", UiKit.box(c.darkened(0.6), 4, c, 2))
+		b.add_theme_stylebox_override("hover", UiKit.box(c.darkened(0.4), 4, Color.WHITE, 2))
+		b.add_theme_stylebox_override("pressed", UiKit.box(c.darkened(0.2), 4, Color.WHITE, 3))
+		b.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 4, Color(c, 0.3), 2))
 		_hook_tip(b, kind)
 		b.pivot_offset = Vector2(37, 37)
 		b.pressed.connect(_defend.bind(kind))
@@ -1076,9 +1077,9 @@ func _build_ui() -> void:
 	breathe_btn.focus_mode = Control.FOCUS_NONE
 	breathe_btn.add_theme_font_size_override("font_size", 15)
 	var bc: Color = CombatUi.KIND_COLORS.breathe
-	breathe_btn.add_theme_stylebox_override("normal", UiKit.box(bc.darkened(0.65), 12, Color(bc, 0.7), 2))
-	breathe_btn.add_theme_stylebox_override("hover", UiKit.box(bc.darkened(0.45), 12, Color.WHITE, 2))
-	breathe_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(bc, 0.25), 2))
+	breathe_btn.add_theme_stylebox_override("normal", UiKit.box(bc.darkened(0.65), 4, Color(bc, 0.7), 2))
+	breathe_btn.add_theme_stylebox_override("hover", UiKit.box(bc.darkened(0.45), 4, Color.WHITE, 2))
+	breathe_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 4, Color(bc, 0.25), 2))
 	_hook_tip(breathe_btn, "breathe")
 	breathe_btn.pressed.connect(_breathe)
 	drow.add_child(breathe_btn)
@@ -1089,9 +1090,9 @@ func _build_ui() -> void:
 		disengage_btn.focus_mode = Control.FOCUS_NONE
 		disengage_btn.add_theme_font_size_override("font_size", 14)
 		var gc := Color(0.75, 0.75, 0.75)
-		disengage_btn.add_theme_stylebox_override("normal", UiKit.box(gc.darkened(0.75), 12, Color(gc, 0.6), 2))
-		disengage_btn.add_theme_stylebox_override("hover", UiKit.box(gc.darkened(0.55), 12, Color.WHITE, 2))
-		disengage_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 12, Color(gc, 0.2), 2))
+		disengage_btn.add_theme_stylebox_override("normal", UiKit.box(gc.darkened(0.75), 4, Color(gc, 0.6), 2))
+		disengage_btn.add_theme_stylebox_override("hover", UiKit.box(gc.darkened(0.55), 4, Color.WHITE, 2))
+		disengage_btn.add_theme_stylebox_override("disabled", UiKit.box(Color(0.08, 0.08, 0.08, 0.9), 4, Color(gc, 0.2), 2))
 		_hook_tip(disengage_btn, "disengage")
 		disengage_btn.pressed.connect(_disengage)
 		drow.add_child(disengage_btn)

@@ -59,6 +59,11 @@ static func theme() -> Theme:
 	t.set_stylebox("background", "ProgressBar", sb(Color(0, 0, 0, 0.7), Color(FRAME, 0.6), 2, 0))
 	t.set_stylebox("fill", "ProgressBar", sb(Color(0.1, 0.6, 0.1), Color(0, 0, 0, 0), 2, 0))
 	t.set_stylebox("panel", "ScrollContainer", StyleBoxEmpty.new())
+	for k in ["normal", "hover", "pressed", "disabled", "hover_pressed", "focus"]:
+		t.set_stylebox(k, "CheckButton", StyleBoxEmpty.new())
+	t.set_color("font_color", "CheckButton", WHITE)
+	t.set_color("font_hover_color", "CheckButton", GOLD)
+	t.set_color("font_pressed_color", "CheckButton", WHITE)
 	t.set_stylebox("panel", "TabContainer", StyleBoxEmpty.new())
 	_theme = t
 	return t
@@ -331,3 +336,33 @@ static func parchment() -> StyleBoxFlat:
 	s.shadow_color = Color(0, 0, 0, 0.35)
 	s.shadow_size = 4
 	return s
+
+## Re-skins app-style controls built with UiKit: serif fonts (titles for display type), optional
+## size scale, bronze buttons for buttons that don't have their own look.
+static func reskin(n: Node, scale := 1.0, buttons := true) -> void:
+	if n == null:
+		return
+	for c in n.find_children("*", "", true, false):
+		if c is Label:
+			var l := c as Label
+			var cur: Font = l.get_theme_font("font") if l.has_theme_font_override("font") else null
+			if cur != null and (cur == body() or cur == title_font()):
+				continue
+			var head := cur != null and cur == UiKit.head_font()
+			if scale != 1.0:
+				var fs := l.get_theme_font_size("font_size")
+				l.add_theme_font_size_override("font_size", maxi(11, roundi(fs * (scale * 0.84 if head else scale))))
+			if head and title_font():
+				l.add_theme_font_override("font", title_font())
+			elif body():
+				l.add_theme_font_override("font", body())
+		elif c is Button:
+			var b := c as Button
+			if body():
+				b.add_theme_font_override("font", body())
+			if scale != 1.0:
+				b.add_theme_font_size_override("font_size", maxi(12, roundi(b.get_theme_font_size("font_size") * scale)))
+			if buttons and not b.has_theme_stylebox_override("normal") and not (b is CheckButton):
+				for k in ["normal", "hover", "pressed", "disabled"]:
+					b.add_theme_stylebox_override(k, theme().get_stylebox(k, "Button"))
+				b.add_theme_color_override("font_color", GOLD)

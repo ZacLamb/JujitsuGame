@@ -23,6 +23,7 @@ func setup_fighter(id: String, w) -> Npc:
 	add_child(rig)
 	rig.setup(o.gi, Data.BELTS[Data.belt_of(int(o.rank))].color, o.skin, Color(0.12, 0.08, 0.05), -1, o.get("body", "male"))
 	tag = Label3D.new()
+	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
 	tag.fixed_size = false
@@ -83,6 +84,7 @@ func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	add_child(rig)
 	rig.setup(m.gi, Data.BELTS[Data.belt_of(int(m.rank))].color, m.skin, Color(0.12, 0.08, 0.05), -1, str(m.get("body", "male")))
 	tag = Label3D.new()
+	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
 	tag.font_size = 44
@@ -159,6 +161,7 @@ func setup_quest_giver(id: String, w) -> Npc:
 	var shirt: Color = g.shirt
 	rig.setup(shirt, shirt.darkened(0.4), UiKit.skin_tone(float(g.skin)), Color(0.15, 0.09, 0.05), -1, "female" if id in FEMALE_GIVERS else "", true)
 	tag = Label3D.new()
+	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
 	tag.font_size = 44
@@ -169,6 +172,7 @@ func setup_quest_giver(id: String, w) -> Npc:
 	tag.modulate = Color(0.85, 1.0, 0.85)
 	add_child(tag)
 	marker = Label3D.new()
+	marker.font = Wow.title_font()
 	marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	marker.no_depth_test = true
 	marker.font_size = 140

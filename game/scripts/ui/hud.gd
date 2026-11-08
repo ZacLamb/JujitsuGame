@@ -385,18 +385,24 @@ func _build_dialogue() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	dialogue.add_child(v)
-	dlg_name = UiKit.label("", 22, UiKit.ACCENT)
+	dialogue.add_theme_stylebox_override("panel", Wow.parchment())
+	dialogue.theme = Wow.theme()
+	dialogue.anchor_left = 0.22
+	dialogue.anchor_right = 0.78
+	dlg_name = Wow.title("", 20, Color(0.45, 0.2, 0.05))
+	dlg_name.add_theme_constant_override("outline_size", 0)
 	v.add_child(dlg_name)
-	dlg_text = UiKit.label("", 22)
+	dlg_text = Wow.label("", 17, Wow.INK, true)
+	dlg_text.add_theme_constant_override("outline_size", 0)
 	v.add_child(dlg_text)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
-	dlg_no = UiKit.button("Later", Vector2(150, 56))
+	dlg_no = Wow.button("Later", Vector2(130, 34))
 	dlg_no.pressed.connect(func(): _close_dialogue(false))
 	row.add_child(dlg_no)
-	dlg_yes = UiKit.button("Oss! Let's roll", Vector2(220, 56))
+	dlg_yes = Wow.button("Oss! Let's roll", Vector2(190, 34))
 	dlg_yes.pressed.connect(func(): _close_dialogue(true))
 	row.add_child(dlg_yes)
 
@@ -937,6 +943,9 @@ func _build_settings() -> void:
 		Game.save_game()
 		get_tree().reload_current_scene())
 	row.add_child(quit)
+	settings_panel.theme = Wow.theme()
+	settings_panel.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 18, 3))
+	Wow.reskin(settings_panel, 0.8)
 
 # ------------------------------------------------------------ bags & vendors
 var wallet: BagUi.Wallet

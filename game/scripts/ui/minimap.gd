@@ -136,13 +136,13 @@ func _draw_big() -> void:
 	_draw_icons(r, Vector2.ZERO, World.HALF, true)
 	var pp := player.global_position
 	_draw_player(_to_rect(pp, r, Vector2.ZERO, World.HALF), 1.3)
-	draw_rect(r.grow(6), UiKit.ACCENT.darkened(0.2), false, 4.0)
-	var f := UiKit.head_font()
+	draw_rect(r.grow(6), Wow.FRAME, false, 5.0)
+	var f := Wow.title_font()
 	if f:
 		var t := "%s  ·  %s" % [Data.ZONES[world.zone].name.to_upper(), Data.zone_levels(world.zone).to_upper()]
 		draw_string_outline(f, Vector2(r.position.x, r.position.y - 16), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, 8, Color(0, 0, 0))
 		draw_string(f, Vector2(r.position.x, r.position.y - 16), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, UiKit.ACCENT)
-	var bf := UiKit.body_font()
+	var bf := Wow.body()
 	if bf:
 		var legend := "! quest  ·  ? turn in  ·  dots: fighters  ·  flags: territories (green yours, red under attack)  ·  star: objective  ·  M closes"
 		draw_string(bf, Vector2(r.position.x, r.end.y + 30), legend, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, UiKit.MUTED)
@@ -171,7 +171,7 @@ func _clip(p: Vector2, r: Rect2) -> bool:
 	return r.grow(-3).has_point(p)
 
 func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
-	var f := UiKit.body_font()
+	var f := Wow.body()
 	var plv := Game.player_level()
 	# buildings and walls, drawn crisp on top of the soft terrain
 	for fp in world.map_footprints:
@@ -266,7 +266,7 @@ func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
 			continue
 		var t2 := "?" if mk == "…" else mk
 		var qc := Color(0.65, 0.65, 0.65) if mk == "…" else Color(1, 0.85, 0.15)
-		var hf := UiKit.head_font()
+		var hf := Wow.title_font()
 		if hf:
 			draw_string_outline(hf, p4 + Vector2(-5, 9), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, 6, Color(0, 0, 0))
 			draw_string(hf, p4 + Vector2(-5, 9), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, qc)
