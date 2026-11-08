@@ -109,7 +109,7 @@ class BagPanel extends PanelContainer:
 		grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		grow_vertical = Control.GROW_DIRECTION_BEGIN
 		offset_right = -16
-		offset_bottom = -16
+		offset_bottom = -60
 		theme = Wow.theme()
 		add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 10, 2))
 		var v := VBoxContainer.new()
@@ -276,7 +276,7 @@ class Wallet extends VBoxContainer:
 		grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		grow_vertical = Control.GROW_DIRECTION_BEGIN
 		offset_right = -16
-		offset_bottom = -262   # sits above the minimap
+		offset_bottom = -60    # sits above the micro menu
 		alignment = BoxContainer.ALIGNMENT_END
 		add_theme_constant_override("separation", 4)
 		_buffs = HBoxContainer.new()
@@ -287,7 +287,11 @@ class Wallet extends VBoxContainer:
 		_money.focus_mode = Control.FOCUS_NONE
 		_money.add_theme_font_size_override("font_size", 16)
 		_money.add_theme_color_override("font_color", Color(1, 0.85, 0.35))
-		_money.add_theme_stylebox_override("normal", UiKit.box(Color(0.03, 0.04, 0.06, 0.8), 10, Color(1, 0.85, 0.35, 0.4), 1))
+		_money.add_theme_stylebox_override("normal", Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Wow.FRAME, 3, 10))
+		_money.add_theme_stylebox_override("hover", Wow.sb(Color(0.1, 0.08, 0.06, 0.9), Wow.FRAME_HI, 3, 10))
+		if Wow.body():
+			_money.add_theme_font_override("font", Wow.body())
+		_money.add_theme_font_size_override("font_size", 14)
 		_money.pressed.connect(func(): open_bags.emit())
 		add_child(_money)
 		Game.bag_changed.connect(refresh)

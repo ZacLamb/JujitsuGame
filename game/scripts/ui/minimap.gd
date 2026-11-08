@@ -4,7 +4,7 @@ extends Control
 ## per zone from the world's height/color functions with hillshading; icons are drawn live.
 
 const MAP_RES := 2.0          # metres per map pixel
-const MINI_SIZE := 210.0
+const MINI_SIZE := 190.0
 const MINI_RANGE := 70.0      # metres from the player to the minimap edge
 
 var world: World
@@ -61,7 +61,7 @@ func _mini_rect() -> Rect2:
 	var s := MINI_SIZE if vs.x > 700 else 150.0
 	if vs.y > vs.x:   # portrait phones: under the status panel, top-left
 		return Rect2(Vector2(14, 270), Vector2(s, s))
-	return Rect2(Vector2(vs.x - s - 18, vs.y - s - 18), Vector2(s, s))
+	return Rect2(Vector2(vs.x - s - 26, 38), Vector2(s, s))   # top-right, round, like WoW
 
 func _draw() -> void:
 	if world == null or player == null or tex == null:
@@ -84,21 +84,47 @@ func _draw_mini() -> void:
 	var px := (c + Vector2(World.HALF, World.HALF)) / MAP_RES
 	var half := MINI_RANGE / MAP_RES
 	var src := Rect2(px - Vector2(half, half), Vector2(half, half) * 2.0)
-	draw_rect(r.grow(4), Color(0.05, 0.05, 0.05, 0.85))
-	draw_texture_rect_region(tex, r, src)
+	var ctr := r.get_center()
+	var rad := r.size.x * 0.5
+	draw_circle(ctr, rad + 9, Color(0, 0, 0, 0.6))
+	# round terrain: a textured polygon with UVs into the zone image
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var ts := Vector2(tex.get_width(), tex.get_height())
+	for i in 48:
+		var a := TAU * i / 48.0
+		var p := ctr + Vector2(cos(a), sin(a)) * rad
+		pts.append(p)
+		uvs.append((src.position + (p - r.position) / r.size * src.size) / ts)
+	draw_colored_polygon(pts, Color.WHITE, uvs, tex)
+	_round = true
 	_draw_icons(r, c, MINI_RANGE, false)
-	_draw_player(r.get_center(), 1.0)
-	draw_rect(r.grow(4), UiKit.ACCENT.darkened(0.2), false, 3.0)
-	var zl := "%s  ·  %s  ·  %s" % [Data.ZONES[world.zone].name, Data.zone_levels(world.zone), DayNight.clock_text()]
-	var f := UiKit.body_font()
+	_draw_player(ctr, 1.0)
+	_round = false
+	# bronze bezel
+	draw_arc(ctr, rad + 4, 0, TAU, 64, Wow.FRAME, 8.0, true)
+	draw_arc(ctr, rad + 8, 0, TAU, 64, Color(0, 0, 0, 0.8), 1.5, true)
+	draw_arc(ctr, rad + 1, 0, TAU, 64, Wow.FRAME_HI, 1.5, true)
+	var f: Font = Wow.body()
 	if f:
-		draw_string_outline(f, r.position + Vector2(4, -10), zl, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, 5, Color(0, 0, 0, 0.9))
-		draw_string(f, r.position + Vector2(4, -10), zl, HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, UiKit.ACCENT)
-		draw_string_outline(f, r.position + Vector2(r.size.x * 0.5 - 5, 16), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 5, Color(0, 0, 0))
-		draw_string(f, r.position + Vector2(r.size.x * 0.5 - 5, 16), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
-		if get_viewport_rect().size.x > 700:
-			draw_string_outline(f, r.position + Vector2(4, r.size.y + 18), "M: world map", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0))
-			draw_string(f, r.position + Vector2(4, r.size.y + 18), "M: world map", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiKit.MUTED)
+		# zone name plate above, clock to the right (like WoW's minimap header)
+		var zn: String = Data.ZONES[world.zone].name
+		var plate := Rect2(Vector2(ctr.x - 92, r.position.y - 30), Vector2(184, 22))
+		var ps := StyleBoxFlat.new()
+		ps.bg_color = Color(0.03, 0.03, 0.05, 0.85)
+		ps.border_color = Wow.FRAME
+		ps.set_border_width_all(1)
+		ps.set_corner_radius_all(3)
+		draw_style_box(ps, plate)
+		draw_string_outline(f, plate.position + Vector2(0, 16), zn, HORIZONTAL_ALIGNMENT_CENTER, plate.size.x, 14, 3, Color(0, 0, 0))
+		draw_string(f, plate.position + Vector2(0, 16), zn, HORIZONTAL_ALIGNMENT_CENTER, plate.size.x, 14, Wow.GOLD)
+		var ck := "%s  ·  %s" % [Data.zone_levels(world.zone), DayNight.clock_text()]
+		draw_string_outline(f, Vector2(r.position.x, r.end.y + 26), ck, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 12, 3, Color(0, 0, 0))
+		draw_string(f, Vector2(r.position.x, r.end.y + 26), ck, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 12, Wow.PALE)
+		var np := ctr + Vector2(0, -rad - 4)
+		draw_circle(np, 9, Color(0.08, 0.06, 0.05))
+		draw_arc(np, 9, 0, TAU, 20, Wow.FRAME_HI, 1.5, true)
+		draw_string(f, np + Vector2(-9, 5), "N", HORIZONTAL_ALIGNMENT_CENTER, 18, 13, Wow.WHITE)
 
 func _draw_big() -> void:
 	var vs := get_viewport_rect().size
@@ -137,7 +163,11 @@ func _draw_player(at: Vector2, k: float) -> void:
 	draw_colored_polygon(pts, Color(1, 0.88, 0.3))
 	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0, 0, 0), 1.5)
 
+var _round := false
+
 func _clip(p: Vector2, r: Rect2) -> bool:
+	if _round:
+		return p.distance_to(r.get_center()) < r.size.x * 0.5 - 4.0
 	return r.grow(-3).has_point(p)
 
 func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
@@ -149,7 +179,7 @@ func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
 		var a := _to_rect(Vector3(rr.position.x, 0, rr.position.y), r, c, range_m)
 		var b := _to_rect(Vector3(rr.end.x, 0, rr.end.y), r, c, range_m)
 		var box := Rect2(a, b - a).abs()
-		if not r.intersects(box):
+		if not r.intersects(box) or (_round and not _clip(box.get_center(), r)):
 			continue
 		box = box.intersection(r)
 		var col: Color = fp[1]
@@ -205,6 +235,27 @@ func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
 		if labels and f:
 			draw_string_outline(f, p3 + Vector2(8, 4), o.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0))
 			draw_string(f, p3 + Vector2(8, 4), o.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+	# mobs (small dots in their con colour) and vendors (gold coin)
+	for e in world.mobs:
+		if e.npc == null or not (e.npc as Npc).visible:
+			continue
+		var pm := _to_rect((e.npc as Npc).global_position, r, c, range_m)
+		if not _clip(pm, r):
+			continue
+		var mc := Data.con_color(Data.display_level(float(e.npc.mob.level)), plv)
+		draw_circle(pm, 3.2 if not bool(e.rare) else 5.0, Color(0, 0, 0))
+		draw_circle(pm, 2.2 if not bool(e.rare) else 3.8, mc if not bool(e.rare) else Color(0.85, 0.85, 0.95))
+	for sp2 in world.spots:
+		if str(sp2.action) != "vendor":
+			continue
+		var pv := _to_rect(sp2.pos, r, c, range_m)
+		if not _clip(pv, r):
+			continue
+		draw_circle(pv, 6, Color(0, 0, 0))
+		draw_circle(pv, 4.8, Color(1, 0.8, 0.2))
+		if labels and f:
+			draw_string_outline(f, pv + Vector2(8, 4), str(sp2.label).trim_prefix("Shop: "), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0))
+			draw_string(f, pv + Vector2(8, 4), str(sp2.label).trim_prefix("Shop: "), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.85, 0.35))
 	# quest givers
 	for g in world.quest_givers:
 		var mk := Game.giver_marker(g)
@@ -223,7 +274,12 @@ func _draw_icons(r: Rect2, c: Vector2, range_m: float, labels: bool) -> void:
 	var obj := world.objective_target()
 	var p5 := _to_rect(obj, r, c, range_m)
 	var inner := r.grow(-10)
-	if not inner.has_point(p5):
+	if _round:
+		var cc := r.get_center()
+		var lim := r.size.x * 0.5 - 10.0
+		if p5.distance_to(cc) > lim:
+			p5 = cc + (p5 - cc).normalized() * lim
+	elif not inner.has_point(p5):
 		var ctr := r.get_center()
 		var d := p5 - ctr
 		var k := minf(absf(inner.size.x * 0.5 / maxf(absf(d.x), 0.001)), absf(inner.size.y * 0.5 / maxf(absf(d.y), 0.001)))

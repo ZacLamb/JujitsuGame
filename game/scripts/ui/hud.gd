@@ -35,7 +35,7 @@ var touch: TouchControls
 var journal_btn: Button
 var status_panels: Array = []
 var touch_mode := false
-var _obj_panel: PanelContainer
+var _obj_panel: Control
 var lvl_label: Label
 var _sel_talent := ""
 var _want_tab := -1
@@ -84,66 +84,133 @@ func _ready() -> void:
 
 # ------------------------------------------------------------ status
 func _build_status() -> void:
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14, 14)
-	panel.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.45), 14))
-	root.add_child(panel)
-	status_panels.append(panel)
-	rank_box = VBoxContainer.new()
-	rank_box.add_theme_constant_override("separation", 6)
-	panel.add_child(rank_box)
-	rank_label = UiKit.label("", 20)
-	rank_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	rank_box.add_child(rank_label)
-	chip_holder = HBoxContainer.new()
-	rank_box.add_child(chip_holder)
-	lvl_label = UiKit.label("", 17, Color(0.6, 0.9, 1.0))
-	lvl_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	rank_box.add_child(lvl_label)
-	xp_bar = UiKit.bar(XP_COLOR, Vector2(240, 14))
-	xp_bar.add_theme_stylebox_override("background", UiKit.box(Color(0.08, 0.05, 0.14, 0.85), 7, Color(0.5, 0.35, 0.8, 0.7), 1))
-	rank_box.add_child(xp_bar)
-
-	var right := PanelContainer.new()
+	# --- player unit frame (top-left, like WoW): round emblem + level badge, name, belt, XP
+	var uf := Control.new()
+	uf.position = Vector2(12, 10)
+	uf.size = Vector2(340, 96)
+	uf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(uf)
+	status_panels.append(uf)
+	var plate := Panel.new()
+	plate.position = Vector2(40, 8)
+	plate.size = Vector2(296, 62)
+	var ps := Wow.sb(Color(0.03, 0.03, 0.05, 0.82), Color(Wow.FRAME, 0.9), 4, 0, 1)
+	plate.add_theme_stylebox_override("panel", ps)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	uf.add_child(plate)
+	_portrait = Wow.Emblem.new()
+	_portrait.custom_minimum_size = Vector2(72, 72)
+	_portrait.size = Vector2(72, 72)
+	_portrait.scale = Vector2(72.0 / 62.0, 72.0 / 62.0)
+	uf.add_child(_portrait)
+	_lvl_badge = LevelBadge.new()
+	_lvl_badge.position = Vector2(46, 50)
+	uf.add_child(_lvl_badge)
+	rank_box = VBoxContainer.new()   # kept for compatibility with older code
+	rank_label = Wow.title("", 15, Wow.GOLD)
+	rank_label.position = Vector2(82, 10)
+	rank_label.size = Vector2(250, 20)
+	uf.add_child(rank_label)
+	chip_holder = Control.new()
+	chip_holder.position = Vector2(82, 32)
+	chip_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	uf.add_child(chip_holder)
+	xp_bar = UiKit.bar(XP_COLOR, Vector2(246, 12))
+	xp_bar.position = Vector2(82, 52)
+	xp_bar.size = Vector2(246, 12)
+	xp_bar.add_theme_stylebox_override("background", Wow.sb(Color(0.06, 0.03, 0.1, 0.9), Color(0, 0, 0, 0.9), 2, 0))
+	uf.add_child(xp_bar)
+	_xp_text = Wow.label("", 11, Wow.WHITE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	_xp_text.position = Vector2(82, 49)
+	_xp_text.size = Vector2(246, 16)
+	uf.add_child(_xp_text)
+	lvl_label = Wow.label("", 13, Wow.GREEN)
+	lvl_label.position = Vector2(84, 72)
+	lvl_label.size = Vector2(260, 18)
+	uf.add_child(lvl_label)
+	# --- objective tracker (right side, under the round minimap)
+	var right := VBoxContainer.new()
 	right.anchor_left = 1.0
 	right.anchor_right = 1.0
-	right.offset_left = -500
-	right.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	right.offset_left = -330
 	right.offset_right = -14
-	right.offset_top = 14
-	right.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.45), 14))
+	right.offset_top = 262
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_theme_constant_override("separation", 2)
 	root.add_child(right)
 	_obj_panel = right
 	status_panels.append(right)
-	var rv := VBoxContainer.new()
-	right.add_child(rv)
-	var head := HBoxContainer.new()
-	rv.add_child(head)
-	zone_lbl = UiKit.label("OBJECTIVE", 14, UiKit.ACCENT)
-	zone_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	zone_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	head.add_child(zone_lbl)
-	journal_btn = UiKit.button("Character (C)", Vector2(150, 34))
-	journal_btn.add_theme_font_size_override("font_size", 15)
-	journal_btn.pressed.connect(open_character)
-	head.add_child(journal_btn)
-	var snd := UiKit.button("Sound: off" if Sfx.muted else "Sound: on", Vector2(110, 34))
-	snd.add_theme_font_size_override("font_size", 15)
-	snd.pressed.connect(func():
-		Sfx.set_muted(not Sfx.muted)
-		snd.text = "Sound: off" if Sfx.muted else "Sound: on")
-	head.add_child(snd)
-	gfx_btn = UiKit.button("Gfx: " + Game.GFX_NAMES[Game.graphics_level()], Vector2(104, 34))
-	var gfx := gfx_btn
-	gfx.add_theme_font_size_override("font_size", 15)
-	gfx.pressed.connect(func():
-		Game.set_graphics_level((Game.graphics_level() + 1) % 3)
-		gfx.text = "Gfx: " + Game.GFX_NAMES[Game.graphics_level()]
-		graphics_changed.emit())
-	head.add_child(gfx)
-	objective = UiKit.label("", 19)
-	objective.custom_minimum_size = Vector2(380, 0)
-	rv.add_child(objective)
+	zone_lbl = Wow.title("Objectives", 15, Wow.GOLD)
+	right.add_child(zone_lbl)
+	var line := ColorRect.new()
+	line.color = Color(Wow.GOLD, 0.45)
+	line.custom_minimum_size = Vector2(0, 1)
+	right.add_child(line)
+	objective = Wow.label("", 14, Wow.WHITE, true)
+	objective.custom_minimum_size = Vector2(300, 0)
+	right.add_child(objective)
+	_tracker = VBoxContainer.new()
+	_tracker.add_theme_constant_override("separation", 1)
+	right.add_child(_tracker)
+	# --- micro menu (bottom-right): character, talents, bags, quest log, map, menu
+	var micro := HBoxContainer.new()
+	micro.anchor_left = 1.0
+	micro.anchor_right = 1.0
+	micro.anchor_top = 1.0
+	micro.anchor_bottom = 1.0
+	micro.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	micro.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	micro.offset_right = -14
+	micro.offset_bottom = -12
+	micro.add_theme_constant_override("separation", 3)
+	root.add_child(micro)
+	status_panels.append(micro)
+	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Spellbook (N)", func(): open_window("talents")],
+			["lock", "Bags (B)", toggle_bag], ["link", "Quest Log (L)", func(): open_window("journal")],
+			["wave", "World Map (M)", func(): minimap.toggle_big()], ["loop", "Game Menu (Esc)", toggle_settings]]:
+		var mb := MicroButton.new()
+		mb.glyph = e[0]
+		mb.tooltip_text = e[1]
+		mb.pressed.connect(e[2])
+		micro.add_child(mb)
+	journal_btn = null
+	gfx_btn = null
+
+var _portrait: Wow.Emblem
+var _lvl_badge: Control
+var _xp_text: Label
+var _tracker: VBoxContainer
+
+## Small round level number on the portrait.
+class LevelBadge extends Control:
+	var level := 1
+	var hot := false
+	func _init() -> void:
+		size = Vector2(28, 28)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		var c := size / 2.0
+		draw_circle(c, 13, Color(0, 0, 0, 0.9))
+		draw_circle(c, 11.5, Wow.FRAME)
+		draw_circle(c, 10, Color(0.08, 0.06, 0.05))
+		var f: Font = Wow.body() if Wow.body() else ThemeDB.fallback_font
+		draw_string(f, Vector2(0, c.y + 5), str(level), HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Wow.GREEN if hot else Wow.GOLD)
+
+## Square micro-menu button with a glyph (WoW's bottom-right buttons).
+class MicroButton extends Button:
+	var glyph := "star"
+	func _init() -> void:
+		custom_minimum_size = Vector2(34, 40)
+		focus_mode = Control.FOCUS_NONE
+		var n := Wow.button_box(Color(0.12, 0.08, 0.07), Wow.FRAME)
+		var h := Wow.button_box(Color(0.22, 0.15, 0.1), Wow.FRAME_HI)
+		add_theme_stylebox_override("normal", n)
+		add_theme_stylebox_override("hover", h)
+		add_theme_stylebox_override("pressed", h)
+	func _draw() -> void:
+		CharSheet.draw_glyph(self, glyph, size / 2.0, 20, Wow.GOLD)
+
+const STYLE_GLYPH := {"guard": "loop", "wrestler": "down", "judoka": "link", "athlete": "bolt", "passer": "chevron"}
 
 func set_portrait(p: bool) -> void:
 	if _obj_panel == null:
@@ -151,49 +218,67 @@ func set_portrait(p: bool) -> void:
 	if p:
 		_obj_panel.anchor_left = 0.0
 		_obj_panel.offset_left = 14
-		_obj_panel.offset_top = 166
+		_obj_panel.offset_top = 130
 		objective.custom_minimum_size = Vector2(0, 0)
 		toasts.offset_top = 276
 		toasts.offset_left = -250
 		toasts.offset_right = 250
 	else:
 		_obj_panel.anchor_left = 1.0
-		_obj_panel.offset_left = -500
-		_obj_panel.offset_top = 14
-		objective.custom_minimum_size = Vector2(380, 0)
+		_obj_panel.offset_left = -330
+		_obj_panel.offset_top = 262
+		objective.custom_minimum_size = Vector2(300, 0)
 		toasts.offset_top = 110
 		toasts.offset_left = -300
 		toasts.offset_right = 300
 
 func refresh() -> void:
-	rank_label.text = "%s  ·  %s" % [Game.player_name, Data.rank_name(Game.rank)]
+	rank_label.text = Game.player_name
 	for c in chip_holder.get_children():
 		c.queue_free()
-	chip_holder.add_child(UiKit.belt_chip(Game.rank, Vector2(150, 20)))
+	var chip := UiKit.belt_chip(Game.rank, Vector2(246, 14))
+	chip_holder.add_child(chip)
+	var bt := Wow.label(Data.rank_name(Game.rank), 11, Wow.WHITE if Data.belt_of(Game.rank) != 0 else Color(0.15, 0.12, 0.1), false, HORIZONTAL_ALIGNMENT_LEFT)
+	bt.position = Vector2(6, -1)
+	bt.add_theme_constant_override("outline_size", 2 if Data.belt_of(Game.rank) != 0 else 0)
+	chip_holder.add_child(bt)
 	var capped := Game.level_capped()
 	xp_bar.value = 100.0 * Game.level_progress()
-	xp_bar.add_theme_stylebox_override("fill", UiKit.box(XP_CAP_COLOR if capped else XP_COLOR, 7))
-	var otext := Game.current_objective()
-	for id in Game.active_quests(Game.zone).slice(0, 3):
+	xp_bar.add_theme_stylebox_override("fill", Wow.sb(XP_CAP_COLOR if capped else XP_COLOR, Color(0, 0, 0, 0), 2, 0))
+	var lv := Game.player_level()
+	_portrait.glyph = STYLE_GLYPH.get(Game.style, "shield")
+	var sp := Specs.get_spec(Game.spec)
+	_portrait.col = Team.ROLES[sp.role].color if not sp.is_empty() else Wow.GOLD
+	_portrait.queue_redraw()
+	var pts := Game.attr_points() + Game.talent_points()
+	(_lvl_badge as LevelBadge).level = lv
+	(_lvl_badge as LevelBadge).hot = pts > 0
+	_lvl_badge.queue_redraw()
+	if capped and lv < Game.MAX_LEVEL:
+		_xp_text.text = "Belt cap: beat the boss"
+	elif capped:
+		_xp_text.text = "Max level"
+	else:
+		_xp_text.text = "%d / %d XP" % [int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL]
+	var parts: Array = []
+	if Game.attr_points() > 0:
+		parts.append("%d attribute (C)" % Game.attr_points())
+	if Game.talent_points() > 0:
+		parts.append("%d talent (N)" % Game.talent_points())
+	lvl_label.text = ("Points to spend: " + ", ".join(parts)) if not parts.is_empty() else ""
+	# objective tracker
+	objective.text = Game.current_objective()
+	for c in _tracker.get_children():
+		c.queue_free()
+	for id in Game.active_quests(Game.zone).slice(0, 4):
 		var q: Dictionary = Data.QUESTS[id]
+		_tracker.add_child(Wow.label(str(q.title), 14, Wow.GOLD))
 		if Game.quest_ready(id):
-			otext += "\n•  %s: return to %s" % [q.title, Data.QUEST_GIVERS[q.giver].name]
+			_tracker.add_child(Wow.label("  - Return to %s" % Data.QUEST_GIVERS[q.giver].name, 13, Wow.GREEN))
 		else:
 			var pr := Game.objective_progress(id, 0)
-			otext += "\n•  %s: %s %d/%d" % [q.title, q.obj[0].text, pr[0], pr[1]]
-	objective.text = otext
-	if Data.ZONES.has(Game.zone):
-		zone_lbl.text = "%s  ·  %s" % [Data.ZONES[Game.zone].name.to_upper(), Data.zone_levels(Game.zone).to_upper()]
-	var lv := Game.player_level()
-	var pts := Game.attr_points() + Game.talent_points()
-	var extra := ("\n%d point%s to spend  (C)" % [pts, "" if pts == 1 else "s"]) if pts > 0 else ""
-	if capped and lv < Game.MAX_LEVEL:
-		lvl_label.text = "Level %d  ·  belt cap: beat the boss%s" % [lv, extra]
-	elif capped:
-		lvl_label.text = "Level %d  ·  MAX%s" % [lv, extra]
-	else:
-		lvl_label.text = "Level %d  ·  %d / %d XP%s" % [lv, int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL, extra]
-	lvl_label.add_theme_color_override("font_color", UiKit.ACCENT if pts > 0 else Color(0.78, 0.66, 1.0))
+			_tracker.add_child(Wow.label("  - %d/%d %s" % [pr[0], pr[1], q.obj[0].text], 13, Wow.WHITE, true))
+	zone_lbl.text = "Objectives"
 	if journal.visible:
 		_fill_journal()
 
@@ -793,6 +878,12 @@ func _build_settings() -> void:
 	settings_panel.add_child(v)
 	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("Sound", 22, UiKit.ACCENT))
+	var mute := CheckButton.new()
+	mute.text = "Mute all sound"
+	mute.button_pressed = Sfx.muted
+	mute.focus_mode = Control.FOCUS_NONE
+	mute.toggled.connect(func(on): Sfx.set_muted(on))
+	v.add_child(mute)
 	_slider_row(v, "Music", float(Sfx.pref("music", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("music", x))
 	_slider_row(v, "Ambience", float(Sfx.pref("ambience", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("ambience", x))
 	_slider_row(v, "Effects", float(Sfx.pref("sfx", 0.9)), 0.0, 1.0, func(x):
