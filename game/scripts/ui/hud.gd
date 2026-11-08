@@ -368,6 +368,8 @@ func open_character() -> void:
 func toggle_journal() -> void:
 	journal.visible = not journal.visible
 	minimap.visible = not journal.visible
+	if wallet:
+		wallet.visible = not journal.visible and not bag_panel.visible
 	if journal.visible:
 		journal.move_to_front()
 		_fill_journal()
@@ -440,6 +442,7 @@ func _fill_journal() -> void:
 	_fill_character()
 	_fill_talents()
 	_fill_gear()
+	_fill_specs()
 	# Quests
 	var q := _scroll_tab("Quests")
 	q.add_child(_daily_box())
@@ -507,7 +510,12 @@ func _fill_journal() -> void:
 			var m: Dictionary = Data.MOVES[id]
 			if m.pos != pos:
 				continue
+			if m.has("spec") and Specs.style_of(str(m.spec)) != Game.style:
+				continue
 			var known := Game.knows(id)
+			if m.has("spec"):
+				tq.add_child(UiKit.label("   %s  — %s spec%s" % [m.name, Specs.get_spec(str(m.spec)).name, "" if known else " only"], 18, Color(0.8, 0.6, 1.0) if known else UiKit.MUTED))
+				continue
 			var who := "" if pos == "standing" else ("  [top]" if m.role == "top" else "  [bottom]")
 			var txt := "   %s%s%s" % [m.name, who, "" if known else "  — unlocks at %s" % Data.rank_name(int(m.rank))]
 			tq.add_child(UiKit.label(txt, 18, UiKit.TEXT if known else UiKit.MUTED))
@@ -815,3 +823,77 @@ func close_shop() -> void:
 	bag_panel.shop_mode = false
 	bag_panel.visible = false
 	shop_closed.emit()
+
+# ------------------------------------------------------------ specs tab
+func _fill_specs() -> void:
+	var v := _scroll_tab("Specs")
+	if Game.style == "":
+		return
+	var cur := Specs.get_spec(Game.spec)
+	var head := "SPECIALIZATION  ·  %s" % Rpg.STYLES[Game.style].name
+	v.add_child(UiKit.label(head, 26, UiKit.ACCENT))
+	var sub := ""
+	if not Game.can_choose_spec():
+		sub = "Specs unlock at level %d (you're level %d). Pick one of three paths for your %s: it sets your 5v5 role, adds a passive, and teaches a technique nobody else can use." % [Specs.UNLOCK_LEVEL, Game.player_level(), Rpg.STYLES[Game.style].name]
+	elif cur.is_empty():
+		sub = "Choose your path. Your first choice is free; switching later costs R$ %d." % Specs.RESPEC_COST
+	else:
+		sub = "Current spec: %s (%s). Switching costs R$ %d (you have R$ %d)." % [cur.name, Team.ROLES[cur.role].name, Specs.RESPEC_COST, Game.money]
+	v.add_child(UiKit.label(sub, 16, UiKit.MUTED))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	v.add_child(row)
+	for sp in Specs.list(Game.style):
+		row.add_child(_spec_card(sp))
+
+func _spec_card(sp: Dictionary) -> Control:
+	var role: Dictionary = Team.ROLES[sp.role]
+	var rc: Color = role.color
+	var mine: bool = Game.spec == sp.id
+	var p := CharSheet._panel(Color(rc.darkened(0.85), 0.95), rc if mine else Color(rc, 0.35), 14, 12)
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.size_flags_stretch_ratio = 1.0
+	p.custom_minimum_size.x = 300
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	p.add_child(col)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	col.add_child(top)
+	var badge := TeamBoard._RoleBadge.new()
+	badge.role = sp.role
+	top.add_child(badge)
+	var nv := VBoxContainer.new()
+	nv.add_theme_constant_override("separation", 0)
+	top.add_child(nv)
+	nv.add_child(CharSheet._head(str(sp.name).to_upper(), 24, UiKit.TEXT))
+	nv.add_child(CharSheet._small("%s role%s" % [role.name, "  ·  CURRENT" if mine else ""], 13, rc.lightened(0.25)))
+	col.add_child(CharSheet._small(str(sp.desc), 14, UiKit.TEXT, true))
+	col.add_child(CharSheet._small("Passive: " + str(sp.passive), 14, Color(0.45, 1.0, 0.55), true))
+	col.add_child(CharSheet._small("EXCLUSIVE TECHNIQUE", 12, Color(0.8, 0.6, 1.0)))
+	var tip := MoveInfo.panel(str(sp.move), null, clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0), str(sp.name))
+	for n in tip.find_children("*", "Control", true, false):
+		var c := n as Control
+		if c.custom_minimum_size.x >= 300.0:
+			c.custom_minimum_size.x = 0.0
+	col.add_child(tip)
+	var b := UiKit.button("", Vector2(0, 46))
+	b.add_theme_font_size_override("font_size", 17)
+	if mine:
+		b.text = "Your spec"
+		b.disabled = true
+	elif not Game.can_choose_spec():
+		b.text = "Unlocks at level %d" % Specs.UNLOCK_LEVEL
+		b.disabled = true
+	else:
+		var cost := Game.spec_cost(sp.id)
+		b.text = "Choose (free)" if cost == 0 else "Switch  (R$ %d)" % cost
+		var sid: String = sp.id
+		b.pressed.connect(func():
+			var why := Game.choose_spec(sid)
+			if why != "":
+				show_toast(why, UiKit.RED)
+			_want_tab = journal_tabs.current_tab
+			_fill_journal())
+	col.add_child(b)
+	return p

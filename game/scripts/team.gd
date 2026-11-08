@@ -41,6 +41,9 @@ static func role_of(id: String, o: Dictionary) -> String:
 	return ROLE_ORDER[absi(hash(id)) % ROLE_ORDER.size()]
 
 static func player_role() -> String:
+	var sp := Specs.get_spec(Game.spec)
+	if not sp.is_empty():
+		return str(sp.role)
 	return PLAYER_ROLE.get(Game.style, "anchor")
 
 static func you() -> Dictionary:

@@ -87,6 +87,8 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 		opp = mob
 		sim.setup("mob", Game.level(), Game.knows, -1, Game.mods(), mob)
 		sim.clock = 150.0   # street rolls are short
+		if mob.has("carry"):
+			sim.stamina = sim.max_stamina * float(mob.carry)   # back-to-back: you didn't get a full rest
 	elif not team.is_empty():
 		opp = Team.as_opp(team.them)
 		Team.setup_sim(sim, team.me, team.them, float(team.me_stam), float(team.them_stam), -1, team.get("opts", {}))
@@ -98,6 +100,8 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	if not daily.is_empty():
 		sim.apply_rule(daily.rule)
 	_signature = Rpg.STYLES[Game.style].signature if Game.style != "" and (team.is_empty() or team.me.get("player", false)) else []
+	if Game.spec != "" and not _signature.is_empty():
+		_signature = _signature + [str(Specs.get_spec(Game.spec).move)]
 	sim.signature = _signature
 	pace = clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0)
 	sim.clock_scale = 1.0 / pace * 0.85   # a slower fight, but the round only runs ~20% longer
@@ -708,6 +712,8 @@ func _end_match() -> void:
 	var res := sim.result
 	res["signature"] = _used_signature and res.won
 	var xp := 0
+	if not mob.is_empty():
+		res["me_stam"] = sim.stamina / sim.max_stamina
 	if not team.is_empty():
 		res["me_stam"] = sim.stamina / sim.max_stamina
 		res["them_stam"] = sim.opp_stamina / 100.0
@@ -764,6 +770,8 @@ func _end_match() -> void:
 		back_text = "Continue"
 	if not team.is_empty():
 		back_text = str(team.get("back", "Back to the team board"))
+	if not mob.is_empty() and res.won and not queue_names.is_empty():
+		back_text = "Next: %s" % str(queue_names[0])
 	var back := UiKit.button(back_text, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))
@@ -1430,3 +1438,21 @@ func _tick_tip(delta: float) -> void:
 		var pad_t := _tip_pad_t
 		_show_tip(id, pad_t > 0.0)
 		_tip_pad_t = pad_t
+
+# ================================================================= mob line ("winner stays on")
+var queue_names: Array = []
+var _queue_lbl: Label
+
+func set_queue(names: Array) -> void:
+	queue_names = names
+	if _queue_lbl == null and ui:
+		_queue_lbl = UiKit.label("", 15, Color(1, 0.65, 0.45), HORIZONTAL_ALIGNMENT_CENTER)
+		_queue_lbl.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		_queue_lbl.offset_top = 92
+		_queue_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ui.add_child(_queue_lbl)
+	if _queue_lbl:
+		_queue_lbl.text = ("WAITING FOR THE WINNER:  " + "  ·  ".join(names)) if not names.is_empty() else ""
+
+func announce(text: String) -> void:
+	_float(text, Vector2(0.5, 0.2), Color(1, 0.6, 0.4), 22)

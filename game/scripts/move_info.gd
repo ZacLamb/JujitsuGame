@@ -51,6 +51,21 @@ const DESC := {
 	"leg_drag": "Drag the legs across your hip and pin them sideways.",
 	"darce": "Arm under the neck and armpit, walk around and squeeze.",
 	"ezekiel": "Sleeve choke from mount: the hand rides inside your own gi.",
+	"chain_sub": "Armbar to triangle to armbar: every defense opens the next door.",
+	"lumberjack": "Grab both ankles while they stand in your guard and chop them down.",
+	"worm_sweep": "Feed their lapel around the leg and tip them over the trapped side.",
+	"blast_double": "No setup, no warning: blast through the hips and land in side control.",
+	"tilt_back": "Bait the turn, tilt them over and hook in from the top.",
+	"peek_out": "Turn away, peek out the back door and come up on their leg.",
+	"seoi_nage": "Turn in, load them over your shoulder and drive them into the mat.",
+	"kuzushi_snap": "Break their balance with the grips, snap the head, go behind.",
+	"kesa_armlock": "From the scarf hold, trap the arm across your thigh and lever it.",
+	"heel_hook": "Inside sankaku, catch the heel, rotate. Tap early.",
+	"kiss_dragon": "Invert under them, spin through and pop out on the back.",
+	"tech_standup": "Bridge, frame, explode out the back and come up in their half guard.",
+	"over_under": "One arm under a leg, one over: stack them and walk around.",
+	"x_pass": "Cross-step over the half guard before they can get an underhook.",
+	"smount_armbar": "Slide to S-mount, isolate the arm and fall back for the tap.",
 }
 
 const TYPE_NAMES := {"takedown": "Takedown", "guard": "Guard pull", "sweep": "Sweep", "sub": "Submission",
@@ -76,9 +91,11 @@ static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "",
 	var sub := "%s  ·  %s" % [TYPE_NAMES.get(str(mv.type), str(mv.type).capitalize()), Data.role_label(str(mv.pos), str(mv.role) == "top") if str(mv.role) != "any" else "Standing"]
 	if signature:
 		sub += "  ·  Signature"
+	if spec_name == "" and mv.has("spec"):
+		spec_name = str(Specs.get_spec(str(mv.spec)).get("name", ""))
 	if spec_name != "":
-		sub += "  ·  " + spec_name
-	v.add_child(_line(sub, 13, Color(1, 0.82, 0.3) if signature else UiKit.MUTED))
+		sub += "  ·  " + spec_name + " spec"
+	v.add_child(_line(sub, 13, Color(1, 0.82, 0.3) if signature or mv.has("spec") else UiKit.MUTED, true))
 	# costs row (two columns like WoW)
 	var cast := (sim.cast_time(id, true) if sim else 0.7 + 0.14 * float(mv.diff) + (0.15 if mv.type == "sub" else 0.0)) / maxf(pace, 0.1)
 	var cost := sim.player_cost(id) if sim else float(mv.cost)
@@ -93,7 +110,7 @@ static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "",
 	chip.add_theme_stylebox_override("panel", UiKit.box(Color(cc, 0.25), 6, cc, 1))
 	chip.add_child(_line(" %s " % RollSim.DEF_NAMES[counter].to_upper(), 12, cc.lightened(0.3)))
 	hb.add_child(chip)
-	hb.add_child(_line("stops it (they can read you while you cast)", 13, UiKit.MUTED))
+	hb.add_child(_line("stops it", 13, UiKit.MUTED))
 	v.add_child(hb)
 	# live odds
 	if sim:

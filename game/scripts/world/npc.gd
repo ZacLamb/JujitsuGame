@@ -53,7 +53,23 @@ func setup_villager(seed_v: int, w, area_center: Vector3) -> Npc:
 var mob := {}
 var camp_radius := 8.0
 var _chasing := false
+var _queue_pos := Vector3.INF   # waiting at the edge of your fight for the winner
+var _queue_look := Vector3.ZERO
 signal engaged(npc: Npc)
+
+func queue_at(pos: Vector3, look: Vector3) -> void:
+	_queue_pos = pos
+	_queue_look = look
+	_chasing = false
+	if tag:
+		tag.visible = false   # the fight HUD lists who's waiting
+
+func unqueue() -> void:
+	_queue_pos = Vector3.INF
+	_chasing = false
+	_target = _home
+	if tag:
+		tag.visible = true
 
 func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	mob = m
@@ -93,6 +109,19 @@ func refresh_mob_tag() -> void:
 func _mob_process(delta: float) -> bool:
 	if mob.is_empty() or _player == null:
 		return false
+	if _queue_pos != Vector3.INF:
+		var tq := _queue_pos - global_position
+		tq.y = 0
+		if tq.length() > 0.4:
+			global_position += tq.normalized() * minf(3.0 * delta, tq.length())
+			global_position.y = world.ground_y(global_position.x, global_position.z)
+			rig.rotation.y = lerp_angle(rig.rotation.y, atan2(-tq.x, -tq.z), clampf(delta * 8.0, 0, 1))
+			rig.animate_locomotion(delta, 0.5)
+		else:
+			var lk := _queue_look - global_position
+			rig.rotation.y = lerp_angle(rig.rotation.y, atan2(-lk.x, -lk.z), clampf(delta * 4.0, 0, 1))
+			rig.animate_locomotion(delta, 0.0)
+		return true
 	var to_p: Vector3 = _player.global_position - global_position
 	to_p.y = 0
 	var d := to_p.length()

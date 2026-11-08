@@ -109,6 +109,22 @@ const MOVES := {
 	"leg_drag": {"name": "Leg Drag Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 13, "type": "pass", "rank": 99},
 	"darce": {"name": "D'Arce Choke", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 99},
 	"ezekiel": {"name": "Ezekiel Choke", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 13, "type": "sub", "rank": 99},
+	# --- spec-exclusive techniques (rank 99: only your spec knows them; see Specs)
+	"chain_sub": {"name": "Armbar-Triangle Chain", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 18, "type": "sub", "rank": 99, "spec": "sub_hunter"},
+	"lumberjack": {"name": "Lumberjack Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 1, "cost": 13, "type": "sweep", "rank": 99, "spec": "sweeper"},
+	"worm_sweep": {"name": "Worm Guard Sweep", "pos": "guard", "role": "bottom", "result": ["side", true], "pts": 2, "diff": 2, "cost": 14, "type": "sweep", "rank": 99, "spec": "lapel_guard"},
+	"blast_double": {"name": "Blast Double", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 16, "type": "takedown", "rank": 99, "spec": "chain_wrestler"},
+	"tilt_back": {"name": "Tilt to the Back", "pos": "side", "role": "top", "result": ["back", true], "pts": 4, "diff": 2, "cost": 14, "type": "back", "rank": 99, "spec": "rider"},
+	"peek_out": {"name": "Peek-Out Scramble", "pos": "side", "role": "bottom", "result": ["half", true], "pts": 0, "diff": 2, "cost": 12, "type": "escape", "rank": 99, "spec": "scrambler"},
+	"seoi_nage": {"name": "Ippon Seoi Nage", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 16, "type": "takedown", "rank": 99, "spec": "thrower"},
+	"kuzushi_snap": {"name": "Kuzushi Snap-Down", "pos": "standing", "role": "any", "result": ["back", true], "pts": 2, "diff": 3, "cost": 15, "type": "back", "rank": 99, "spec": "grip_fighter"},
+	"kesa_armlock": {"name": "Kesa Gatame Armlock", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99, "spec": "newaza"},
+	"heel_hook": {"name": "Inside Heel Hook", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99, "spec": "leg_locker"},
+	"kiss_dragon": {"name": "Kiss of the Dragon", "pos": "guard", "role": "bottom", "result": ["back", true], "pts": 4, "diff": 3, "cost": 16, "type": "back", "rank": 99, "spec": "berimbolo"},
+	"tech_standup": {"name": "Technical Stand-Up Reversal", "pos": "mount", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 99, "spec": "gas_tank"},
+	"over_under": {"name": "Over-Under Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 2, "cost": 16, "type": "pass", "rank": 99, "spec": "smash"},
+	"x_pass": {"name": "X-Pass", "pos": "half", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 12, "type": "pass", "rank": 99, "spec": "speed"},
+	"smount_armbar": {"name": "S-Mount Armbar", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99, "spec": "mount_hunter"},
 }
 
 const SUB_FLAVOR := {

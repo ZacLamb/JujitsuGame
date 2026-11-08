@@ -795,9 +795,51 @@ func _start_mob(npc: Npc) -> void:
 	if roll != null or npc == null or npc.mob.is_empty():
 		return
 	_mob_npc = npc
+	npc.unqueue()
 	_start_roll("mob", {}, {}, {}, npc.mob)
+	# social pull: aggressive campmates standing close by want the winner (like pulling a WoW pack)
+	for e in world.mobs:
+		var o: Npc = e.npc
+		if o == null or o == npc or not o.visible or not bool(e.camp.get("aggro", false)):
+			continue
+		if str(e.camp.id) == str(npc.mob.get("camp", "")) and o.global_position.distance_to(npc.global_position) < 6.0:
+			_queue_mob(o)
+	if roll:
+		roll.set_queue(_queue_names())
+
+## Grappling is one-on-one, so extra mobs don't pile on: they line up at the edge of your fight
+## ("winner stays on"). Win and the next one steps straight in, with your stamina carried over
+## (+20% breather). Lose and the line breaks up. Pull carefully.
+var _mob_queue: Array = []
+const MOB_QUEUE_MAX := 3
+
+func _queue_mob(npc: Npc) -> void:
+	if npc == null or npc == _mob_npc or npc in _mob_queue or _mob_queue.size() >= MOB_QUEUE_MAX:
+		return
+	_mob_queue.append(npc)
+	var c: Vector3 = roll.anchor.origin if roll else player.global_position
+	var at := c + Vector3(3.5, 0, 0)
+	if roll:
+		# line up across the mat from the broadcast camera, so they're in view but not in the way
+		var b: Basis = roll.pair.global_transform.basis
+		var side := float(_mob_queue.size() - 2) * 2.0
+		at = c - b.x.normalized() * 3.8 + b.z.normalized() * side
+	npc.queue_at(at, c)
+	if roll:
+		roll.set_queue(_queue_names())
+		roll.announce("%s is waiting for the winner!" % npc.mob.name)
+
+func _queue_names() -> Array:
+	var out: Array = []
+	for q in _mob_queue:
+		if is_instance_valid(q):
+			out.append("%s (Lv %d)" % [q.mob.name, Data.display_level(float(q.mob.level))])
+	return out
 
 func _on_mob_engaged(npc: Npc) -> void:
+	if roll != null and _mob_npc != null:
+		_queue_mob(npc)
+		return
 	if roll != null or _in_title or hud.dialogue_open() or hud.journal.visible or hud.travel_open() or _drill != null or not player.input_enabled:
 		return
 	Game.toast.emit("%s wants to roll!" % npc.mob.name, Color(1, 0.6, 0.4))
@@ -862,6 +904,22 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 			world.mob_done(_mob_npc, bool(result.won))
 		_mob_npc = null
 		world.refresh_mob_tags()
+		var next: Npc = null
+		while not _mob_queue.is_empty() and next == null:
+			var q = _mob_queue.pop_front()
+			if is_instance_valid(q) and q.visible:
+				next = q
+		if result.won and next != null:
+			next.mob["carry"] = clampf(float(result.get("me_stam", 1.0)) + 0.2, 0.25, 1.0)
+			Game.toast.emit("Next challenger: %s!" % next.mob.name, Color(1, 0.6, 0.4))
+			_start_mob.call_deferred(next)
+			return
+		if next:
+			next.unqueue()
+		for q in _mob_queue:
+			if is_instance_valid(q):
+				q.unqueue()
+		_mob_queue.clear()
 		return
 	if opp_id == "comp":
 		_comp_after_match(result)

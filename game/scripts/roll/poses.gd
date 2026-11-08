@@ -146,7 +146,7 @@ static func apply_flavor(pose: Dictionary, root: Transform3D, f: Dictionary, tow
 	return [p, r]
 
 # ---------------------------------------------------------------- submissions
-const SUB_FAMILY := {"guard_armbar": "armbar", "mount_armbar": "armbar", "flying_armbar": "armbar",
+const SUB_FAMILY := {"chain_sub": "triangle", "kesa_armlock": "armbar", "heel_hook": "leglock", "smount_armbar": "armbar", "guard_armbar": "armbar", "mount_armbar": "armbar", "flying_armbar": "armbar",
 	"triangle": "triangle", "omoplata": "omoplata", "rnc": "back_choke", "bow_arrow": "back_choke",
 	"cross_collar": "collar", "ezekiel": "collar", "americana": "keylock", "top_kimura": "keylock",
 	"half_kimura": "keylock", "darce": "headlock", "guillotine": "headlock", "kimura_guard": "keylock",

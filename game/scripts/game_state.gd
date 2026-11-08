@@ -31,6 +31,7 @@ var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: 
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
 var style := ""            # Rpg.STYLES key; "" until chosen
+var spec := ""             # Specs id; "" until chosen at level 10
 var gi_index := 0
 var attr_alloc := {}       # attribute -> points spent
 var talents := {}          # talent id -> rank
@@ -200,6 +201,7 @@ func reset_state() -> void:
 	kit = "gi"
 	team = {}
 	territories = {}
+	spec = ""
 	money = 0
 	bags = ["", "", "", ""]
 	bag = []
@@ -218,7 +220,7 @@ func save_game() -> void:
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
-		"money": money, "bag": bag, "bags": bags, "buffs": buffs,
+		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -270,6 +272,7 @@ func load_game() -> void:
 
 # ------------------------------------------------------------ rank / xp
 	money = int(parsed.get("money", 0))
+	spec = str(parsed.get("spec", ""))
 	bags = parsed.get("bags", ["", "", "", ""])
 	while bags.size() < Loot.BAG_SLOTS:
 		bags.append("")
@@ -321,6 +324,8 @@ func _announce_level(before: int) -> void:
 	if tal > 0:
 		txt += ", +%d talent point%s" % [tal, "" if tal == 1 else "s"]
 	toast.emit(txt, Color(0.75, 0.55, 1.0))
+	if before < Specs.UNLOCK_LEVEL and after >= Specs.UNLOCK_LEVEL and spec == "":
+		toast.emit("Specializations unlocked! Open the Journal (J) > Specs to choose your path.", Color(0.8, 0.6, 1.0))
 
 ## Promote to the next belt (called when a zone boss is beaten).
 func promote_belt(to_belt: int) -> void:
@@ -347,6 +352,8 @@ func _announce_new_moves(r: int) -> void:
 			toast.emit("Technique unlocked: %s" % Data.MOVES[id].name, Color(1, 0.85, 0.4))
 
 func knows(move_id: String) -> bool:
+	if Data.MOVES[move_id].has("spec"):
+		return str(Data.MOVES[move_id].spec) == spec
 	if int(Data.MOVES[move_id].rank) <= rank:
 		return true
 	if style != "" and move_id in Rpg.STYLES[style].signature:
@@ -802,6 +809,7 @@ func mods() -> Dictionary:
 	for b in set_bonuses():
 		if b.has("effect"):
 			m[b.effect] = true
+	Specs.apply(m, spec)
 	_buff_mods(m)
 	return m
 
@@ -1499,3 +1507,28 @@ func record_mob(result: Dictionary, mob: Dictionary) -> Dictionary:
 	save_game()
 	bag_changed.emit()
 	return out
+
+# ------------------------------------------------------------ specs
+func can_choose_spec() -> bool:
+	return style != "" and player_level() >= Specs.UNLOCK_LEVEL
+
+func spec_cost(id: String) -> int:
+	return 0 if spec == "" or spec == id else Specs.RESPEC_COST
+
+func choose_spec(id: String) -> String:
+	if Specs.style_of(id) != style:
+		return "That spec belongs to another class."
+	if not can_choose_spec():
+		return "Specs unlock at level %d." % Specs.UNLOCK_LEVEL
+	if id == spec:
+		return ""
+	var cost := spec_cost(id)
+	if money < cost:
+		return "Changing spec costs R$ %d." % cost
+	money -= cost
+	spec = id
+	var s := Specs.get_spec(id)
+	toast.emit("Specialization: %s. New technique: %s" % [s.name, Data.MOVES[s.move].name], Color(0.75, 0.55, 1.0))
+	save_game()
+	progress_changed.emit()
+	return ""

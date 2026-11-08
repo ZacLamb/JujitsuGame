@@ -55,7 +55,7 @@ func _ready() -> void:
 	check(sim.result.has("won"), "result has winner")
 	# real-time combat rules
 	var rt := RollSim.new()
-	rt.setup("tiago", 2.0, func(_id): return true, 11)
+	rt.setup("tiago", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 11)
 	rt.start_live()
 	var bar0 := rt.player_bar()
 	check(bar0.size() >= 4 and bar0.size() <= 8 and bar0[0].kind == "grip" and bar0[1].kind == "wear", "standing bar: grip, wear + techniques (%d slots)" % bar0.size())
@@ -84,12 +84,12 @@ func _ready() -> void:
 	var gb := rt.player_bar()
 	check(gb[0].name == "Sleeve Grip" and gb.size() <= 8, "stance names follow the position (%s)" % gb[0].name)
 	var w0 := RollSim.new()
-	w0.setup("tiago", 2.0, func(_id): return true, 7)
+	w0.setup("tiago", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 7)
 	var ct0 := w0.cast_time("double_leg", false)
 	# cast times and odds stay sane across levels
 	for lvl in [1.0, 2.0, 5.2, 12.0]:
 		var s2 := RollSim.new()
-		s2.setup("rafa", lvl, func(_id): return true, 1)
+		s2.setup("rafa", lvl, func(_id): return not Data.MOVES[_id].has("spec"), 1)
 		var ct := s2.cast_time("triangle", false)
 		check(ct >= 0.4 and ct <= 2.0, "opponent cast time sane at level %s (%.2f)" % [lvl, ct])
 		var tc := s2.technique_chance("triangle", true, 2)
@@ -174,7 +174,7 @@ func _ready() -> void:
 			check(Gear.ITEMS.has(pid) and str(Gear.ITEMS[pid].get("set", "")) == st, "set %s piece %s exists" % [st, pid])
 	# every style produces sane modifiers; the wrestler lands and reads takedowns better
 	var neutral := RollSim.new()
-	neutral.setup("tiago", 2.0, func(_id): return true, 7)
+	neutral.setup("tiago", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 7)
 	var w0c: float = neutral.technique_chance("double_leg", true, 2)
 	for st in Rpg.STYLE_ORDER:
 		var a := {}
@@ -182,7 +182,7 @@ func _ready() -> void:
 			a[k] = Rpg.ATTR_BASE + int(Rpg.STYLES[st].attrs.get(k, 0))
 		var m := Rpg.build_mods(st, a, {})
 		var sm := RollSim.new()
-		sm.setup("tiago", 2.0, func(_id): return true, 7, m)
+		sm.setup("tiago", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 7, m)
 		var w: float = sm.technique_chance("double_leg", true, 2)
 		check(w > 0.05 and w <= 0.95 and sm.max_stamina >= 100.0, "%s mods sane (td chance %.2f, stam %.0f)" % [st, w, sm.max_stamina])
 		if st == "wrestler":
@@ -193,17 +193,17 @@ func _ready() -> void:
 		if st == "athlete":
 			check(sm.max_stamina > 110.0, "athlete has more stamina")
 	var sw := RollSim.new()
-	sw.setup("rafa", 1.0, func(_id): return true, 3, Rpg.build_mods("", {}, {"second_wind": 1}))
+	sw.setup("rafa", 1.0, func(_id): return not Data.MOVES[_id].has("spec"), 3, Rpg.build_mods("", {}, {"second_wind": 1}))
 	sw.spend(85)
 	check(sw.stamina > 40.0 and sw.second_wind_used, "second wind fires once (stamina %.0f)" % sw.stamina)
 	sw.spend(30)
 	sw.spend(30)
 	check(sw.stamina < 20.0, "second wind does not fire twice")
 	var sc := RollSim.new()
-	sc.setup("rafa", 1.0, func(_id): return true, 3, Rpg.build_mods("", {}, {"scramble": 1}))
+	sc.setup("rafa", 1.0, func(_id): return not Data.MOVES[_id].has("spec"), 3, Rpg.build_mods("", {}, {"scramble": 1}))
 	check(sc.counter_chance("double_leg") == 0.0 and sc.counter_chance("triangle") > 0.0, "scramble blocks takedown counters only")
 	var onca := RollSim.new()
-	onca.setup("onca", 3.0, func(_id): return true, 3)
+	onca.setup("onca", 3.0, func(_id): return not Data.MOVES[_id].has("spec"), 3)
 	onca.pos = "half"
 	onca.player_top = false
 	check("darce" in onca.opp_options(), "boss uses talent techniques (D'Arce)")
@@ -217,7 +217,7 @@ func _ready() -> void:
 			check(Data.MOVES.has(mid), "%s signature %s exists" % [st, mid])
 	# ---------------- boss phases
 	var bs := RollSim.new()
-	bs.setup("jacare", 6.0, func(_id): return true, 21)
+	bs.setup("jacare", 6.0, func(_id): return not Data.MOVES[_id].has("spec"), 21)
 	check(bs.boss_phases.size() == 3 and bs.phase == 0, "Jacaré fights in 3 phases")
 	bs.start_live()
 	bs.opp_stamina = 60.0
@@ -246,7 +246,7 @@ func _ready() -> void:
 	bs.shield = 0
 	check(tc_sh < bs.technique_chance("scissor_sweep", true, 3), "Heavy Base cuts your odds")
 	var ns := RollSim.new()
-	ns.setup("rafa", 2.0, func(_id): return true, 3)
+	ns.setup("rafa", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 3)
 	check(ns.boss_phases.is_empty(), "regular fighters have no phases")
 	# ---------------- 5v5 teams
 	game.reset()
@@ -268,7 +268,7 @@ func _ready() -> void:
 	tm.apply({"won": false, "draw": true, "by_sub": false, "score": [0, 0]}, 0.3, 0.3)
 	check(tm.i == 1 and tm.j == 2, "a draw eliminates both")
 	var dr := RollSim.new()
-	dr.setup("rafa", 2.0, func(_id): return true, 4)
+	dr.setup("rafa", 2.0, func(_id): return not Data.MOVES[_id].has("spec"), 4)
 	dr.apply_rule("team")
 	dr.finish_on_points()
 	check(dr.result.get("draw", false) and dr.clock <= 150.0, "team bouts: level score is a draw")
@@ -374,11 +374,11 @@ func _ready() -> void:
 	check(data.DAILY_RULES.has(d1.rule) and data.DAILY_RULES.has(d3.rule), "daily rules valid")
 	for rname in data.DAILY_RULES:
 		var sm := RollSim.new()
-		sm.setup("daily", 3.0, func(_id): return true, 5, {}, d1.opp)
+		sm.setup("daily", 3.0, func(_id): return not Data.MOVES[_id].has("spec"), 5, {}, d1.opp)
 		sm.apply_rule(rname)
 		check(not sm.player_options().is_empty() or not sm.opp_options().is_empty(), "rule %s leaves moves available (%s top=%s)" % [rname, sm.pos, sm.player_top])
 	var so := RollSim.new()
-	so.setup("daily", 3.0, func(_id): return true, 5, {}, d1.opp)
+	so.setup("daily", 3.0, func(_id): return not Data.MOVES[_id].has("spec"), 5, {}, d1.opp)
 	so.apply_rule("sub_only")
 	so.player_pts = 20
 	so.finish_on_points()
@@ -424,5 +424,28 @@ func _ready() -> void:
 	check(int(r.xp) > 0 and int(r.money) > 0, "beating a mob pays XP and R$ (%d xp, R$ %d)" % [int(r.xp), int(r.money)])
 	var rare := Loot.make_mob(Loot.CAMPS.caceres[1], rng, true)
 	check(rare.rare and rare.elite, "rare spawns are elite")
+	# ---- specs
+	game.reset()
+	game.choose_style("guard", "T", 0)
+	check(game.choose_spec("sub_hunter") != "" and game.spec == "", "specs are locked before level 10")
+	game.set_level(10)
+	var sub0 := float(game.mods().sub_start)
+	check(game.choose_spec("thrower") != "", "can't take another class's spec")
+	check(game.choose_spec("sub_hunter") == "" and game.knows("chain_sub") and not game.knows("lumberjack"), "first spec is free and teaches its technique only")
+	check(float(game.mods().sub_start) > sub0 + 0.1, "spec passive applies")
+	check(Team.player_role() == "finisher", "spec sets the 5v5 role")
+	game.money = 10
+	check(game.choose_spec("sweeper") != "" and game.spec == "sub_hunter", "switching costs R$ %d" % Specs.RESPEC_COST)
+	game.money = 60
+	check(game.choose_spec("sweeper") == "" and game.money == 10 and game.knows("lumberjack") and not game.knows("chain_sub"), "respec swaps the technique")
+	var npc_sim := RollSim.new()
+	npc_sim.setup("tiago", 1.0, func(_m): return false, 3)
+	var opp_any := false
+	for pos in ["standing", "guard", "half", "side", "mount", "back"]:
+		npc_sim.pos = pos
+		for id in npc_sim.opp_options():
+			if Data.MOVES[id].has("spec"):
+				opp_any = true
+	check(not opp_any, "NPCs never use spec techniques")
 	print("\n%s (%d failures)" % ["PASS" if fails == 0 else "FAILED", fails])
 	get_tree().quit(1 if fails > 0 else 0)
