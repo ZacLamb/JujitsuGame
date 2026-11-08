@@ -11,6 +11,8 @@ signal finished(opp_id: String, result: Dictionary, xp: int)
 
 enum Phase { INTRO, LIVE, OVER }
 
+const TEAM_YOU := Color(1.0, 0.78, 0.22)    # gold: you
+const TEAM_OPP := Color(0.95, 0.28, 0.24)    # red: them
 const DEF_KEYS := {"base": "Q", "frame": "E", "defend": "R"}
 const DEF_PAD := {"base": "◀", "frame": "▲", "defend": "▶"}
 
@@ -209,6 +211,7 @@ func _build_world() -> void:
 	add_child(player_rig)
 	Game.dress(player_rig)
 	player_rig.setup(Game.gi_color(), Data.BELTS[Game.belt_index()].color, Color(0.86, 0.68, 0.55), Color(0.55, 0.36, 0.18), 0, "male")
+	player_rig.set_fighter(TEAM_YOU, 1)
 	var you := Label3D.new()
 	you.text = "YOU"
 	you.font_size = 40
@@ -223,11 +226,35 @@ func _build_world() -> void:
 	opp_rig = BodyRig.new()
 	add_child(opp_rig)
 	opp_rig.setup(opp.gi, Data.BELTS[Data.belt_of(int(opp.rank))].color, opp.skin, Color(0.12, 0.08, 0.05), -1, opp.get("body", "male"))
+	opp_rig.set_fighter(TEAM_OPP, 2)
+	_ring_p = _team_ring(TEAM_YOU)
+	_ring_o = _team_ring(TEAM_OPP)
 
 	cam = Camera3D.new()
 	cam.fov = 55
 	add_child(cam)
 	cam.make_current()
+
+var _ring_p: MeshInstance3D
+var _ring_o: MeshInstance3D
+
+## Team-coloured floor ring under a fighter (esports readability).
+func _team_ring(c: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.42
+	tm.outer_radius = 0.5
+	tm.rings = 32
+	mi.mesh = tm
+	mi.scale = Vector3(1, 0.05, 1)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(c, 0.75)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	return mi
 
 var _shake := 0.0
 var _sub_pose := {}          # RollPoses.sub_pair result while a submission is locked in
@@ -287,13 +314,15 @@ func _impact() -> void:
 	get_tree().create_timer(1.2).timeout.connect(p.queue_free)
 
 func _process(delta: float) -> void:
-	cam_angle += delta * 0.12
-	var radius := 4.4
-	var h := 2.3
+	# broadcast camera: side-on to the fighters (like a fighting game), swaying slowly
+	cam_angle += delta
+	var yaw := PI / 2 + sin(cam_angle * 0.11) * 0.5
+	var radius := 4.1
+	var h := 2.0
 	if not sim.struggle.is_empty():
-		radius = 3.2
-		h = 1.7
-	var target := Vector3(sin(cam_angle) * radius, h, cos(cam_angle) * radius)
+		radius = 3.1
+		h = 1.6
+	var target := Vector3(sin(yaw) * radius, h, cos(yaw) * radius)
 	cam.position = cam.position.lerp(target, clampf(delta * 3.0, 0, 1)) if cam.position != Vector3.ZERO else target
 	cam.look_at(Vector3(0, 0.45, 0), Vector3.UP)
 	if _shake > 0.0:
@@ -301,6 +330,10 @@ func _process(delta: float) -> void:
 		cam.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * _shake * 0.12
 	if _you:
 		_you.global_position = (player_rig.joints["neck"] as Node3D).global_position + Vector3(0, 0.55, 0)
+	for pr in [[_ring_p, player_rig], [_ring_o, opp_rig]]:
+		if pr[0]:
+			var hp: Vector3 = ((pr[1] as BodyRig).hips as Node3D).global_position
+			(pr[0] as MeshInstance3D).position = Vector3(hp.x, 0.06, hp.z)
 	if _message_left > 0.0:
 		_message_left -= delta
 		if _message_left <= 0.0:

@@ -16,8 +16,8 @@ static func get_pair(pos: String) -> Dictionary:
 				"l_kn": Vector3(-0.55, 0, 0), "r_kn": Vector3(-0.35, 0, 0),
 				"l_sh": Vector3(1.15, 0, 0.15), "r_sh": Vector3(1.0, 0, -0.15),
 				"l_el": Vector3(0.6, 0, 0), "r_el": Vector3(0.75, 0, 0)}
-			return {"top": [stance, _xf(Vector3(0, 0, 0.42), 0.0)],
-				"bottom": [stance, _xf(Vector3(0, 0, -0.42), PI)]}
+			return {"top": [stance, _xf(Vector3(0, 0, 0.5), 0.0)],
+				"bottom": [stance, _xf(Vector3(0, 0, -0.5), PI)]}
 		"guard":
 			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.35, 0, 0),
 				"l_hip": Vector3(1.15, 0, -0.6), "r_hip": Vector3(1.15, 0, 0.6),

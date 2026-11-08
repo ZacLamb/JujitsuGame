@@ -437,6 +437,54 @@ static func _barefoot(src: Mesh) -> Mesh:
 	_barefoot_cache[src] = out
 	return out
 
+## The base models are flat-shaded low poly. Averaging normals across shared positions (with a
+## crease limit so feet and fingers keep their edges) makes bodies read as rounded, defined shapes.
+static var _smooth_cache := {}
+static func _smoothed(src: Mesh) -> Mesh:
+	if src == null or not (src is ArrayMesh):
+		return src
+	if _smooth_cache.has(src):
+		return _smooth_cache[src]
+	var acc := {}
+	var all: Array = []
+	for i in src.get_surface_count():
+		var arr := src.surface_get_arrays(i)
+		all.append(arr)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		if idx.is_empty():
+			idx = PackedInt32Array(range(v.size()))
+		for t in range(0, idx.size() - 2, 3):
+			var a := v[idx[t]]
+			var b := v[idx[t + 1]]
+			var c := v[idx[t + 2]]
+			var fn := (b - a).cross(c - a)
+			for vi in [idx[t], idx[t + 1], idx[t + 2]]:
+				var key := v[vi].snapped(Vector3.ONE * 0.0005)
+				acc[key] = (acc.get(key, Vector3.ZERO) as Vector3) + fn
+	var out := ArrayMesh.new()
+	for i in src.get_surface_count():
+		var arr: Array = all[i]
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var n: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		if n.size() == v.size():
+			var nn := PackedVector3Array()
+			nn.resize(n.size())
+			for k in v.size():
+				var sm: Vector3 = acc.get(v[k].snapped(Vector3.ONE * 0.0005), n[k])
+				sm = sm.normalized() if sm.length() > 1e-9 else n[k]
+				if sm.dot(n[k]) < 0.0:
+					sm = -sm
+				nn[k] = sm if sm.dot(n[k]) > 0.35 else n[k]
+			arr[Mesh.ARRAY_NORMAL] = nn
+			arr[Mesh.ARRAY_TANGENT] = null
+		var fmt: int = src.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		out.add_surface_from_arrays(src.surface_get_primitive_type(i), arr, [], {}, fmt)
+		out.surface_set_material(i, src.surface_get_material(i))
+		out.surface_set_name(i, src.surface_get_name(i))
+	_smooth_cache[src] = out
+	return out
+
 func _recolor() -> void:
 	var gi := gi_color
 	var pants := gi if not casual else Color(0.2, 0.25, 0.4).lerp(gi.darkened(0.5), 0.3)
@@ -445,6 +493,8 @@ func _recolor() -> void:
 		if m.name.begins_with("NurbsPath") or m.name == "Rogue_001":
 			m.visible = false  # rogue's dagger strap and hood
 			continue
+		if m.mesh:
+			m.mesh = _smoothed(m.mesh)
 		if not casual and m.mesh:
 			m.mesh = _barefoot(m.mesh)
 		# world scale of this mesh relative to the rig, so the outline stays ~1 cm thick
@@ -495,8 +545,8 @@ func _tube(r0: float, r1: float, col: Color) -> MeshInstance3D:
 	c.top_radius = r0
 	c.bottom_radius = r1
 	c.height = 1.0
-	c.radial_segments = 10
-	c.rings = 1
+	c.radial_segments = 20
+	c.rings = 2
 	mi.mesh = c
 	mi.material_override = _cmat(col, 0.85)
 	add_child(mi)
@@ -506,6 +556,16 @@ func _limb(a: String, b: String, t0: float, t1: float, r0: float, r1: float, col
 	if _bones.get(a, -1) < 0 or _bones.get(b, -1) < 0:
 		return
 	_gi_parts.append({"node": _tube(r1, r0, col), "a": _bones[a], "b": _bones[b], "t0": t0, "t1": t1})
+
+## A rounded cap where two gi tubes meet (elbow, knee).
+func _joint(bone: String, r: float, col: Color) -> void:
+	if _bones.get(bone, -1) < 0:
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = _sph(r, -1.0, 18)
+	mi.material_override = _cmat(col, 0.85)
+	add_child(mi)
+	_gi_parts.append({"node": mi, "a": _bones[bone], "b": -1, "t0": 0.0, "t1": 0.0})
 
 func _build_skinned_belt() -> void:
 	var gi := gi_color
@@ -517,6 +577,8 @@ func _build_skinned_belt() -> void:
 		# pants: from the shorts' hem down to just above the ankle
 		_limb("UpperLeg." + sd, "LowerLeg." + sd, 0.3, 1.06, 0.13, 0.104, gi)
 		_limb("LowerLeg." + sd, "Foot." + sd, -0.04, 0.9, 0.102, 0.088, gi)
+		_joint("LowerArm." + sd, 0.1, gi)
+		_joint("LowerLeg." + sd, 0.12, gi)
 	_torso_parts = Node3D.new()
 	_torso_parts.name = "GiTorso"
 	add_child(_torso_parts)
@@ -537,8 +599,8 @@ func _build_skinned_belt() -> void:
 	sc.top_radius = 1.0
 	sc.bottom_radius = 1.1
 	sc.height = 0.24
-	sc.radial_segments = 14
-	sc.rings = 1
+	sc.radial_segments = 28
+	sc.rings = 2
 	skirt.mesh = sc
 	skirt.material_override = _cmat(gi)
 	skirt.scale = Vector3(0.232, 1, 0.19)
@@ -562,7 +624,7 @@ func _build_skinned_belt() -> void:
 	_belt_node.name = "SkinnedBelt"
 	_torso_parts.add_child(_belt_node)
 	var band := MeshInstance3D.new()
-	band.mesh = _cyl(1.0, 1.0, 0.075, 18)
+	band.mesh = _cyl(1.0, 1.0, 0.075, 32)
 	band.material_override = _cmat(belt_color, 0.7)
 	band.scale = Vector3(0.235, 1, 0.195)
 	_belt_node.add_child(band)
@@ -625,6 +687,10 @@ func _update_gi_parts() -> void:
 		if not is_instance_valid(g.node):
 			continue
 		var pa: Vector3 = (sx * skel.get_bone_global_pose(g.a)).origin
+		if int(g.b) < 0:
+			(g.node as Node3D).global_position = pa
+			(g.node as Node3D).global_basis = Basis.from_scale(global_transform.basis.get_scale())
+			continue
 		var pb: Vector3 = (sx * skel.get_bone_global_pose(g.b)).origin
 		var p0: Vector3 = pa.lerp(pb, g.t0)
 		var p1: Vector3 = pa.lerp(pb, g.t1)
@@ -670,6 +736,45 @@ func _enter_pose_mode() -> void:
 		_anim_mode = false
 		if anim:
 			anim.stop()
+
+# ------------------------------------------------------------ fighter readability
+## Esports-style readability for rolls: a thicker team-tinted outline and an x-ray silhouette in the
+## team colour wherever the other fighter (or anything) hides this one. `ref` must differ per fighter.
+func set_fighter(team: Color, ref: int) -> void:
+	lod_enabled = false
+	_lod = 0
+	var themed := {}
+	for n in find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if hips.is_ancestor_of(mi) or not mi.visible:
+			continue
+		if mi.material_override:
+			mi.material_override = _themed(mi.material_override, team, ref, themed)
+		elif mi.mesh:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.get_surface_override_material(i)
+				if m:
+					mi.set_surface_override_material(i, _themed(m, team, ref, themed))
+
+static func _themed(m: Material, team: Color, ref: int, cache: Dictionary) -> Material:
+	if not (m is StandardMaterial3D):
+		return m
+	if cache.has(m):
+		return cache[m]
+	var t := (m as StandardMaterial3D).duplicate() as StandardMaterial3D
+	var ol := t.next_pass as StandardMaterial3D
+	if ol:
+		ol = ol.duplicate() as StandardMaterial3D
+		ol.albedo_color = Color(0.07, 0.05, 0.05).lerp(team.darkened(0.25), 0.45)
+		ol.grow_amount *= 1.6
+		t.next_pass = ol
+	t.rim = 0.35
+	t.rim_tint = 0.3
+	t.stencil_mode = BaseMaterial3D.STENCIL_MODE_XRAY
+	t.stencil_reference = ref
+	t.stencil_color = Color(team, 0.42)
+	cache[m] = t
+	return t
 
 # ------------------------------------------------------------ level of detail
 ## 0 full (outlines) · 1 mid (no outlines) · 2 far (no gi details) · 3 not drawn
