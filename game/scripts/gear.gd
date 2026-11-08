@@ -201,6 +201,49 @@ static func _source_ilvl(id: String) -> int:
 			return PROMOTION_ILVL[b]
 	return RARITY_ILVL.get(str(it.get("rarity", "common")), 2)
 
+# ------------------------------------------------------------------ rolled drops (WoW-style)
+## Mob gear is rolled when it drops: base piece + rarity + item level (the mob's) + a Pantanal
+## animal suffix that decides which two attributes it carries ("Sturdy Spats of the Caiman").
+const ROLL_BASES := {
+	"rash": {"name": "Rashguard"}, "spats": {"name": "Spats"}, "knees": {"name": "Knee Sleeves"},
+	"tape": {"name": "Finger Tape"}, "head": {"name": "Headband", "piece": "Headband"}}
+const SUFFIXES := {
+	"of the Jaguar": ["strength", "grip"], "of the Caiman": ["strength", "flexibility"],
+	"of the Capybara": ["cardio", "flexibility"], "of the Macaw": ["flexibility", "iq"],
+	"of the Anaconda": ["grip", "cardio"], "of the Owl": ["iq", "cardio"], "of the Piranha": ["strength", "iq"],
+	"of the Jabiru": ["flexibility", "grip"], "of the Tapir": ["strength", "cardio"], "of the Otter": ["grip", "iq"]}
+const ROLL_PREFIX := {"common": "Worn", "uncommon": "Sturdy", "rare": "Pantanal", "epic": "Mestre's"}
+const ROLL_PALETTE := ["1f3a8a", "0f766e", "7c2d12", "111827", "6b21a8", "b45309", "be123c", "e5e7eb", "166534", "1e40af"]
+
+## A new rolled piece as plain (saveable) data. lv = the dropper's display level.
+static func roll(lv: int, rng: RandomNumberGenerator, elite := false, rare := false) -> Dictionary:
+	var slots := ROLL_BASES.keys()
+	var slot: String = slots[rng.randi() % slots.size()]
+	var r := rng.randf() - (0.12 if elite else 0.0) - (0.45 if rare else 0.0)
+	var rq := "common" if r > 0.55 else ("uncommon" if r > 0.17 else ("rare" if r > 0.02 else "epic"))
+	var sfx: Array = SUFFIXES.keys()
+	var suffix: String = sfx[rng.randi() % sfx.size()]
+	var pair: Array = SUFFIXES[suffix]
+	# stat points: rarity sets the base, item level adds more
+	var pts: int = {"common": 1, "uncommon": 2, "rare": 3, "epic": 4}[rq] + int(lv / 12)
+	var attrs := {}
+	for i in pts:
+		var k: String = pair[i % 2]
+		attrs[k] = int(attrs.get(k, 0)) + 1
+	var base: Dictionary = ROLL_BASES[slot]
+	return {"slot": slot, "rarity": rq, "ilvl": maxi(1, lv + rng.randi_range(-1, 1)), "attrs": attrs,
+		"name": "%s %s %s" % [ROLL_PREFIX[rq], base.name, suffix], "color": ROLL_PALETTE[rng.randi() % ROLL_PALETTE.size()],
+		"piece": str(base.get("piece", ""))}
+
+## Make a rolled piece known to the item table (on drop and when a save loads).
+static func register_rolled(id: String, d: Dictionary) -> void:
+	var it := {"slot": str(d.slot), "name": str(d.name), "rarity": str(d.rarity), "attrs": d.get("attrs", {}),
+		"look": {"color": Color.html(str(d.get("color", "e5e7eb")))}, "ilvl": int(d.get("ilvl", 1)), "rolled": true,
+		"source": "Dropped in the wild", "desc": "Nobody else has this exact one."}
+	if str(d.get("piece", "")) != "":
+		it["piece"] = str(d.piece)
+	ITEMS[id] = it
+
 static func ilvl(id: String) -> int:
 	return int(ITEMS.get(id, {}).get("ilvl", 1))
 

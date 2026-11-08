@@ -64,7 +64,7 @@ static func item(id: String) -> Dictionary:
 		var g: Dictionary = Gear.ITEMS[gid]
 		var q := str(g.get("rarity", "common"))
 		return {"name": g.name, "kind": "gear", "q": q if QUALITY.has(q) else "uncommon", "stack": 1,
-			"sell": {"common": 5, "uncommon": 18, "rare": 45, "epic": 110}.get(q, 10), "icon": "gi", "desc": g.get("desc", ""), "gear": gid}
+			"sell": {"common": 5, "uncommon": 18, "rare": 45, "epic": 110}.get(q, 10) + Gear.ilvl(gid), "icon": {"rash": "shirt", "tape": "ring"}.get(str(g.slot), "gi"), "desc": g.get("desc", ""), "gear": gid}
 	return ITEMS.get(id, {})
 
 static func color(id: String) -> Color:
@@ -189,6 +189,9 @@ static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator)
 				continue
 			if rq in ["common", "uncommon"] or (rq == "rare" and (elite or rare)):
 				pool.append(gid)
-		if not pool.is_empty():
+		# most drops are rolled pieces (random rarity + stats at the mob's level); some are named items
+		if pool.is_empty() or rng.randf() < 0.7:
+			items.append("gear:" + Game.make_rolled(Gear.roll(Data.display_level(lv), rng, elite, rare)))
+		else:
 			items.append("gear:" + str(pool[rng.randi() % pool.size()]))
 	return {"money": money, "items": items}

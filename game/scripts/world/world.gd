@@ -1559,6 +1559,42 @@ func _drill_station(k: String, pos: Vector3) -> void:
 	l.pixel_size = 0.0055
 	_spot(base, 1.9, "Drill: %s (%s)" % [Rpg.DRILLS[k].name, Rpg.ATTRS[k].name], "drill", k)
 
+## Barbearia do Seu Zé: a little open-air barbershop (pole, chair, mirror, Seu Zé). Talking to him
+## opens the Barber screen to restyle your fighter.
+func _barbershop(p: Vector3) -> void:
+	var gy := ground_y(p.x, p.z)
+	var b := Vector3(p.x, gy, p.z)
+	_box(Vector3(4.2, 0.14, 3.4), b + Vector3(0, 0.07, 0), Color(0.82, 0.8, 0.76), false)
+	# back wall with mirror and awning
+	_box(Vector3(4.2, 2.8, 0.25), b + Vector3(0, 1.4, -1.6), Color(0.3, 0.55, 0.62))
+	_box(Vector3(1.4, 1.0, 0.06), b + Vector3(0, 1.6, -1.45), Color(0.75, 0.85, 0.9), false)
+	var awn := _box(Vector3(4.6, 0.12, 1.8), b + Vector3(0, 2.9, -0.8), Color(0.85, 0.2, 0.2), false)
+	awn.rotation.x = 0.2
+	# barber chair
+	_box(Vector3(0.7, 0.45, 0.7), b + Vector3(0, 0.45, -0.3), Color(0.55, 0.12, 0.12))
+	_box(Vector3(0.7, 0.8, 0.12), b + Vector3(0, 0.95, -0.62), Color(0.55, 0.12, 0.12))
+	_cyl(0.08, 0.12, 0.25, b + Vector3(0, 0.12, -0.3), Color(0.7, 0.7, 0.72), 10)
+	# striped pole
+	for i in 6:
+		_cyl(0.11, 0.11, 0.3, b + Vector3(2.4, 0.35 + i * 0.3, -1.3), [Color(0.85, 0.15, 0.15), Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.8)][i % 3], 10)
+	_cyl(0.14, 0.14, 0.12, b + Vector3(2.4, 2.2, -1.3), Color(0.75, 0.75, 0.78), 10)
+	# Seu Zé, scissors in hand (idle)
+	var ze := BodyRig.new()
+	add_child(ze)
+	ze.setup(Color(0.95, 0.95, 0.93), Color(0.2, 0.2, 0.22), UiKit.skin_tone(0.6), Color(0.85, 0.85, 0.85), -1, "", true)
+	ze.position = b + Vector3(-1.0, 0.14, 0.2)
+	ze.rotation.y = 0.5
+	var l := _label("Seu Zé\n<Barber>", b + Vector3(-1.0, 2.55, 0.2), 40, Color(1, 0.9, 0.6))
+	l.no_depth_test = true
+	l.outline_size = 8
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.fixed_size = true
+	l.pixel_size = 0.0007
+	l.font_size = 30
+	l.visibility_range_end = 26.0
+	_label("BARBEARIA", b + Vector3(0, 3.3, -1.4), 48, Color(1, 0.95, 0.8))
+	_spot(b + Vector3(-0.6, 0, 1.2), 3.5, "Barber: Seu Zé (change your look)", "barber")
+
 func _build_caceres_spots() -> void:
 	_spot(Vector3(74, 0, 0), 6.0, "Take the bus", "travel_menu")
 	var c := Vector3(0, 0, -54)
@@ -2562,6 +2598,7 @@ func _build_vila_nova() -> void:
 	_box(Vector3(5, 1.0, 1.0), shop + Vector3(0, 0.5, 1.4), Color(0.5, 0.35, 0.2))
 	_label("MERCADINHO DO SEU JORGE", shop + Vector3(0, 4.0, 1.2), 56, Color(1, 0.95, 0.75))
 	_spot(shop + Vector3(0, 0, 3.0), 4.0, "Shop: Mercadinho do Seu Jorge", "vendor", "Seu Jorge")
+	_barbershop(sq + Vector3(11.5, 0, -2.0))
 	# a gi on a stand by the counter: what's for sale
 	if _place_model("gi_mannequin", shop + Vector3(3.6, 0, 1.5), 1.0, -0.35, Vector3(0.9, 1.7, 0.6)):
 		_cyl(0.05, 0.05, 0.1, shop + Vector3(3.6, 0.05, 1.5), Color(0.3, 0.3, 0.3), 8)

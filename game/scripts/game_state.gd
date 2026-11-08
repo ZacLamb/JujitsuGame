@@ -203,6 +203,7 @@ func reset_state() -> void:
 	medals = {}
 	quests = {}
 	inventory = {}
+	rolled = {}
 	for id in Gear.STARTER:
 		inventory[id] = true
 	equipped = {"jacket": "standard_gi", "pants": "standard_gi_pants", "rash": "rash_white", "spats": "spats_black"}
@@ -229,7 +230,7 @@ func save_game() -> void:
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
-		"origin": origin, "body": body, "skin_t": skin_t, "bar_layout": bar_layout,
+		"origin": origin, "body": body, "skin_t": skin_t, "bar_layout": bar_layout, "rolled": rolled,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -271,6 +272,9 @@ func load_game() -> void:
 	daily = parsed.get("daily", {})
 	medals = parsed.get("medals", {})
 	quests = parsed.get("quests", {})
+	rolled = parsed.get("rolled", {})
+	for rid in rolled:
+		Gear.register_rolled(str(rid), rolled[rid])
 	inventory = parsed.get("inventory", {})
 	equipped = parsed.get("equipped", {})
 	kit = str(parsed.get("kit", "gi"))
@@ -532,6 +536,17 @@ func set_bonuses() -> Array:
 				e["n"] = n
 				out.append(e)
 	return out
+
+## Rolled gear (random drops): id -> saveable data, registered into Gear.ITEMS.
+var rolled := {}
+
+func make_rolled(d: Dictionary) -> String:
+	var n := int(flags.get("rolled_n", 0)) + 1
+	flags["rolled_n"] = n
+	var id := "rg_%d" % n
+	rolled[id] = d
+	Gear.register_rolled(id, d)
+	return id
 
 func gear_bonus(k: String) -> int:
 	var n := 0

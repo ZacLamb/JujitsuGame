@@ -463,6 +463,8 @@ func _use_spot(spot: Dictionary) -> void:
 		"vendor":
 			player.input_enabled = false
 			hud.open_shop(str(spot.arg))
+		"barber":
+			open_barber()
 		"drill":
 			if not Game.drills_ready:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
