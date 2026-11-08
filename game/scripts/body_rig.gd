@@ -59,6 +59,14 @@ var hair_style := -1  # 0 short, 1 buzz, 2 bun, 3 curly, 4 bald, 5 long
 # The female model (rogue.glb) has a hood baked into its head that does not recolor cleanly yet,
 # so both body types use the worker model until a better CC0 female base is added.
 const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://assets/models/worker.glb"}
+## Sculpted fighter meshes (tools/charbuild) skinned to the worker skeleton: body, face, hair styles
+## and every gear piece as its own mesh.
+const FIGHTERS := {"male": "res://assets/models/fighter_male.scn", "female": "res://assets/models/fighter_female.scn"}
+const HAIR_NAMES := ["short", "buzz", "bun", "curly", "", "long", "ponytail"]
+var look := {}            # gear look (Game.dress); empty = derived from the setup colours
+var _pieces := {}         # piece name -> MeshInstance3D
+var _team := Color(0, 0, 0, 0)
+var _ref := 0
 static var use_models := true
 var body := ""            # "male" / "female"; "" picks from a hash
 var casual := false       # villagers: shirt + pants, no belt
@@ -87,6 +95,10 @@ func setup(gi: Color, belt: Color, skin: Color, hair := Color(0.12, 0.08, 0.05),
 	return self
 
 func set_belt_color(c: Color) -> void:
+	if _pieces.has("Belt"):
+		belt_color = c
+		((_pieces.Belt as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("base", c)
+		return
 	belt_color = c
 	for n in hips.find_children("Belt*", "MeshInstance3D", true, false):
 		(n as MeshInstance3D).material_override = _cmat(c, 0.7)
@@ -389,11 +401,15 @@ func _build_skinned() -> void:
 		var fb: int = _bones["Foot." + side]
 		if lb >= 0 and fb >= 0:
 			_foot_rel[side] = skel.get_bone_global_rest(lb).affine_inverse() * skel.get_bone_global_rest(fb)
-	_recolor()
-	if not casual:
-		_build_skinned_belt()
+	if ResourceLoader.exists(FIGHTERS.get(body, "")):
+		_attach_fighter()
+	else:
+		_recolor()
+		if not casual:
+			_build_skinned_belt()
+		if body == "female":
+			_build_ponytail()
 	if body == "female":
-		_build_ponytail()
 		skinned.scale *= Vector3(0.95, 0.94, 0.95)
 	_play_locomotion(0.0, false)
 	_collect_lod()
@@ -533,6 +549,105 @@ func _recolor() -> void:
 			var mat := (_mat(col, 0.8) as StandardMaterial3D).duplicate() as StandardMaterial3D
 			mat.next_pass = outline
 			m.set_surface_override_material(i, mat)
+
+# ------------------------------------------------------------ sculpted fighter model
+func _attach_fighter() -> void:
+	_pieces.clear()
+	var base: MeshInstance3D = null
+	for mi in skinned.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).skin != null and base == null:
+			base = mi
+		else:
+			(mi as Node).queue_free()
+	if base == null:
+		return
+	var parts: Node3D = (load(FIGHTERS[body]) as PackedScene).instantiate()
+	var want := _wanted_pieces()
+	for c in parts.get_children():
+		var mi := c as MeshInstance3D
+		if not want.has(str(mi.name)):
+			continue
+		mi.owner = null
+		parts.remove_child(mi)
+		base.get_parent().add_child(mi)
+		mi.skin = base.skin
+		mi.skeleton = mi.get_path_to(base.get_node(base.skeleton))
+		_pieces[str(mi.name)] = mi
+	parts.free()
+	base.queue_free()
+	_apply_materials()
+
+## The look actually worn: gear look if set, else derived from the setup colours.
+func current_look() -> Dictionary:
+	if not look.is_empty():
+		return look
+	if casual:
+		return {"kit": "casual", "rash": {"color": gi_color},
+			"pants": {"color": Color(0.2, 0.25, 0.4).lerp(gi_color.darkened(0.5), 0.3)}}
+	var trim := gi_color.darkened(0.12) if gi_color.v > 0.5 else gi_color.lightened(0.15)
+	if lapel_override.a > 0.0:
+		trim = lapel_override
+	var lk := {"kit": "gi", "jacket": {"color": gi_color, "trim": trim}, "pants": {"color": gi_color}}
+	if rash_color.a > 0.0:
+		lk["rash"] = {"color": rash_color}
+	return lk
+
+func _hair_piece() -> String:
+	var st := hair_style
+	if body == "female" and st in [0, 1, 4]:
+		st = 6   # ponytail
+	var n: String = HAIR_NAMES[clampi(st, 0, HAIR_NAMES.size() - 1)]
+	return "" if n == "" else "Hair_" + n
+
+func _wanted_pieces() -> Dictionary:
+	var lk := current_look()
+	var w := {"Body": {"color": skin_color}, "Face": {"color": Color(0.08, 0.06, 0.05)}}
+	var hp := _hair_piece()
+	if hp != "":
+		w[hp] = {"color": hair_color}
+	match str(lk.get("kit", "gi")):
+		"gi":
+			var j: Dictionary = lk.get("jacket", {"color": gi_color})
+			w["Jacket"] = j
+			w["JacketTrim"] = {"color": j.get("trim", (j.get("color", gi_color) as Color).darkened(0.12))}
+			w["Pants"] = lk.get("pants", {"color": j.get("color", gi_color)})
+			w["Belt"] = {"color": belt_color}
+			if lk.has("rash"):
+				w["Rash"] = lk.rash
+		"nogi":
+			w["Rash"] = lk.get("rash", {"color": Color(0.1, 0.1, 0.12)})
+			w["Spats"] = lk.get("spats", {"color": Color(0.1, 0.1, 0.12)})
+			if lk.has("knees"):
+				w["KneeSleeves"] = lk.knees
+		"casual":
+			w["Rash"] = lk.get("rash", {"color": gi_color})
+			w["Pants"] = lk.get("pants", {"color": Color(0.2, 0.25, 0.4)})
+	if lk.has("tape") and not casual:
+		w["Tape"] = lk.tape
+	if lk.has("head"):
+		w[str(lk.get("head_piece", "Headband"))] = lk.head
+	return w
+
+## (Re)builds every piece's material: toon + pattern, ink outline, team x-ray in rolls.
+func _apply_materials() -> void:
+	if _pieces.is_empty():
+		return
+	var want := _wanted_pieces()
+	var any: MeshInstance3D = _pieces.values()[0]
+	var chain := any.transform
+	var p := any.get_parent()
+	while p and p != self:
+		if p is Node3D:
+			chain = (p as Node3D).transform * chain
+		p = p.get_parent()
+	var wscale := maxf(chain.basis.get_scale().x, 1e-4)
+	var grow := (0.013 if _ref > 0 else 0.009) / wscale
+	for n in _pieces:
+		var mi: MeshInstance3D = _pieces[n]
+		var lk: Dictionary = want.get(n, {"color": Color.WHITE})
+		var g := 0.0 if n == "Face" else grow
+		mi.material_override = FighterLook.material(lk, g, _ref, _team)
+	_collect_lod()
 
 ## Gi pieces the base model lacks (long sleeves, full-length pants, lapels, jacket skirt, belt).
 ## Each piece follows two skeleton bones every frame, so it works for both clips and grappling poses.
@@ -743,6 +858,12 @@ func _enter_pose_mode() -> void:
 func set_fighter(team: Color, ref: int) -> void:
 	lod_enabled = false
 	_lod = 0
+	if not _pieces.is_empty():
+		_team = team
+		_ref = ref
+		_apply_materials()
+		_apply_lod()
+		return
 	var themed := {}
 	for n in find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
@@ -786,11 +907,11 @@ var _lod_surfaces: Array = []   # [MeshInstance3D, surface index or -1, full mat
 static var _plain_cache := {}
 
 static func _plain_of(m: Material) -> Material:
-	if m == null or not (m is StandardMaterial3D) or (m as StandardMaterial3D).next_pass == null:
+	if m == null or m.next_pass == null:
 		return m
 	var id := m.get_instance_id()
 	if not _plain_cache.has(id):
-		var p := (m as StandardMaterial3D).duplicate() as StandardMaterial3D
+		var p := m.duplicate() as Material
 		p.next_pass = null
 		_plain_cache[id] = p
 	return _plain_cache[id]

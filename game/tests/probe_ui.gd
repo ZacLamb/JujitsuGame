@@ -14,6 +14,11 @@ func _ready() -> void:
 	Game.learn("retention")
 	Game.learn("t_omoplata")
 	Game.learn("shot_speed")
+	for id in ["onca_gi", "onca_gi_pants", "onca_tape", "rash_arara"]:
+		Game.give_item(id, true)
+	Game.equip("onca_gi")
+	Game.equip("onca_gi_pants")
+	Game.equip("onca_tape")
 	main = load("res://main.tscn").instantiate()
 	add_child(main)
 	await get_tree().process_frame
@@ -22,7 +27,12 @@ func _ready() -> void:
 	for i in 10: await get_tree().process_frame
 	main.hud.open_character()
 	for i in 30: await get_tree().process_frame
+	var tip := CharSheet.item_tooltip("onca_gi", "jacket")
+	tip.position = Vector2(560, 120)
+	main.hud.root.add_child(tip)
+	for i in 4: await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/ui%s_char.png" % str(get_viewport().get_visible_rect().size.y))
+	tip.queue_free()
 	main.hud._sel_talent = "slippery"
 	main.hud._want_tab = 1
 	main.hud._fill_journal()

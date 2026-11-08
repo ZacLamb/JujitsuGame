@@ -367,7 +367,7 @@ func _fill_gear() -> void:
 	for id in Gear.ITEMS:
 		if Game.has_item(id):
 			owned += 1
-	g.add_child(UiKit.label("Gear collected: %d / %d" % [owned, Gear.ITEMS.size()], 18, UiKit.MUTED))
+	g.add_child(UiKit.label("Gear collected: %d / %d   ·   Wearing your %s kit (switch it on the Character tab)" % [owned, Gear.ITEMS.size(), Gear.KIT_NAMES[Game.kit]], 18, UiKit.MUTED))
 	for slot in Gear.SLOTS:
 		g.add_child(UiKit.label(Gear.SLOT_NAMES[slot].to_upper(), 24, UiKit.ACCENT))
 		var cur := str(Game.equipped.get(slot, ""))
@@ -387,6 +387,8 @@ func _fill_gear() -> void:
 				var nm := UiKit.label("%s%s" % [it.name, "   (equipped)" if id == cur else ""], 20, Gear.rarity_color(id))
 				info.add_child(nm)
 				info.add_child(UiKit.label("%s  ·  %s" % [Gear.RARITY[it.rarity].name, Gear.stat_text(id)], 16, UiKit.TEXT))
+				if it.has("set"):
+					info.add_child(UiKit.label("Set: %s (%d/%d worn)" % [Gear.SETS[it.set].name, int(Game.set_counts().get(it.set, 0)), Gear.SETS[it.set].pieces.size()], 15, UiKit.ACCENT))
 				info.add_child(UiKit.label(it.desc, 15, UiKit.MUTED))
 				if id != cur:
 					var b := UiKit.button("Equip", Vector2(110, 44))

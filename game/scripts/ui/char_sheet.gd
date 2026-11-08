@@ -64,8 +64,10 @@ class SegBar extends Control:
 
 ## Small vector icons for the gear slots.
 class SlotIcon extends Control:
-	var kind := "gi"
+	var kind := "jacket"
 	var col := Color.WHITE
+	var accent := Color(0, 0, 0, 0)
+	var trim := Color(0, 0, 0, 0)
 	var empty := false
 	func _init() -> void:
 		custom_minimum_size = Vector2(44, 44)
@@ -73,25 +75,46 @@ class SlotIcon extends Control:
 	func _draw() -> void:
 		var s := minf(size.x, size.y)
 		var o := (size - Vector2(s, s)) / 2.0
-		var c := col if not empty else Color(1, 1, 1, 0.18)
+		var c := col if not empty else Color(1, 1, 1, 0.16)
+		var dk := c.darkened(0.45)
+		var tc := trim if trim.a > 0.0 and not empty else dk
 		var p := func(x: float, y: float) -> Vector2: return o + Vector2(x, y) * s
+		var poly := func(pts: Array) -> PackedVector2Array:
+			var out := PackedVector2Array()
+			for q in pts:
+				out.append(p.call(q[0], q[1]))
+			return out
+		var w := maxf(2.0, s * 0.05)
 		match kind:
-			"gi":
-				draw_colored_polygon(PackedVector2Array([p.call(0.3, 0.12), p.call(0.5, 0.3), p.call(0.7, 0.12), p.call(0.92, 0.3), p.call(0.82, 0.48),
-					p.call(0.74, 0.42), p.call(0.74, 0.9), p.call(0.26, 0.9), p.call(0.26, 0.42), p.call(0.18, 0.48), p.call(0.08, 0.3)]), c)
-				draw_polyline(PackedVector2Array([p.call(0.3, 0.12), p.call(0.5, 0.55), p.call(0.7, 0.12)]), c.darkened(0.45), maxf(2.0, s * 0.05))
-				draw_line(p.call(0.26, 0.66), p.call(0.74, 0.66), Color(0.15, 0.12, 0.1) if not empty else c, maxf(2.0, s * 0.07))
+			"jacket":
+				draw_colored_polygon(poly.call([[0.3, 0.12], [0.5, 0.3], [0.7, 0.12], [0.92, 0.3], [0.82, 0.48], [0.74, 0.42], [0.74, 0.9], [0.26, 0.9], [0.26, 0.42], [0.18, 0.48], [0.08, 0.3]]), c)
+				draw_polyline(poly.call([[0.3, 0.12], [0.5, 0.55], [0.7, 0.12]]), tc, w * 1.6)
+				draw_line(p.call(0.26, 0.66), p.call(0.74, 0.66), Color(0.15, 0.12, 0.1) if not empty else c, w * 1.4)
+			"pants", "spats":
+				var bot := 0.92 if kind == "pants" else 0.7
+				draw_colored_polygon(poly.call([[0.25, 0.12], [0.75, 0.12], [0.8, bot], [0.56, bot], [0.5, 0.42], [0.44, bot], [0.2, bot]]), c)
+				draw_line(p.call(0.25, 0.2), p.call(0.75, 0.2), dk, w)
 			"rash":
-				draw_colored_polygon(PackedVector2Array([p.call(0.34, 0.12), p.call(0.66, 0.12), p.call(0.92, 0.32), p.call(0.82, 0.46), p.call(0.72, 0.4),
-					p.call(0.72, 0.9), p.call(0.28, 0.9), p.call(0.28, 0.4), p.call(0.18, 0.46), p.call(0.08, 0.32)]), c)
-				draw_arc(p.call(0.5, 0.12), s * 0.12, 0.0, PI, 12, c.darkened(0.45), maxf(2.0, s * 0.05))
-				draw_line(p.call(0.28, 0.58), p.call(0.72, 0.58), c.lightened(0.35), maxf(2.0, s * 0.05))
+				draw_colored_polygon(poly.call([[0.34, 0.12], [0.66, 0.12], [0.92, 0.32], [0.82, 0.46], [0.72, 0.4], [0.72, 0.9], [0.28, 0.9], [0.28, 0.4], [0.18, 0.46], [0.08, 0.32]]), c)
+				draw_arc(p.call(0.5, 0.12), s * 0.12, 0.0, PI, 12, dk, w)
+			"knees":
+				for x0 in [0.22, 0.56]:
+					draw_rect(Rect2(p.call(x0, 0.28), Vector2(s * 0.22, s * 0.44)), c)
+					draw_line(p.call(x0, 0.5), p.call(x0 + 0.22, 0.5), dk, w)
+			"head":
+				draw_arc(p.call(0.5, 0.55), s * 0.3, PI, TAU, 24, c, s * 0.12)
+				draw_circle(p.call(0.2, 0.58), s * 0.1, c)
+				draw_circle(p.call(0.8, 0.58), s * 0.1, c)
 			"tape":
 				for k in 4:
 					var x := 0.22 + k * 0.17
-					draw_rect(Rect2(p.call(x, 0.18 + absf(k - 1.5) * 0.06), Vector2(s * 0.12, s * 0.62)), c.darkened(0.15))
+					draw_rect(Rect2(p.call(x, 0.18 + absf(k - 1.5) * 0.06), Vector2(s * 0.12, s * 0.62)), Color(0.86, 0.66, 0.5) if not empty else c.darkened(0.2))
 					draw_rect(Rect2(p.call(x - 0.01, 0.4), Vector2(s * 0.14, s * 0.1)), c)
 					draw_rect(Rect2(p.call(x - 0.01, 0.6), Vector2(s * 0.14, s * 0.1)), c)
+		# pattern hint: a few accent dots
+		if accent.a > 0.0 and not empty:
+			for q in [[0.42, 0.55], [0.58, 0.7], [0.5, 0.82], [0.62, 0.5]]:
+				draw_circle(p.call(q[0], q[1]), s * 0.035, accent)
 
 ## 3D paper doll: the player's character on a mat, drag to turn.
 class Doll extends SubViewportContainer:
@@ -229,16 +252,43 @@ static func _doll_panel(hud) -> Control:
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mid.add_theme_constant_override("separation", 8)
 	v.add_child(mid)
-	var slots := VBoxContainer.new()
-	slots.add_theme_constant_override("separation", 10)
-	slots.alignment = BoxContainer.ALIGNMENT_BEGIN
-	mid.add_child(slots)
-	for slot in Gear.SLOTS:
-		slots.add_child(_slot_card(hud, slot))
+	# WoW-style paper doll: slot columns either side of the 3D model, kit switch on top
+	var lcol := VBoxContainer.new()
+	lcol.add_theme_constant_override("separation", 8)
+	mid.add_child(lcol)
+	for slot in Gear.DOLL_LEFT:
+		lcol.add_child(_slot_square(hud, slot))
+	var centre := VBoxContainer.new()
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.add_theme_constant_override("separation", 6)
+	mid.add_child(centre)
+	var kits := HBoxContainer.new()
+	kits.alignment = BoxContainer.ALIGNMENT_CENTER
+	kits.add_theme_constant_override("separation", 6)
+	centre.add_child(kits)
+	for k in Gear.KITS:
+		var kb := Button.new()
+		kb.text = Gear.KIT_NAMES[k].to_upper()
+		kb.custom_minimum_size = Vector2(96, 32)
+		kb.focus_mode = Control.FOCUS_NONE
+		kb.add_theme_font_size_override("font_size", 15)
+		var on: bool = Game.kit == k
+		kb.add_theme_stylebox_override("normal", UiKit.box(UiKit.ACCENT if on else Color(0, 0, 0, 0.45), 16, UiKit.ACCENT if on else Color(1, 1, 1, 0.15), 2))
+		kb.add_theme_stylebox_override("hover", UiKit.box(UiKit.ACCENT.darkened(0.2) if on else Color(0.2, 0.2, 0.2, 0.7), 16, UiKit.ACCENT, 2))
+		kb.add_theme_color_override("font_color", Color(0.1, 0.07, 0.02) if on else UiKit.TEXT)
+		kb.tooltip_text = "Wear your %s kit. Only the worn kit's gear and set pieces count." % Gear.KIT_NAMES[k]
+		kb.pressed.connect(func(): Game.set_kit(k))
+		kits.add_child(kb)
 	var stage := _panel(Color(0.08, 0.12, 0.1, 0.6), Color(1, 1, 1, 0.05), 12, 0)
-	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.add_child(stage)
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	centre.add_child(stage)
 	stage.add_child(Doll.new())
+	var rcol := VBoxContainer.new()
+	rcol.add_theme_constant_override("separation", 8)
+	mid.add_child(rcol)
+	for slot in Gear.DOLL_RIGHT:
+		rcol.add_child(_slot_square(hud, slot))
+	v.add_child(_sets_box())
 
 	# xp
 	var xr := HBoxContainer.new()
@@ -273,56 +323,106 @@ static func _doll_panel(hud) -> Control:
 	v.add_child(pp)
 	return p
 
-static func _slot_card(hud, slot: String) -> Control:
+## A paper-doll slot: square icon with a rarity border; hover shows a WoW-style tooltip.
+class SlotSquare extends PanelContainer:
+	var item := ""
+	var slot := ""
+	func _make_custom_tooltip(_for_text: String) -> Object:
+		return CharSheet.item_tooltip(item, slot)
+
+static func _slot_square(hud, slot: String) -> Control:
 	var id := str(Game.equipped.get(slot, ""))
 	var has := id != "" and Gear.ITEMS.has(id)
+	var active: bool = slot in Gear.KITS[Game.kit]
 	var rc: Color = Gear.rarity_color(id) if has else Color(1, 1, 1, 0.15)
-	var b := PanelContainer.new()
-	b.custom_minimum_size = Vector2(200, 74)
-	var nsb := _sb(Color(0.03, 0.04, 0.04, 0.85), rc, 10, 8)
-	var hsb := _sb(Color(0.1, 0.12, 0.1, 0.95), rc.lightened(0.3), 10, 8)
+	var b := SlotSquare.new()
+	b.item = id if has else ""
+	b.slot = slot
+	b.tooltip_text = " "
+	b.custom_minimum_size = Vector2(66, 66)
+	b.modulate = Color(1, 1, 1, 1.0 if active else 0.4)
+	var nsb := _sb(Color(rc, 0.1) if has else Color(0, 0, 0, 0.45), rc, 10, 5)
+	var hsb := _sb(Color(rc, 0.22) if has else Color(0.1, 0.1, 0.1, 0.7), rc.lightened(0.35), 10, 5)
+	nsb.border_width_left = 2
 	b.add_theme_stylebox_override("panel", nsb)
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.tooltip_text = ("%s\n%s" % [Gear.ITEMS[id].name, Gear.ITEMS[id].desc]) if has else "Open the Gear tab"
 	b.mouse_entered.connect(func(): b.add_theme_stylebox_override("panel", hsb))
 	b.mouse_exited.connect(func(): b.add_theme_stylebox_override("panel", nsb))
 	b.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			hud._want_tab = 2
 			hud._fill_journal())
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(h)
-	var well := Panel.new()
-	well.custom_minimum_size = Vector2(56, 56)
-	well.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var wsb := UiKit.box(Color(rc, 0.12) if has else Color(0, 0, 0, 0.4), 8, Color(rc, 0.6), 1)
-	well.add_theme_stylebox_override("panel", wsb)
-	h.add_child(well)
 	var ic := SlotIcon.new()
 	ic.kind = slot
 	ic.empty = not has
-	ic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 7)
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if has:
-		var it: Dictionary = Gear.ITEMS[id]
-		ic.col = it.get("color", Game.gi_color() if slot == "gi" else Color(0.95, 0.95, 0.9))
-	well.add_child(ic)
-	var tv := VBoxContainer.new()
-	tv.add_theme_constant_override("separation", -2)
-	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(tv)
-	tv.add_child(_small(Gear.SLOT_NAMES[slot].to_upper(), 11, UiKit.MUTED))
-	var nm := _small(Gear.ITEMS[id].name if has else "Empty", 15, rc if has else UiKit.MUTED)
-	tv.add_child(nm)
-	if has and Gear.stat_text(id) != "":
-		tv.add_child(_small(Gear.stat_text(id), 12, Color(0.55, 0.95, 0.55)))
-	for c in tv.get_children():
-		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var lk := Gear.look(id)
+		ic.col = lk.get("color", Color(0.95, 0.95, 0.9))
+		if id == "standard_gi" or id == "standard_gi_pants":
+			ic.col = Game.gi_color()
+		ic.accent = lk.get("accent", Color(0, 0, 0, 0))
+		ic.trim = lk.get("trim", Color(0, 0, 0, 0))
+	b.add_child(ic)
 	return b
+
+## WoW-style item tooltip: name in quality colour, slot, stats, set pieces and set bonuses.
+static func item_tooltip(id: String, slot: String) -> Control:
+	var p := _panel(Color(0.03, 0.04, 0.06, 0.97), Color(1, 1, 1, 0.25), 8, 10)
+	p.custom_minimum_size = Vector2(300, 0)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	p.add_child(v)
+	if id == "":
+		v.add_child(_small(Gear.SLOT_NAMES.get(slot, slot), 16, UiKit.TEXT))
+		v.add_child(_small("Empty. Bosses, quests and medals drop gear.", 13, UiKit.MUTED, true))
+		return p
+	var it: Dictionary = Gear.ITEMS[id]
+	v.add_child(_small(it.name, 17, Gear.rarity_color(id), true))
+	var meta := HBoxContainer.new()
+	v.add_child(meta)
+	var sl := _small(Gear.SLOT_NAMES[it.slot], 13, UiKit.TEXT)
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.add_child(sl)
+	meta.add_child(_small(Gear.RARITY[it.rarity].name, 13, Gear.rarity_color(id)))
+	for k in Rpg.ATTR_ORDER:
+		var val := int(it.attrs.get(k, 0))
+		if val > 0:
+			v.add_child(_small("+%d %s" % [val, Rpg.ATTRS[k].name], 14, UiKit.TEXT))
+	if it.has("set"):
+		var st: Dictionary = Gear.SETS[it.set]
+		var have := int(Game.set_counts().get(it.set, 0))
+		v.add_child(_small(" ", 6))
+		v.add_child(_small("%s (%d/%d)" % [st.name, have, st.pieces.size()], 14, UiKit.ACCENT))
+		for pid in st.pieces:
+			var worn: bool = pid in Game.worn()
+			v.add_child(_small("   " + Gear.ITEMS[pid].name, 13, Color(1, 0.95, 0.7) if worn else Color(0.55, 0.55, 0.55)))
+		for line in Gear.set_lines(it.set):
+			var on := have >= int(line[0])
+			v.add_child(_small("(%d) Set: %s" % [line[0], line[1]], 13, Color(0.35, 1.0, 0.35) if on else Color(0.55, 0.55, 0.55), true))
+	v.add_child(_small(" ", 6))
+	v.add_child(_small("\"%s\"" % it.desc, 13, Color(1, 0.82, 0.3), true))
+	v.add_child(_small("Source: %s" % it.source, 12, UiKit.MUTED, true))
+	return p
+
+## Active / partial set bonuses under the paper doll.
+static func _sets_box() -> Control:
+	var c := Game.set_counts()
+	var p := _panel(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.08), 10, 10)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	p.add_child(v)
+	if c.is_empty():
+		v.add_child(_small("SET BONUSES", 13, UiKit.ACCENT))
+		v.add_child(_small("Wear 2 or 4 pieces of a set (boss drops) to unlock bonuses.", 13, UiKit.MUTED, true))
+		return p
+	for st in c:
+		var sd: Dictionary = Gear.SETS[st]
+		v.add_child(_small("%s  %d/%d" % [sd.name.to_upper(), int(c[st]), sd.pieces.size()], 14, UiKit.ACCENT))
+		for line in Gear.set_lines(st):
+			var on := int(c[st]) >= int(line[0])
+			v.add_child(_small("(%d) %s" % [line[0], line[1]], 13, Color(0.35, 1.0, 0.35) if on else Color(0.55, 0.55, 0.55), true))
+	return p
 
 static func _attr_panel() -> Control:
 	var p := _panel(Color(0.05, 0.08, 0.07, 0.95))

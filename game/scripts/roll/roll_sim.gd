@@ -197,6 +197,8 @@ func cast_time(move_id: String, by_player: bool) -> float:
 	if move_id in traits.fav:
 		base *= 0.85   # their bread and butter comes out fast
 	var s := clampf(1.12 - 0.02 * opp_level - 0.03 * gap(), 0.72, 1.3) * (1.0 - 0.08 * _boss_k())
+	if mods.get("roar", false):
+		s *= 1.1   # Juba do Leão 4-piece
 	return base * s * float(mods.defense) * float(mods.defense_vs.get(m.type, 1.0))
 
 ## Chance a technique lands when its cast completes (spend = grips spent on it).
@@ -206,6 +208,8 @@ func technique_chance(move_id: String, by_player: bool, spend: int) -> float:
 	var p := 0.3 + 0.11 * spend - 0.05 * float(m.diff) - 0.07 * clampf(g, -3.0, 3.0)
 	if by_player:
 		p += zone_bonus(move_id) * 0.6
+		if mods.get("champion", false):
+			p += 0.04
 		if opp_off_bal > 0.0:
 			p += 0.28
 		if stamina_pct() < 25.0:
@@ -326,6 +330,8 @@ func _interrupt_opp(kind: String) -> void:
 	opp_cast = {}
 	def_cd = 0.9
 	spend(3.0)
+	if mods.get("flow", false):
+		recover(6.0)   # Véu de Noiva 4-piece
 	if was.kind == "move":
 		opp_stamina = maxf(0.0, opp_stamina - float(Data.MOVES[was.id].cost) * 0.5)
 		opp_control = 0
@@ -491,8 +497,10 @@ func _land(id: String, by_player: bool, spent: int) -> void:
 		opp_cast = {}
 		events.append({"e": "sub", "who": "p" if by_player else "o", "id": id})
 		return
+	if by_player and mods.get("death_roll", false) and Data.MOVES[id].type in ["sweep", "takedown"]:
+		opp_stamina = maxf(0.0, opp_stamina - 15.0)   # Couro de Jacaré 4-piece
 	# position changed: grips are lost, the bar swaps, both fighters reset
-	control = 0
+	control = 1 if mods.get("pounce", false) else 0   # Onça Pintada 4-piece
 	opp_control = 0
 	off_bal = 0.0
 	opp_off_bal = 0.0

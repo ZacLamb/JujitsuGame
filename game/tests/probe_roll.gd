@@ -14,7 +14,7 @@ func _ready() -> void:
 	main._start_game()
 	main.hud._close_dialogue(false)
 	for i in 5: await get_tree().process_frame
-	main._start_roll("tiago")
+	main._start_roll(OS.get_cmdline_user_args()[0] if OS.get_cmdline_user_args().size() > 0 else "tiago")
 	var roll: RollScene = main.roll
 	for i in 20: await get_tree().process_frame
 	_shot("intro")

@@ -225,6 +225,8 @@ func _build_world() -> void:
 	_you = you
 	opp_rig = BodyRig.new()
 	add_child(opp_rig)
+	if Gear.BOSS_SET.has(opp_id):
+		opp_rig.look = Gear.set_look(Gear.BOSS_SET[opp_id])   # bosses wear their own set
 	opp_rig.setup(opp.gi, Data.BELTS[Data.belt_of(int(opp.rank))].color, opp.skin, Color(0.12, 0.08, 0.05), -1, opp.get("body", "male"))
 	opp_rig.set_fighter(TEAM_OPP, 2)
 	_ring_p = _team_ring(TEAM_YOU)

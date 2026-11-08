@@ -19,6 +19,7 @@ var cups := {}
 var flags := {}  # misc quest flags
 var inventory := {}  # item id -> true
 var equipped := {}   # slot -> item id
+var kit := "gi"       # "gi" / "nogi": which outfit is worn (and whose slots count)
 var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
@@ -61,8 +62,11 @@ func reset() -> void:
 	daily = {}
 	medals = {}
 	quests = {}
-	inventory = {"standard_gi": true, "rash_white": true}
-	equipped = {"gi": "standard_gi", "rash": "rash_white"}
+	inventory = {}
+	for id in Gear.STARTER:
+		inventory[id] = true
+	equipped = {"jacket": "standard_gi", "pants": "standard_gi_pants", "rash": "rash_white", "spats": "spats_black"}
+	kit = "gi"
 	save_game()
 	progress_changed.emit()
 
@@ -74,7 +78,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -112,6 +116,7 @@ func load_game() -> void:
 	quests = parsed.get("quests", {})
 	inventory = parsed.get("inventory", {})
 	equipped = parsed.get("equipped", {})
+	kit = str(parsed.get("kit", "gi"))
 	_backfill_gear()
 	# saves from before the belt-level system may have spent more points than they now have
 	if attr_points() < 0:
@@ -208,22 +213,38 @@ func choose_style(id: String, name_: String, gi: int) -> void:
 	progress_changed.emit()
 
 func gi_color() -> Color:
-	var it: Dictionary = Gear.ITEMS.get(str(equipped.get("gi", "")), {})
-	if it.has("color"):
-		return it.color
-	return Rpg.GI_COLORS[gi_index]
+	var jid := str(equipped.get("jacket", ""))
+	if jid == "standard_gi" or jid == "":
+		return Rpg.GI_COLORS[gi_index]
+	return Gear.look(jid).get("color", Rpg.GI_COLORS[gi_index])
 
-## Lapel accent of the equipped gi (alpha 0 = derive from the gi color).
+## Lapel accent of the equipped jacket (alpha 0 = derive from the gi color).
 func lapel_color() -> Color:
-	return Gear.ITEMS.get(str(equipped.get("gi", "")), {}).get("lapel", Color(0, 0, 0, 0))
+	return Gear.look(str(equipped.get("jacket", ""))).get("trim", Color(0, 0, 0, 0))
 
 func rash_color() -> Color:
-	return Gear.ITEMS.get(str(equipped.get("rash", "")), {}).get("color", Color(0, 0, 0, 0))
+	return Gear.look(str(equipped.get("rash", ""))).get("color", Color(0, 0, 0, 0))
+
+## What the player's character wears, for BodyRig (slot -> look dict).
+func look() -> Dictionary:
+	var lk := {"kit": kit}
+	for slot in Gear.KITS[kit]:
+		var id := str(equipped.get(slot, ""))
+		if id == "" or not Gear.ITEMS.has(id):
+			continue
+		var l: Dictionary = Gear.look(id).duplicate()
+		if id == "standard_gi" or id == "standard_gi_pants":
+			l["color"] = Rpg.GI_COLORS[gi_index]
+		lk[slot] = l
+		if slot == "head":
+			lk["head_piece"] = Gear.ITEMS[id].get("piece", "Headband")
+	return lk
 
 ## Applies the equipped gear look to a rig before rig.setup().
 func dress(rig: BodyRig) -> void:
 	rig.lapel_override = lapel_color()
 	rig.rash_color = rash_color()
+	rig.look = look()
 
 ## Graphics quality: 0 low (phones), 1 high, 2 ultra (desktop default; steps down if slow).
 const GFX_NAMES := ["low", "high", "ultra"]
@@ -248,13 +269,47 @@ func graphics_low() -> bool:
 	return graphics_level() == 0
 
 func look_key() -> String:
-	return "%s|%s|%s" % [gi_color().to_html(), str(equipped.get("gi", "")), str(equipped.get("rash", ""))]
+	return "%s|%s|%s" % [gi_color().to_html(), kit, str(equipped)]
 
 # ------------------------------------------------------------ gear
+## Item ids that count right now (the active kit's slots).
+func worn() -> Array:
+	var out: Array = []
+	for slot in Gear.KITS[kit]:
+		var id := str(equipped.get(slot, ""))
+		if id != "" and Gear.ITEMS.has(id):
+			out.append(id)
+	return out
+
+## Equipped pieces per set (active kit).
+func set_counts() -> Dictionary:
+	var c := {}
+	for id in worn():
+		var st := str(Gear.ITEMS[id].get("set", ""))
+		if st != "":
+			c[st] = int(c.get(st, 0)) + 1
+	return c
+
+## Active set bonuses: [{set, n, attrs?, effect?, text?}]
+func set_bonuses() -> Array:
+	var out: Array = []
+	var c := set_counts()
+	for st in c:
+		var b: Dictionary = Gear.SETS[st].bonus
+		for n in [2, 4]:
+			if b.has(n) and int(c[st]) >= n:
+				var e: Dictionary = (b[n] as Dictionary).duplicate()
+				e["set"] = st
+				e["n"] = n
+				out.append(e)
+	return out
+
 func gear_bonus(k: String) -> int:
 	var n := 0
-	for slot in equipped:
-		n += int(Gear.ITEMS.get(str(equipped[slot]), {}).get("attrs", {}).get(k, 0))
+	for id in worn():
+		n += int(Gear.ITEMS[id].get("attrs", {}).get(k, 0))
+	for b in set_bonuses():
+		n += int(b.get("attrs", {}).get(k, 0))
 	return n
 
 func has_item(id: String) -> bool:
@@ -277,9 +332,22 @@ func give_item(id: String, quiet := false) -> bool:
 		equipped[it.slot] = id
 		if not quiet:
 			toast.emit("Equipped %s" % it.name, Gear.rarity_color(id))
+	# a gi jacket from a quest or medal comes with its pants
+	if it.slot == "jacket" and Gear.ITEMS.has(id + "_pants") and not it.has("set"):
+		give_item(id + "_pants", true)
 	save_game()
 	progress_changed.emit()
 	return true
+
+## A boss win drops one piece of their set you don't own yet (jacket first, then the rest).
+func boss_drop(set_id: String) -> String:
+	var pieces: Array = Gear.SETS[set_id].pieces
+	var missing := pieces.filter(func(p): return not inventory.has(p))
+	if missing.is_empty():
+		return ""
+	var pick: String = missing[0] if not inventory.has(pieces[0]) else missing[randi() % missing.size()]
+	give_item(pick)
+	return pick
 
 func equip(id: String) -> bool:
 	if not inventory.has(id):
@@ -289,17 +357,37 @@ func equip(id: String) -> bool:
 	progress_changed.emit()
 	return true
 
-## Gives gear for progress made before gear existed (and the starter kit).
+func set_kit(k: String) -> void:
+	if not Gear.KITS.has(k) or k == kit:
+		return
+	kit = k
+	save_game()
+	progress_changed.emit()
+
+## Gives gear for progress made before gear existed (and the starter kit); migrates old saves.
 func _backfill_gear() -> void:
-	for id in ["standard_gi", "rash_white"]:
+	# v1 saves had one "gi" slot: it becomes the jacket, with matching pants
+	if equipped.has("gi"):
+		var old := str(equipped.gi)
+		equipped.erase("gi")
+		if Gear.ITEMS.has(old):
+			equipped["jacket"] = old
+			if Gear.ITEMS.has(old + "_pants"):
+				inventory[old + "_pants"] = true
+				equipped["pants"] = old + "_pants"
+	for id in inventory.keys():
+		if Gear.ITEMS.has(id) and Gear.ITEMS[id].slot == "jacket" and Gear.ITEMS.has(id + "_pants"):
+			inventory[id + "_pants"] = true
+	for id in Gear.STARTER:
 		inventory[id] = true
-	if not equipped.has("gi"):
-		equipped["gi"] = "standard_gi"
-	if not equipped.has("rash"):
-		equipped["rash"] = "rash_white"
-	for boss in Gear.BOSS_LOOT:
-		if beaten(boss):
-			give_item(Gear.BOSS_LOOT[boss], true)
+	for slot_def in [["jacket", "standard_gi"], ["pants", "standard_gi_pants"], ["rash", "rash_white"], ["spats", "spats_black"]]:
+		if not equipped.has(slot_def[0]):
+			equipped[slot_def[0]] = slot_def[1]
+	if not Gear.KITS.has(kit):
+		kit = "gi"
+	for boss in Gear.BOSS_SET:
+		if beaten(boss) and not inventory.has(Gear.SETS[Gear.BOSS_SET[boss]].pieces[0]):
+			give_item(Gear.SETS[Gear.BOSS_SET[boss]].pieces[0], true)
 	for q in Gear.QUEST_LOOT:
 		if quest_state(q) == "done":
 			give_item(Gear.QUEST_LOOT[q], true)
@@ -424,7 +512,11 @@ func reset_talents() -> void:
 	progress_changed.emit()
 
 func mods() -> Dictionary:
-	return Rpg.build_mods(style, attrs(), talents)
+	var m := Rpg.build_mods(style, attrs(), talents)
+	for b in set_bonuses():
+		if b.has("effect"):
+			m[b.effect] = true
+	return m
 
 # ------------------------------------------------------------ achievements
 func unlock(id: String) -> void:
@@ -624,8 +716,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("tapped")
 	drills_ready = true
 	add_xp(gained)
-	if result.won and Gear.BOSS_LOOT.has(opp_id):
-		give_item(Gear.BOSS_LOOT[opp_id])
+	if result.won and Gear.BOSS_SET.has(opp_id):
+		boss_drop(Gear.BOSS_SET[opp_id])
 	if result.won and opp.get("boss", false):
 		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()

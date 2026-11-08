@@ -130,19 +130,48 @@ func _ready() -> void:
 	# ---------------- gear
 	game.reset()
 	game.choose_style("guard", "Tester", 0)
-	check(game.equipped.get("gi") == "standard_gi" and game.equipped.get("rash") == "rash_white", "starter gear equipped")
+	check(game.equipped.get("jacket") == "standard_gi" and game.equipped.get("pants") == "standard_gi_pants" and game.equipped.get("rash") == "rash_white", "starter gear equipped")
 	var grip0: int = game.attr("grip")
-	check(game.give_item("onca_gi") and game.equipped.gi == "onca_gi", "boss gi auto-equips")
-	check(game.attr("grip") == grip0 + 2 and game.gi_color() == Gear.ITEMS.onca_gi.color, "gear adds attributes and changes the gi color")
+	check(game.give_item("onca_gi") and game.equipped.jacket == "onca_gi", "boss jacket auto-equips")
+	check(game.attr("grip") == grip0 + 2 and game.gi_color() == Gear.look("onca_gi").color, "gear adds attributes and changes the gi color")
 	check(not game.give_item("onca_gi"), "no duplicate loot")
 	game.give_item("terere_gi")
-	check(game.equipped.gi == "onca_gi", "weaker gear does not replace better gear")
+	check(game.equipped.jacket == "onca_gi" and game.has_item("terere_gi_pants"), "weaker gear does not replace better gear; quest gi comes with pants")
 	check(game.equip("terere_gi") and game.attr("grip") == grip0, "manual equip swaps bonuses")
+	# sets: 2-piece attrs, 4-piece effect in the roll mods, kits
+	game.equip("onca_gi")
+	game.give_item("onca_gi_pants")
+	check(int(game.set_counts().get("onca", 0)) == 2 and game.attr("grip") == grip0 + 2 + 1 + 1, "onca 2-piece adds +1 grip (grip %d)" % game.attr("grip"))
+	game.give_item("onca_tape")
+	game.give_item("onca_headband")
+	check(game.mods().get("pounce", false), "onca 4-piece grants Pounce")
+	game.set_kit("nogi")
+	check(not game.mods().get("pounce", false) and int(game.set_counts().get("onca", 0)) == 2, "no-gi kit: gi pieces stop counting")
+	check(game.look().kit == "nogi" and game.look().has("spats"), "no-gi look wears spats")
+	game.set_kit("gi")
+	var lk: Dictionary = game.look()
+	check(lk.jacket.get("pattern", "") == "spots" and lk.head_piece == "Headband", "gi look carries the set pattern and head piece")
+	# boss drops: jacket first, then other pieces, never duplicates
+	game.reset()
+	check(game.boss_drop("jacare") == "jacare_gi", "first boss drop is the jacket")
+	var seen: Dictionary = {}
+	for i in 3:
+		seen[game.boss_drop("jacare")] = true
+	check(seen.size() == 3 and game.boss_drop("jacare") == "", "boss drops cover the set, then stop")
+	# old saves: the single gi slot becomes jacket + pants
+	game.reset()
+	game.equipped = {"gi": "onca_gi", "rash": "rash_white"}
+	game.inventory = {"onca_gi": true}
+	game._backfill_gear()
+	check(game.equipped.get("jacket") == "onca_gi" and game.equipped.get("pants") == "onca_gi_pants", "v1 gi slot migrates to jacket + pants")
 	game.reset()
 	game.rank = 9
 	game.wins = {"onca": 1, "jacare": 1}
 	game._backfill_gear()
 	check(game.has_item("onca_gi") and game.has_item("jacare_gi") and game.has_item("rash_blue"), "old saves get gear for past progress")
+	for st in Gear.SETS:
+		for pid in Gear.SETS[st].pieces:
+			check(Gear.ITEMS.has(pid) and str(Gear.ITEMS[pid].get("set", "")) == st, "set %s piece %s exists" % [st, pid])
 	# every style produces sane modifiers; the wrestler lands and reads takedowns better
 	var neutral := RollSim.new()
 	neutral.setup("tiago", 2.0, func(_id): return true, 7)
