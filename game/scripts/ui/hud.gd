@@ -450,10 +450,11 @@ const TAB_QUESTS := 4
 const TAB_ACHIEVEMENTS := 5
 const TAB_SPELLBOOK := 6
 const TAB_FIGHTERS := 7
+const TAB_TEAM := 8
 const WINDOWS := {
 	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(860, 530), "at": "left", "glyph": "shield"},
 	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Spellbook"], "size": Vector2(1160, 580), "at": "center", "glyph": "star"},
-	"journal": {"tabs": [4, 5, 7], "names": ["Quests", "Achievements", "Fighters"], "size": Vector2(900, 540), "at": "center", "glyph": "link"},
+	"journal": {"tabs": [4, 5, 7, 8], "names": ["Quests", "Achievements", "Fighters", "Team"], "size": Vector2(900, 540), "at": "center", "glyph": "link"},
 }
 var _window := "character"
 
@@ -492,7 +493,7 @@ func _layout_window() -> void:
 		"talents":
 			journal.title_lbl.text = {TAB_SPECS: "Specialization", TAB_TALENTS: "Talents", TAB_SPELLBOOK: "Spellbook"}.get(cur, "Talents") + ("  ·  " + st if st != "" else "")
 		_:
-			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters"}.get(cur, "Journal")
+			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters", TAB_TEAM: "Team  ·  " + Team.TEAM_NAMES[0]}.get(cur, "Journal")
 	var sp := Specs.get_spec(Game.spec)
 	journal.set_emblem(str(sp.get("role", "")) if false else str(g.glyph), Team.ROLES[sp.role].color if not sp.is_empty() else Wow.GOLD)
 
@@ -671,6 +672,7 @@ func _fill_journal() -> void:
 			for mv in pl.fav:
 				favs.append(str(Data.MOVES[mv].name))
 			f.add_child(UiKit.label("     %s  Favorites: %s." % [pl.plan, ", ".join(favs)], 16, UiKit.MUTED))
+	_fill_team()
 	journal_tabs.current_tab = clampi(cur, 0, journal_tabs.get_tab_count() - 1)
 	_window = window_of(journal_tabs.current_tab)
 	_wowify(journal_tabs.get_child(journal_tabs.current_tab))
@@ -1235,3 +1237,145 @@ func _spell_entry(id: String) -> Control:
 	sl.add_theme_constant_override("outline_size", 0)
 	tv.add_child(sl)
 	return h
+
+# ------------------------------------------------------------ team tab
+## Your 5v5 squad: lineup order (who steps on first), bench swaps, coach, the role ring and records.
+var _team_sel := 4   # lineup slot a bench swap replaces
+
+func _fill_team() -> void:
+	var sc := ScrollContainer.new()
+	sc.name = "Team"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.set_meta("wow", true)
+	journal_tabs.add_child(sc)
+	var page := HBoxContainer.new()
+	page.add_theme_constant_override("separation", 10)
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(page)
+	if Game.style == "":
+		return
+	var lu := Game.team_lineup()
+	var order: Array = lu.order
+	# --- lineup
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 4)
+	page.add_child(left)
+	left.add_child(Wow.banner("Lineup  ·  first on the mat at the top"))
+	_team_sel = clampi(_team_sel, 0, order.size() - 1)
+	for i in order.size():
+		var f := Team.find(str(order[i]))
+		if f.is_empty():
+			continue
+		left.add_child(_team_row(f, i, order, lu.coach))
+	left.add_child(Wow.banner("Coach  ·  corner between bouts"))
+	var ob := OptionButton.new()
+	ob.focus_mode = Control.FOCUS_NONE
+	if Wow.body():
+		ob.add_theme_font_override("font", Wow.body())
+	ob.add_theme_font_size_override("font_size", 14)
+	var ids: Array = [""]
+	ob.add_item("No coach")
+	for c in Team.coaches():
+		if c.id in order:
+			continue
+		ids.append(c.id)
+		ob.add_item("%s%s  (+%d gas)" % [c.name, "  ★ master" if c.get("boss", false) else "", int(Team.coach_heal(c) + Team.BETWEEN_REGEN)])
+		if c.id == str(lu.coach):
+			ob.select(ob.item_count - 1)
+	ob.item_selected.connect(func(ix: int):
+		Game.set_team_lineup(order, str(ids[ix]))
+		_refill_keep())
+	left.add_child(ob)
+	left.add_child(Wow.banner("Role Ring"))
+	var ring := HBoxContainer.new()
+	ring.alignment = BoxContainer.ALIGNMENT_CENTER
+	ring.add_theme_constant_override("separation", 6)
+	for r in ["finisher", "grinder", "anchor", "scrambler", "finisher"]:
+		ring.add_child(Wow.label(Team.ROLES[r].name, 14, Team.ROLES[r].color))
+		ring.add_child(Wow.label("›", 14, Wow.GREY))
+	ring.remove_child(ring.get_child(ring.get_child_count() - 1))
+	left.add_child(ring)
+	left.add_child(Wow.label("Each role beats the next: a favourable matchup lands techniques more often. Winner stays on, stamina carries over, a draw eliminates both.", 12, Wow.GREY, true))
+	# --- bench + records
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(330, 0)
+	right.add_theme_constant_override("separation", 4)
+	page.add_child(right)
+	right.add_child(Wow.banner("Bench  ·  swap into slot %d" % (_team_sel + 1)))
+	var bench := Team.roster().filter(func(f): return not f.id in order)
+	if bench.is_empty():
+		right.add_child(Wow.label("Beat fighters around the world to recruit them.", 13, Wow.GREY, true))
+	for f in bench:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 6)
+		var badge := TeamBoard._RoleBadge.new()
+		badge.role = f.role
+		h.add_child(badge)
+		var nl := Wow.label("%s  ·  Lv %d %s" % [f.name, Data.display_level(float(f.level)), Team.ROLES[f.role].name], 13, Wow.WHITE)
+		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		h.add_child(nl)
+		var sw := Wow.button("Swap in", Vector2(76, 24))
+		var fid: String = f.id
+		sw.disabled = str(order[_team_sel]) == "you"
+		sw.tooltip_text = "You always fight; pick another slot to swap" if sw.disabled else ""
+		sw.pressed.connect(func():
+			var o2: Array = order.duplicate()
+			o2[_team_sel] = fid
+			Game.set_team_lineup(o2, str(lu.coach) if str(lu.coach) != fid else "")
+			_refill_keep())
+		h.add_child(sw)
+		right.add_child(h)
+	right.add_child(Wow.banner("Record"))
+	right.add_child(Wow.stat_row("Team matches:", str(int(Game.counters.get("team_matches", 0)))))
+	right.add_child(Wow.stat_row("Team wins:", str(Game.counter("team_wins"))))
+	right.add_child(Wow.stat_row("Circuito best:", "%d / %d wins" % [int(Game.flags.get("circuit_best", 0)), Circuit.ROUNDS]))
+	right.add_child(Wow.stat_row("Circuito titles:", str(Game.counter("circuit_titles"))))
+	var held := 0
+	for tid in Data.TERRITORIES:
+		if Game.holds(tid):
+			held += 1
+	right.add_child(Wow.stat_row("Territories held:", "%d / %d" % [held, Data.TERRITORIES.size()], Wow.GREEN if held > 0 else Wow.WHITE))
+	right.add_child(Wow.label("Team matches start from the team boards at each zone's gym.", 12, Wow.GREY, true))
+
+func _team_row(f: Dictionary, i: int, order: Array, coach: String) -> Control:
+	var role: Dictionary = Team.ROLES[f.role]
+	var p := PanelContainer.new()
+	var sel := i == _team_sel
+	p.add_theme_stylebox_override("panel", Wow.sb(Color(role.color.darkened(0.85), 0.9), Wow.GOLD if sel else Color(role.color, 0.4), 3, 6, 2 if sel else 1))
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	p.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_team_sel = i
+			_refill_keep())
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	p.add_child(h)
+	h.add_child(Wow.title("%d" % (i + 1), 18, Wow.GOLD))
+	var badge := TeamBoard._RoleBadge.new()
+	badge.role = f.role
+	h.add_child(badge)
+	var nv := VBoxContainer.new()
+	nv.add_theme_constant_override("separation", -2)
+	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(nv)
+	nv.add_child(Wow.label(str(f.name) + ("  (you)" if f.get("player", false) else ""), 15, Wow.WHITE))
+	nv.add_child(Wow.label("%s  ·  Lv %d  ·  %s" % [role.name, Data.display_level(float(f.level)), Data.rank_name(int(f.rank))], 12, role.color.lightened(0.2)))
+	for d in [-1, 1]:
+		var b := Wow.button("▲" if d < 0 else "▼", Vector2(28, 24))
+		b.disabled = i + d < 0 or i + d >= order.size()
+		b.pressed.connect(func():
+			var o2: Array = order.duplicate()
+			var t = o2[i]
+			o2[i] = o2[i + d]
+			o2[i + d] = t
+			_team_sel = i + d
+			Game.set_team_lineup(o2, coach)
+			_refill_keep())
+		h.add_child(b)
+	return p
+
+func _refill_keep() -> void:
+	_want_tab = journal_tabs.current_tab
+	_fill_journal()

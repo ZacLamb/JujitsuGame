@@ -44,6 +44,10 @@ func _ready() -> void:
 		grid[3].hovered.emit(grid[3].tid, true)
 	for i in 4: await get_tree().process_frame
 	_shot("talents_tip")
+	main.hud._want_tab = 8
+	main.hud._fill_journal()
+	for i in 10: await get_tree().process_frame
+	_shot("team")
 	main.hud._want_tab = 4
 	main.hud._fill_journal()
 	for i in 10: await get_tree().process_frame
