@@ -478,7 +478,7 @@ func _build_terrain() -> void:
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	mi.material_override = EnvShaders.terrain()
+	mi.material_override = EnvShaders.terrain({"chapada": 1.0, "rio": 0.7}.get(zone, 0.35))
 	mi.name = "Terrain"
 	add_child(mi)
 	# collision: 1 m heightmap
@@ -776,6 +776,8 @@ func _mm(n: String, xforms: Array, leaf_tint := Color(0, 0, 0, 0), shadows := tr
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = md.mesh
+	if n.begins_with("tree") or n.begins_with("bush") or n == "flower_red":
+		mm.mesh = _swaying(md.mesh, n)
 	mm.instance_count = xforms.size()
 	for i in xforms.size():
 		mm.set_instance_transform(i, (xforms[i] as Transform3D) * (md.xf as Transform3D))
@@ -784,6 +786,22 @@ func _mm(n: String, xforms: Array, leaf_tint := Color(0, 0, 0, 0), shadows := tr
 	if not shadows:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)
+
+## Copy of a model mesh whose flat-colored surfaces sway in the wind (trees bend at the top).
+static var _sway_cache := {}
+func _swaying(src: Mesh, n: String) -> Mesh:
+	var key := str(src.get_instance_id())
+	if _sway_cache.has(key):
+		return _sway_cache[key]
+	var aabb := src.get_aabb()
+	var out := (src as ArrayMesh).duplicate() as ArrayMesh
+	var strength := 1.0 if n.begins_with("tree") else 0.5
+	for i in out.get_surface_count():
+		var m := out.surface_get_material(i) as StandardMaterial3D
+		if m and m.albedo_texture == null:
+			out.surface_set_material(i, EnvShaders.foliage(m.albedo_color, strength, maxf(aabb.end.y, 0.3)))
+	_sway_cache[key] = out
+	return out
 
 ## Place a full model scene (with its own animation, if any).
 func _place_model(n: String, pos: Vector3, scale_v: float, rot_y := 0.0, box := Vector3.ZERO) -> Node3D:
@@ -1460,6 +1478,7 @@ func _build_pantanal() -> void:
 	_p_tower()
 	_p_dock()
 	_p_lagoon_bridge()
+	_p_marsh()
 	_p_wildlife()
 	_build_cups()
 	_build_landmarks()
@@ -1559,6 +1578,74 @@ func _p_dock() -> void:
 		_cyl(0.12, 0.12, 2.0, Vector3(41.4, -0.6, -40 - k * 3.0), Color(0.35, 0.25, 0.15), 6)
 	var boat := _box(Vector3(1.6, 0.5, 4.6), Vector3(43.5, -0.25, -50), Color(0.25, 0.5, 0.35), false)
 	boat.rotation.y = 0.15
+
+## Reeds along the water's edge and water lilies on the open water.
+func _p_marsh() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 909
+	var reed := PrismMesh.new()
+	reed.size = Vector3(0.07, 1.5, 0.02)
+	var head := CylinderMesh.new()
+	head.top_radius = 0.045
+	head.bottom_radius = 0.045
+	head.height = 0.28
+	head.radial_segments = 5
+	head.rings = 1
+	var pad := CylinderMesh.new()
+	pad.top_radius = 0.42
+	pad.bottom_radius = 0.42
+	pad.height = 0.02
+	pad.radial_segments = 9
+	pad.rings = 1
+	var bloom := SphereMesh.new()
+	bloom.radius = 0.11
+	bloom.height = 0.16
+	bloom.radial_segments = 6
+	bloom.rings = 3
+	var reeds: Array = []
+	var heads: Array = []
+	var pads: Array = []
+	var blooms: Array = []
+	var tries := 0
+	while tries < 9000 and (reeds.size() < 900 or pads.size() < 260):
+		tries += 1
+		var x := rng.randf_range(-90, 90)
+		var z := rng.randf_range(-90, 90)
+		if absf(z + 4.0) < 4.0:   # keep the Transpantaneira road clear
+			continue
+		var h := ground_y(x, z)
+		if h > -0.45 and h < 0.15 and reeds.size() < 900:
+			# a clump at the waterline
+			for k in rng.randi_range(4, 9):
+				var p := Vector3(x + rng.randf_range(-0.7, 0.7), 0, z + rng.randf_range(-0.7, 0.7))
+				var s := rng.randf_range(0.7, 1.25)
+				var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.12, 0.12))
+				var y := maxf(ground_y(p.x, p.z), -0.35)
+				reeds.append(Transform3D(b.scaled(Vector3.ONE * s), Vector3(p.x, y + 0.75 * s, p.z)))
+				if rng.randf() < 0.35:
+					heads.append(Transform3D(b, Vector3(p.x, y + 1.35 * s, p.z)))
+		elif h < -0.7 and pads.size() < 260:
+			var py := -0.33
+			pads.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.6, 1.3)), Vector3(x, py, z)))
+			if rng.randf() < 0.18:
+				blooms.append(Transform3D(Basis(), Vector3(x + 0.1, py + 0.07, z)))
+	for set in [[reeds, reed, EnvShaders.grass(Color(0.45, 0.55, 0.24), 1.4)], [heads, head, _mat(Color(0.35, 0.22, 0.12))],
+			[pads, pad, _mat(Color(0.22, 0.45, 0.2))], [blooms, bloom, _mat(Color(0.98, 0.6, 0.8))]]:
+		var list: Array = set[0]
+		if list.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = set[1]
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = set[2]
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.visibility_range_end = 90.0
+		add_child(mmi)
 
 func _p_lagoon_bridge() -> void:
 	# boardwalk across Lagoa dos Jacarés
@@ -1971,6 +2058,9 @@ func _build_rio() -> void:
 	_build_ground_detail()
 	_build_props()
 	_r_beach_life()
+	var bl := BeachLife.new()
+	add_child(bl)
+	bl.setup(self)
 	_r_cristo()
 	_r_morro()
 	_r_sugarloaf()

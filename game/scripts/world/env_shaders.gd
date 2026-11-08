@@ -90,14 +90,24 @@ vec3 to_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
 }
 
+uniform float strata = 0.3;
+varying vec3 wnorm;
+
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
 	float n = vnoise(wpos.xz * 0.3) * 0.55 + vnoise(wpos.xz * 1.6) * 0.3 + vnoise(wpos.xz * 7.0) * 0.15;
+	// sedimentary bands on steep faces (sandstone cliffs, rock domes)
+	float steep = smoothstep(0.35, 0.8, 1.0 - wnorm.y);
+	float band = sin(wpos.y * 2.6 + vnoise(wpos.xz * 0.15) * 4.0) * 0.5 + 0.5;
+	float fine = sin(wpos.y * 9.0 + n * 3.0) * 0.5 + 0.5;
+	n = mix(n, band * 0.75 + fine * 0.25, steep * strata);
 	vec3 c = pow(COLOR.rgb, vec3(1.2));
-	ALBEDO = c * (0.8 + 0.4 * n);
+	float contrast = mix(0.4, 0.95, steep * strata);
+	ALBEDO = c * (1.0 - contrast * 0.5 + contrast * n);
 	ROUGHNESS = 1.0;
 }
 """
@@ -132,12 +142,54 @@ static func grass(c: Color, strength := 1.0) -> ShaderMaterial:
 	m.set_shader_parameter("strength", strength)
 	return m
 
-static func terrain() -> ShaderMaterial:
+static func terrain(strata := 0.3) -> ShaderMaterial:
 	if _terrain_shader == null:
 		_terrain_shader = Shader.new()
 		_terrain_shader.code = TERRAIN_CODE
 	var m := ShaderMaterial.new()
 	m.shader = _terrain_shader
+	m.set_shader_parameter("strata", strata)
+	return m
+
+const FOLIAGE_CODE := """
+shader_type spatial;
+render_mode diffuse_lambert, specular_disabled;
+uniform vec4 albedo : source_color = vec4(0.3, 0.5, 0.2, 1.0);
+uniform float strength = 1.0;
+uniform float base_h = 0.15;
+uniform float top_h = 1.4;
+void vertex() {
+	vec3 root = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float k = smoothstep(base_h, top_h, VERTEX.y);
+	k *= k;
+	float gust = sin(TIME * 0.5 + root.x * 0.04 + root.z * 0.03) * 0.5 + 0.5;
+	float sway = sin(TIME * 1.2 + root.x * 0.21 + root.z * 0.17) * (0.5 + gust);
+	float flutter = sin(TIME * 4.5 + VERTEX.x * 6.0 + VERTEX.z * 5.0) * 0.15;
+	VERTEX.x += (sway * 0.045 + flutter * 0.01) * k * strength;
+	VERTEX.z += (sway * 0.03 - flutter * 0.01) * k * strength;
+}
+void fragment() {
+	ALBEDO = albedo.rgb;
+	ROUGHNESS = 0.9;
+}
+"""
+static var _foliage_shader: Shader
+static var _foliage_cache := {}
+
+## Wind-swayed version of a flat-colored model material (trees, bushes).
+static func foliage(c: Color, strength := 1.0, top_h := 1.4) -> ShaderMaterial:
+	var key := c.to_html() + str(strength) + str(top_h)
+	if _foliage_cache.has(key):
+		return _foliage_cache[key]
+	if _foliage_shader == null:
+		_foliage_shader = Shader.new()
+		_foliage_shader.code = FOLIAGE_CODE
+	var m := ShaderMaterial.new()
+	m.shader = _foliage_shader
+	m.set_shader_parameter("albedo", c)
+	m.set_shader_parameter("strength", strength)
+	m.set_shader_parameter("top_h", top_h)
+	_foliage_cache[key] = m
 	return m
 
 ## A plane subdivided enough for vertex waves.
