@@ -77,6 +77,47 @@ void fragment() {
 }
 """
 
+## Textured Meshy bodies: the baked gi / belt / skin texture, recoloured in the shader. mask_tex
+## (tools/meshybuild/mask.py) holds R = belt texels, G = bare-skin regions; belt texels take the
+## belt colour, bright desaturated texels the gi colour, warm texels the skin tone.
+const TEX_CODE := """
+shader_type spatial;
+render_mode diffuse_toon, specular_disabled;
+%STENCIL%
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable;
+uniform vec4 gi : source_color = vec4(1.0);
+uniform vec4 gi_ref : source_color = vec4(0.85, 0.85, 0.85, 1.0);
+uniform vec4 belt : source_color = vec4(0.05, 0.05, 0.05, 1.0);
+uniform vec4 skin : source_color = vec4(0.6, 0.45, 0.4, 1.0);
+uniform vec4 skin_ref : source_color = vec4(0.6, 0.45, 0.4, 1.0);
+uniform float rim_amount = 0.2;
+void fragment() {
+	vec3 c = texture(albedo_tex, UV).rgb;
+	vec2 mk = texture(mask_tex, UV).rg;
+	vec3 cs = pow(c, vec3(1.0 / 2.2));
+	float mx = max(cs.r, max(cs.g, cs.b));
+	float mn = min(cs.r, min(cs.g, cs.b));
+	float sat = (mx - mn) / max(mx, 0.001);
+	float lum = dot(cs, vec3(0.299, 0.587, 0.114));
+	float sat_e = sat * smoothstep(0.04, 0.16, mx);   // near-black texels read as neutral
+	float gm = smoothstep(0.3, 0.5, lum) * (1.0 - smoothstep(0.08, 0.2, sat)) * (1.0 - mk.g) * (1.0 - mk.r);
+	float warm = step(cs.b, cs.g) * step(cs.g, cs.r);
+	float sm = warm * smoothstep(0.12, 0.24, sat) * smoothstep(0.06, 0.14, lum) * (1.0 - gm);
+	float bm = mk.r;
+	vec3 W = vec3(0.2126, 0.7152, 0.0722);
+	vec3 o = c;
+	o = mix(o, c * (gi.rgb / max(gi_ref.rgb, vec3(0.05))), gm);
+	float sk = dot(c, W) / max(dot(skin_ref.rgb, W), 0.01);
+	o = mix(o, skin.rgb * min(sk, 1.1), sm);
+	o = mix(o, belt.rgb * clamp(0.6 + lum * 1.6, 0.0, 1.1), bm);
+	ALBEDO = clamp(o, 0.0, 1.0);
+	ROUGHNESS = 0.85;
+	RIM = rim_amount;
+	RIM_TINT = 0.5;
+}
+"""
+
 const OUTLINE_CODE := """
 shader_type spatial;
 render_mode unshaded, cull_front, specular_disabled, shadows_disabled;
@@ -104,6 +145,45 @@ void fragment() {
 static var _main := {}
 static var _xray := {}
 static var _outline: Shader
+
+static var _tex := {}
+static func tex_shader(ref: int) -> Shader:
+	if not _tex.has(ref):
+		var s := Shader.new()
+		s.code = TEX_CODE.replace("%STENCIL%", "stencil_mode write, compare_always, %d;" % ref if ref > 0 else "")
+		_tex[ref] = s
+	return _tex[ref]
+
+## Material for a textured Meshy body (see TEX_CODE). mi carries the albedo path and colour refs.
+static func textured(mi: MeshInstance3D, gi_c: Color, belt_c: Color, skin_c: Color, grow: float, ref := 0,
+		team := Color(0, 0, 0, 0), ink := Color(0.09, 0.07, 0.06)) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = tex_shader(ref)
+	m.set_shader_parameter("albedo_tex", load(str(mi.get_meta("albedo"))))
+	m.set_shader_parameter("mask_tex", load(str(mi.get_meta("albedo")).replace("_albedo", "_mask")))
+	m.set_shader_parameter("gi", gi_c)
+	m.set_shader_parameter("gi_ref", mi.get_meta("gi_ref", Color(0.85, 0.85, 0.85)))
+	m.set_shader_parameter("belt", belt_c)
+	m.set_shader_parameter("skin", skin_c)
+	m.set_shader_parameter("skin_ref", mi.get_meta("skin_ref", Color(0.6, 0.45, 0.4)))
+	m.set_shader_parameter("rim_amount", 0.35 if ref > 0 else 0.15)
+	_chain(m, grow, ref, team, ink)
+	return m
+
+static func _chain(m: ShaderMaterial, grow: float, ref: int, team: Color, ink: Color) -> void:
+	var last: Material = m
+	if grow > 0.0:
+		var o := ShaderMaterial.new()
+		o.shader = outline_shader()
+		o.set_shader_parameter("grow", grow)
+		o.set_shader_parameter("ink", ink if ref == 0 else ink.lerp(team.darkened(0.25), 0.45))
+		m.next_pass = o
+		last = o
+	if ref > 0:
+		var x := ShaderMaterial.new()
+		x.shader = xray_shader(ref)
+		x.set_shader_parameter("team", Color(team, 0.42))
+		last.next_pass = x
 
 static func main_shader(ref: int) -> Shader:
 	if not _main.has(ref):

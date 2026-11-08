@@ -62,6 +62,11 @@ const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://asse
 ## Sculpted fighter meshes (tools/charbuild) skinned to the worker skeleton: body, face, hair styles
 ## and every gear piece as its own mesh.
 const FIGHTERS := {"male": "res://assets/models/fighter_male.scn", "female": "res://assets/models/fighter_female.scn"}
+## Textured Meshy bodies (tools/import_meshy.gd): used for plain gi looks; gear with patterns, no-gi
+## and casual clothes keep the sculpted piece models above.
+const MESHY := {"male": "res://assets/models/meshy_male.scn", "female": "res://assets/models/meshy_female.scn"}
+static var use_meshy := true
+var _meshy := false
 const HAIR_NAMES := ["short", "buzz", "bun", "curly", "", "long", "ponytail"]
 var look := {}            # gear look (Game.dress); empty = derived from the setup colours
 var _pieces := {}         # piece name -> MeshInstance3D
@@ -95,6 +100,10 @@ func setup(gi: Color, belt: Color, skin: Color, hair := Color(0.12, 0.08, 0.05),
 	return self
 
 func set_belt_color(c: Color) -> void:
+	if _meshy and _pieces.has("Body"):
+		belt_color = c
+		((_pieces.Body as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("belt", c)
+		return
 	if _pieces.has("Belt"):
 		belt_color = c
 		((_pieces.Belt as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("base", c)
@@ -561,6 +570,19 @@ func _attach_fighter() -> void:
 			(mi as Node).queue_free()
 	if base == null:
 		return
+	_meshy = _wants_meshy()
+	if _meshy:
+		var ms: Node3D = (load(MESHY[body]) as PackedScene).instantiate()
+		var bmi := ms.get_node("Body") as MeshInstance3D
+		bmi.owner = null
+		ms.remove_child(bmi)
+		base.get_parent().add_child(bmi)
+		bmi.skeleton = bmi.get_path_to(base.get_node(base.skeleton))
+		_pieces["Body"] = bmi
+		ms.free()
+		base.queue_free()
+		_apply_materials()
+		return
 	var parts: Node3D = (load(FIGHTERS[body]) as PackedScene).instantiate()
 	var want := _wanted_pieces()
 	for c in parts.get_children():
@@ -576,6 +598,18 @@ func _attach_fighter() -> void:
 	parts.free()
 	base.queue_free()
 	_apply_materials()
+
+func _wants_meshy() -> bool:
+	if not use_meshy or casual or not ResourceLoader.exists(MESHY.get(body, "")):
+		return false
+	var lk := current_look()
+	if str(lk.get("kit", "gi")) != "gi" or lk.has("head"):
+		return false
+	for slot in ["jacket", "pants"]:
+		var l: Dictionary = lk.get(slot, {})
+		if str(l.get("pattern", "none")) != "none":
+			return false
+	return true
 
 ## The look actually worn: gear look if set, else derived from the setup colours.
 func current_look() -> Dictionary:
@@ -642,6 +676,12 @@ func _apply_materials() -> void:
 		p = p.get_parent()
 	var wscale := maxf(chain.basis.get_scale().x, 1e-4)
 	var grow := (0.013 if _ref > 0 else 0.009) / wscale
+	if _meshy:
+		var bm: MeshInstance3D = _pieces.Body
+		var jk: Dictionary = want.get("Jacket", {"color": gi_color})
+		bm.material_override = FighterLook.textured(bm, jk.get("color", gi_color), belt_color, skin_color, grow * 0.8, _ref, _team)
+		_collect_lod()
+		return
 	for n in _pieces:
 		var mi: MeshInstance3D = _pieces[n]
 		var lk: Dictionary = want.get(n, {"color": Color.WHITE})

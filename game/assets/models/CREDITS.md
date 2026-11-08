@@ -36,3 +36,8 @@ Optimized copies came from the npm package @netforge/asset-library-files (see NO
 - police_car.glb: kenney_car_kit  (CC0-1.0)
 - barrel.glb: kenney_space_kit  (CC0-1.0)
 - crate.glb: kenney_blaster_kit  (CC0-1.0)
+
+## Meshy community models (listed on Meshy as CC0; downloaded by the project owner)
+Decimated, rigged and recoloured with tools/meshybuild.
+- meshy_male.scn / meshy_male_albedo.png: "Grappler in a White Gi" https://www.meshy.ai/posts/019de6ae-10b4-7cb3-bbd4-b7a8a1d788d1
+- meshy_female.scn / meshy_female_albedo.png: "Clinch Strike White Gi Warrior" https://www.meshy.ai/posts/019deaf9-1ab6-7643-a6f7-995ce8672402
