@@ -2,6 +2,7 @@ class_name Hud
 extends CanvasLayer
 ## Exploration HUD: rank, XP, objective, prompts, toasts, dialogue, journal and title screen.
 
+signal barber_requested
 signal play_pressed
 signal dialogue_choice(accepted: bool)
 signal journal_toggled(open: bool)
@@ -977,6 +978,11 @@ func _build_settings() -> void:
 	var resume := UiKit.button("Resume", Vector2(200, 56))
 	resume.pressed.connect(toggle_settings)
 	row.add_child(resume)
+	var barb := UiKit.button("Barber (change look)", Vector2(260, 56))
+	barb.pressed.connect(func():
+		toggle_settings()
+		barber_requested.emit())
+	row.add_child(barb)
 	var quit := UiKit.button("Title screen", Vector2(200, 56))
 	quit.pressed.connect(func():
 		get_tree().paused = false

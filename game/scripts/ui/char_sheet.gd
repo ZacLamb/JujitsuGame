@@ -622,10 +622,16 @@ class TalentNode extends Control:
 		custom_minimum_size = Vector2(maxf(S + 36, 98), S + (30 if show_name else 8))
 	var node := {}
 	var tex_key := ""
+	var _burst := 0.0
+	static var _seen := {}   # talent id -> rank last drawn, so a rank-up plays a burst once
 	func setup_node(nd: Dictionary, col: Color, s := 46.0) -> void:
 		node = nd
 		tid = str(nd.id)
 		tex_key = IconArt.talent_key(nd, Game.spec)
+		var r_now := Game.talent_rank(tid)
+		if _seen.has(tid) and r_now > int(_seen[tid]):
+			_burst = 1.0
+		_seen[tid] = r_now
 		tree_col = col
 		icon = str(nd.get("icon", "chevron"))
 		var choice := str(nd.get("kind", "")) == "choice"
@@ -642,8 +648,11 @@ class TalentNode extends Control:
 		S = s * (1.12 if nd.get("capstone", false) else 1.0)
 		custom_minimum_size = Vector2(maxf(S + 30, 92), S + 26)
 		size = custom_minimum_size
-	func _process(_d: float) -> void:
-		if can_learn and rank == 0:
+	func _process(d: float) -> void:
+		if _burst > 0.0:
+			_burst = maxf(0.0, _burst - d * 1.1)
+			queue_redraw()
+		elif can_learn and rank == 0:
 			queue_redraw()   # pulsing "available" glow
 	func _gui_input(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed:
@@ -788,6 +797,12 @@ class TalentNode extends Control:
 			CharSheet.draw_glyph(self, icon, c, S * 0.5, gcol)
 		if not unlocked and rank == 0:
 			draw_colored_polygon(inner, Color(0, 0, 0, 0.35))
+		if _burst > 0.0:
+			# learned: a gold shockwave ring and a flash over the icon
+			var t := 1.0 - _burst
+			draw_arc(c, r * (1.0 + t * 1.2), 0, TAU, 48, Color(1.0, 0.85, 0.35, _burst), 4.0 * _burst + 1.0, true)
+			draw_arc(c, r * (1.0 + t * 0.6), 0, TAU, 48, Color(1, 1, 1, _burst * 0.7), 2.0, true)
+			draw_colored_polygon(inner, Color(1.0, 0.95, 0.7, 0.45 * _burst * _burst))
 		# rank chip (bottom-right), like WoW's little number
 		var font: Font = Wow.body() if Wow.body() else ThemeDB.fallback_font
 		var txt := ("%d" % rank) if max_rank == 1 or maxed or rank == 0 else "%d/%d" % [rank, max_rank]
@@ -1421,6 +1436,20 @@ class TalentGraph extends Control:
 				draw_string_outline(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, 3, Color.BLACK)
 				draw_string(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, Color(1, 0.55, 0.45))
 
+## "Hand Fight deals 15% more damage per rank." at rank 2 -> "Hand Fight deals 30% more damage."
+static func rank_text(desc: String, r: int) -> String:
+	var re := RegEx.new()
+	re.compile("\\d+(\\.\\d+)?")
+	var out := ""
+	var at := 0
+	for m in re.search_all(desc):
+		out += desc.substr(at, m.get_start() - at)
+		var val := float(m.get_string()) * r
+		out += str(int(val)) if is_equal_approx(val, round(val)) else str(snappedf(val, 0.1))
+		at = m.get_end()
+	out += desc.substr(at)
+	return out.replace(" per rank", "")
+
 static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> void:
 	if holder.has_meta("tip"):
 		var old = holder.get_meta("tip")
@@ -1452,7 +1481,18 @@ static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> v
 		Wow.tline(v, "Rank %d/%d" % [rank, int(nd.max)], Wow.WHITE, 13)
 		Wow.tline(v, "Technique" if str(nd.get("kind", "")) == "active" else ("Capstone" if nd.get("capstone", false) else "Passive"), Wow.PALE, 12)
 		Wow.tgap(v, 3)
-		Wow.tline(v, str(nd.desc), Wow.GOLD, 13, true)
+		var mx := int(nd.max)
+		if mx > 1 and str(nd.desc).contains("per rank"):
+			# WoW-style: what you have now, and what the next rank gives
+			if rank > 0:
+				Wow.tline(v, rank_text(str(nd.desc), rank), Wow.GOLD, 13, true)
+			if rank < mx:
+				if rank > 0:
+					Wow.tgap(v, 3)
+				Wow.tline(v, "Next rank:" if rank > 0 else "Rank 1:", Wow.WHITE, 12)
+				Wow.tline(v, rank_text(str(nd.desc), rank + 1), Color(0.55, 1.0, 0.55) if rank > 0 else Wow.GOLD, 13, true)
+		else:
+			Wow.tline(v, str(nd.desc), Wow.GOLD, 13, true)
 	Wow.tgap(v, 4)
 	var tr := TalentTrees.tree_of(tid)
 	var full := rank >= (1 if choice else int(nd.max))

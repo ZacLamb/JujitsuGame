@@ -12,6 +12,15 @@ func _find(n: Node, cls: String) -> Node:
 			return r
 	return null
 
+func _find_id(n: Node, id: String) -> Node:
+	for c in n.get_children():
+		if c.has_signal("hovered") and "tid" in c and str(c.tid) == id:
+			return c
+		var r := _find_id(c, id)
+		if r:
+			return r
+	return null
+
 func _ready() -> void:
 	Engine.max_physics_steps_per_frame = 60
 	Game.test_mode = true
@@ -46,6 +55,10 @@ func _ready() -> void:
 	Game.learn("c_iron_grip")
 	main.hud.open_window("talents", main.hud.TAB_TALENTS)
 	main.hud._fill_journal()
+	for i in 3: await get_tree().process_frame
+	var ig = _find_id(main.hud, "c_iron_grip")
+	if ig:
+		ig.hovered.emit("c_iron_grip", true)
 	await _shot("talents_spec")
 	main.hud.open_window("talents", main.hud.TAB_SPECS)
 	main.hud._fill_journal()

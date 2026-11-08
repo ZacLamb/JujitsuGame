@@ -498,7 +498,7 @@ func graphics_low() -> bool:
 	return graphics_level() == 0
 
 func look_key() -> String:
-	return "%s|%s|%s" % [gi_color().to_html(), kit, str(equipped)]
+	return "%s|%s|%s|%s|%s" % [gi_color().to_html(), kit, str(equipped), body, str(skin_t)]
 
 # ------------------------------------------------------------ gear
 ## Item ids that count right now (the active kit's slots).

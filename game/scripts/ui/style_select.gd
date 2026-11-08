@@ -5,6 +5,14 @@ extends Control
 ## body / skin tone / gi colour along the bottom.
 
 signal chosen(style_id: String, player_name: String, gi: int)
+signal edited
+signal cancelled
+
+## Barber mode: re-style an existing fighter. Name / body / skin / gi are free, origin costs R$,
+## class is locked (talents and specs are built on it).
+var barber := false
+const ORIGIN_COST := 100
+var _err: Label
 
 const ROLE_INFO := {
 	"anchor": {"name": "Anchor", "wow": "Tank", "col": Color(0.4, 0.65, 1.0), "glyph": "shield"},
@@ -33,20 +41,26 @@ var _pivot: Node3D
 var _drag := false
 
 func _ready() -> void:
+	if barber:
+		_style = Game.style
+		_origin = Game.origin
+		_body = Game.body
+		_skin = Game.skin_t
+		_gi = Game.gi_index
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = Wow.theme()
 	var bg := ColorRect.new()
 	bg.color = Color(0.02, 0.025, 0.03, 0.82)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	var title := Wow.title("CREATE YOUR FIGHTER", 34, Wow.GOLD)
+	var title := Wow.title("THE BARBER" if barber else "CREATE YOUR FIGHTER", 34, Wow.GOLD)
 	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	title.offset_left = -300
 	title.offset_right = 300
 	title.offset_top = 14
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(title)
-	var sub := Wow.label("Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	var sub := Wow.label(("Seu Zé cuts, you choose. Name, body, skin and gi are free. A new origin costs R$ %d. Your class stays: your talents are built on it." % ORIGIN_COST) if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
 	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	sub.offset_left = -480
 	sub.offset_right = 480
@@ -71,6 +85,8 @@ func _ready() -> void:
 		var st: Dictionary = Rpg.STYLES[id]
 		var b := _choice_btn("%s   ·   %s" % [st.name, st.tag])
 		b.pressed.connect(func(): _pick_style(id))
+		if barber and id != _style:
+			b.disabled = true
 		right.add_child(b)
 		var ct := IconArt.tex("class_" + str(id))
 		if ct != null:
@@ -173,11 +189,17 @@ func _ready() -> void:
 		r2.add_child(b)
 		_gi_btns.append(b)
 	r2.add_child(_spacer(16))
-	var go := Wow.button("Begin training", Vector2(190, 38))
+	var go := Wow.button("Save look" if barber else "Begin training", Vector2(190, 38))
 	go.add_theme_font_size_override("font_size", 18)
 	go.add_theme_color_override("font_color", Wow.GOLD)
 	go.pressed.connect(_begin)
 	r2.add_child(go)
+	if barber:
+		var cx := Wow.button("Cancel", Vector2(110, 38))
+		cx.pressed.connect(func(): cancelled.emit())
+		r2.add_child(cx)
+		_err = Wow.label("", 14, Wow.RED, false, HORIZONTAL_ALIGNMENT_CENTER)
+		bv.add_child(_err)
 	_pick_origin(_origin)
 	_pick_style(_style)
 	_pick_body(_body)
@@ -334,5 +356,18 @@ func _preview_input(e: InputEvent) -> void:
 		_pivot.rotation.y += e.relative.x * 0.01
 
 func _begin() -> void:
+	if barber:
+		if _origin != Game.origin:
+			if Game.money < ORIGIN_COST:
+				_err.text = "A new origin costs R$ %d. You have R$ %d." % [ORIGIN_COST, Game.money]
+				return
+			Game.money -= ORIGIN_COST
+		Game.set_identity(_origin, _body, _skin)
+		Game.player_name = _name_edit.text.strip_edges().left(16) if _name_edit.text.strip_edges() != "" else Game.player_name
+		Game.gi_index = clampi(_gi, 0, Rpg.GI_COLORS.size() - 1)
+		Game.save_game()
+		Game.progress_changed.emit()
+		edited.emit()
+		return
 	Game.set_identity(_origin, _body, _skin)
 	chosen.emit(_style, _name_edit.text, _gi)

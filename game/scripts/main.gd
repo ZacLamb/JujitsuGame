@@ -41,6 +41,7 @@ func _ready() -> void:
 	hud.shop_closed.connect(func(): player.input_enabled = true)
 	hud.dialogue_choice.connect(_on_dialogue_choice)
 	hud.graphics_changed.connect(func(): if is_instance_valid(world): world.apply_graphics())
+	hud.barber_requested.connect(open_barber)
 	hud.journal_toggled.connect(func(open): player.input_enabled = not open and not _in_title)
 	Game.progress_changed.connect(func(): if is_instance_valid(world): world.refresh_beacon())
 
@@ -209,6 +210,30 @@ func _show_style_select() -> void:
 		hud.set_exploring(true)
 		hud.refresh()
 		_begin_play())
+
+## Barber: re-style the fighter without starting over.
+func open_barber() -> void:
+	if hud.dialogue_open():
+		return
+	player.input_enabled = false
+	var sel := StyleSelect.new()
+	sel.barber = true
+	sel.theme = UiKit.theme()
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	add_child(layer)
+	layer.add_child(sel)
+	var done := func():
+		layer.queue_free()
+		player.input_enabled = true
+		player.refresh_look()
+		if combat:
+			combat.rebuild_player()
+		hud.refresh()
+	sel.edited.connect(func():
+		done.call()
+		hud.show_toast("Fresh look. Seu Zé approves.", Wow.GOLD))
+	sel.cancelled.connect(done)
 
 func _begin_play() -> void:
 	player.input_enabled = true
