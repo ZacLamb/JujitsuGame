@@ -43,7 +43,7 @@ func _ready() -> void:
 			if steps % 2 == 0:
 				sim.tap()
 		elif not sim.opp_cast.is_empty() and float(sim.opp_cast.t) > 0.35:
-			sim.defend(RollSim.counter_kind(sim.opp_cast.id) if sim.rng.randf() < 0.7 else "base")
+			sim.defend(sim.cast_counter(sim.opp_cast) if sim.rng.randf() < 0.7 else "base")
 		elif sim.cast.is_empty():
 			var bar := sim.player_bar()
 			var mv: Array = bar.filter(func(sl): return sl.kind == "move" and sim.block_reason(sl) == "")
@@ -215,6 +215,39 @@ func _ready() -> void:
 	for st in Rpg.STYLES:
 		for mid in Rpg.STYLES[st].signature:
 			check(Data.MOVES.has(mid), "%s signature %s exists" % [st, mid])
+	# ---------------- boss phases
+	var bs := RollSim.new()
+	bs.setup("jacare", 6.0, func(_id): return true, 21)
+	check(bs.boss_phases.size() == 3 and bs.phase == 0, "Jacaré fights in 3 phases")
+	bs.start_live()
+	bs.opp_stamina = 60.0
+	bs.tick(0.05)
+	check(bs.phase == 1 and not bs.special.is_empty(), "phase 2 starts below 70 stamina with a special")
+	bs.events.clear()
+	bs.special_t = 0.0
+	bs.ai_t = 99.0
+	bs.reset_t = 0.0
+	bs.tick(0.05)
+	check(not bs.opp_cast.is_empty() and bs.opp_cast.kind == "special" and bs.cast_counter(bs.opp_cast) == "frame", "special cast telegraphed with its own counter")
+	bs.def_cd = 0.0
+	var c0b := bs.control
+	check(bs.defend("frame") == "" and bs.opp_off_bal > 2.0 and bs.control == mini(5, c0b + 2), "countering a special: big interrupt")
+	bs.special_t = 0.0
+	bs.tick(0.05)
+	var st0 := bs.stamina
+	bs.opp_cast.t = 99.0
+	bs.tick(0.05)
+	check(bs.stamina < st0 - 20.0, "an unanswered Death Roll crushes 25 stamina")
+	bs.opp_stamina = 30.0
+	bs.reset_t = 0.0
+	bs.tick(0.05)
+	check(bs.phase == 2 and bs.shield == 3, "phase 3 raises Heavy Base x3")
+	var tc_sh := bs.technique_chance("scissor_sweep", true, 3)
+	bs.shield = 0
+	check(tc_sh < bs.technique_chance("scissor_sweep", true, 3), "Heavy Base cuts your odds")
+	var ns := RollSim.new()
+	ns.setup("rafa", 2.0, func(_id): return true, 3)
+	check(ns.boss_phases.is_empty(), "regular fighters have no phases")
 	# ---------------- 5v5 teams
 	game.reset()
 	game.choose_style("guard", "Tester", 0)

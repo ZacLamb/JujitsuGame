@@ -289,7 +289,7 @@ func play_roll_existing(opp: String) -> Dictionary:
 					if steps % 3 == 0:
 						roll._struggle_tap()
 				elif not sim.opp_cast.is_empty() and float(sim.opp_cast.t) > 0.3:
-					var need := RollSim.counter_kind(sim.opp_cast.id)
+					var need := sim.cast_counter(sim.opp_cast)
 					roll._defend((need if need != "grip" else "frame") if randf() < 0.8 else "base")
 				elif sim.cast.is_empty() and steps % 10 == 0:
 					var moves: Array = sim.player_bar().filter(func(sl): return sl.kind == "move" and sim.block_reason(sl) == "")

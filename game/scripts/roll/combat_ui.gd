@@ -137,6 +137,7 @@ class CastBar extends Control:
 	var dur := 1.0
 	var tag := ""       # e.g. "BASE" on the opponent's alert
 	var big := false
+	var special := false
 	var interrupted := 0.0
 	var landed := 0.0
 	func _init() -> void:
@@ -157,6 +158,11 @@ class CastBar extends Control:
 		if big:
 			bg.shadow_color = Color(col, 0.45)
 			bg.shadow_size = 10
+		if special:
+			bg.border_color = UiKit.ACCENT
+			bg.set_border_width_all(4)
+			bg.shadow_color = Color(UiKit.ACCENT, 0.4 + 0.3 * sin(Time.get_ticks_msec() / 90.0))
+			bg.shadow_size = 18
 		draw_style_box(bg, r)
 		var k := clampf(t / maxf(dur, 0.01), 0.0, 1.0)
 		var fill := StyleBoxFlat.new()

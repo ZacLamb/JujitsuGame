@@ -59,11 +59,11 @@ func step(sim: RollSim, dt: float) -> void:
 	if not sim.opp_cast.is_empty():
 		if sim.opp_cast != _seen:
 			_seen = sim.opp_cast
-			var worth: bool = sim.opp_cast.kind == "move" or rng.randf() < 0.15
+			var worth: bool = sim.opp_cast.kind in ["move", "special"] or rng.randf() < 0.15
 			_react_at = maxf(0.12, rng.randfn(float(sk.rt[0]), float(sk.rt[1]))) if worth and rng.randf() < float(sk.react) else -1.0
 		if _react_at >= 0.0 and float(sim.opp_cast.t) >= _react_at:
 			_react_at = -1.0
-			var need := RollSim.counter_kind(sim.opp_cast.id)
+			var need := sim.cast_counter(sim.opp_cast)
 			var k := need if need != "grip" else "frame"
 			if rng.randf() > float(sk.acc):
 				k = ["base", "frame", "defend"][rng.randi() % 3]

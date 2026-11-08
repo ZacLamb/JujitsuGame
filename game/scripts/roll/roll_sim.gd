@@ -77,6 +77,14 @@ var ai_t := 1.0              # seconds until the AI's next decision
 var reset_t := 0.0
 var struggle := {}           # {atk_player, sub, value, gain, decay, t, limit}
 var events: Array = []
+# ---- boss phases (see Boss)
+var boss_phases: Array = []
+var phase := 0
+var special := {}            # current phase's telegraphed special
+var special_t := 0.0
+var shield := 0              # Heavy Base stacks: your odds drop until you strip them with wear-downs
+var cast_mult := 1.0         # enrage: < 1 = faster casts
+var aggr_mult := 1.0
 var stats := {"interrupts": 0, "interrupted": 0, "landed": 0, "stuffed": 0, "max_control_spent": 0}
 
 func setup(opponent_id: String, p_level: float, knows: Callable, seed_value := -1, player_mods: Dictionary = {}, opp_override: Dictionary = {}) -> void:
@@ -95,6 +103,37 @@ func setup(opponent_id: String, p_level: float, knows: Callable, seed_value := -
 	else:
 		rng.randomize()
 	ai_t = rng.randf_range(0.8, 1.6)
+	if opp_override.is_empty() and Boss.has(opponent_id):
+		boss_phases = Boss.phases(opponent_id)
+		_enter_phase(0, false)
+
+func _enter_phase(n: int, announce := true) -> void:
+	phase = n
+	var p: Dictionary = boss_phases[n]
+	aggr_mult = float(p.get("aggr", 1.0))
+	cast_mult = float(p.get("cast_mult", 1.0))
+	special = p.get("special", {})
+	special_t = float(special.get("every", 0.0)) * 0.5
+	if p.has("fav"):
+		traits.fav = p.fav
+	if p.has("shield"):
+		shield = int(p.shield)
+	if announce:
+		if p.has("pos") and struggle.is_empty():
+			pos = p.pos[0]
+			player_top = bool(p.pos[1])
+			cast = {}
+			opp_cast = {}
+			control = 0
+			opp_control = 0
+			reset_t = RESET_PAUSE
+		events.append({"e": "phase", "n": n, "name": p.name, "text": p.text, "shield": shield})
+
+## The counter that answers a cast (specials carry their own).
+func cast_counter(c: Dictionary) -> String:
+	if c.has("counter"):
+		return str(c.counter)
+	return counter_kind(str(c.get("id", "grip")))
 
 func start_live() -> void:
 	live = true
@@ -199,6 +238,7 @@ func cast_time(move_id: String, by_player: bool) -> float:
 	var s := clampf(1.12 - 0.02 * opp_level - 0.03 * gap(), 0.72, 1.3) * (1.0 - 0.08 * _boss_k())
 	if mods.get("roar", false):
 		s *= 1.1   # Juba do Leão 4-piece
+	s *= cast_mult
 	return base * s * float(mods.defense) * float(mods.defense_vs.get(m.type, 1.0))
 
 ## Chance a technique lands when its cast completes (spend = grips spent on it).
@@ -211,6 +251,8 @@ func technique_chance(move_id: String, by_player: bool, spend: int) -> float:
 		if mods.get("champion", false):
 			p += 0.04
 		p += float(mods.get("edge", 0.0))   # team role matchup
+		if shield > 0:
+			p *= 0.6   # boss Heavy Base
 		if opp_off_bal > 0.0:
 			p += 0.28
 		if stamina_pct() < 25.0:
@@ -318,7 +360,7 @@ func defend(kind: String) -> String:
 		def_cd = 0.6
 		events.append({"e": "whiff", "kind": kind})
 		return "nothing"
-	var need := counter_kind(opp_cast.id)
+	var need := cast_counter(opp_cast)
 	if need == "grip" or need == kind:
 		_interrupt_opp(kind)
 		return ""
@@ -334,7 +376,14 @@ func _interrupt_opp(kind: String) -> void:
 	spend(3.0)
 	if mods.get("flow", false):
 		recover(6.0)   # Véu de Noiva 4-piece
-	if was.kind == "move":
+	if was.kind == "special":
+		opp_stamina = maxf(0.0, opp_stamina - 15.0)
+		opp_control = 0
+		opp_off_bal = 2.6
+		control = mini(MAX_CONTROL, control + 2)
+		stats.interrupts += 1
+		ai_t = maxf(ai_t, 1.2)
+	elif was.kind == "move":
 		opp_stamina = maxf(0.0, opp_stamina - float(Data.MOVES[was.id].cost) * 0.5)
 		opp_control = 0
 		opp_off_bal = 1.8
@@ -381,6 +430,8 @@ func _live_tick(delta: float) -> void:
 	if not struggle.is_empty():
 		_struggle_tick(delta)
 		return
+	if not boss_phases.is_empty() and phase + 1 < boss_phases.size() and Boss.triggered(boss_phases[phase + 1], self):
+		_enter_phase(phase + 1)
 	if reset_t > 0.0:
 		reset_t -= delta
 		return
@@ -402,7 +453,11 @@ func _live_tick(delta: float) -> void:
 			_resolve_opp()
 	elif reset_t <= 0.0:
 		ai_t -= delta
-		if ai_t <= 0.0:
+		if not special.is_empty():
+			special_t -= delta
+		if not special.is_empty() and special_t <= 0.0 and opp_stamina > 8.0:
+			_cast_special()
+		elif ai_t <= 0.0:
 			_ai_think()
 
 func _ai_interrupts() -> void:
@@ -442,6 +497,9 @@ func _resolve_player() -> void:
 			control = mini(MAX_CONTROL, control + 1)
 			cds["wear"] = 5.0
 			events.append({"e": "wear", "who": "p", "name": c.name})
+			if shield > 0:
+				shield -= 1
+				events.append({"e": "shield", "left": shield})
 		"move":
 			var id: String = c.id
 			var spent := int(c.spend)
@@ -463,6 +521,8 @@ func _resolve_opp() -> void:
 	var c: Dictionary = opp_cast
 	opp_cast = {}
 	match c.kind:
+		"special":
+			_special_lands(c)
 		"grip":
 			opp_stamina = maxf(0.0, opp_stamina - 2.0)
 			opp_control = mini(MAX_CONTROL, opp_control + (2 if off_bal > 0.0 else 1))
@@ -544,7 +604,7 @@ func _end_struggle(player_won_struggle: bool) -> void:
 
 # ------------------------------------------------------------ AI
 func _ai_delay() -> float:
-	var d := clampf(1.25 - 0.04 * opp_level - 0.1 * gap(), 0.45, 1.6) / clampf(float(traits.aggr), 0.6, 1.6)
+	var d := clampf(1.25 - 0.04 * opp_level - 0.1 * gap(), 0.45, 1.6) / clampf(float(traits.aggr) * aggr_mult, 0.6, 2.0)
 	if opp_stamina < 30.0:
 		d *= 1.5
 	return d * rng.randf_range(0.75, 1.25)
@@ -608,6 +668,57 @@ func _ai_think() -> void:
 	else:
 		opp_cast = {"id": "grip", "name": names[0], "kind": "grip", "t": 0.0, "dur": 0.7, "spend": 0}
 		events.append({"e": "cast", "who": "o", "id": "grip", "name": names[0], "kind": "grip", "dur": 0.7, "counter": "grip"})
+
+func _cast_special() -> void:
+	special_t = float(special.every)
+	var dur := float(special.dur) * float(mods.defense)
+	opp_cast = {"id": "special:" + str(special.id), "name": special.name, "kind": "special", "t": 0.0, "dur": dur,
+		"spend": 0, "counter": special.counter, "effect": special.effect}
+	events.append({"e": "cast", "who": "o", "id": opp_cast.id, "name": special.name, "kind": "special", "dur": dur,
+		"counter": special.counter, "hint": special.get("hint", "")})
+
+func _special_lands(c: Dictionary) -> void:
+	opp_stamina = maxf(0.0, opp_stamina - 6.0)
+	match str(c.effect):
+		"sweep":
+			cast = {}
+			pos = "mount"
+			player_top = false
+			opp_pts += 2
+			control = 0
+			reset_t = RESET_PAUSE
+			log_lines.append("%s: %s  +2" % [opp.name, c.name])
+		"crush":
+			spend(25.0)
+			control = 0
+			cast = {}
+			if player_top or pos == "standing":
+				pos = "side"
+				player_top = false
+				opp_pts += 3
+			reset_t = RESET_PAUSE * 0.6
+		"roar":
+			spend(15.0)
+			def_cd = 3.5
+			control = maxi(0, control - 2)
+		"deep_sub":
+			var sid := ""
+			for id in opp_options():
+				if Data.MOVES[id].type == "sub":
+					sid = id
+					break
+			if sid == "":
+				spend(20.0)
+			else:
+				var p := struggle_params(false, sid)
+				struggle = {"atk_player": false, "sub": sid, "value": 0.28, "gain": p.gain, "decay": p.decay, "t": 0.0, "limit": p.limit, "spent": 4}
+				cast = {}
+				events.append({"e": "special_landed", "id": c.id, "name": c.name, "effect": c.effect})
+				events.append({"e": "sub", "who": "o", "id": sid})
+				ai_t = _ai_delay()
+				return
+	events.append({"e": "special_landed", "id": c.id, "name": c.name, "effect": c.effect})
+	ai_t = _ai_delay()
 
 # ------------------------------------------------------------ state changes
 ## Apply a successful move. actor_player: true if the player performed it.

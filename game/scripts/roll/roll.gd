@@ -64,6 +64,7 @@ var action_body: VBoxContainer
 var msg: Label
 var floats: Control
 var intro_panel: PanelContainer
+var phase_lbl: Label
 
 var daily := {}  # set for Daily Challenge rolls
 var comp := {}   # set for competition matches: {id, round_name, opp, final}
@@ -398,12 +399,39 @@ func _on_event(ev: Dictionary) -> void:
 				cast_o.title = ev.name
 				cast_o.col = CombatUi.KIND_COLORS["grip" if c == "grip" else c]
 				cast_o.interrupted = 0.0
-				if ev.kind == "move":
+				if ev.kind in ["move", "special"]:
 					alert.title = "%s" % ev.name
 					alert.col = CombatUi.KIND_COLORS[c]
 					alert.tag = RollSim.DEF_NAMES[c].to_upper()
 					alert.interrupted = 0.0
-					Sfx.play("click", -4.0, 0.7)
+					alert.special = ev.kind == "special"
+					if ev.kind == "special":
+						Sfx.play("levelup", -6.0, 0.6)
+						if str(ev.get("hint", "")) != "":
+							_float(str(ev.hint).to_upper(), Vector2(0.5, 0.38), UiKit.ACCENT, 22)
+					else:
+						Sfx.play("click", -4.0, 0.7)
+		"phase":
+			_float("PHASE %d: %s" % [int(ev.n) + 1, str(ev.name).to_upper()], Vector2(0.5, 0.24), Color(1, 0.55, 0.3), 40)
+			_message(str(ev.text), 3.0)
+			Sfx.play("lose", -8.0, 1.4)
+			_shake = 0.35
+			UiKit.buzz(60)
+			_pose_now(0.5)
+		"shield":
+			if int(ev.left) > 0:
+				_float("HEAVY BASE CRACKS  (%d left)" % int(ev.left), Vector2(0.7, 0.46), Color(1, 0.85, 0.4), 24)
+			else:
+				_float("HEAVY BASE BROKEN!", Vector2(0.7, 0.46), Color(0.5, 1, 0.6), 32)
+				Sfx.play("perfect", -4.0, 0.8)
+		"special_landed":
+			alert.title = ""
+			var what: String = {"sweep": "Swept! +2 to them", "crush": "Crushed: -25 stamina", "roar": "Silenced: counters locked", "deep_sub": "Caught deep!"}.get(str(ev.effect), "")
+			_float("%s!  %s" % [str(ev.name), what], Vector2(0.5, 0.3), UiKit.RED, 34)
+			_shake = 0.5
+			UiKit.buzz(80)
+			Sfx.play("hit", 0.0, 0.5)
+			_pose_now(0.4)
 		"grip":
 			if who_p:
 				_float("+GRIP  %d" % ev.n, Vector2(0.3, 0.55), UiKit.ACCENT, 24)
@@ -423,7 +451,15 @@ func _on_event(ev: Dictionary) -> void:
 		"interrupt":
 			if ev.by == "p":
 				cast_o.interrupted = 0.7
-				if ev.was == "move":
+				if ev.was == "special":
+					alert.interrupted = 0.8
+					_float("BIG INTERRUPT! %s STOPPED" % str(ev.name), Vector2(0.5, 0.3), UiKit.ACCENT, 46)
+					Sfx.play("perfect")
+					Game.bump("perfect")
+					_log.append("B")
+					_lean(player_rig, opp_rig)
+					_shake = 0.3
+				elif ev.was == "move":
 					alert.interrupted = 0.8
 					_float("INTERRUPTED!", Vector2(0.5, 0.3), UiKit.ACCENT, 44)
 					Sfx.play("perfect")
@@ -822,6 +858,10 @@ func _build_ui() -> void:
 	var obox := _fighter_box(str(opp.name), int(opp.rank), false)
 	obox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(obox)
+	if not sim.boss_phases.is_empty():
+		phase_lbl = UiKit.label("", 15, Color(1, 0.6, 0.35), HORIZONTAL_ALIGNMENT_RIGHT)
+		phase_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		obox.add_child(phase_lbl)
 
 	var tapbtn := UiKit.button("Tap out", Vector2(100, 36))
 	tapbtn.add_theme_font_size_override("font_size", 15)
@@ -1122,6 +1162,17 @@ func _refresh_hud() -> void:
 	pips_o.n = sim.opp_control
 	stat_p.text = "OFF-BALANCE" if sim.off_bal > 0.0 else ""
 	stat_o.text = "OFF-BALANCE" if sim.opp_off_bal > 0.0 else ""
+	if not sim.boss_phases.is_empty():
+		var ph: Dictionary = sim.boss_phases[sim.phase]
+		var t := "Phase %d/%d · %s" % [sim.phase + 1, sim.boss_phases.size(), ph.name]
+		if sim.shield > 0:
+			t += "  ·  HEAVY BASE ×%d" % sim.shield
+		if sim.cast_mult < 1.0:
+			t += "  ·  ENRAGED"
+		if phase_lbl:
+			phase_lbl.text = t
+	if sim.def_cd > 2.0 and stat_p.text == "":
+		stat_p.text = "SILENCED %.0fs" % ceilf(sim.def_cd)
 	stat_o.add_theme_color_override("font_color", Color(0.5, 1, 0.6))
 	counter_ready.text = "◆ Counter ready" if sim.opp_counter_cd <= 0.0 else "Counter %.0fs" % ceilf(sim.opp_counter_cd)
 	counter_ready.modulate.a = 1.0 if sim.opp_counter_cd <= 0.0 else 0.45
@@ -1147,7 +1198,7 @@ func _refresh_hud() -> void:
 	if not sim.opp_cast.is_empty():
 		cast_o.t = float(sim.opp_cast.t)
 		cast_o.dur = float(sim.opp_cast.dur)
-	var big: bool = not sim.opp_cast.is_empty() and sim.opp_cast.kind == "move"
+	var big: bool = not sim.opp_cast.is_empty() and sim.opp_cast.kind in ["move", "special"]
 	alert.visible = (big or alert.interrupted > 0.0) and alert.title != ""
 	if big:
 		alert.t = float(sim.opp_cast.t)
