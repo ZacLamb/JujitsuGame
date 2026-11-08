@@ -149,7 +149,9 @@ static func apply_flavor(pose: Dictionary, root: Transform3D, f: Dictionary, tow
 const SUB_FAMILY := {"guard_armbar": "armbar", "mount_armbar": "armbar", "flying_armbar": "armbar",
 	"triangle": "triangle", "omoplata": "omoplata", "rnc": "back_choke", "bow_arrow": "back_choke",
 	"cross_collar": "collar", "ezekiel": "collar", "americana": "keylock", "top_kimura": "keylock",
-	"half_kimura": "keylock", "darce": "headlock"}
+	"half_kimura": "keylock", "darce": "headlock", "guillotine": "headlock", "kimura_guard": "keylock",
+	"back_armbar": "armbar", "straight_ankle": "leglock", "kneebar": "leglock", "north_south": "headlock",
+	"mounted_triangle": "collar"}
 
 ## Finishing positions: {"atk": [pose, xf], "def": [pose, xf]}. pos/atk_top give the
 ## position the submission comes from, used by the families that stay in place.
@@ -181,6 +183,17 @@ static func sub_pair(sub_id: String, pos: String, atk_top: bool) -> Dictionary:
 				"l_sh": Vector3(1.55, 0, 0.05), "l_el": Vector3(0.1, 0, 0),
 				"r_sh": Vector3(0.6, 0, -0.4), "r_el": Vector3(0.8, 0, 0)}
 			return {"atk": [a, _xf(Vector3.ZERO, 0.0)], "def": [d, _xf(Vector3(0, 0, -0.5), PI)]}
+		"leglock":
+			# attacker sits past the feet hugging one leg; defender flat, leg trapped
+			var d := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.45, 0, 0),
+				"l_hip": Vector3(0.75, 0, -0.05), "l_kn": Vector3(-0.05, 0, 0),
+				"r_hip": Vector3(0.45, 0, 0.25), "r_kn": Vector3(-1.2, 0, 0),
+				"l_sh": Vector3(0.9, 0, 0.5), "r_sh": Vector3(0.9, 0, -0.5), "l_el": Vector3(0.6, 0, 0), "r_el": Vector3(0.6, 0, 0)}
+			var a := {"hip_h": 0.24, "spine": Vector3(0.75, 0, 0), "neck": Vector3(-0.35, 0, 0),
+				"l_hip": Vector3(1.35, 0, -0.35), "r_hip": Vector3(1.25, 0, 0.3),
+				"l_kn": Vector3(-0.5, 0, 0), "r_kn": Vector3(-0.9, 0, 0),
+				"l_sh": Vector3(1.0, 0, 0.55), "r_sh": Vector3(1.0, 0, -0.55), "l_el": Vector3(1.9, 0, 0), "r_el": Vector3(1.9, 0, 0)}
+			return {"atk": [a, _xf(Vector3(0.0, 0, -1.25), PI)], "def": [d, _xf(Vector3.ZERO, 0.0)]}
 		"omoplata":
 			var a := {"hip_h": 0.2, "hip_rot": Vector3(PI / 2, 0, 0.9), "neck": Vector3(-0.3, 0, 0),
 				"l_hip": Vector3(1.5, 0, -0.6), "r_hip": Vector3(0.9, 0, 0.3),

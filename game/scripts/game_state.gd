@@ -595,6 +595,10 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 				unlock("armbar_win")
 			elif sub == "rnc":
 				unlock("choke_win")
+			elif sub in ["straight_ankle", "kneebar"]:
+				unlock("leglock_win")
+			elif sub == "guillotine":
+				unlock("guillotine_win")
 		else:
 			unlock("points_win")
 		if not first_time:

@@ -66,15 +66,15 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	Sfx.music("roll")
 	if not daily.is_empty():
 		var rd: Dictionary = Data.DAILY_RULES[daily.rule]
-		_show_message("DAILY CHALLENGE: %s\n%s" % [rd.name, rd.desc], 2.6, _begin_exchange)
+		_show_message("DAILY CHALLENGE: %s\n%s" % [rd.name, rd.desc], 2.6, _after_intro)
 	elif not comp.is_empty():
-		_show_message("%s  ·  %s\nvs %s (%s)" % [Data.COMPS[comp.id].name.to_upper(), comp.round_name.to_upper(), opp.name, opp.get("academy", "")], 2.4, _begin_exchange)
+		_show_message("%s  ·  %s\nvs %s (%s)" % [Data.COMPS[comp.id].name.to_upper(), comp.round_name.to_upper(), opp.name, opp.get("academy", "")], 2.4, _after_intro)
 	else:
 		var plan: String = sim.traits.plan
 		if plan != "":
-			_show_message("SCOUTING REPORT: %s\n%s" % [opp.name.to_upper(), plan], 3.2, _begin_exchange)
+			_show_message("SCOUTING REPORT: %s\n%s" % [opp.name.to_upper(), plan], 3.2, _after_intro)
 		else:
-			_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, 1.6, _begin_exchange)
+			_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, 1.6, _after_intro)
 
 # ================================================================= world
 func _pm(c: Color, rough := 0.85) -> StandardMaterial3D:
@@ -443,7 +443,7 @@ func _resolve_timing(marker: float) -> void:
 	else:
 		_animate_move(pending_move, true)
 		var prefix := "PERFECT! " if j == "perfect" else ""
-		_show_message(prefix + r.text, 1.1, _begin_exchange)
+		_show_message(prefix + _call(pending_move, Game.player_name, opp.name), 1.3, _begin_exchange)
 
 func _count_player_move(id: String) -> void:
 	var m: Dictionary = Data.MOVES[id]
@@ -470,10 +470,22 @@ func _opponent_attack() -> void:
 	action_title.text = "%s goes for a %s!" % [opp.name, m.name]
 	if ai_move in sim.traits.fav:
 		action_title.text = "%s goes for the favorite: %s!" % [opp.name, m.name]
+	_build_arrow_ui()
+	_set_phase(Phase.DEFEND, sim.defense_window(ai_move))
+
+## Commentary line for a landed technique, with the points it scored.
+func _call(move_id: String, attacker: String, defender: String) -> String:
+	var t := Data.commentary(move_id, attacker, defender)
+	var pts := int(Data.MOVES[move_id].pts)
+	if pts > 0:
+		t += "  +%d" % pts
+	return t
+
+func _build_arrow_ui() -> void:
 	var head := HBoxContainer.new()
 	head.alignment = BoxContainer.ALIGNMENT_CENTER
 	head.add_theme_constant_override("separation", 16)
-	var dl := UiKit.label("DEFEND", 54, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	var dl := UiKit.label("GRIP" if _grip_left > 0 else "DEFEND", 54, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	dl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	head.add_child(dl)
 	head.add_child(ArrowGlyph.make(defend_dir, 70, UiKit.ACCENT))
@@ -494,10 +506,49 @@ func _opponent_attack() -> void:
 		row.add_child(b)
 	action_body.add_child(row)
 	action_body.add_child(UiKit.label("Arrow keys / WASD or tap the matching arrow", 16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
-	_set_phase(Phase.DEFEND, sim.defense_window(ai_move))
+
+# ---------------------------------------------------------------- grip fight (match start)
+var _grip_left := 0
+var _grip_wins := 0
+
+func _after_intro() -> void:
+	if sim.pos == "standing" and sim.rule != "sub_only":
+		_grip_left = 3
+		_grip_wins = 0
+		_grip_prompt()
+	else:
+		_begin_exchange()
+
+func _grip_prompt() -> void:
+	defend_dir = DIRS[sim.rng.randi() % DIRS.size()]
+	_clear_action()
+	action_title.text = "GRIP FIGHT  %d / 3  ·  hit the arrow to win the grip" % (4 - _grip_left)
+	_build_arrow_ui()
+	_set_phase(Phase.DEFEND, sim.defense_window() * 1.3)
+
+func _resolve_grip(dir: String) -> void:
+	_grip_left -= 1
+	if dir == defend_dir:
+		_grip_wins += 1
+		Sfx.play("hit", -8.0, 1.4)
+	else:
+		Sfx.play("miss", -8.0)
+	if _grip_left > 0:
+		_grip_prompt()
+		return
+	_set_phase(Phase.MESSAGE)
+	if _grip_wins >= 2:
+		Game.bump("grip_master")
+		sim.recover(8)
+		_show_message("You win the grip fight (%d/3): collar and sleeve. Your initiative!" % _grip_wins, 1.1, _enter_choose)
+	else:
+		_show_message("%s wins the grips (%d/3) and attacks first!" % [opp.name, _grip_wins], 1.1, _opponent_attack)
 
 func _resolve_defense(dir: String) -> void:
 	if phase != Phase.DEFEND:
+		return
+	if _grip_left > 0:
+		_resolve_grip(dir)
 		return
 	var m: Dictionary = Data.MOVES[ai_move]
 	var quick := phase_t < phase_limit * 0.4
@@ -519,7 +570,7 @@ func _resolve_defense(dir: String) -> void:
 		_start_struggle(false, ai_move)
 	else:
 		_animate_move(ai_move, false)
-		_show_message(r.text, 1.1, _begin_exchange)
+		_show_message(_call(ai_move, opp.name, Game.player_name), 1.3, _begin_exchange)
 
 func _start_struggle(attacking: bool, sub_id: String) -> void:
 	struggle_sub = sub_id

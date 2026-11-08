@@ -87,6 +87,17 @@ const MOVES := {
 	"bow_arrow": {"name": "Bow & Arrow Choke", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 3},
 	# --- back, bottom
 	"back_escape": {"name": "Hand Fight & Turn In", "pos": "back", "role": "bottom", "result": ["guard", true], "pts": 0, "diff": 2, "cost": 12, "type": "escape", "rank": 0},
+	# --- more techniques, unlocked by belt (IBJJF-style: leg locks come later)
+	"flower_sweep": {"name": "Flower Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 1, "cost": 12, "type": "sweep", "rank": 3},
+	"knee_on_belly": {"name": "Knee on Belly", "pos": "side", "role": "top", "result": ["side", true], "pts": 2, "diff": 1, "cost": 10, "type": "advance", "rank": 4},
+	"guillotine": {"name": "Guillotine Choke", "pos": "standing", "role": "any", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 6},
+	"kimura_guard": {"name": "Kimura from Guard", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 7},
+	"deep_half": {"name": "Deep Half Sweep", "pos": "half", "role": "bottom", "result": ["side", true], "pts": 2, "diff": 2, "cost": 14, "type": "sweep", "rank": 9},
+	"back_armbar": {"name": "Armbar from the Back", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 10},
+	"straight_ankle": {"name": "Straight Ankle Lock", "pos": "guard", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 11},
+	"north_south": {"name": "North-South Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 12},
+	"mounted_triangle": {"name": "Mounted Triangle", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 13},
+	"kneebar": {"name": "Kneebar", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 16, "type": "sub", "rank": 15},
 	# --- talent / style techniques (rank 99 = unlocked only by a style or talent)
 	"snap_down": {"name": "Snap Down & Go Behind", "pos": "standing", "role": "any", "result": ["back", true], "pts": 4, "diff": 2, "cost": 14, "type": "back", "rank": 99},
 	"uchi_mata": {"name": "Uchi Mata", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 99},
@@ -112,7 +123,33 @@ const SUB_FLAVOR := {
 	"omoplata": "sit up, roll the shoulder",
 	"darce": "arm through, squeeze",
 	"ezekiel": "sleeve grip, saw the neck",
+	"guillotine": "arm under the chin, hips up",
+	"kimura_guard": "figure-four, sit up, rotate",
+	"back_armbar": "slide the leg over, extend",
+	"straight_ankle": "blade under the Achilles, arch",
+	"north_south": "shoulder on the jaw, sprawl",
+	"mounted_triangle": "lock the legs, pull the arm across",
+	"kneebar": "hug the leg, hips through",
 }
+
+## Match commentary: {a} = attacker, {d} = defender, {m} = technique.
+const COMMENTARY := {
+	"takedown": ["{a} shoots in and finishes the {m}!", "What a {m} from {a}! Flat on the mat.", "{a} changes levels... {m}! Beautiful."],
+	"sweep": ["{a} off the bottom with the {m}! The crowd loves it.", "{m}! {a} reverses the position.", "From nowhere, {a} hits the {m}."],
+	"pass": ["{a} slices through the guard: {m}!", "Pressure, pressure... {a} passes with the {m}.", "{m}! {d} couldn't hold the guard."],
+	"advance": ["{a} climbs higher: {m}.", "{m}. {a} is building the pressure.", "{a} moves up: {m}, and {d} is in trouble."],
+	"back": ["{a} takes the back! {m}!", "Seatbelt on. {a} is behind {d}.", "{m}! Hooks in, {a} is there."],
+	"escape": ["{d} bridges out: {m}!", "Escape! {a} recovers with the {m}.", "{a} won't stay down: {m}."],
+	"guard": ["{a} sits to guard.", "{a} pulls guard, inviting {d} in.", "{a} takes it to the ground: {m}."],
+}
+
+static func commentary(move_id: String, attacker: String, defender: String) -> String:
+	var m: Dictionary = MOVES[move_id]
+	var lines: Array = COMMENTARY.get(m.type, ["{a}: {m}."])
+	var line: String = lines[randi() % lines.size()]
+	if m.type == "escape":
+		line = line.replace("{d}", attacker)
+	return line.format({"a": attacker, "d": defender, "m": m.name})
 
 static func moves_for(pos: String, top: bool) -> Array:
 	var out: Array = []
@@ -223,7 +260,7 @@ const OPPONENTS := {
 		"intro": "Sixty-two years old, meu filho. Don't go easy. I won't.",
 		"win": "Lindo! Your grandmother would be proud.",
 		"lose": "Never underestimate the old lady with the gi."},
-	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.6, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
+	"jacare": {"name": "Mestre Jacaré", "title": "Fazenda boss, brown belt", "rank": 15, "level": 7.3, "gi": Color(0.42, 0.26, 0.13), "skin": Color(0.48, 0.32, 0.2),
 		"pos": Vector3(64, 0, 58), "style": "submission", "boss": true, "extra": ["darce", "ezekiel", "omoplata", "leg_drag", "berimbolo", "bow_arrow"], "zone": "pantanal",
 		"intro": "Onça sent you? Then you know the rules. My mat, my swamp. Oss.",
 		"win": "The swamp respects you now. Purple belt. Wear it well.",
@@ -430,6 +467,9 @@ const ACHIEVEMENTS := [
 	{"id": "quests_all", "name": "Everybody Knows the Gringo", "desc": "Complete every quest.", "goal": 22},
 	{"id": "first_loot", "name": "Fresh Gear", "desc": "Get your first piece of gear."},
 	{"id": "legendary", "name": "Legendary", "desc": "Own a legendary piece of gear."},
+	{"id": "leglock_win", "name": "Leg Locker", "desc": "Finish someone with a straight ankle lock or a kneebar."},
+	{"id": "guillotine_win", "name": "Off With His Head", "desc": "Finish someone with a guillotine."},
+	{"id": "grip_master", "name": "Grip Master", "desc": "Win 10 grip fights.", "goal": 10},
 	{"id": "behind_falls", "name": "Behind the Veil", "desc": "Find the secret behind the waterfall.", "hidden": true},
 	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
 	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},
