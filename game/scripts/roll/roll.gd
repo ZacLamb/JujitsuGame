@@ -82,7 +82,7 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	me_rank = Game.rank
 	if not team.is_empty():
 		opp = Team.as_opp(team.them)
-		Team.setup_sim(sim, team.me, team.them, float(team.me_stam), float(team.them_stam))
+		Team.setup_sim(sim, team.me, team.them, float(team.me_stam), float(team.them_stam), -1, team.get("opts", {}))
 		me_name = str(team.me.name)
 		me_rank = int(team.me.get("rank", Game.rank))
 	else:
@@ -706,7 +706,7 @@ func _end_match() -> void:
 	if not comp.is_empty():
 		back_text = "Continue"
 	if not team.is_empty():
-		back_text = "Back to the team board"
+		back_text = str(team.get("back", "Back to the team board"))
 	var back := UiKit.button(back_text, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))

@@ -88,6 +88,9 @@ const OTHER := {
 	"familia_rash": {"slot": "rash", "name": "Família Rashguard", "rarity": "rare", "set": "familia", "attrs": {"cardio": 1, "iq": 1},
 		"look": {"color": Color(0.1, 0.45, 0.3), "pattern": "stripes", "accent": Color(0.98, 0.8, 0.2)},
 		"source": "Team Challenge wins", "desc": "Green and gold. Everyone on the team signed the sleeve."},
+	"rash_circuito": {"slot": "rash", "name": "Circuito Champion Rashguard", "rarity": "epic", "attrs": {"iq": 2, "grip": 1, "cardio": 1},
+		"look": {"color": Color(0.08, 0.08, 0.1), "pattern": "stripes", "accent": Color(0.97, 0.77, 0.28)},
+		"source": "Win a Circuito run", "desc": "Five matches, one life. You wore the whole road on your back."},
 	# ---------------- spats (no-gi)
 	"spats_black": {"slot": "spats", "name": "Training Spats", "rarity": "common", "attrs": {},
 		"look": {"color": Color(0.1, 0.1, 0.12)}, "source": "Starter gear", "desc": "Black, plain, honest."},

@@ -172,6 +172,25 @@ func _ready() -> void:
 	check(main.team_match.over() and main.team_board.state == "done", "team match ends (won=%s, bouts=%d)" % [main.team_match.won(), main.team_match.bouts])
 	main.team_board.close_pressed.emit()
 	check(main.team_match == null and main.player.input_enabled, "closing the board returns to the world")
+	# ---- Circuito: draft a card, fight the opening round live, walk away
+	var cspot: Dictionary = {}
+	for sp in main.world.spots:
+		if sp.action == "circuit":
+			cspot = sp
+	check(not cspot.is_empty(), "zone has a Circuito board")
+	main._use_spot(cspot)
+	check(main.circuit_run != null and main.circuit_board.state == "draft", "Circuito opens on the card draft")
+	main.circuit_board.card_picked.emit(main.circuit_run.offers[0])
+	check(main.circuit_run.perks.size() == 1 and main.circuit_board.state == "ready", "card drafted")
+	main.circuit_board.fight_pressed.emit()
+	check(main.roll != null and not main.roll.team.is_empty(), "Circuito match starts a roll")
+	var cr = await play_roll_existing("circuit")
+	check(cr.done and main.circuit_run != null, "Circuito match finished (won=%s)" % cr.won)
+	if not main.circuit_run.over():
+		main.circuit_board.quit_pressed.emit()
+	check(main.circuit_board.state == "done" and int(Game.counters.get("circuit_runs", 0)) == 1, "run recorded")
+	main.circuit_board.close_pressed.emit()
+	check(main.circuit_run == null and main.player.input_enabled, "back to the world after the run")
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
 	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")

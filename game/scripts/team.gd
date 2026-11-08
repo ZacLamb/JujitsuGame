@@ -166,7 +166,8 @@ static func as_opp(f: Dictionary) -> Dictionary:
 	return {"name": f.name, "title": ROLES[f.role].name, "rank": int(f.get("rank", 0)), "level": float(f.level),
 		"gi": f.get("gi", Color(0.95, 0.95, 0.95)), "skin": f.get("skin", Color(0.7, 0.5, 0.35)), "body": f.get("body", "male"),
 		"style": f.get("style", "balanced"), "extra": f.get("extra", []), "zone": "",
-		"intro": "Oss.", "win": "Next!", "lose": "Good roll. Your team's got this."}
+		"intro": "Oss.", "win": f.get("win_line", "Next!"), "lose": f.get("lose_line", "Good roll. Your team's got this."),
+		"phases_of": f.get("phases_of", ""), "boss": f.get("phases_of", "") != ""}
 
 ## Attributes for a non-player fighter: points by level, leaning into the role.
 static func _attrs(f: Dictionary) -> Dictionary:
@@ -208,9 +209,13 @@ static func knows_fn(f: Dictionary) -> Callable:
 	return func(id: String) -> bool: return int(Data.MOVES[id].rank) <= rank + 2 or id in extra
 
 ## Sets a RollSim up for a team bout (the same setup live and simulated).
-static func setup_sim(sim: RollSim, me: Dictionary, them: Dictionary, me_stam: float, them_stam: float, seed_value := -1) -> void:
-	sim.setup("team", float(me.level), knows_fn(me), seed_value, bout_mods(me, them), as_opp(them))
-	sim.apply_rule("team")
+## opts: {roles: false} skips role effects (Circuito), {rule: ""} plays a full-length roll, {perks: [...]}.
+static func setup_sim(sim: RollSim, me: Dictionary, them: Dictionary, me_stam: float, them_stam: float, seed_value := -1, opts: Dictionary = {}) -> void:
+	var m := bout_mods(me, them) if opts.get("roles", true) else (Game.mods() if me.get("player", false) else Rpg.build_mods("", _attrs(me), {})).duplicate(true)
+	if opts.has("perks"):
+		Circuit.perk_mods(m, opts.perks)
+	sim.setup("team", float(me.level), knows_fn(me), seed_value, m, as_opp(them))
+	sim.apply_rule(str(opts.get("rule", "team")))
 	match str(them.role):   # the AI side's role leans its personality
 		"anchor":
 			sim.traits.cardio = float(sim.traits.cardio) * 1.3
@@ -225,6 +230,8 @@ static func setup_sim(sim: RollSim, me: Dictionary, them: Dictionary, me_stam: f
 	sim.opp_stamina = 100.0 * clampf(them_stam, 0.05, 1.0)
 	if me.get("player", false) and Game.style != "":
 		sim.signature = Rpg.STYLES[Game.style].signature
+	if opts.has("perks"):
+		Circuit.perk_start(sim, opts.perks)
 
 ## Simulates a bout with a bot on our side. Returns {won, draw, by_sub, sub, score, me_stam, them_stam}.
 static func sim_bout(me: Dictionary, them: Dictionary, me_stam: float, them_stam: float, seed_value := -1) -> Dictionary:

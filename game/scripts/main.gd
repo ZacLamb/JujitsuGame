@@ -391,6 +391,8 @@ func _use_spot(spot: Dictionary) -> void:
 			_open_comp(spot.arg)
 		"team":
 			_open_team(str(spot.arg))
+		"circuit":
+			_open_circuit()
 		"quest":
 			_open_quest(spot.arg)
 		"drill":
@@ -523,6 +525,7 @@ func _open_team(zone: String) -> void:
 	var nonce := int(Game.counters.get("team_matches", 0))
 	team_match = Team.new_match(zone, Game.team_lineup(), nonce)
 	player.input_enabled = false
+	hud.minimap.visible = false
 	team_board.result_text = ""
 	team_board.show_match(team_match, "lineup")
 
@@ -552,6 +555,59 @@ func _team_close() -> void:
 	if team_board:
 		team_board.visible = false
 	team_match = null
+	hud.minimap.visible = true
+	player.input_enabled = true
+
+# ------------------------------------------------------------ Circuito (roguelite runs)
+var circuit_run: Circuit.Run = null
+var circuit_board: CircuitBoard
+
+func _open_circuit() -> void:
+	if circuit_board == null:
+		circuit_board = CircuitBoard.new()
+		hud.root.add_child(circuit_board)
+		circuit_board.card_picked.connect(func(id: String):
+			circuit_run.perks.append(id)
+			circuit_run.offers = []
+			Sfx.play("collect")
+			circuit_board.show_run(circuit_run, "ready"))
+		circuit_board.fight_pressed.connect(_circuit_fight)
+		circuit_board.quit_pressed.connect(func(): _circuit_finish())
+		circuit_board.close_pressed.connect(_circuit_close)
+	circuit_run = Circuit.new_run(int(Game.counters.get("circuit_runs", 0)))
+	player.input_enabled = false
+	hud.minimap.visible = false
+	circuit_board.result_text = ""
+	circuit_board.show_run(circuit_run, "draft")
+
+func _circuit_fight() -> void:
+	circuit_board.visible = false
+	_start_roll("circuit", {}, {}, {"me": Team.you(), "them": circuit_run.current(), "me_stam": circuit_run.stamina, "them_stam": 1.0,
+		"opts": {"roles": false, "rule": "", "perks": circuit_run.perks}, "back": "Back to the Circuito"})
+
+func _circuit_after(result: Dictionary) -> void:
+	player.input_enabled = false
+	circuit_run.apply(result, float(result.get("me_stam", 1.0)))
+	if circuit_run.over():
+		_circuit_finish()
+	else:
+		circuit_board.show_run(circuit_run, "draft")
+
+func _circuit_finish() -> void:
+	var wins := circuit_run.round
+	var champ := circuit_run.champion()
+	var xp := Game.record_circuit(wins, champ)
+	circuit_board.result_text = ("Five straight wins, the last against a master at full strength. +%d XP and the Circuito Champion Rashguard." % xp) if champ else ("%d win%s this run. +%d XP. The road resets every run; the cards will be different next time." % [wins, "" if wins == 1 else "s", xp])
+	if not champ and not circuit_run.lost:
+		circuit_run.lost = true
+	Sfx.play("win" if champ else "levelup")
+	circuit_board.show_run(circuit_run, "done")
+
+func _circuit_close() -> void:
+	if circuit_board:
+		circuit_board.visible = false
+	circuit_run = null
+	hud.minimap.visible = true
 	player.input_enabled = true
 
 func _start_daily() -> void:
@@ -678,6 +734,9 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 		return
 	if opp_id == "team":
 		_team_after(result, float(result.get("me_stam", 1.0)), float(result.get("them_stam", 1.0)))
+		return
+	if opp_id == "circuit":
+		_circuit_after(result)
 		return
 	if result.won and opp_id == "leao" and not Game.flags.get("black_belt_ending", false):
 		Game.flags["black_belt_ending"] = true

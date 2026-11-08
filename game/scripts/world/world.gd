@@ -1949,6 +1949,19 @@ func _comp_board(pos: Vector3, comp_id: String) -> void:
 	_spot(Vector3(pos.x, gy, pos.z), 2.4, Data.COMPS[comp_id].name, "comp", comp_id)
 	if comp_id != "mundial":
 		_team_board(pos + Vector3(3.4, 0, 0))
+		_circuit_board(pos + Vector3(6.8, 0, 0))
+
+## The Circuito board (purple): roguelite tournament runs.
+func _circuit_board(pos: Vector3) -> void:
+	var gy := ground_y(pos.x, pos.z)
+	var wood := Color(0.4, 0.28, 0.18)
+	_box(Vector3(0.15, 2.4, 0.15), Vector3(pos.x - 0.9, gy + 1.2, pos.z), wood, false)
+	_box(Vector3(0.15, 2.4, 0.15), Vector3(pos.x + 0.9, gy + 1.2, pos.z), wood, false)
+	_box(Vector3(2.2, 1.4, 0.1), Vector3(pos.x, gy + 2.0, pos.z), Color(0.32, 0.14, 0.45), false)
+	for side in [1, -1]:
+		var l := _label("CIRCUITO\n5 lutas · 1 vida", Vector3(pos.x, gy + 2.05, pos.z + 0.07 * side), 40, Color(0.92, 0.75, 1.0), 0.0 if side == 1 else PI)
+		l.pixel_size = 0.0055
+	_spot(Vector3(pos.x, gy, pos.z), 2.2, "Circuito (5 fights, 1 life)", "circuit", zone)
 
 ## The 5v5 team challenge board (green and gold), next to each zone's competition board.
 func _team_board(pos: Vector3) -> void:

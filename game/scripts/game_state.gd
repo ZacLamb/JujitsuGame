@@ -413,6 +413,23 @@ func record_team(won: bool, lost_fighters: int) -> int:
 	progress_changed.emit()
 	return gained
 
+# ------------------------------------------------------------ Circuito (roguelite runs)
+## Records a finished run. wins: matches won (0-5). Returns XP gained.
+func record_circuit(wins: int, champion: bool) -> int:
+	counters["circuit_runs"] = int(counters.get("circuit_runs", 0)) + 1
+	var gained := 25 * wins + (120 if champion else 0)
+	flags["circuit_best"] = maxi(int(flags.get("circuit_best", 0)), wins)
+	if wins >= Circuit.ROUNDS - 1:
+		unlock("circuit_final")
+	if champion:
+		unlock("circuit_champ")
+		bump("circuit_titles")
+		give_item("rash_circuito")
+	add_xp(gained)
+	save_game()
+	progress_changed.emit()
+	return gained
+
 func set_kit(k: String) -> void:
 	if not Gear.KITS.has(k) or k == kit:
 		return

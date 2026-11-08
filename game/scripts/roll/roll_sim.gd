@@ -103,8 +103,9 @@ func setup(opponent_id: String, p_level: float, knows: Callable, seed_value := -
 	else:
 		rng.randomize()
 	ai_t = rng.randf_range(0.8, 1.6)
-	if opp_override.is_empty() and Boss.has(opponent_id):
-		boss_phases = Boss.phases(opponent_id)
+	var pid := opponent_id if opp_override.is_empty() else str(opp_override.get("phases_of", ""))
+	if Boss.has(pid):
+		boss_phases = Boss.phases(pid)
 		_enter_phase(0, false)
 
 func _enter_phase(n: int, announce := true) -> void:
@@ -275,7 +276,7 @@ func technique_chance(move_id: String, by_player: bool, spend: int) -> float:
 func interrupt_chance(move_id := "") -> float:
 	if move_id != "" and Data.MOVES.has(move_id) and mods.scramble and Data.MOVES[move_id].type == "takedown":
 		return 0.0
-	return clampf(0.2 + 0.05 * gap() + 0.008 * opp_level + 0.5 * float(traits.counter) + 0.1 * _boss_k(), 0.06, 0.6)
+	return clampf(0.2 + 0.05 * gap() + 0.008 * opp_level + 0.5 * float(traits.counter) + 0.1 * _boss_k(), 0.06, 0.6) * float(mods.get("read_resist", 1.0))
 
 ## Kept for the scramble talent tests: chance a missed technique gets punished.
 func counter_chance(missed_id := "") -> float:
@@ -387,7 +388,7 @@ func _interrupt_opp(kind: String) -> void:
 		opp_stamina = maxf(0.0, opp_stamina - float(Data.MOVES[was.id].cost) * 0.5)
 		opp_control = 0
 		opp_off_bal = 1.8
-		control = mini(MAX_CONTROL, control + 1)
+		control = mini(MAX_CONTROL, control + 1 + int(mods.get("steal", 0)))
 		stats.interrupts += 1
 		ai_t = maxf(ai_t, 0.9)
 	else:

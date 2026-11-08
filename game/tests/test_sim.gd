@@ -278,6 +278,30 @@ func _ready() -> void:
 	game.record_team(true, 0)
 	check(game.unlocked.has("team_win") and game.unlocked.has("team_clean") and game.xp > xp0, "team win: achievements + xp")
 	check(Gear.SETS.familia.pieces.any(func(p): return game.has_item(p)), "team win drops a Família piece")
+	# ---------------- Circuito
+	game.reset()
+	game.choose_style("athlete", "Tester", 0)
+	game.wins["jacare"] = 1
+	var crng := RandomNumberGenerator.new()
+	crng.seed = 5
+	var offer := Circuit.offer(crng)
+	check(offer.size() == 3 and offer[0] != offer[1] and offer[1] != offer[2] and offer[0] != offer[2], "card draft offers 3 distinct cards")
+	var run := Circuit.new_run(2)
+	check(run.ladder.size() == Circuit.ROUNDS and str(run.ladder[-1].get("phases_of", "")) == "jacare", "the final is a beaten master with phases")
+	var csim := RollSim.new()
+	Team.setup_sim(csim, Team.you(), run.ladder[-1], 1.0, 1.0, 4, {"roles": false, "rule": "", "perks": ["iron_lungs", "grip_head", "thief"]})
+	check(csim.boss_phases.size() == 3 and csim.control == 2 and csim.max_stamina >= 120.0 and int(csim.mods.get("steal", 0)) == 1, "perks + master phases apply in the run (stam %.0f)" % csim.max_stamina)
+	check(csim.clock == RollSim.MATCH_SECONDS, "Circuito matches use the full clock")
+	run.apply({"won": true}, 0.3)
+	check(run.round == 1 and absf(run.stamina - 0.7) < 0.01 and run.offers.size() == 3, "win: next round, stamina recovers 40%, new cards")
+	run.perks.append("ice_bath")
+	run.apply({"won": true}, 0.3)
+	check(absf(run.stamina - 1.0) < 0.01, "Ice Bath adds recovery")
+	run.apply({"won": false}, 0.0)
+	check(run.over() and not run.champion(), "one loss ends the run")
+	var cx0: int = game.xp
+	game.record_circuit(5, true)
+	check(game.unlocked.has("circuit_champ") and game.has_item("rash_circuito") and game.xp > cx0, "champion: achievement, rashguard, xp")
 	# ---------------- belts, zones, drills
 	game.reset()
 	game.add_xp(450)
