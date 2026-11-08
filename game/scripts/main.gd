@@ -133,7 +133,7 @@ func _register_inputs() -> void:
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"look_left": [KEY_Q], "look_right": [KEY_R], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
 		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E, KEY_ENTER],
-		"journal": [KEY_J, KEY_TAB], "character": [KEY_C], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
+		"journal": [KEY_J, KEY_TAB, KEY_L], "character": [KEY_C], "talents": [KEY_N, KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
 		"pause": [KEY_ESCAPE],
 	}
@@ -298,12 +298,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _in_title or roll != null or Game.style == "":
 		return
 	if event.is_action_pressed("journal") and not hud.dialogue_open():
-		hud.toggle_journal()
+		hud.open_window("journal")
+	elif event.is_action_pressed("talents") and not hud.dialogue_open():
+		hud.open_window("talents")
 	elif event.is_action_pressed("character") and not hud.dialogue_open():
-		if hud.journal.visible:
-			hud.toggle_journal()
-		else:
-			hud.open_character()
+		hud.open_window("character")
 	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:
 		hud.toggle_bag()
 	elif event.is_action_pressed("pause") and hud.shop_open():

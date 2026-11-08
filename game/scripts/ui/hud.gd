@@ -28,7 +28,7 @@ var dlg_name: Label
 var dlg_text: Label
 var dlg_yes: Button
 var dlg_no: Button
-var journal: PanelContainer
+var journal: Wow.Frame
 var journal_tabs: TabContainer
 var title: Control
 var touch: TouchControls
@@ -337,33 +337,76 @@ func dialogue_open() -> bool:
 
 # ------------------------------------------------------------ journal
 func _build_journal() -> void:
-	journal = PanelContainer.new()
-	journal.anchor_left = 0.06
-	journal.anchor_right = 0.94
-	journal.anchor_top = 0.08
-	journal.anchor_bottom = 0.94
+	journal = Wow.Frame.new()
 	journal.visible = false
 	root.add_child(journal)
-	var v := VBoxContainer.new()
-	journal.add_child(v)
-	var head := HBoxContainer.new()
-	v.add_child(head)
-	var t := UiKit.label("JOURNAL", 28, UiKit.ACCENT)
-	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(t)
-	var close := UiKit.button("Close", Vector2(120, 44))
-	close.pressed.connect(toggle_journal)
-	head.add_child(close)
+	journal.close_pressed.connect(toggle_journal)
+	journal.tab_pressed.connect(func(i: int):
+		var g: Dictionary = WINDOWS[_window]
+		_want_tab = int(g.tabs[i])
+		_fill_journal())
 	journal_tabs = TabContainer.new()
+	journal_tabs.tabs_visible = false
 	journal_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(journal_tabs)
+	journal.body.add_child(journal_tabs)
 
-func open_character() -> void:
-	_want_tab = 0
+## Journal tab indices (built in _fill_journal) grouped into WoW-like windows.
+const TAB_CHARACTER := 0
+const TAB_TALENTS := 1
+const TAB_GEAR := 2
+const TAB_SPECS := 3
+const TAB_QUESTS := 4
+const TAB_ACHIEVEMENTS := 5
+const TAB_SPELLBOOK := 6
+const TAB_FIGHTERS := 7
+const WINDOWS := {
+	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(860, 530), "at": "left", "glyph": "shield"},
+	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Spellbook"], "size": Vector2(1160, 600), "at": "center", "glyph": "star"},
+	"journal": {"tabs": [4, 5, 7], "names": ["Quests", "Achievements", "Fighters"], "size": Vector2(900, 560), "at": "center", "glyph": "link"},
+}
+var _window := "character"
+
+static func window_of(tab: int) -> String:
+	for w in WINDOWS:
+		if tab in WINDOWS[w].tabs:
+			return w
+	return "journal"
+
+func open_window(w: String) -> void:
+	if journal.visible and _window == w:
+		toggle_journal()
+		return
+	_want_tab = int(WINDOWS[w].tabs[0]) if w != "talents" else (TAB_TALENTS if Game.talent_points() > 0 or Game.spec != "" else TAB_SPECS)
 	if not journal.visible:
 		toggle_journal()
 	else:
 		_fill_journal()
+
+func _layout_window() -> void:
+	var g: Dictionary = WINDOWS[_window]
+	var vs := root.size if root.size.x > 0 else Vector2(1280, 720)
+	var sz: Vector2 = g.size
+	sz = Vector2(minf(sz.x, vs.x - 40), minf(sz.y, vs.y - 60))
+	journal.size = sz
+	# below the player frame (top-left) so the emblem doesn't cover it, tabs above the screen edge
+	journal.position = Vector2(48, 140) if g.at == "left" else Vector2(floorf((vs.x - sz.x) * 0.5), maxf(80.0, vs.y - sz.y - 44.0))
+	if journal.position.y + sz.y + 32 > vs.y:
+		journal.position.y = maxf(8.0, vs.y - sz.y - 34)
+	var cur := journal_tabs.current_tab
+	journal.set_tabs(g.names, (g.tabs as Array).find(cur))
+	var st: String = Rpg.STYLES[Game.style].name if Rpg.STYLES.has(Game.style) else ""
+	match _window:
+		"character":
+			journal.title_lbl.text = Game.player_name
+		"talents":
+			journal.title_lbl.text = {TAB_SPECS: "Specialization", TAB_TALENTS: "Talents", TAB_SPELLBOOK: "Spellbook"}.get(cur, "Talents") + ("  ·  " + st if st != "" else "")
+		_:
+			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters"}.get(cur, "Journal")
+	var sp := Specs.get_spec(Game.spec)
+	journal.set_emblem(str(sp.get("role", "")) if false else str(g.glyph), Team.ROLES[sp.role].color if not sp.is_empty() else Wow.GOLD)
+
+func open_character() -> void:
+	open_window("character")
 
 func toggle_journal() -> void:
 	journal.visible = not journal.visible
@@ -372,53 +415,75 @@ func toggle_journal() -> void:
 		wallet.visible = not journal.visible and not bag_panel.visible
 	if journal.visible:
 		journal.move_to_front()
+		if _want_tab < 0:
+			_want_tab = int(WINDOWS[_window].tabs[0]) if journal_tabs.get_tab_count() == 0 else journal_tabs.current_tab
 		_fill_journal()
 		touch.release_all()
 	touch.visible = _touch_allowed()
 	journal_toggled.emit(journal.visible)
 
 func _fill_gear() -> void:
-	var g := _scroll_tab("Gear")
+	var sc := ScrollContainer.new()
+	sc.name = "Gear"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	journal_tabs.add_child(sc)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 4)
+	sc.add_child(v)
 	var owned := 0
 	for id in Gear.ITEMS:
 		if Game.has_item(id):
 			owned += 1
-	g.add_child(UiKit.label("Gear collected: %d / %d   ·   Wearing your %s kit (switch it on the Character tab)" % [owned, Gear.ITEMS.size(), Gear.KIT_NAMES[Game.kit]], 18, UiKit.MUTED))
+	v.add_child(Wow.label("Wardrobe  ·  %d / %d collected  ·  wearing your %s kit  ·  click an item to wear it" % [owned, Gear.ITEMS.size(), Gear.KIT_NAMES[Game.kit]], 14, Wow.GOLD))
 	for slot in Gear.SLOTS:
-		g.add_child(UiKit.label(Gear.SLOT_NAMES[slot].to_upper(), 24, UiKit.ACCENT))
+		v.add_child(Wow.banner(Gear.SLOT_NAMES[slot]))
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", 6)
+		row.add_theme_constant_override("v_separation", 6)
+		v.add_child(row)
 		var cur := str(Game.equipped.get(slot, ""))
-		if cur == "":
-			g.add_child(UiKit.label("Nothing equipped", 18, UiKit.MUTED))
 		for id in Gear.ITEMS:
 			var it: Dictionary = Gear.ITEMS[id]
 			if it.slot != slot:
 				continue
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 12)
-			g.add_child(row)
-			var info := VBoxContainer.new()
-			info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(info)
-			if Game.has_item(id):
-				var nm := UiKit.label("%s%s" % [it.name, "   (equipped)" if id == cur else ""], 20, Gear.rarity_color(id))
-				info.add_child(nm)
-				info.add_child(UiKit.label("%s  ·  %s" % [Gear.RARITY[it.rarity].name, Gear.stat_text(id)], 16, UiKit.TEXT))
-				if it.has("set"):
-					info.add_child(UiKit.label("Set: %s (%d/%d worn)" % [Gear.SETS[it.set].name, int(Game.set_counts().get(it.set, 0)), Gear.SETS[it.set].pieces.size()], 15, UiKit.ACCENT))
-				info.add_child(UiKit.label(it.desc, 15, UiKit.MUTED))
-				if id != cur:
-					var b := UiKit.button("Equip", Vector2(110, 44))
-					b.add_theme_font_size_override("font_size", 17)
-					b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-					var iid: String = id
-					b.pressed.connect(func():
-						Game.equip(iid)
-						_want_tab = journal_tabs.current_tab
-						_fill_journal())
-					row.add_child(b)
-			else:
-				info.add_child(UiKit.label("???  (%s)" % Gear.RARITY[it.rarity].name, 18, Gear.rarity_color(id).darkened(0.45)))
-				info.add_child(UiKit.label("Source: %s" % it.source, 15, UiKit.MUTED))
+			row.add_child(_wardrobe_item(str(id), slot, cur == id))
+
+func _wardrobe_item(id: String, slot: String, worn: bool) -> Control:
+	var have := Game.has_item(id)
+	var rc: Color = Gear.rarity_color(id)
+	var b := CharSheet.SlotSquare.new()
+	b.item = id
+	b.slot = slot
+	b.tooltip_text = " "
+	b.custom_minimum_size = Vector2(46, 46)
+	var st := Wow.sb(Color(rc.darkened(0.8), 0.95) if have else Color(0.03, 0.03, 0.04, 0.9), rc if have else Color(rc, 0.25), 3, 3, 3 if worn else 1)
+	if worn:
+		st.border_color = Wow.GOLD
+		st.shadow_color = Color(Wow.GOLD, 0.35)
+		st.shadow_size = 5
+	b.add_theme_stylebox_override("panel", st)
+	b.modulate = Color(1, 1, 1, 1.0 if have else 0.45)
+	var ic := CharSheet.SlotIcon.new()
+	ic.kind = slot
+	ic.empty = not have
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if have:
+		var lk := Gear.look(id)
+		ic.col = lk.get("color", Color(0.95, 0.95, 0.9))
+		if id == "standard_gi" or id == "standard_gi_pants":
+			ic.col = Game.gi_color()
+		ic.accent = lk.get("accent", Color(0, 0, 0, 0))
+		ic.trim = lk.get("trim", Color(0, 0, 0, 0))
+	b.add_child(ic)
+	if have and not worn:
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		b.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+				Game.equip(id)
+				_want_tab = journal_tabs.current_tab
+				_fill_journal())
+	return b
 
 func _scroll_tab(name_: String) -> VBoxContainer:
 	var sc := ScrollContainer.new()
@@ -502,23 +567,7 @@ func _fill_journal() -> void:
 		if ach.has("goal") and not got:
 			prog = "  (%d/%d)" % [mini(Game.counter(ach.id), int(ach.goal)), int(ach.goal)]
 		a.add_child(_ach_row(got, ach.name, ach.desc, prog))
-	# Techniques
-	var tq := _scroll_tab("Techniques")
-	for pos in Data.POSITION_NAMES:
-		tq.add_child(UiKit.label(Data.POSITION_NAMES[pos], 22, UiKit.ACCENT))
-		for id in Data.MOVES:
-			var m: Dictionary = Data.MOVES[id]
-			if m.pos != pos:
-				continue
-			if m.has("spec") and Specs.style_of(str(m.spec)) != Game.style:
-				continue
-			var known := Game.knows(id)
-			if m.has("spec"):
-				tq.add_child(UiKit.label("   %s  — %s spec%s" % [m.name, Specs.get_spec(str(m.spec)).name, "" if known else " only"], 18, Color(0.8, 0.6, 1.0) if known else UiKit.MUTED))
-				continue
-			var who := "" if pos == "standing" else ("  [top]" if m.role == "top" else "  [bottom]")
-			var txt := "   %s%s%s" % [m.name, who, "" if known else "  — unlocks at %s" % Data.rank_name(int(m.rank))]
-			tq.add_child(UiKit.label(txt, 18, UiKit.TEXT if known else UiKit.MUTED))
+	_fill_spellbook()
 	# Fighters
 	var f := _scroll_tab("Fighters")
 	for id in Data.OPPONENTS:
@@ -532,10 +581,19 @@ func _fill_journal() -> void:
 				favs.append(str(Data.MOVES[mv].name))
 			f.add_child(UiKit.label("     %s  Favorites: %s." % [pl.plan, ", ".join(favs)], 16, UiKit.MUTED))
 	journal_tabs.current_tab = clampi(cur, 0, journal_tabs.get_tab_count() - 1)
+	_window = window_of(journal_tabs.current_tab)
+	_wowify(journal_tabs.get_child(journal_tabs.current_tab))
+	_layout_window()
 
 func _fill_character() -> void:
-	var c := _scroll_tab("Character")
-	c.add_child(CharSheet.build_character(self))
+	var sc := ScrollContainer.new()
+	sc.name = "Character"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	journal_tabs.add_child(sc)
+	var page := CharSheet.build_character_wow(self)
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.add_child(page)
 
 func _fill_talents() -> void:
 	var t := _scroll_tab("Talents")
@@ -771,7 +829,7 @@ func _build_settings() -> void:
 	v.add_child(UiKit.label("Keys", 22, UiKit.ACCENT))
 	var keys := "WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n" + \
 		"Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n" + \
-		"E or click: talk / roll   ·   C: character   ·   J or Tab: journal   ·   M: map   ·   Esc: this menu\n" + \
+		"E or click: talk / roll   ·   C: character   ·   N: specs, talents & spellbook   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n" + \
 		"In a roll: 1-8 techniques   ·   Q / E / R: Base / Frame / Defend   ·   F: breathe   ·   WASD: circle & step   ·   mash Space: squeeze / escape"
 	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
 	var row := HBoxContainer.new()
@@ -897,3 +955,162 @@ func _spec_card(sp: Dictionary) -> Control:
 			_fill_journal())
 	col.add_child(b)
 	return p
+
+# ------------------------------------------------------------ WoW skin pass
+## Older tab pages were built with the big app-style kit; shrink and re-skin them to fit the
+## WoW windows (serif type, smaller sizes, bronze buttons). New pages are built with Wow directly.
+func _wowify(n: Node) -> void:
+	if n == null or n.has_meta("wow"):
+		return
+	n.set_meta("wow", true)
+	for c in n.find_children("*", "", true, false):
+		if c is Label:
+			var l := c as Label
+			if l.has_theme_font_override("font") and l.get_theme_font("font") == Wow.body():
+				continue
+			var fs := l.get_theme_font_size("font_size")
+			var head := l.has_theme_font_override("font") and l.get_theme_font("font") == UiKit.head_font()
+			l.add_theme_font_size_override("font_size", maxi(11, roundi(fs * (0.62 if head else 0.74))))
+			if head and Wow.title_font():
+				l.add_theme_font_override("font", Wow.title_font())
+			elif Wow.body():
+				l.add_theme_font_override("font", Wow.body())
+			l.add_theme_constant_override("outline_size", 3)
+		elif c is Button and not (c as Button).has_theme_stylebox_override("normal"):
+			var b := c as Button
+			b.add_theme_font_size_override("font_size", maxi(12, roundi(b.get_theme_font_size("font_size") * 0.7)))
+			if Wow.body():
+				b.add_theme_font_override("font", Wow.body())
+			for k in ["normal", "hover", "pressed", "disabled"]:
+				b.add_theme_stylebox_override(k, Wow.theme().get_stylebox(k, "Button"))
+			b.add_theme_color_override("font_color", Wow.GOLD)
+			if b.custom_minimum_size.y > 30:
+				b.custom_minimum_size = Vector2(b.custom_minimum_size.x * 0.75, 30)
+
+# ------------------------------------------------------------ spellbook
+## WoW-style spellbook: a parchment page of technique "spells" (icon + name + where it's used),
+## grouped by position. Hover any one for its full tooltip. Locked ones are greyed with the belt
+## that unlocks them.
+func _fill_spellbook() -> void:
+	var sc := ScrollContainer.new()
+	sc.name = "Spellbook"
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	journal_tabs.add_child(sc)
+	var page := PanelContainer.new()
+	page.add_theme_stylebox_override("panel", Wow.parchment())
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(page)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	page.add_child(v)
+	var head := Wow.title(Rpg.STYLES[Game.style].name if Rpg.STYLES.has(Game.style) else "Techniques", 26, Wow.INK)
+	head.add_theme_constant_override("outline_size", 0)
+	v.add_child(head)
+	var known_n := 0
+	for id in Data.MOVES:
+		if Game.knows(id):
+			known_n += 1
+	var sub := Wow.label("%d techniques known  ·  hover for details  ·  your class signature and spec techniques glow" % known_n, 13, Color(0.35, 0.24, 0.12))
+	sub.add_theme_constant_override("outline_size", 0)
+	v.add_child(sub)
+	var tip_layer := Control.new()
+	tip_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for pos in Data.POSITION_NAMES:
+		var ids: Array = []
+		for id in Data.MOVES:
+			var m: Dictionary = Data.MOVES[id]
+			if m.pos != pos:
+				continue
+			if m.has("spec") and Specs.style_of(str(m.spec)) != Game.style:
+				continue
+			ids.append(id)
+		ids.sort_custom(func(a, b):
+			var ka := (0 if Game.knows(a) else 1) * 100 + int(Data.MOVES[a].rank)
+			var kb := (0 if Game.knows(b) else 1) * 100 + int(Data.MOVES[b].rank)
+			return ka < kb)
+		var ph := Wow.title(str(Data.POSITION_NAMES[pos]), 17, Color(0.45, 0.2, 0.05))
+		ph.add_theme_constant_override("outline_size", 0)
+		v.add_child(ph)
+		var line := ColorRect.new()
+		line.color = Color(0.45, 0.32, 0.16, 0.5)
+		line.custom_minimum_size = Vector2(0, 1)
+		v.add_child(line)
+		var g := GridContainer.new()
+		g.columns = 3
+		g.add_theme_constant_override("h_separation", 18)
+		g.add_theme_constant_override("v_separation", 8)
+		v.add_child(g)
+		for id in ids:
+			g.add_child(_spell_entry(str(id)))
+
+class SpellEntry extends HBoxContainer:
+	var move_id := ""
+	var _tip: Control
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		mouse_entered.connect(func():
+			_tip = MoveInfo.panel(move_id, null, clampf(float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0))
+			_tip.top_level = true
+			_tip.z_index = 100
+			add_child(_tip)
+			_tip.reset_size()
+			var gp := global_position + Vector2(size.x + 6, -4)
+			var vs := get_viewport_rect().size
+			if gp.x + _tip.size.x > vs.x:
+				gp.x = global_position.x - _tip.size.x - 6
+			gp.y = clampf(gp.y, 4, vs.y - _tip.size.y - 4)
+			_tip.global_position = gp)
+		mouse_exited.connect(func():
+			if _tip and is_instance_valid(_tip):
+				_tip.queue_free()
+			_tip = null)
+
+class SpellIcon extends Control:
+	var col := Color.WHITE
+	var glyph := "star"
+	var known := true
+	var glow := false
+	func _init() -> void:
+		custom_minimum_size = Vector2(44, 44)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		var r := Rect2(Vector2(2, 2), size - Vector2(4, 4))
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = col.darkened(0.55) if known else Color(0.3, 0.27, 0.22)
+		bg.border_color = Color(1, 0.85, 0.35) if glow else Color(0.35, 0.25, 0.12)
+		bg.set_border_width_all(3 if glow else 2)
+		bg.set_corner_radius_all(6)
+		draw_style_box(bg, r)
+		CharSheet.draw_glyph(self, glyph, size / 2.0, 24, col.lightened(0.35) if known else Color(0.55, 0.52, 0.45))
+
+func _spell_entry(id: String) -> Control:
+	var m: Dictionary = Data.MOVES[id]
+	var known := Game.knows(id)
+	var h := SpellEntry.new()
+	h.move_id = id
+	h.add_theme_constant_override("separation", 8)
+	h.custom_minimum_size = Vector2(320, 46)
+	var ic := SpellIcon.new()
+	ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(id)]
+	ic.glyph = CombatUi.slot_icon(id, "move")
+	ic.known = known
+	var sig: bool = Rpg.STYLES.has(Game.style) and id in Rpg.STYLES[Game.style].signature
+	ic.glow = known and (sig or m.has("spec"))
+	h.add_child(ic)
+	var tv := VBoxContainer.new()
+	tv.add_theme_constant_override("separation", -2)
+	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(tv)
+	var nm := Wow.label(str(m.name), 16, Wow.INK if known else Color(0.45, 0.4, 0.33))
+	nm.add_theme_constant_override("outline_size", 0)
+	tv.add_child(nm)
+	var subt: String = str(MoveInfo.TYPE_NAMES.get(str(m.type), str(m.type)))
+	if not known:
+		subt = ("%s spec" % Specs.get_spec(str(m.spec)).name) if m.has("spec") else "Unlocks at %s" % Data.rank_name(int(m.rank))
+	elif m.role != "any":
+		subt += "  ·  " + ("top" if m.role == "top" else "bottom")
+	var sl := Wow.label(subt, 12, Color(0.4, 0.3, 0.18))
+	sl.add_theme_constant_override("outline_size", 0)
+	tv.add_child(sl)
+	return h

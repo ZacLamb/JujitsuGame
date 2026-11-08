@@ -76,7 +76,7 @@ const TYPE_NAMES := {"takedown": "Takedown", "guard": "Guard pull", "sweep": "Sw
 static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "", signature := false) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.add_theme_stylebox_override("panel", UiKit.box(Color(0.03, 0.04, 0.06, 0.96), 10, Color(1, 1, 1, 0.25), 1))
+	p.add_theme_stylebox_override("panel", Wow.tip_box())
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 3)
 	v.custom_minimum_size = Vector2(330, 0)
@@ -174,6 +174,11 @@ static func _basic(v: VBoxContainer, id: String, sim: RollSim, pace: float) -> v
 static func _line(t: String, size: int, col: Color, wrap := false) -> Label:
 	var l := Label.new()
 	l.text = t
+	if Wow.body():
+		l.add_theme_font_override("font", Wow.body())
+	l.add_theme_constant_override("outline_size", 2)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	size = maxi(11, size - 1)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE

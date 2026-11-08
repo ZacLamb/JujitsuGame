@@ -70,7 +70,7 @@ static func tooltip(id: String, n := 1, price_mode := "") -> PanelContainer:
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.top_level = true
 	p.z_index = 100
-	p.add_theme_stylebox_override("panel", UiKit.box(Color(0.03, 0.04, 0.06, 0.97), 10, Color(Loot.color(id), 0.6), 1))
+	p.add_theme_stylebox_override("panel", Wow.tip_box())
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 3)
 	v.custom_minimum_size = Vector2(290, 0)
@@ -110,17 +110,18 @@ class BagPanel extends PanelContainer:
 		grow_vertical = Control.GROW_DIRECTION_BEGIN
 		offset_right = -16
 		offset_bottom = -16
-		add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.05, 0.07, 0.95), 14, Color(UiKit.ACCENT, 0.4), 2))
+		theme = Wow.theme()
+		add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 10, 2))
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 6)
 		add_child(v)
 		var head := HBoxContainer.new()
 		v.add_child(head)
-		var t := UiKit.label("BAGS", 20, UiKit.ACCENT)
+		var t := Wow.title("Bags", 16, Wow.GOLD)
 		t.autowrap_mode = TextServer.AUTOWRAP_OFF
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(t)
-		_money = UiKit.label("", 18, Color(1, 0.85, 0.35))
+		_money = Wow.label("", 18, Color(1, 0.85, 0.35))
 		_money.autowrap_mode = TextServer.AUTOWRAP_OFF
 		head.add_child(_money)
 		var x := Button.new()
@@ -136,7 +137,7 @@ class BagPanel extends PanelContainer:
 		_bagbar = HBoxContainer.new()
 		_bagbar.add_theme_constant_override("separation", 4)
 		v.add_child(_bagbar)
-		_msg = UiKit.label("", 13, UiKit.MUTED)
+		_msg = Wow.label("", 13, UiKit.MUTED)
 		_msg.autowrap_mode = TextServer.AUTOWRAP_OFF
 		v.add_child(_msg)
 		Game.bag_changed.connect(func(): if visible: refresh())
@@ -159,7 +160,7 @@ class BagPanel extends PanelContainer:
 			_grid.add_child(s)
 		for c in _bagbar.get_children():
 			c.queue_free()
-		var bl := UiKit.label("Bag slots:", 13, UiKit.MUTED)
+		var bl := Wow.label("Bag slots:", 13, UiKit.MUTED)
 		bl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_bagbar.add_child(bl)
 		for i in Loot.BAG_SLOTS:
@@ -200,17 +201,18 @@ class ShopPanel extends PanelContainer:
 		anchor_bottom = 0.5
 		offset_left = 24
 		grow_vertical = Control.GROW_DIRECTION_BOTH
-		add_theme_stylebox_override("panel", UiKit.box(Color(0.05, 0.05, 0.07, 0.95), 14, Color(1, 0.85, 0.35, 0.5), 2))
+		theme = Wow.theme()
+		add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 12, 2))
 	func build(vendor_name: String) -> void:
 		vendor = vendor_name
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 6)
 		v.custom_minimum_size = Vector2(360, 0)
 		add_child(v)
-		var t := UiKit.label(vendor.to_upper(), 22, UiKit.ACCENT)
+		var t := Wow.title(vendor, 17, Wow.GOLD)
 		t.autowrap_mode = TextServer.AUTOWRAP_OFF
 		v.add_child(t)
-		v.add_child(UiKit.label("\"Olha o açaí! Fresquinho!\"  ·  Click your bag items to sell them.", 13, UiKit.MUTED))
+		v.add_child(Wow.label("\"Olha o açaí! Fresquinho!\"  ·  Click your bag items to sell them.", 13, UiKit.MUTED))
 		_list = VBoxContainer.new()
 		_list.add_theme_constant_override("separation", 4)
 		v.add_child(_list)
@@ -219,18 +221,18 @@ class ShopPanel extends PanelContainer:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		v.add_child(row)
-		var junk := UiKit.button("Sell all junk", Vector2(170, 44))
+		var junk := Wow.button("Sell all junk", Vector2(170, 44))
 		junk.add_theme_font_size_override("font_size", 16)
 		junk.pressed.connect(func():
 			var got := Game.sell_junk()
 			_msg.text = "Sold your junk for R$ %d" % got if got > 0 else "No junk to sell."
 			Sfx.play("click", -6.0))
 		row.add_child(junk)
-		var close := UiKit.button("Tchau!", Vector2(120, 44))
+		var close := Wow.button("Tchau!", Vector2(120, 44))
 		close.add_theme_font_size_override("font_size", 16)
 		close.pressed.connect(func(): closed.emit())
 		row.add_child(close)
-		_msg = UiKit.label("", 14, UiKit.MUTED)
+		_msg = Wow.label("", 14, UiKit.MUTED)
 		_msg.autowrap_mode = TextServer.AUTOWRAP_OFF
 		v.add_child(_msg)
 	func _row(id: String) -> Control:
@@ -245,11 +247,11 @@ class ShopPanel extends PanelContainer:
 		s.custom_minimum_size = Vector2(44, 44)
 		s.clicked.connect(func(_k, _r): _buy(id))
 		h.add_child(s)
-		var nm := UiKit.label(str(it.name), 16, Loot.color(id))
+		var nm := Wow.label(str(it.name), 16, Loot.color(id))
 		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(nm)
-		var b := UiKit.button("R$ %d" % int(it.buy), Vector2(92, 40))
+		var b := Wow.button("R$ %d" % int(it.buy), Vector2(92, 40))
 		b.add_theme_font_size_override("font_size", 15)
 		b.add_theme_color_override("font_color", Color(1, 0.85, 0.35))
 		b.pressed.connect(func(): _buy(id))
@@ -304,7 +306,7 @@ class Wallet extends VBoxContainer:
 			var chip := PanelContainer.new()
 			chip.add_theme_stylebox_override("panel", UiKit.box(Color(Loot.color(id).darkened(0.7), 0.9), 8, Loot.color(id), 1))
 			chip.tooltip_text = "%s\n%s" % [Loot.item(id).name, Loot.item(id).desc]
-			var l := UiKit.label("%s %d:%02d" % [str(Loot.item(id).name).split(" ")[0], int(active[id]) / 60, int(active[id]) % 60], 12, UiKit.TEXT)
+			var l := Wow.label("%s %d:%02d" % [str(Loot.item(id).name).split(" ")[0], int(active[id]) / 60, int(active[id]) % 60], 12, UiKit.TEXT)
 			l.autowrap_mode = TextServer.AUTOWRAP_OFF
 			chip.add_child(l)
 			_buffs.add_child(chip)

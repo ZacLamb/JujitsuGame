@@ -330,7 +330,7 @@ class SlotSquare extends PanelContainer:
 	func _make_custom_tooltip(_for_text: String) -> Object:
 		return CharSheet.item_tooltip(item, slot)
 
-static func _slot_square(hud, slot: String) -> Control:
+static func _slot_square(hud, slot: String, px := 66.0) -> Control:
 	var id := str(Game.equipped.get(slot, ""))
 	var has := id != "" and Gear.ITEMS.has(id)
 	var active: bool = slot in Gear.KITS[Game.kit]
@@ -339,7 +339,7 @@ static func _slot_square(hud, slot: String) -> Control:
 	b.item = id if has else ""
 	b.slot = slot
 	b.tooltip_text = " "
-	b.custom_minimum_size = Vector2(66, 66)
+	b.custom_minimum_size = Vector2(px, px)
 	b.modulate = Color(1, 1, 1, 1.0 if active else 0.4)
 	var nsb := _sb(Color(rc, 0.1) if has else Color(0, 0, 0, 0.45), rc, 10, 5)
 	var hsb := _sb(Color(rc, 0.22) if has else Color(0.1, 0.1, 0.1, 0.7), rc.lightened(0.35), 10, 5)
@@ -352,6 +352,11 @@ static func _slot_square(hud, slot: String) -> Control:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			hud._want_tab = 2
 			hud._fill_journal())
+	if px < 60.0:
+		nsb.set_corner_radius_all(3)
+		hsb.set_corner_radius_all(3)
+		nsb.bg_color = Color(0.02, 0.02, 0.03, 0.9) if not has else Color(rc.darkened(0.8), 0.95)
+		nsb.border_width_left = 1
 	var ic := SlotIcon.new()
 	ic.kind = slot
 	ic.empty = not has
@@ -368,41 +373,37 @@ static func _slot_square(hud, slot: String) -> Control:
 
 ## WoW-style item tooltip: name in quality colour, slot, stats, set pieces and set bonuses.
 static func item_tooltip(id: String, slot: String) -> Control:
-	var p := _panel(Color(0.03, 0.04, 0.06, 0.97), Color(1, 1, 1, 0.25), 8, 10)
-	p.custom_minimum_size = Vector2(300, 0)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	p.add_child(v)
+	var tp := Wow.tip(300.0)
+	var p: PanelContainer = tp[0]
+	var v: VBoxContainer = tp[1]
 	if id == "":
-		v.add_child(_small(Gear.SLOT_NAMES.get(slot, slot), 16, UiKit.TEXT))
-		v.add_child(_small("Empty. Bosses, quests and medals drop gear.", 13, UiKit.MUTED, true))
+		Wow.tline(v, Gear.SLOT_NAMES.get(slot, slot), Wow.WHITE, 16)
+		Wow.tline(v, "Empty. Bosses, quests, mobs and medals drop gear.", Wow.GREY, 13, true)
 		return p
 	var it: Dictionary = Gear.ITEMS[id]
-	v.add_child(_small(it.name, 17, Gear.rarity_color(id), true))
-	var meta := HBoxContainer.new()
-	v.add_child(meta)
-	var sl := _small(Gear.SLOT_NAMES[it.slot], 13, UiKit.TEXT)
-	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	meta.add_child(sl)
-	meta.add_child(_small(Gear.RARITY[it.rarity].name, 13, Gear.rarity_color(id)))
+	Wow.tline(v, it.name, Gear.rarity_color(id), 17, true)
+	if it.has("set"):
+		Wow.tline(v, "Set piece", Wow.GREEN, 13)
+	Wow.tpair(v, Gear.SLOT_NAMES[it.slot], Gear.RARITY[it.rarity].name)
 	for k in Rpg.ATTR_ORDER:
 		var val := int(it.attrs.get(k, 0))
 		if val > 0:
-			v.add_child(_small("+%d %s" % [val, Rpg.ATTRS[k].name], 14, UiKit.TEXT))
+			Wow.tline(v, "+%d %s" % [val, Rpg.ATTRS[k].name], Wow.WHITE)
 	if it.has("set"):
 		var st: Dictionary = Gear.SETS[it.set]
 		var have := int(Game.set_counts().get(it.set, 0))
-		v.add_child(_small(" ", 6))
-		v.add_child(_small("%s (%d/%d)" % [st.name, have, st.pieces.size()], 14, UiKit.ACCENT))
+		Wow.tgap(v)
+		Wow.tline(v, "%s (%d/%d)" % [st.name, have, st.pieces.size()], Wow.GOLD)
 		for pid in st.pieces:
 			var worn: bool = pid in Game.worn()
-			v.add_child(_small("   " + Gear.ITEMS[pid].name, 13, Color(1, 0.95, 0.7) if worn else Color(0.55, 0.55, 0.55)))
+			Wow.tline(v, "   " + Gear.ITEMS[pid].name, Color(1, 0.95, 0.7) if worn else Wow.GREY, 13)
+		Wow.tgap(v, 3)
 		for line in Gear.set_lines(it.set):
 			var on := have >= int(line[0])
-			v.add_child(_small("(%d) Set: %s" % [line[0], line[1]], 13, Color(0.35, 1.0, 0.35) if on else Color(0.55, 0.55, 0.55), true))
-	v.add_child(_small(" ", 6))
-	v.add_child(_small("\"%s\"" % it.desc, 13, Color(1, 0.82, 0.3), true))
-	v.add_child(_small("Source: %s" % it.source, 12, UiKit.MUTED, true))
+			Wow.tline(v, "(%d) Set: %s" % [line[0], line[1]], Wow.GREEN if on else Wow.GREY, 13, true)
+	Wow.tgap(v)
+	Wow.tline(v, "\"%s\"" % it.desc, Wow.GOLD, 13, true)
+	Wow.tline(v, "Source: %s" % it.source, Wow.GREY, 12, true)
 	return p
 
 ## Active / partial set bonuses under the paper doll.
@@ -1018,3 +1019,146 @@ static func _fill_detail(hud, panel: PanelContainer, dv: VBoxContainer, tid: Str
 			hud._sel_talent = tid
 			Game.learn(tid))
 		dv.add_child(lb)
+
+# ================================================================== WoW-style character page
+## Paper doll (slots either side of the 3D model, kit toggle under it) + a stats column with
+## ornate section banners, like WoW's character frame.
+static func build_character_wow(hud) -> Control:
+	var page := HBoxContainer.new()
+	page.add_theme_constant_override("separation", 10)
+	if Game.style == "":
+		page.add_child(Wow.label("No style chosen yet.", 15))
+		return page
+	var st: Dictionary = Rpg.STYLES[Game.style]
+	var sp := Specs.get_spec(Game.spec)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_child(left)
+	var cls := "Level %d %s%s" % [Game.player_level(), (str(sp.name) + " ") if not sp.is_empty() else "", st.name]
+	left.add_child(Wow.label(cls, 15, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER))
+	var doll := PanelContainer.new()
+	doll.add_theme_stylebox_override("panel", Wow.sb(Color(0.02, 0.03, 0.04, 0.9), Color(Wow.FRAME, 0.7), 3, 6))
+	doll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(doll)
+	var mid := HBoxContainer.new()
+	mid.add_theme_constant_override("separation", 6)
+	doll.add_child(mid)
+	var lcol := VBoxContainer.new()
+	lcol.add_theme_constant_override("separation", 6)
+	mid.add_child(lcol)
+	for slot in Gear.DOLL_LEFT:
+		lcol.add_child(_slot_square(hud, slot, 46.0))
+	var centre := VBoxContainer.new()
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(centre)
+	var d := Doll.new()
+	d.custom_minimum_size = Vector2(240, 300)
+	centre.add_child(d)
+	var kits := HBoxContainer.new()
+	kits.alignment = BoxContainer.ALIGNMENT_CENTER
+	kits.add_theme_constant_override("separation", 6)
+	centre.add_child(kits)
+	for k in Gear.KITS:
+		var kb := Wow.button(Gear.KIT_NAMES[k], Vector2(86, 26))
+		var on: bool = Game.kit == k
+		if on:
+			kb.add_theme_stylebox_override("normal", Wow.button_box(Color(0.55, 0.4, 0.08), Wow.GOLD))
+			kb.add_theme_color_override("font_color", Wow.WHITE)
+		kb.tooltip_text = "Wear your %s kit. Only the worn kit's gear and set pieces count." % Gear.KIT_NAMES[k]
+		kb.pressed.connect(func(): Game.set_kit(k))
+		kits.add_child(kb)
+	var rcol := VBoxContainer.new()
+	rcol.add_theme_constant_override("separation", 6)
+	mid.add_child(rcol)
+	for slot in Gear.DOLL_RIGHT:
+		rcol.add_child(_slot_square(hud, slot, 46.0))
+	# xp bar
+	var lv := Game.player_level()
+	var xb := UiKit.bar(Color(0.55, 0.3, 0.9), Vector2(0, 10))
+	xb.add_theme_stylebox_override("background", Wow.sb(Color(0, 0, 0, 0.8), Wow.FRAME, 2, 0))
+	xb.add_theme_stylebox_override("fill", Wow.sb(Color(0.55, 0.3, 0.9) if not Game.level_capped() else Wow.GOLD, Color(0, 0, 0, 0), 2, 0))
+	xb.max_value = 1.0
+	xb.step = 0.0
+	xb.value = 1.0 if Game.level_capped() else Game.level_progress()
+	left.add_child(xb)
+	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else "%d XP to level %d" % [Game.XP_PER_LEVEL - int(Game.level_progress() * Game.XP_PER_LEVEL), lv + 1])
+	left.add_child(Wow.label(xt, 12, Wow.GREY, false, HORIZONTAL_ALIGNMENT_CENTER))
+	# stats column
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size = Vector2(320, 0)
+	page.add_child(sc)
+	var inset := PanelContainer.new()
+	inset.add_theme_stylebox_override("panel", Wow.sb(Color(0.03, 0.03, 0.04, 0.9), Color(Wow.FRAME, 0.7), 3, 10))
+	inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(inset)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	inset.add_child(v)
+	v.add_child(Wow.banner("Belt"))
+	var belt: Dictionary = Data.BELTS[Game.belt_index()]
+	v.add_child(Wow.title(Data.rank_name(Game.rank), 18, (belt.color as Color).lightened(0.15) if (belt.color as Color).get_luminance() < 0.35 else belt.color))
+	(v.get_child(v.get_child_count() - 1) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(Wow.banner("Attributes"))
+	var ap := Game.attr_points()
+	for k in Rpg.ATTR_ORDER:
+		v.add_child(_wow_attr_row(k, ap))
+	if ap > 0:
+		v.add_child(Wow.label("%d attribute point%s to spend" % [ap, "" if ap == 1 else "s"], 13, Wow.GREEN, false, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(Wow.banner("Enhancements"))
+	var m := Game.mods()
+	var pct := func(x: float) -> String: return ("+%d%%" % roundi((x - 1.0) * 100.0)) if x >= 1.0 else ("%d%%" % roundi((x - 1.0) * 100.0))
+	v.add_child(Wow.stat_row("Stamina:", str(int(m.stamina_max)), Wow.WHITE, "Gas tank for a roll. Cardio raises it."))
+	v.add_child(Wow.stat_row("Recovery:", pct.call(float(m.regen)), Wow.WHITE, "Stamina regained while you're not casting."))
+	v.add_child(Wow.stat_row("Technique cost:", pct.call(float(m.cost)), Wow.WHITE, "Stamina each technique costs."))
+	v.add_child(Wow.stat_row("Reaction time:", pct.call(float(m.defense)), Wow.WHITE, "How long their casts take. IQ raises it."))
+	v.add_child(Wow.stat_row("Cast speed:", pct.call(float(m.decision)), Wow.WHITE, "How fast your techniques cast."))
+	v.add_child(Wow.stat_row("Squeeze:", pct.call(float(m.struggle_atk)), Wow.WHITE, "Finishing power on submissions."))
+	v.add_child(Wow.stat_row("Escape:", pct.call(float(m.struggle_def)), Wow.WHITE, "How fast you break out of submissions."))
+	v.add_child(Wow.stat_row("Sub depth:", "+%d%%" % roundi(float(m.sub_start) * 100.0), Wow.WHITE, "How deep your submissions start."))
+	v.add_child(Wow.banner("Record"))
+	var wins := 0
+	for k in Game.wins:
+		wins += int(Game.wins[k])
+	var losses := 0
+	for k in Game.losses:
+		losses += int(Game.losses[k])
+	var mc := Game.medal_counts()
+	v.add_child(Wow.stat_row("Wins / losses:", "%d / %d" % [wins, losses]))
+	v.add_child(Wow.stat_row("Medals:", "%d gold · %d silver · %d bronze" % [mc.gold, mc.silver, mc.bronze], Wow.GOLD))
+	v.add_child(Wow.stat_row("Money:", "R$ %d" % Game.money, Wow.GOLD))
+	var c := Game.set_counts()
+	if not c.is_empty():
+		v.add_child(Wow.banner("Set Bonuses"))
+		for stid in c:
+			var sd: Dictionary = Gear.SETS[stid]
+			v.add_child(Wow.label("%s  %d/%d" % [sd.name, int(c[stid]), sd.pieces.size()], 14, Wow.GOLD))
+			for line in Gear.set_lines(stid):
+				var on := int(c[stid]) >= int(line[0])
+				v.add_child(Wow.label("(%d) %s" % [line[0], line[1]], 13, Wow.GREEN if on else Wow.GREY, true))
+	v.add_child(Wow.banner("Style"))
+	v.add_child(Wow.label(st.passive, 13, Wow.GREEN, true))
+	return page
+
+static func _wow_attr_row(k: String, ap: int) -> Control:
+	var a: Dictionary = Rpg.ATTRS[k]
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	h.tooltip_text = "%s\nBase %d · Training +%d · Style +%d · Points +%d · Gear +%d" % [a.desc, Rpg.ATTR_BASE, Game.train_bonus(k), int(Rpg.STYLES[Game.style].attrs.get(k, 0)), int(Game.attr_alloc.get(k, 0)), Game.gear_bonus(k)]
+	h.mouse_filter = Control.MOUSE_FILTER_PASS
+	var nl := Wow.label(a.name + ":", 14, Wow.PALE)
+	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(nl)
+	var gb := Game.gear_bonus(k)
+	if gb > 0:
+		h.add_child(Wow.label("(+%d)" % gb, 13, Wow.GREEN))
+	h.add_child(Wow.label("%d" % Game.attr(k), 14, Wow.WHITE))
+	if ap > 0:
+		var plus := Wow.button("+", Vector2(22, 20))
+		plus.add_theme_font_size_override("font_size", 13)
+		plus.disabled = Game.attr(k) >= Rpg.ATTR_CAP
+		plus.tooltip_text = "Raise %s" % a.name
+		plus.pressed.connect(func(): Game.raise_attr(k))
+		h.add_child(plus)
+	return h
