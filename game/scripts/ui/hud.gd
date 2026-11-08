@@ -94,7 +94,7 @@ func _build_status() -> void:
 	status_panels.append(uf)
 	var plate := Panel.new()
 	plate.position = Vector2(40, 8)
-	plate.size = Vector2(296, 62)
+	plate.size = Vector2(296, 70)
 	var ps := Wow.sb(Color(0.03, 0.03, 0.05, 0.82), Color(Wow.FRAME, 0.9), 4, 0, 1)
 	plate.add_theme_stylebox_override("panel", ps)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -108,27 +108,48 @@ func _build_status() -> void:
 	_lvl_badge.position = Vector2(46, 50)
 	uf.add_child(_lvl_badge)
 	rank_box = VBoxContainer.new()   # kept for compatibility with older code
+	# one frame, WoW-style: name + belt on top, then Composure / Gas / Grip (drawn by CombatHud)
 	rank_label = Wow.title("", 15, Wow.GOLD)
 	rank_label.position = Vector2(82, 10)
-	rank_label.size = Vector2(250, 20)
+	rank_label.size = Vector2(150, 20)
 	uf.add_child(rank_label)
 	chip_holder = Control.new()
-	chip_holder.position = Vector2(82, 32)
+	chip_holder.position = Vector2(236, 15)
 	chip_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	uf.add_child(chip_holder)
-	xp_bar = UiKit.bar(XP_COLOR, Vector2(246, 12))
-	xp_bar.position = Vector2(82, 52)
-	xp_bar.size = Vector2(246, 12)
-	xp_bar.add_theme_stylebox_override("background", Wow.sb(Color(0.06, 0.03, 0.1, 0.9), Color(0, 0, 0, 0.9), 2, 0))
-	uf.add_child(xp_bar)
+	# XP: a thin full-width bar just above the action bar, like WoW
+	var xpw := 716.0
+	xp_bar = UiKit.bar(XP_COLOR, Vector2(xpw, 8))
+	xp_bar.anchor_left = 0.5
+	xp_bar.anchor_right = 0.5
+	xp_bar.anchor_top = 1.0
+	xp_bar.anchor_bottom = 1.0
+	xp_bar.offset_left = -xpw / 2.0
+	xp_bar.offset_right = xpw / 2.0
+	xp_bar.offset_top = -69
+	xp_bar.offset_bottom = -61
+	xp_bar.add_theme_stylebox_override("background", Wow.sb(Color(0.06, 0.03, 0.1, 0.9), Color(0, 0, 0, 0.9), 1, 0))
+	xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(xp_bar)
+	status_panels.append(xp_bar)
 	_xp_text = Wow.label("", 11, Wow.WHITE, false, HORIZONTAL_ALIGNMENT_CENTER)
-	_xp_text.position = Vector2(82, 49)
-	_xp_text.size = Vector2(246, 16)
-	uf.add_child(_xp_text)
-	lvl_label = Wow.label("", 13, Wow.GREEN)
-	lvl_label.position = Vector2(84, 72)
-	lvl_label.size = Vector2(260, 18)
-	uf.add_child(lvl_label)
+	_xp_text.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_xp_text.offset_top = -4
+	_xp_text.offset_bottom = 4
+	_xp_text.add_theme_constant_override("outline_size", 3)
+	xp_bar.add_child(_xp_text)
+	# unspent points: a small gold notice above the XP bar (the level badge glows too)
+	lvl_label = Wow.label("", 13, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER)
+	lvl_label.anchor_left = 0.5
+	lvl_label.anchor_right = 0.5
+	lvl_label.anchor_top = 1.0
+	lvl_label.anchor_bottom = 1.0
+	lvl_label.offset_left = -300
+	lvl_label.offset_right = 300
+	lvl_label.offset_top = -90
+	lvl_label.offset_bottom = -72
+	root.add_child(lvl_label)
+	status_panels.append(lvl_label)
 	# --- objective tracker (right side, under the round minimap)
 	var right := VBoxContainer.new()
 	right.anchor_left = 1.0
@@ -166,7 +187,7 @@ func _build_status() -> void:
 	micro.add_theme_constant_override("separation", 3)
 	root.add_child(micro)
 	status_panels.append(micro)
-	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Spellbook (N)", func(): open_window("talents")],
+	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
 			["lock", "Bags (B)", toggle_bag], ["link", "Quest Log (L)", func(): open_window("journal")],
 			["wave", "World Map (M)", func(): minimap.toggle_big()], ["loop", "Game Menu (Esc)", toggle_settings]]:
 		var mb := MicroButton.new()
@@ -237,12 +258,9 @@ func refresh() -> void:
 	rank_label.text = Game.player_name
 	for c in chip_holder.get_children():
 		c.queue_free()
-	var chip := UiKit.belt_chip(Game.rank, Vector2(246, 14))
+	var chip := UiKit.belt_chip(Game.rank, Vector2(92, 10))
+	chip.tooltip_text = Data.rank_name(Game.rank)
 	chip_holder.add_child(chip)
-	var bt := Wow.label(Data.rank_name(Game.rank), 11, Wow.WHITE if Data.belt_of(Game.rank) != 0 else Color(0.15, 0.12, 0.1), false, HORIZONTAL_ALIGNMENT_LEFT)
-	bt.position = Vector2(6, -1)
-	bt.add_theme_constant_override("outline_size", 2 if Data.belt_of(Game.rank) != 0 else 0)
-	chip_holder.add_child(bt)
 	var capped := Game.level_capped()
 	xp_bar.value = 100.0 * Game.level_progress()
 	xp_bar.add_theme_stylebox_override("fill", Wow.sb(XP_CAP_COLOR if capped else XP_COLOR, Color(0, 0, 0, 0), 2, 0))
@@ -260,13 +278,13 @@ func refresh() -> void:
 	elif capped:
 		_xp_text.text = "Max level"
 	else:
-		_xp_text.text = "%d / %d XP" % [int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL]
+		_xp_text.text = "Level %d  ·  %d / %d XP" % [lv, int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL]
 	var parts: Array = []
 	if Game.attr_points() > 0:
-		parts.append("%d attribute (C)" % Game.attr_points())
+		parts.append("%d attribute point%s [C]" % [Game.attr_points(), "" if Game.attr_points() == 1 else "s"])
 	if Game.talent_points() > 0:
-		parts.append("%d talent (N)" % Game.talent_points())
-	lvl_label.text = ("Points to spend: " + ", ".join(parts)) if not parts.is_empty() else ""
+		parts.append("%d talent point%s [N]" % [Game.talent_points(), "" if Game.talent_points() == 1 else "s"])
+	lvl_label.text = ("✦ Spend " + "  ·  ".join(parts)) if not parts.is_empty() else ""
 	# objective tracker
 	objective.text = Game.current_objective()
 	for c in _tracker.get_children():
@@ -357,7 +375,8 @@ func set_combat(c: WorldCombat) -> void:
 	if combat_hud == null:
 		combat_hud = CombatHud.new()
 		root.add_child(combat_hud)
-		root.move_child(combat_hud, 0)   # windows / dialogue draw above the bars
+		# just above the player frame (its bars sit inside the frame plate), below windows / dialogue
+		root.move_child(combat_hud, status_panels[0].get_index() + 1 if not status_panels.is_empty() else 0)
 	combat_hud.combat = c
 	if not c.ability_learned.is_connected(combat_hud.learned):
 		c.ability_learned.connect(combat_hud.learned)
@@ -469,7 +488,7 @@ const TAB_FIGHTERS := 7
 const TAB_TEAM := 8
 const WINDOWS := {
 	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(860, 530), "at": "left", "glyph": "shield"},
-	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Spellbook"], "size": Vector2(1160, 580), "at": "center", "glyph": "star"},
+	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Moves"], "size": Vector2(1160, 580), "at": "center", "glyph": "star"},
 	"journal": {"tabs": [4, 5, 7, 8], "names": ["Quests", "Achievements", "Fighters", "Team"], "size": Vector2(900, 540), "at": "center", "glyph": "link"},
 }
 var _window := "character"
@@ -509,7 +528,7 @@ func _layout_window() -> void:
 		"character":
 			journal.title_lbl.text = Game.player_name
 		"talents":
-			journal.title_lbl.text = {TAB_SPECS: "Specialization", TAB_TALENTS: "Talents", TAB_SPELLBOOK: "Spellbook"}.get(cur, "Talents") + ("  ·  " + st if st != "" else "")
+			journal.title_lbl.text = {TAB_SPECS: "Specialization", TAB_TALENTS: "Talents", TAB_SPELLBOOK: "Moves"}.get(cur, "Talents") + ("  ·  " + st if st != "" else "")
 		_:
 			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters", TAB_TEAM: "Team  ·  " + Team.TEAM_NAMES[0]}.get(cur, "Journal")
 	var sp := Specs.get_spec(Game.spec)
@@ -947,7 +966,7 @@ func _build_settings() -> void:
 	v.add_child(UiKit.label("Keys", 22, UiKit.ACCENT))
 	var keys := "WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n" + \
 		"Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n" + \
-		"E or click: talk / roll   ·   C: character   ·   N: specs, talents & spellbook   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n" + \
+		"E or click: talk / roll   ·   C: character   ·   N: specs, talents & moves   ·   P: moves   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n" + \
 		"In a roll: 1-8 techniques   ·   Q / E / R: Base / Frame / Defend   ·   F: breathe   ·   WASD: circle & step   ·   mash Space: squeeze / escape"
 	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
 	var row := HBoxContainer.new()
@@ -1067,6 +1086,7 @@ func _spec_card(sp: Dictionary) -> Control:
 	var ic := SpellIcon.new()
 	ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(str(sp.move))]
 	ic.glyph = CombatUi.slot_icon(str(sp.move), "move")
+	ic.key = IconArt.move_key(str(sp.move))
 	ic.glow = true
 	e.add_child(ic)
 	var tv := VBoxContainer.new()
@@ -1148,10 +1168,10 @@ func _fill_spellbook() -> void:
 	head.add_theme_constant_override("outline_size", 0)
 	v.add_child(head)
 	# --- abilities: drag them onto the action bar
-	var ah := Wow.title("Abilities", 19, Color(0.45, 0.2, 0.05))
+	var ah := Wow.title("Your Moves", 19, Color(0.45, 0.2, 0.05))
 	ah.add_theme_constant_override("outline_size", 0)
 	v.add_child(ah)
-	var asub := Wow.label("Drag an ability onto your action bar · right-click a bar slot to clear it · new ones unlock as you level", 13, Color(0.35, 0.24, 0.12))
+	var asub := Wow.label("Drag a move onto your action bar · right-click a bar slot to clear it · new ones unlock as you level", 13, Color(0.35, 0.24, 0.12))
 	asub.add_theme_constant_override("outline_size", 0)
 	v.add_child(asub)
 	var ag := GridContainer.new()
@@ -1171,7 +1191,7 @@ func _fill_spellbook() -> void:
 	var th := Wow.title("Technique library", 19, Color(0.45, 0.2, 0.05))
 	th.add_theme_constant_override("outline_size", 0)
 	v.add_child(th)
-	var sub := Wow.label("%d techniques known. Each ability button uses the strongest technique of its kind you know." % known_n, 13, Color(0.35, 0.24, 0.12))
+	var sub := Wow.label("%d techniques known. Each move button uses the strongest technique of its kind you know." % known_n, 13, Color(0.35, 0.24, 0.12))
 	sub.add_theme_constant_override("outline_size", 0)
 	v.add_child(sub)
 	var tip_layer := Control.new()
@@ -1221,6 +1241,7 @@ class AbilityEntry extends HBoxContainer:
 		var icn: Array = CombatHud.icon_of(a)
 		ic.col = icn[1]
 		ic.glyph = str(icn[0])
+		ic.key = IconArt.ability_key(a)
 		ic.known = have
 		ic.glow = str(a.id) in ["spec", "racial"] and have
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1301,13 +1322,14 @@ class SpellIcon extends Control:
 	var glyph := "star"
 	var known := true
 	var glow := false
+	var key := ""
 	func _init() -> void:
 		custom_minimum_size = Vector2(44, 44)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	func _draw() -> void:
 		var r := Rect2(Vector2(2, 2), size - Vector2(4, 4))
 		if true:
-			IconArt.draw(self, r, glyph, col, Wow.GOLD if glow else Color(0, 0, 0, 0), not known)
+			IconArt.draw(self, r, glyph, col, Wow.GOLD if glow else Color(0, 0, 0, 0), not known, key)
 			return
 		var bg := StyleBoxFlat.new()
 		bg.bg_color = col.darkened(0.55) if known else Color(0.3, 0.27, 0.22)
@@ -1327,6 +1349,7 @@ func _spell_entry(id: String) -> Control:
 	var ic := SpellIcon.new()
 	ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(id)]
 	ic.glyph = CombatUi.slot_icon(id, "move")
+	ic.key = IconArt.move_key(id)
 	ic.known = known
 	var sig: bool = Rpg.STYLES.has(Game.style) and id in Rpg.STYLES[Game.style].signature
 	ic.glow = known and (sig or m.has("spec"))

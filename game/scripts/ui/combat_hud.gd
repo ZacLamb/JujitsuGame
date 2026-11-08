@@ -154,19 +154,20 @@ func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, text: String, ba
 
 func _draw() -> void:
 	var me: CombatCore.Unit = combat.me
-	# player bars, under the unit frame (top-left)
-	var x0 := 75.0
-	_bar(Vector2(x0, 84), Vector2(200, 14), me.pct(), HP_COL, "%d / %d" % [int(me.hp), int(me.max_hp)])
-	_bar(Vector2(x0, 100), Vector2(200, 8), me.gas / me.max_gas, GAS_COL, "")
+	# player bars, inside the unit frame plate (top-left; the frame is the HUD's, scaled 0.8)
+	var x0 := 76.0
+	var bw := 196.0
+	_bar(Vector2(x0, 33), Vector2(bw, 13), me.pct(), HP_COL, "%d / %d" % [int(me.hp), int(me.max_hp)])
+	_bar(Vector2(x0, 48), Vector2(bw, 7), me.gas / me.max_gas, GAS_COL, "")
 	for g in me.max_grip:
-		var c := Vector2(x0 + 7 + g * 15, 118)
-		draw_circle(c, 6, Color(0, 0, 0, 0.85))
-		draw_circle(c, 4.5, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
+		var c := Vector2(x0 + 6 + g * 12, 62)
+		draw_circle(c, 4.5, Color(0, 0, 0, 0.85))
+		draw_circle(c, 3.3, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
 	var f := Wow.title_font()
 	if me.grip > 0:
-		draw_string_outline(f, Vector2(x0 + 6 + me.max_grip * 15, 122), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
-		draw_string(f, Vector2(x0 + 6 + me.max_grip * 15, 122), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.55, 0.35))
-	_auras(me, Vector2(x0, 130))
+		draw_string_outline(f, Vector2(x0 + 4 + me.max_grip * 12, 66), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
+		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
+	_auras(me, Vector2(x0, 76))
 	# player cast bar (above the action bar)
 	if not me.cast.is_empty():
 		var w := 300.0
@@ -238,7 +239,7 @@ func _draw_slot(b: Button, i: int) -> void:
 	var st: Array = icon_of(a)
 	var col: Color = st[1]
 	var inner := r.grow(-4)
-	IconArt.draw(b, r, str(st[0]), col)
+	IconArt.draw(b, r, str(st[0]), col, Color(0, 0, 0, 0), false, IconArt.ability_key(a))
 	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
 	var cd := float(me.cds.get(a.id, 0.0))
 	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
@@ -346,7 +347,7 @@ func _next_card() -> void:
 	v.add_child(Wow.title("NEW TECHNIQUE", 13, Wow.GREEN))
 	var slot := Game.bar_layout.find(str(a.id))
 	var key: String = Abilities.KEYS[slot] if slot >= 0 else str(Abilities.UTILITY_KEYS.get(str(a.id), ""))
-	v.add_child(Wow.title("%s%s" % [str(a.name), ("   [%s]" % key) if key != "" else "   (in your Spellbook, P)"], 17, Wow.WHITE))
+	v.add_child(Wow.title("%s%s" % [str(a.name), ("   [%s]" % key) if key != "" else "   (in your Moves book, P)"], 17, Wow.WHITE))
 	var body := Wow.label(str(Abilities.TUTORIAL.get(str(a.id), a.get("text", ""))), 13, Wow.PALE, true)
 	body.custom_minimum_size = Vector2(360, 0)
 	v.add_child(body)

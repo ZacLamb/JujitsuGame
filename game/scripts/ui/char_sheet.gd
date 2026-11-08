@@ -1455,11 +1455,23 @@ static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> v
 		Wow.tline(v, "No points left in this tree", Wow.RED, 13, true)
 	else:
 		Wow.tline(v, "Click to learn", Wow.GREEN, 13)
+	# wrapped labels need a fixed width, or they lay out one word per line (a giant empty panel)
+	for c in v.get_children():
+		if c is Label:
+			(c as Label).custom_minimum_size = Vector2(290, 0)
+	p.visible = false
 	holder.add_child(p)
 	holder.set_meta("tip", p)
+	_place_talent_tip.call_deferred(p, n)
+
+static func _place_talent_tip(p: Control, n: Control) -> void:
+	if not is_instance_valid(p) or not is_instance_valid(n):
+		return
 	p.reset_size()
+	p.size = p.get_combined_minimum_size()
 	var gp := n.global_position + Vector2(n.size.x + 8, 0)
 	var vp := n.get_viewport_rect().size
 	if gp.x + p.size.x > vp.x - 8:
 		gp.x = n.global_position.x - p.size.x - 8
 	p.global_position = Vector2(gp.x, clampf(gp.y, 8, vp.y - p.size.y - 8))
+	p.visible = true

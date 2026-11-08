@@ -4,8 +4,42 @@ extends RefCounted
 ## a radial "lit" background in the icon's colour, a glyph with drop shadow and glow, a gloss
 ## highlight, and an optional quality-coloured edge (items) or gold ring (ready / proc).
 
-static func draw(ci: CanvasItem, r: Rect2, glyph: String, col: Color, edge := Color(0, 0, 0, 0), dim := false) -> void:
+const DIR := "res://assets/icons/"
+static var _cache := {}
+
+## Painted icon for a key (ability id/type, item id/icon), or null when there is none.
+static func tex(key: String) -> Texture2D:
+	if key == "":
+		return null
+	if not _cache.has(key):
+		var p := DIR + key + ".png"
+		_cache[key] = load(p) if ResourceLoader.exists(p) else null
+	return _cache[key]
+
+## Key for an ability dictionary: its id (base/frame/...), else its type.
+static func ability_key(a: Dictionary) -> String:
+	var id := str(a.get("id", ""))
+	if tex(id) != null:
+		return id
+	return str(a.get("type", ""))
+
+## Key for a technique id from Data.MOVES.
+static func move_key(mid: String) -> String:
+	return str(Data.MOVES.get(mid, {}).get("type", "")) if Data.MOVES.has(mid) else ""
+
+## Key for a bag item: its id if painted, else its icon, else its kind.
+static func item_key(id: String, it: Dictionary) -> String:
+	for k in [id, str(it.get("icon", "")), str(it.get("kind", ""))]:
+		if tex(k) != null:
+			return k
+	return ""
+
+static func draw(ci: CanvasItem, r: Rect2, glyph: String, col: Color, edge := Color(0, 0, 0, 0), dim := false, key := "") -> void:
 	var c := r.get_center()
+	var painted := tex(key)
+	if painted != null:
+		_draw_painted(ci, r, painted, edge, dim)
+		return
 	# outer frame: black rim, bronze bevel (light top-left, dark bottom-right)
 	ci.draw_rect(r, Color(0.02, 0.02, 0.02, 1.0))
 	var f := r.grow(-1.5)
@@ -39,3 +73,19 @@ static func draw(ci: CanvasItem, r: Rect2, glyph: String, col: Color, edge := Co
 		ci.draw_rect(r.grow(-1.0), edge, false, 2.0)
 	if dim:
 		ci.draw_rect(inner, Color(0, 0, 0, 0.45))
+
+static func _draw_painted(ci: CanvasItem, r: Rect2, t: Texture2D, edge: Color, dim: bool) -> void:
+	ci.draw_rect(r, Color(0.02, 0.02, 0.02, 1.0))
+	var f := r.grow(-1.5)
+	ci.draw_rect(f, Color(0.42, 0.32, 0.16))
+	ci.draw_line(f.position, Vector2(f.end.x, f.position.y), Color(0.85, 0.7, 0.4), 1.5)
+	ci.draw_line(f.position, Vector2(f.position.x, f.end.y), Color(0.75, 0.6, 0.32), 1.5)
+	ci.draw_line(Vector2(f.position.x, f.end.y), f.end, Color(0.18, 0.12, 0.06), 1.5)
+	ci.draw_line(Vector2(f.end.x, f.position.y), f.end, Color(0.18, 0.12, 0.06), 1.5)
+	var inner := r.grow(-3.0)
+	ci.draw_texture_rect(t, inner, false, Color(0.5, 0.5, 0.5) if dim else Color.WHITE)
+	ci.draw_rect(inner, Color(0, 0, 0, 0.6), false, 1.0)
+	if edge.a > 0.0:
+		ci.draw_rect(r.grow(-1.0), edge, false, 2.0)
+	if dim:
+		ci.draw_rect(inner, Color(0, 0, 0, 0.4))

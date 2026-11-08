@@ -205,10 +205,13 @@ static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 		bits.append("Melee range")
 	out.append([" · ".join(bits), Wow.PALE, 12])
 	if u != null and float(a.get("dmg", 0.0)) > 0.0:
-		var lo := int(u.dmg * float(a.dmg))
+		var bonus: float = core._type_bonus(u, a) if core != null else 1.0
+		var lo := int(u.dmg * float(a.dmg) * bonus)
 		if bool(a.get("finisher", false)):
-			out.append(["Hits for %d, +%d per Grip (you have %d)." % [lo, int(u.dmg * float(a.get("per_grip", 0.9))), u.grip], Wow.GREEN, 13])
+			out.append(["Hits for %d, +%d per Grip (you have %d)." % [lo, int(u.dmg * float(a.get("per_grip", 0.9)) * bonus), u.grip], Wow.GREEN, 13])
 		else:
 			out.append(["Hits for about %d." % lo, Wow.GREEN, 13])
+		if u.player:
+			out.append(["Grows with your level, Strength and gear.", Wow.GREY, 11])
 	out.append([str(a.get("text", "")), Wow.GOLD.lerp(Wow.WHITE, 0.6), 13])
 	return out

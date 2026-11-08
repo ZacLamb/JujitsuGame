@@ -191,7 +191,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("ab_%d" % i):
 			var id: String = str(Game.bar_layout[i]) if i < Game.bar_layout.size() else ""
 			if id == "":
-				_error("Empty slot (drag a technique here from the Spellbook, P)")
+				_error("Empty slot (drag a move here from your Moves book, P)")
 			else:
 				press(id)
 			get_viewport().set_input_as_handled()

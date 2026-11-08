@@ -7,11 +7,11 @@ extends RefCounted
 const ATTR_BASE := 5
 const ATTR_CAP := 20
 const ATTRS := {
-	"strength": {"name": "Strength", "short": "STR", "desc": "Passes, pressure and takedowns get easier. Squeeze harder to finish submissions."},
-	"flexibility": {"name": "Flexibility", "short": "FLX", "desc": "Sweeps, guard recovery and escapes get easier. Escape submissions faster."},
-	"grip": {"name": "Grip", "short": "GRP", "desc": "Submission entries and back takes get easier."},
-	"cardio": {"name": "Cardio", "short": "CRD", "desc": "More stamina, faster recovery, cheaper techniques."},
-	"iq": {"name": "Jiu-Jitsu IQ", "short": "IQ", "desc": "More time to react and decide. Bigger perfect-timing window."},
+	"strength": {"name": "Strength", "short": "STR", "desc": "+1.5% damage with every move, +2% more with passes, takedowns and mount. Harder finishing squeezes."},
+	"flexibility": {"name": "Flexibility", "short": "FLX", "desc": "+3% Composure (health). +2% damage with sweeps, guard and escapes."},
+	"grip": {"name": "Grip", "short": "GRP", "desc": "+1% critical chance. +2% damage with submissions and back takes."},
+	"cardio": {"name": "Cardio", "short": "CRD", "desc": "+4 max Gas, +5% Gas regen, moves cost 2% less."},
+	"iq": {"name": "Jiu-Jitsu IQ", "short": "IQ", "desc": "Take 3% less damage, +2% critical chance."},
 }
 const ATTR_ORDER := ["strength", "flexibility", "grip", "cardio", "iq"]
 
@@ -133,6 +133,7 @@ static func build_mods(style_id: String, attrs: Dictionary, talents: Dictionary)
 		"opp_initiative_standing": 1.0,
 		"free_moves": [],      # stamina-free techniques
 		"scramble": false, "second_wind": false,
+		"hp_mult": 1.0, "crit": 0.0, "dmg_all": 0.0,
 	}
 	var d := func(k: String) -> float: return float(attrs.get(k, ATTR_BASE)) - ATTR_BASE
 	# attributes
@@ -150,6 +151,10 @@ static func build_mods(style_id: String, attrs: Dictionary, talents: Dictionary)
 	m.defense += 0.03 * d.call("iq")
 	m.perfect += 0.04 * d.call("iq")
 	m.decision += 0.04 * d.call("iq")
+	# real-time fights: every point (from levels, gear and sets) shows up in the numbers
+	m.dmg_all += 0.015 * d.call("strength")
+	m.hp_mult += 0.03 * d.call("flexibility")
+	m.crit += 0.01 * d.call("grip")
 	# style passives
 	match style_id:
 		"guard":

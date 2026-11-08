@@ -39,7 +39,7 @@ class ItemSlot extends Control:
 		elif str(it.get("icon", "")) in ["drop", "cup", "bottle", "fish"]:
 			glyph = "wave"
 		var tint: Color = {"junk": Color(0.6, 0.55, 0.5), "food": Color(0.95, 0.55, 0.3), "bag": Color(0.75, 0.55, 0.3), "gear": Color(0.55, 0.7, 0.95)}.get(str(it.get("kind", "")), Color(0.9, 0.8, 0.4))
-		IconArt.draw(self, r, glyph, tint, col if Loot.color(id) != Color.WHITE else Color(0, 0, 0, 0))
+		IconArt.draw(self, r, glyph, tint, col if Loot.color(id) != Color.WHITE else Color(0, 0, 0, 0), false, IconArt.item_key(id, it))
 		if n > 1:
 			var f := CombatUi.font()
 			draw_string(f, Vector2(size.x - 22, size.y - 6), str(n), HORIZONTAL_ALIGNMENT_RIGHT, 18, 14, Color.WHITE)
