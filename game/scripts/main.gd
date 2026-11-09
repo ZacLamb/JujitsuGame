@@ -449,7 +449,7 @@ func _make_world(z: String) -> void:
 	var spawn := Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z)
 	player.position = spawn
 	world.add_child(player)
-	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio"] else 0.0)
+	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio", "socal"] else 0.0)
 	world.attach_player(player)
 	if hud:
 		hud.minimap.set_world(world, player)
@@ -477,9 +477,18 @@ func _make_world(z: String) -> void:
 	if not _in_title:
 		Net.enter(z)
 
-func _travel(z: String) -> void:
+func _travel(z: String, free := false) -> void:
 	# open world: nobody stops you, but the driver will tell you what you're in for
 	var lo := int(Data.ZONES[z].levels[0])
+	# another continent: a flight
+	if Data.continent_of(z) != Data.continent_of(Game.zone) and not free:
+		if Game.money < Data.FLIGHT_COST:
+			Game.toast.emit("A flight to %s costs R$ %d." % [Data.CONTINENTS[Data.continent_of(z)], Data.FLIGHT_COST], Color(1.0, 0.5, 0.35))
+			return
+		Game.money -= Data.FLIGHT_COST
+		Game.toast.emit("Flight booked: R$ %d. Passport out, gringo." % Data.FLIGHT_COST, Color(0.55, 0.85, 1.0))
+		if Data.continent_of(z) == "america":
+			Game.unlock("flight")
 	if Game.player_level() < lo - 2:
 		Game.toast.emit("Careful: %s is a level %s zone and you're level %d. Locals there hit hard." % [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()], Color(1.0, 0.5, 0.35))
 	Game.zone = z
@@ -497,6 +506,11 @@ func _travel(z: String) -> void:
 			Game.flags["pantanal_intro"] = true
 			Game.save_game()
 			hud.open_dialogue("Pantanal Norte", "The world's biggest wetland. Jaguars, jacarés, and the toughest open mats in Mato Grosso. Mestre Jacaré runs the fazenda gym to the northeast. Beat %d locals to earn a roll with him." % Data.BOSS_REQUIRED_WINS, "", "Vamos")
+
+	if z == "socal" and not Game.flags.get("socal_intro", false):
+		Game.flags["socal_intro"] = true
+		Game.save_game()
+		hud.open_dialogue("San Diego, California", "América do Norte. Here, you're the Brazilian. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who have watched every instructional ever made. Coach Dale runs The Garage up the hill. Beat %d locals first. And watch out for the gold gis: the Liga Ouro's money comes from here." % Data.BOSS_REQUIRED_WINS, "", "Let's roll")
 
 	if z == "rio" and not Game.flags.get("rio_intro", false):
 		Game.flags["rio_intro"] = true

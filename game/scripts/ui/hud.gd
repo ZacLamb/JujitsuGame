@@ -865,25 +865,34 @@ func open_travel() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	_travel_panel.add_child(v)
-	v.add_child(UiKit.label("BUS  ·  Where to?", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
-	for z in Data.ZONES:
-		var zd: Dictionary = Data.ZONES[z]
-		# open world: every zone is a bus ride away; it just tells you if it's above your level
-		var lo := int(zd.levels[0])
-		var here: bool = z == Game.zone
-		var txt := "%s  ·  %s" % [zd.name, Data.zone_levels(z)]
-		if here:
-			txt += "   (you are here)"
-		elif Game.player_level() < lo - 2:
-			txt += "   (dangerous: you're level %d)" % Game.player_level()
-		var b := UiKit.button(txt, Vector2(0, 58))
-		b.disabled = here
-		if not here and Game.player_level() < lo - 2:
-			b.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
-		b.pressed.connect(func():
-			_close_travel()
-			travel_chosen.emit(z))
-		v.add_child(b)
+	v.add_child(UiKit.label("TRAVEL  ·  Where to?", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	var my_c := Data.continent_of(Game.zone)
+	for cont in Data.CONTINENTS:
+		var head := str(Data.CONTINENTS[cont]).to_upper() + ("   ·   bus" if cont == my_c else "   ·   flight R$ %d" % Data.FLIGHT_COST)
+		v.add_child(UiKit.label(head, 20, Color(1.0, 0.8, 0.35) if cont == my_c else Color(0.55, 0.85, 1.0)))
+		for z in Data.ZONES:
+			if Data.continent_of(z) != cont:
+				continue
+			var zd: Dictionary = Data.ZONES[z]
+			# open world: every zone is reachable; it just tells you if it's above your level
+			var lo := int(zd.levels[0])
+			var here: bool = z == Game.zone
+			var txt := "%s  ·  %s" % [zd.name, Data.zone_levels(z)]
+			if here:
+				txt += "   (you are here)"
+			elif Game.player_level() < lo - 2:
+				txt += "   (dangerous: you're level %d)" % Game.player_level()
+			var fly: bool = cont != my_c
+			if fly and Game.money < Data.FLIGHT_COST:
+				txt += "   (need R$ %d)" % Data.FLIGHT_COST
+			var b := UiKit.button(txt, Vector2(0, 50))
+			b.disabled = here or (fly and Game.money < Data.FLIGHT_COST)
+			if not here and Game.player_level() < lo - 2:
+				b.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
+			b.pressed.connect(func():
+				_close_travel()
+				travel_chosen.emit(z))
+			v.add_child(b)
 	var c := UiKit.button("Stay here", Vector2(200, 50))
 	c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	c.pressed.connect(func():

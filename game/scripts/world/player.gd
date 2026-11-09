@@ -237,7 +237,7 @@ func _physics_process(delta: float) -> void:
 		_step_dist += hspeed * delta
 		if _step_dist > (1.55 if hspeed < WALK + 0.5 else 2.1):
 			_step_dist = 0.0
-			var sand := get_parent() is World and (get_parent() as World).zone == "rio" and global_position.z > 31.0
+			var sand := get_parent() is World and (get_parent() as World).zone in ["rio", "socal"] and global_position.z > 31.0
 			Sfx.play("step_sand" if sand else "step_ground", -15.0, randf_range(0.85, 1.15))
 
 	yaw_node.global_position = yaw_node.global_position.lerp(global_position + Vector3(0, 1.5, 0), clampf(delta * 12.0, 0, 1))

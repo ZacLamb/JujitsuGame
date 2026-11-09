@@ -175,7 +175,7 @@ func _build_tools() -> void:
 		var zz: String = z
 		_btn(r4, str(Data.ZONES[z].name), func():
 			if main:
-				main._travel(zz)
+				main._travel(zz, true)
 			_done("Travelled to " + str(Data.ZONES[zz].name)))
 	var r5 := _row(v)
 	r5.add_child(Wow.label("Time", 14, Wow.PALE))
@@ -202,7 +202,7 @@ func _on_gm_data(kind: String, d: Dictionary) -> void:
 				return
 			var z := str(d.get("zone", ""))
 			if z != "" and z != main.world.zone and Data.ZONES.has(z):
-				main._travel(z)
+				main._travel(z, true)
 			main.player.teleport(Vector3(float(d.x), float(d.y) + 0.5, float(d.z)) + Vector3(1.5, 0, 1.5), main.player.cam_yaw)
 			_status.text = "Teleported to %s" % str(d.get("name", "?"))
 

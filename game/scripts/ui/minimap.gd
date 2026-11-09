@@ -33,7 +33,7 @@ static func _render_terrain(w: World) -> ImageTexture:
 			var z := -World.HALF + (iz + 0.5) * MAP_RES
 			var h := w.height(x, z)
 			var c: Color
-			if h < World.WATER_Y + 0.05 or (w.zone == "rio" and h < -1.1):
+			if h < World.WATER_Y + 0.05 or ((w.zone == "rio" or w.zone == "socal") and h < -1.1):
 				c = Color(0.18, 0.42, 0.55)
 			else:
 				c = w._ground_color(x, z, h)

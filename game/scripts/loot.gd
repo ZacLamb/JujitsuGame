@@ -54,6 +54,7 @@ const VENDOR := {
 	"pantanal": ["acai", "coco", "tape", "terere", "guarana", "bag_lona", "bag_treino"],
 	"chapada": ["acai", "coco", "tape", "guarana", "terere", "bag_treino"],
 	"rio": ["acai", "coco", "tape", "guarana", "terere", "pao_queijo", "bag_treino"],
+	"socal": ["acai", "coco", "tape", "guarana", "bag_treino", "bag_kimono"],
 }
 
 static func item(id: String) -> Dictionary:
@@ -125,6 +126,19 @@ const CAMPS := {
 			"lv": [10.6, 11.6], "aggro": true, "elite": true, "respawn": 60.0, "styles": ["pressure", "back", "submission", "guard"],
 			"names": ["Sambista", "Malandro", "Capoeirista", "Segurança da Lapa"],
 			"rare": {"name": "Zé Navalha", "title": "Rare", "lv": 12.8, "respawn": 360.0, "style": "back"}},
+	],
+	"socal": [
+		{"id": "boardwalk", "name": "Boardwalk Crowd", "title": "Boardwalk", "pos": Vector3(-30, 0, 34), "radius": 12.0, "count": 5,
+			"lv": [11.4, 12.4], "aggro": true, "respawn": 45.0, "styles": ["guard", "balanced", "back"],
+			"names": ["Skater Bro", "Spring Breaker", "Surf Instructor", "Roller Blader", "Muscle Beach Guy"],
+			"rare": {"name": "Big Wave Dave", "title": "Rare", "lv": 13.4, "respawn": 300.0, "style": "pressure"}},
+		{"id": "gold_gym", "name": "Gold League Members", "title": "Gold League USA", "pos": Vector3(46, 0, -2), "radius": 9.0, "count": 4,
+			"lv": [12.0, 13.0], "aggro": true, "elite": true, "respawn": 60.0, "styles": ["pressure", "submission", "balanced"],
+			"names": ["Gold Member", "Franchise Coach", "Paid Black Belt", "Brand Ambassador"]},
+		{"id": "hills", "name": "Canyon Wrestlers", "title": "Canyon", "pos": Vector3(60, 0, -62), "radius": 10.0, "count": 4,
+			"lv": [12.2, 13.2], "aggro": true, "respawn": 50.0, "styles": ["pressure", "back"],
+			"names": ["Ex-Wrestler", "Trail Runner", "Rancher", "Hiker"],
+			"rare": {"name": "Coyote", "title": "Rare", "lv": 14.0, "respawn": 360.0, "style": "back"}},
 	],
 }
 

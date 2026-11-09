@@ -31,7 +31,8 @@ var aggro_grace := 0.0    # seconds during which mobs won't pull you (after a fi
 
 const VENDOR_SPOTS := {"pantanal": [Vector3(-76, 0, 2), "Shop: Bar do Pantaneiro", "Seu Bené"],
 	"chapada": [Vector3(38, 0, 44), "Shop: Lanchonete da Trilha", "Dona Lia"],
-	"rio": [Vector3(6, 0, 40), "Shop: Quiosque da Orla", "Tio Beto"]}
+	"rio": [Vector3(6, 0, 40), "Shop: Quiosque da Orla", "Tio Beto"],
+	"socal": [Vector3(-16, 0, 30), "Shop: Surf & Smoothie", "Becky"]}
 
 func build(z := "caceres") -> void:
 	_build_zone(z)
@@ -135,6 +136,9 @@ func _build_zone(z: String) -> void:
 	if zone == "rio":
 		_build_rio()
 		return
+	if zone == "socal":
+		_build_socal()
+		return
 	noise.seed = 7
 	noise.frequency = 0.03
 	_rng.seed = 2026
@@ -202,6 +206,8 @@ func height(x: float, z: float) -> float:
 		return _height_chapada(x, z)
 	if zone == "rio":
 		return _height_rio(x, z)
+	if zone == "socal":
+		return _height_socal(x, z)
 	var h := noise.get_noise_2d(x, z) * 1.4
 	var town := 1.0 - _ss(38.0, 62.0, maxf(absf(x) * 0.9, absf(z + 15.0) * 0.8))
 	h *= 1.0 - town * 0.88
@@ -218,6 +224,8 @@ func ground_y(x: float, z: float) -> float:
 func _ground_color(x: float, z: float, h: float) -> Color:
 	if zone == "rio":
 		return _rio_color(x, z, h)
+	if zone == "socal":
+		return _socal_color(x, z, h)
 	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
 	if zone == "chapada":
 		var cg := Color(0.34, 0.38, 0.16).lerp(Color(0.44, 0.43, 0.2), n)
@@ -396,6 +404,11 @@ func _build_lamps() -> void:
 				pts.append(Vector3(x, 0, 25.0))
 			for c in [Vector3(32, 0, -36), Vector3(40, 0, -46), Vector3(36, 0, -56), Vector3(-80, 0, 2)]:
 				pts.append(c)
+		"socal":
+			for x in range(-48, 92, 20):
+				pts.append(Vector3(x, 0, 25.4))
+			for c in [Vector3(-80, 0, 2), Vector3(-8, 0, -30), Vector3(-28, 0, -30), Vector3(42, 0, -2), Vector3(62, 0, -2)]:
+				pts.append(c)
 	for p in pts:
 		var gy := ground_y(p.x, p.z)
 		_cyl(0.07, 0.09, 4.2, Vector3(p.x, gy + 2.1, p.z), Color(0.18, 0.18, 0.2), 6)
@@ -458,7 +471,7 @@ func _build_ground_detail() -> void:
 			continue
 		if zone == "caceres" and absf(x - river_x(z)) < 12.0:
 			continue
-		if zone == "rio" and ((z > -30.0 and x > -64.0) or z > 16.0):
+		if (zone == "rio" or zone == "socal") and ((z > -30.0 and x > -64.0) or z > 16.0):
 			continue
 		if absf(ground_y(x + 1.0, z) - gy) > 0.8:
 			continue
@@ -771,7 +784,7 @@ func _build_trees() -> void:
 	var xf := {"palm": [], "oak": [], "fat": [], "ipe": []}
 	var placed := 0
 	var tries := 0
-	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120, "rio": 150}[zone] and tries < 3000:
+	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120, "rio": 150, "socal": 70}[zone] and tries < 3000:
 		tries += 1
 		var x := _rng.randf_range(-92, 92)
 		var z := _rng.randf_range(-92, 92)
@@ -783,7 +796,9 @@ func _build_trees() -> void:
 		var gy := ground_y(x, z)
 		if zone == "rio" and ((z > -30.0 and x > -64.0) or Vector2(x, z).distance_to(SUGARLOAF) < 16.0):
 			continue
-		if zone == "chapada" or zone == "rio":
+		if zone == "socal" and ((z > -30.0 and x > -64.0) or z > 16.0):
+			continue
+		if zone == "chapada" or zone == "rio" or zone == "socal":
 			if absf(ground_y(x, z + 2.0) - gy) > 1.2 or absf(ground_y(x + 2.0, z) - gy) > 1.2 or gy < -0.3:
 				continue
 			d = 40.0
@@ -984,6 +999,14 @@ func _dress_props() -> void:
 			_dress_camp("orla", [["kiosk", 0.0], ["surf_rack", 0.8], ["bar_table", 1.4], ["bar_table", 2.0], ["acai_cart", 2.6]])
 			_dress_camp("lapa", [["street_lamp", 0.0], ["street_lamp", 1.6], ["bar_table", 0.7], ["bar_table", 2.2], ["bus_stop", 3.1]])
 			_dress_near(VENDOR_SPOTS.rio[0], [["surf_rack", 0.5], ["bar_table", 1.1], ["street_lamp", 2.0]])
+		"socal":
+			_dress_camp("boardwalk", [["surf_rack", 0.0], ["kiosk", 1.0], ["surf_rack", 2.2], ["bench", 3.0]])
+			_dress_camp("hills", [["bench", 0.4], ["hammock", 1.6]])
+			_dress_near(VENDOR_SPOTS.socal[0], [["surf_rack", 0.5], ["acai_cart", 1.4], ["bar_table", 2.2]])
+			var gg := SOCAL_GYM
+			_prop("heavy_bag", gg.x - 7.2, gg.z - 5.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("weights", gg.x + 7.8, gg.z - 4.0, -PI / 2, Vector3(0.5, 0.6, 1.2), true)
+			_prop("mat_stack", gg.x - 7.6, gg.z + 1.0, 0.3, Vector3(1, 0.5, 2), true)
 
 ## Props in a ring just outside a mob camp (so they frame it without blocking the pulls).
 func _dress_camp(camp_id: String, items: Array) -> void:
@@ -1086,6 +1109,8 @@ func _build_props() -> void:
 			if zone == "caceres" and absf(x - river_x(z)) < 11.0:
 				continue
 			if zone == "rio" and ((z > -30.0 and x > -64.0) or Vector2(x, z).distance_to(SUGARLOAF) < 16.0):
+				continue
+			if zone == "socal" and ((z > -30.0 and x > -64.0) or z > 16.0):
 				continue
 			var sc: float = scale_of[k] * _rng.randf_range(0.8, 1.25)
 			lists[k].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(x, gy - 0.05, z)))
@@ -1244,6 +1269,15 @@ func _build_cups() -> void:
 			qm.size = Vector3(0.35, 0.8, 0.35)
 			cup.mesh = qm
 			cup.material_override = _mat(Color(0.85, 0.75, 1.0), 0.15)
+		if zone == "socal":
+			# sand dollar: a flat pale disc
+			var sdm := CylinderMesh.new()
+			sdm.top_radius = 0.32
+			sdm.bottom_radius = 0.32
+			sdm.height = 0.06
+			cup.mesh = sdm
+			cup.rotation.x = 1.2
+			cup.material_override = _mat(Color(0.95, 0.9, 0.78), 0.6)
 		if zone == "rio":
 			# green coconut with a straw
 			cup.mesh = _mk_sphere(0.32, 0.6)
@@ -1398,6 +1432,8 @@ func _build_fighters() -> void:
 			y = ground_y(40, 56) + 0.38
 		elif id == "leao":
 			y = ground_y(RIO_GYM.x, RIO_GYM.z) + 0.38
+		elif id == "dale":
+			y = ground_y(SOCAL_GYM.x, SOCAL_GYM.z) + 0.38
 		npc.position = Vector3(p.x, y, p.z)
 		npc.rig.rotation.y = PI
 		fighters[id] = npc
@@ -1408,6 +1444,8 @@ func _build_villagers() -> void:
 		where = [Vector3(-75, 0, -4), Vector3(-40, 0, 26), Vector3(56, 0, 50), Vector3(38, 0, -30)]
 	elif zone == "chapada":
 		where = [Vector3(42, 0, 40), Vector3(36, 0, 36), Vector3(-74, 0, 40), Vector3(20, 0, 10)]
+	elif zone == "socal":
+		where = [Vector3(-20, 0, 40), Vector3(10, 0, 28), Vector3(60, 0, 44), Vector3(-40, 0, 28), Vector3(30, 0, -8), Vector3(-76, 0, 10), Vector3(48, 0, 60)]
 	elif zone == "rio":
 		where = [Vector3(0, 0, 40), Vector3(-50, 0, 44), Vector3(40, 0, 44), Vector3(-10, 0, 28), Vector3(30, 0, 27), Vector3(36, 0, -36), Vector3(-80, 0, 10)]
 	for i in where.size():
@@ -1457,6 +1495,12 @@ func _nearest_unbeaten(z: String) -> Vector3:
 	return best
 
 func objective_target() -> Vector3:
+	if zone == "socal":
+		if Game.town_wins("socal") < Data.BOSS_REQUIRED_WINS:
+			var ts := _nearest_unbeaten("socal")
+			if ts != Vector3.INF:
+				return ts
+		return Data.OPPONENTS.dale.pos
 	if zone == "rio":
 		if Game.rank >= 20:
 			return Data.OPPONENTS.leao.pos
@@ -2832,3 +2876,236 @@ func refresh_mob_tags() -> void:
 	for e in mobs:
 		if e.npc:
 			(e.npc as Npc).refresh_mob_tag()
+
+# ================================================================ San Diego (América do Norte)
+## Pacific beach town: chaparral hills to the north, a strip of bungalows and shops, the coast
+## highway, a concrete boardwalk, wide sand, a long wooden pier, and sandstone cliffs to the west.
+const SOCAL_GYM := Vector3(-18, 0, -40)
+const SOCAL_GOLD := Vector2(52, -16)
+
+func _height_socal(x: float, z: float) -> float:
+	var p := Vector2(x, z)
+	var h := noise.get_noise_2d(x, z) * 0.5 + 0.45
+	h = lerpf(h, 0.35, _ss(30.0, 34.0, z))
+	h = lerpf(h, -2.8, _ss(50.0, 62.0, z))
+	# Sunset Cliffs: a sandstone shelf on the west coast that drops straight into the Pacific
+	var cliff := _ss(-50.0, -60.0, x) * _ss(24.0, 32.0, z)
+	h = lerpf(h, 4.2 + noise.get_noise_2d(x * 2.0, z * 2.0) * 0.6, cliff * (1.0 - _ss(54.0, 58.0, z)))
+	h = lerpf(h, -2.8, cliff * _ss(56.0, 60.0, z))
+	# chaparral hills and canyons inland
+	h += _ss(-36.0, -80.0, z) * (5.0 + noise.get_noise_2d(x * 0.6, z * 0.6) * 4.0)
+	var e := maxf(absf(x), absf(z))
+	h += _ss(82.0, 98.0, e) * 9.0 * (1.0 - _ss(28.0, 40.0, z))
+	# flat pads: shuttle stop, the Garage, the Gold League gym
+	h = lerpf(h, 0.5, _ss(13.0, 8.0, p.distance_to(Vector2(-82, 6))))
+	h = lerpf(h, 0.5, _ss(15.0, 11.0, p.distance_to(Vector2(SOCAL_GYM.x, SOCAL_GYM.z))))
+	h = lerpf(h, 0.5, _ss(12.0, 8.0, p.distance_to(SOCAL_GOLD)))
+	return h
+
+func _socal_color(x: float, z: float, h: float) -> Color:
+	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
+	if x < -54.0 and z > 26.0 and h > 1.2:
+		return Color(0.78, 0.56, 0.36).lerp(Color(0.86, 0.66, 0.44), n)   # sandstone
+	if z > 31.0:
+		var sand := Color(0.78, 0.66, 0.46).lerp(Color(0.84, 0.72, 0.52), n)
+		return sand.lerp(Color(0.72, 0.66, 0.52), _ss(-0.4, -1.3, h))
+	if z > 25.5:
+		return Color(0.62, 0.6, 0.57)       # boardwalk concrete
+	if z > 17.0:
+		return Color(0.22, 0.22, 0.24)      # coast highway
+	if x > -64.0 and z > -30.0 and h < 2.0:
+		var lawn := Color(0.4, 0.55, 0.22).lerp(Color(0.48, 0.6, 0.26), n)
+		return lawn if fmod(absf(x) + 4.0, 18.0) < 9.0 and z > 0.0 else Color(0.5, 0.49, 0.47).lerp(Color(0.56, 0.55, 0.52), n)
+	return Color(0.5, 0.48, 0.3).lerp(Color(0.6, 0.54, 0.36), n)   # dry chaparral
+
+func _build_socal() -> void:
+	noise.seed = 33
+	noise.frequency = 0.03
+	_rng.seed = 2040
+	_static = StaticBody3D.new()
+	add_child(_static)
+	_blocked = [
+		Rect2(-98, -8, 28, 26),     # shuttle stop
+		Rect2(-34, -56, 32, 30),    # the Garage
+		Rect2(38, -30, 28, 28),     # Gold League gym
+		Rect2(-66, -6, 140, 22),    # bungalows + shops
+		Rect2(-100, 16, 200, 90),   # highway, boardwalk, beach, sea
+		Rect2(18, -20, 24, 18),     # taco trucks
+	]
+	_build_environment()
+	_build_terrain()
+	_r_ocean()
+	_s_boardwalk()
+	_s_town()
+	_build_trees()
+	_build_ground_detail()
+	_build_props()
+	_s_beach()
+	_s_pier()
+	_s_cliffs()
+	_s_tacos()
+	_s_gold_gym()
+	_p_bus_stop(Vector3(-82, 0, 6), "AIRPORT SHUTTLE")
+	var g := Vector3(SOCAL_GYM.x, ground_y(SOCAL_GYM.x, SOCAL_GYM.z), SOCAL_GYM.z)
+	_gym(g, "THE GARAGE", Color(0.55, 0.57, 0.6))
+	_label("THE GARAGE", g + Vector3(0, 3.4, 7.4), 140, Color(0.98, 0.82, 0.3))
+	_box(Vector3(10, 1.6, 0.1), g + Vector3(0, 3.4, 7.3), Color(0.15, 0.15, 0.17), false)
+	# roll-up doors: the Garage is an old auto shop
+	for x in [-6.0, 0.0, 6.0]:
+		_box(Vector3(5.2, 1.4, 0.2), g + Vector3(x, 4.2, -7.0), Color(0.75, 0.75, 0.72), false)
+	var xs := [-7.0, -3.5, 0.0, 3.5, 7.0]
+	for i in Rpg.ATTR_ORDER.size():
+		_drill_station(Rpg.ATTR_ORDER[i], g + Vector3(xs[i], 0, 5.0))
+	_challenge_board(g + Vector3(-12, 0, 9))
+	_comp_board(g + Vector3(12, 0, 9), "socal_open")
+	_build_cups()
+	_build_landmarks()
+	_build_fighters()
+	_build_villagers()
+	_build_bounds()
+	_build_beacon()
+
+## Concrete boardwalk with a low sea wall, palms and a bike lane; cars on the coast highway.
+func _s_boardwalk() -> void:
+	var px := -52.0
+	var palms: Array = []
+	while px < 92.0:
+		palms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * 6.4), Vector3(px, ground_y(px, 26.6), 26.6)))
+		px += 8.0
+	_mm("tree_palm", palms)
+	for x in range(-52, 96, 12):
+		_box(Vector3(11.6, 0.6, 0.5), Vector3(x, ground_y(x, 31.2) + 0.3, 31.2), Color(0.86, 0.84, 0.8))
+	# bike lane stripe
+	_box(Vector3(146, 0.02, 0.12), Vector3(20, ground_y(20, 29.0) + 0.05, 29.0), Color(0.95, 0.8, 0.2), false)
+	var cars := ["sedan", "van", "sedan", "police_car", "sedan", "van", "sedan"]
+	for i in cars.size():
+		var cx := -60.0 + i * 22.0 + _rng.randf_range(-3, 3)
+		var cz := 19.5 if i % 2 == 0 else 23.0
+		_place_model(cars[i], Vector3(cx, ground_y(cx, cz), cz), 1.7, PI / 2 if i % 2 == 0 else -PI / 2, Vector3(4.6, 2.0, 2.4))
+	_label("THE BOARDWALK", Vector3(0, ground_y(0, 28) + 4.2, 28), 90, Color(1, 0.95, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+## Beach bungalows and a few two-storey shops between the hills and the highway.
+func _s_town() -> void:
+	var cols := [Color(0.96, 0.94, 0.88), Color(0.62, 0.8, 0.86), Color(0.98, 0.84, 0.66), Color(0.86, 0.92, 0.84), Color(0.95, 0.7, 0.6), Color(0.78, 0.84, 0.96)]
+	var x := -60.0
+	var i := 0
+	while x < 36.0:
+		var w := _rng.randf_range(6.5, 8.0)
+		var two := i % 3 == 1
+		var hh := 6.4 if two else 3.4
+		var gy := ground_y(x, 11.0)
+		var col: Color = cols[i % cols.size()]
+		_box(Vector3(w, hh, 7), Vector3(x, gy + hh / 2.0, 11.0), col)
+		# flat roof lip + windows facing the ocean
+		_box(Vector3(w + 0.4, 0.3, 7.4), Vector3(x, gy + hh + 0.15, 11.0), col.darkened(0.2), false)
+		_box(Vector3(w * 0.7, 1.2, 0.1), Vector3(x, gy + 1.9, 14.55), Color(0.2, 0.32, 0.42), false)
+		if two:
+			_box(Vector3(w * 0.7, 1.2, 0.1), Vector3(x, gy + 4.9, 14.55), Color(0.2, 0.32, 0.42), false)
+			_box(Vector3(w + 0.3, 0.7, 1.4), Vector3(x, gy + 3.3, 15.2), [Color(0.2, 0.55, 0.6), Color(0.9, 0.35, 0.3), Color(0.95, 0.8, 0.25)][i % 3], false)
+		else:
+			_box(Vector3(1.0, 1.9, 0.1), Vector3(x + w * 0.3, gy + 0.95, 14.55), Color(0.4, 0.28, 0.18), false)
+		# a picket fence + surfboard leaning on every other bungalow
+		if not two and i % 2 == 0:
+			var sb := _box(Vector3(0.55, 2.2, 0.1), Vector3(x - w * 0.35, gy + 1.1, 14.9), cols[(i + 2) % cols.size()], false)
+			sb.rotation.x = -0.2
+		x += w + _rng.randf_range(1.6, 3.0)
+		if i % 4 == 3:
+			x += 6.0   # side street up to the hills
+		i += 1
+	_label("OCEAN BEACH", Vector3(-20, ground_y(-20, 16) + 8.5, 16), 100, Color(1, 0.92, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _s_beach() -> void:
+	var cols := [Color(0.95, 0.3, 0.25), Color(0.98, 0.8, 0.2), Color(0.2, 0.55, 0.9), Color(0.3, 0.75, 0.4), Color(1, 1, 1)]
+	for i in 22:
+		var x := _rng.randf_range(-48, 88)
+		var z := _rng.randf_range(36, 49)
+		if absf(x - 48.0) < 5.0 or Vector2(x, z).distance_to(Vector2(22, 42)) < 5.0 or Vector2(x, z).distance_to(Vector2(36, 40)) < 4.0:
+			continue
+		var gy := ground_y(x, z)
+		_cyl(0.04, 0.04, 2.2, Vector3(x, gy + 1.1, z), Color(0.85, 0.85, 0.85), 5)
+		_cyl(0.0, 1.35, 0.5, Vector3(x, gy + 2.2, z), cols[i % cols.size()], 10)
+		if i % 3 == 0:
+			_box(Vector3(0.8, 0.05, 1.8), Vector3(x + 1.2, gy + 0.05, z + 0.3), cols[(i + 2) % cols.size()], false, _rng.randf())
+	# lifeguard tower (Kim's post)
+	var t := Vector3(37, ground_y(37, 40), 40)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			_cyl(0.08, 0.08, 2.4, t + Vector3(sx, 1.2, sz), Color(0.92, 0.92, 0.9), 6)
+	_box(Vector3(2.8, 1.8, 2.6), t + Vector3(0, 3.3, 0), Color(0.3, 0.62, 0.82))
+	_box(Vector3(3.2, 0.2, 3.0), t + Vector3(0, 4.3, 0), Color(0.95, 0.95, 0.92), false)
+	var ramp := _box(Vector3(1.0, 0.12, 3.4), t + Vector3(0, 1.2, -2.6), Color(0.85, 0.8, 0.7), false)
+	ramp.rotation.x = -0.75
+	_label("LIFEGUARD", t + Vector3(0, 3.3, 1.35), 50, Color(1, 0.3, 0.25))
+	# Tyler's sand mats + surf rack
+	_box(Vector3(6, 0.12, 6), Vector3(22, ground_y(22, 42) + 0.06, 42), Color(0.12, 0.2, 0.45), false)
+	_animal("crab", Vector3(-20, ground_y(-20, 52), 52), 0.4, 0.3)
+	_animal("crab", Vector3(66, ground_y(66, 53), 53), 0.35, 2.0)
+	_animal("pug", Vector3(-10, ground_y(-10, 28.5), 28.5), 0.55, 1.2)
+	_animal("shiba", Vector3(60, ground_y(60, 28.5), 28.5), 0.85, -2.0)
+
+## Long wooden pier on pilings, out past the surf.
+func _s_pier() -> void:
+	var x := 48.0
+	var deck := Color(0.55, 0.42, 0.3)
+	var z := 32.0
+	while z < 96.0:
+		var top := maxf(ground_y(x, z), WATER_Y) + 2.0
+		top = maxf(top, 1.6)
+		_box(Vector3(4.6, 0.3, 4.2), Vector3(x, top, z + 2.0), deck)
+		for sx in [-2.0, 2.0]:
+			var gy := ground_y(x + sx, z + 2.0)
+			_cyl(0.16, 0.16, top - gy + 0.2, Vector3(x + sx, (top + gy) * 0.5, z + 2.0), Color(0.36, 0.28, 0.2), 6)
+			_box(Vector3(0.12, 0.9, 4.2), Vector3(x + sx * 1.15, top + 0.6, z + 2.0), deck.darkened(0.2), false)
+		z += 4.0
+	# ramp from the boardwalk up onto the deck
+	var r := _box(Vector3(4.6, 0.3, 4.6), Vector3(x, ground_y(x, 30.5) + 0.8, 30.5), deck)
+	r.rotation.x = -0.28
+	# café at the end
+	_box(Vector3(6, 3.0, 5), Vector3(x, 4.6, 92), Color(0.9, 0.9, 0.86))
+	_box(Vector3(6.6, 0.3, 5.6), Vector3(x, 6.2, 92), Color(0.2, 0.5, 0.55), false)
+	_label("OCEAN BEACH PIER", Vector3(x, 5.6, 34), 80, Color(1, 1, 1, 0.95)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _s_cliffs() -> void:
+	var c := Vector3(-72, ground_y(-72, 46), 46)
+	# a bench on the edge to watch the sunset, a few rocks
+	_prop("bench", c.x + 2, c.z - 3, PI, Vector3(1.8, 0.8, 0.5))
+	for i in 7:
+		var a := _rng.randf() * TAU
+		var rp := c + Vector3(cos(a) * _rng.randf_range(4, 14), 0, sin(a) * _rng.randf_range(3, 8))
+		_box(Vector3(1.4, 0.9, 1.1) * _rng.randf_range(0.7, 1.5), Vector3(rp.x, ground_y(rp.x, rp.z) + 0.3, rp.z), Color(0.74, 0.52, 0.34), true, _rng.randf())
+	_label("SUNSET CLIFFS", c + Vector3(0, 3.6, 0), 80, Color(1, 0.8, 0.55)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+## Taco Truck Row: three food trucks, picnic tables and string lights.
+func _s_tacos() -> void:
+	var c := Vector3(30, ground_y(30, -12), -12)
+	_box(Vector3(22, 0.12, 14), c + Vector3(0, 0.05, 0), Color(0.36, 0.36, 0.38), false)
+	var tc := [Color(0.95, 0.85, 0.3), Color(0.9, 0.35, 0.3), Color(0.3, 0.7, 0.6)]
+	for i in 3:
+		var p := c + Vector3(-7 + i * 7, 0, -4.5)
+		_box(Vector3(5.0, 2.6, 2.4), p + Vector3(0, 1.6, 0), tc[i])
+		_box(Vector3(3.0, 0.9, 0.1), p + Vector3(0, 2.1, 1.22), Color(0.15, 0.15, 0.17), false)
+		var aw := _box(Vector3(3.4, 0.08, 1.0), p + Vector3(0, 2.75, 1.6), Color(0.95, 0.95, 0.9), false)
+		aw.rotation.x = 0.3
+		for wx in [-1.6, 1.6]:
+			_cyl(0.35, 0.35, 0.3, p + Vector3(wx, 0.35, 1.25), Color(0.1, 0.1, 0.1), 10)
+	for i in 4:
+		_prop("bar_table", c.x - 6 + i * 4, c.z + 2.5, _rng.randf() * TAU)
+	for i in 8:
+		var bulb := MeshInstance3D.new()
+		bulb.mesh = _mk_sphere(0.12, 0.24)
+		bulb.material_override = DayNight.lamp_material()
+		bulb.position = c + Vector3(-9 + i * 2.5, 3.4 - sin(i * 0.4) * 0.3, 0.5)
+		add_child(bulb)
+	_label("TACO TRUCK ROW", c + Vector3(0, 4.6, -4.5), 80, Color(1, 0.85, 0.45)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+## Gold League USA: a franchise box gym with a gold sign (and its elite members outside).
+func _s_gold_gym() -> void:
+	var c := Vector3(SOCAL_GOLD.x, ground_y(SOCAL_GOLD.x, SOCAL_GOLD.y), SOCAL_GOLD.y)
+	_box(Vector3(18, 6, 10), c + Vector3(0, 3, -4), Color(0.16, 0.16, 0.18))
+	_box(Vector3(18.4, 0.5, 10.4), c + Vector3(0, 6.25, -4), Color(0.86, 0.68, 0.16), false)
+	_box(Vector3(14, 2.4, 0.1), c + Vector3(0, 2.2, 1.05), Color(0.25, 0.35, 0.42), false)
+	_label("GOLD LEAGUE USA", c + Vector3(0, 7.4, 1.2), 110, Color(1, 0.82, 0.25))
+	# parking lot in front
+	_box(Vector3(22, 0.1, 12), c + Vector3(0, 0.04, 8), Color(0.3, 0.3, 0.32), false)
+	for k in 6:
+		_box(Vector3(0.12, 0.02, 4.5), c + Vector3(-9 + k * 3.6, 0.1, 9), Color(0.95, 0.95, 0.95), false)

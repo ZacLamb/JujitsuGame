@@ -1080,7 +1080,7 @@ func discover_landmark(id: String) -> bool:
 	if landmarks.has(id):
 		return false
 	landmarks[id] = true
-	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
+	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer", "socal": "s_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
 	toast.emit("Discovered: %s" % Data.LANDMARKS[id].name, Color(0.6, 0.9, 1.0))
 	save_game()
 	progress_changed.emit()
@@ -1105,7 +1105,7 @@ func collect_cup(i: int, z := "caceres") -> bool:
 		return false
 	cups[key] = true
 	Sfx.play("collect")
-	bump({"pantanal": "feathers", "chapada": "crystals", "rio": "coconuts"}.get(z, "terere"))
+	bump({"pantanal": "feathers", "chapada": "crystals", "rio": "coconuts", "socal": "sanddollars"}.get(z, "terere"))
 	toast.emit("%s %d/%d" % [Data.ZONES[z].collect, collected_count(z), Data.COLLECTIBLES[z].size()], Color(0.55, 0.9, 0.4))
 	save_game()
 	progress_changed.emit()
@@ -1138,8 +1138,16 @@ func current_objective() -> String:
 	if zi >= 0 and zi < 3 and belt_index() > zi + 1:
 		var best := "rio" if rank >= 15 else ("chapada" if rank >= 10 else "pantanal")
 		return "You've outgrown %s. Ride the bus to %s, or hunt quests and medals here." % [Data.ZONES[zone].name, Data.ZONES[best].name]
+	if zone == "socal":
+		if beaten("dale"):
+			return "The Garage is yours. Roll anyone on either continent."
+		if town_wins("socal") < Data.BOSS_REQUIRED_WINS:
+			return "Win rolls around San Diego (%d/%d)." % [town_wins("socal"), Data.BOSS_REQUIRED_WINS]
+		return "Challenge Coach Dale at The Garage."
 	if zone == "rio":
 		if rank >= 20:
+			if player_level() >= 40:
+				return "Black belt. Fly north to San Diego: there's a fifth stamp waiting."
 			return "Black belt. Oss! Roll anyone, anywhere: the mat is yours."
 		if town_wins("rio") < Data.BOSS_REQUIRED_WINS:
 			return "Win rolls around Rio (%d/%d)." % [town_wins("rio"), Data.BOSS_REQUIRED_WINS]
@@ -1246,6 +1254,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("chapada_king")
 		if zone_beaten("rio"):
 			unlock("rio_king")
+		if zone_beaten("socal"):
+			unlock("socal_king")
 	else:
 		losses[opp_id] = int(losses.get(opp_id, 0)) + 1
 		gained = 0   # a loss (tapping out included) pays nothing, like dying in WoW
@@ -1256,7 +1266,7 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 	if result.won and Gear.BOSS_SET.has(opp_id):
 		boss_drop(Gear.BOSS_SET[opp_id])
 	if result.won and opp.get("boss", false):
-		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4}.get(Data.zone_of(opp_id), 1))
+		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4, "socal": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()
 	progress_changed.emit()
 	return gained
@@ -1395,7 +1405,13 @@ func complete_quest(id: String) -> int:
 	give_item(Gear.QUEST_LOOT.get(id, ""))
 	if q.has("stamp") and not stamps.has(str(q.stamp)):
 		stamps.append(str(q.stamp))
-		toast.emit("Passport stamped: %s  (%d/4)" % [str(q.stamp), stamps.size()], Color(1, 0.8, 0.25))
+		toast.emit("Passport stamped: %s  (%d/%d)" % [str(q.stamp), stamps.size(), Data.CHAPTERS.size()], Color(1, 0.8, 0.25))
+		var conts := {}
+		for ch in Data.CHAPTERS:
+			if stamps.has(str(ch.stamp)):
+				conts[Data.continent_of(str(ch.zone))] = true
+		if conts.size() >= 2:
+			unlock("pan_am")
 		save_game()
 	return int(q.xp)
 

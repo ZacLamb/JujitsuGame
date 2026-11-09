@@ -408,6 +408,37 @@ const OPPONENTS := {
 		"intro": "Onça, Jacaré, Cachoeira... I gave them their black belts. Now show me yours is earned. Oss.",
 		"win": "Kneel, gringo. You came to Brazil a tourist. You leave a black belt. Oss.",
 		"lose": "The black belt is just a white belt who never quit. Come back tomorrow."},
+	# ---------------- Zone 5: San Diego (America do Norte)
+	"tyler": {"name": "Tyler", "title": "Surfer, brown belt", "rank": 17, "level": 10.4, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.9, 0.72, 0.56),
+		"pos": Vector3(22, 0, 42), "style": "guard", "extra": ["berimbolo", "omoplata", "lasso_sweep", "triangle"], "zone": "socal",
+		"intro": "Dude, a Brazilian passport? Sick. I learned from YouTube and the ocean. Let's flow.",
+		"win": "Gnarly. You roll like the old tapes my coach shows us.",
+		"lose": "Inverted guard, bro. The ocean taught me that."},
+	"brooke": {"body": "female", "name": "Brooke", "title": "College wrestler, brown belt", "rank": 18, "level": 10.8, "gi": Color(0.12, 0.2, 0.45), "skin": Color(0.78, 0.58, 0.42),
+		"pos": Vector3(-36, 0, 6), "style": "pressure", "extra": ["high_crotch", "body_lock_td", "snap_down", "darce"], "zone": "socal",
+		"intro": "Four years of Division I. I don't pull guard. You're going down, then you're staying down.",
+		"win": "Okay. That scramble was disgusting. Respect.",
+		"lose": "Mat returns are a lifestyle."},
+	"marcus": {"name": "Marcus", "title": "Veteran, black belt", "rank": 20, "level": 11.4, "gi": Color(0.33, 0.36, 0.25), "skin": Color(0.4, 0.27, 0.18),
+		"pos": Vector3(56, 0, -30), "style": "pressure", "extra": ["knee_slice", "smash_pass", "north_south", "paper_cutter"], "zone": "socal",
+		"intro": "Twenty years in the service, fifteen on the mat. Slow is smooth, smooth is fast. Ready?",
+		"win": "Good discipline. Whoever taught you did it right.",
+		"lose": "Pressure first. Submission second. Every time."},
+	"kenji": {"name": "Kenji", "title": "Leg lock nerd, black belt", "rank": 21, "level": 11.8, "gi": Color(0.1, 0.1, 0.12), "skin": Color(0.82, 0.66, 0.5),
+		"pos": Vector3(-52, 0, -42), "style": "submission", "extra": ["toe_hold", "kneebar", "straight_ankle", "darce"], "zone": "socal",
+		"intro": "I've watched four thousand hours of instructionals. Your knees are a solved problem.",
+		"win": "Interesting. You hid your heel. I'll need to rewatch my notes.",
+		"lose": "Inside heel hook, outside position. Textbook."},
+	"dale": {"name": "Coach Dale", "title": "The Garage, black belt", "rank": 24, "level": 12.6, "gi": Color(0.12, 0.12, 0.14), "skin": Color(0.86, 0.64, 0.48), "boss": true,
+		"pos": Vector3(-18, 0, -40), "style": "submission", "extra": ["toe_hold", "kneebar", "darce", "high_crotch", "body_lock_td", "straight_ankle", "berimbolo"], "zone": "socal",
+		"intro": "Grew up wrestling, fell in love with jiu-jitsu off a VHS from Brazil. Thirty years in this garage. Show me what Leão gave you.",
+		"win": "Four stamps and now The Garage. Oss, brother. Brazil taught me, and you just reminded me why.",
+		"lose": "Leg locks are part of jiu-jitsu now. Leão knows it. Come back."},
+	"sterling": {"name": "Brock Sterling", "title": "Gold League USA champion", "rank": 22, "level": 12.2, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.9, 0.74, 0.6),
+		"pos": Vector3(40, 0, 10), "style": "balanced", "extra": ["darce", "body_lock_td", "kneebar", "bow_arrow", "flying_armbar"], "liga": true, "zone": "socal",
+		"intro": "My dad funds the Liga Ouro. Every gym on this coast will be a Gold League by summer. You're a speed bump, passport boy.",
+		"win": "...My dad's going to pull out. Brazil was supposed to be easy money.",
+		"lose": "Gold always wins. Especially in America."},
 	# ---------------- Liga Ouro (main story): gold gis, bought belts
 	"valdir": {"name": "Valdir", "title": "Liga Ouro recruiter", "rank": 6, "level": 3.3, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.8, 0.6, 0.45),
 		"pos": Vector3(-12, 0, 14), "style": "pressure", "extra": ["snap_down", "americana"], "liga": true,
@@ -436,6 +467,7 @@ const ZONES := {
 	"pantanal": {"levels": [11, 20], "name": "Pantanal Norte", "sub": "Transpantaneira", "rank": 5, "boss": "jacare", "spawn": Vector3(-82, 0, -4), "collect": "Arara feathers"},
 	"chapada": {"levels": [21, 30], "name": "Chapada dos Guimarães", "sub": "Red cliffs and waterfalls", "rank": 10, "boss": "cachoeira", "spawn": Vector3(-80, 0, 40), "collect": "Quartz crystals"},
 	"rio": {"levels": [31, 50], "name": "Rio de Janeiro", "sub": "Where jiu-jitsu grew up", "rank": 15, "boss": "leao", "spawn": Vector3(-84, 0, 6), "collect": "Green coconuts"},
+	"socal": {"levels": [40, 50], "name": "San Diego", "sub": "California · América do Norte", "rank": 20, "boss": "dale", "spawn": Vector3(-82, 0, 6), "collect": "Sand dollars", "continent": "america"},
 }
 
 # ---------------------------------------------------------------- daily challenge
@@ -470,6 +502,12 @@ static func daily_challenge(date_str: String, player_rank: int) -> Dictionary:
 		"win": "Oss. Same time tomorrow?", "lose": "Tomorrow's a new day. Oss."}
 	return {"date": date_str, "rule": rule, "opp": opp}
 
+## Continents: Brasil (the bus) and América do Norte (a flight away).
+const CONTINENTS := {"brasil": "Brasil", "america": "América do Norte"}
+const FLIGHT_COST := 300
+static func continent_of(z: String) -> String:
+	return str(ZONES.get(z, {}).get("continent", "brasil"))
+
 static func zone_of(opp_id: String) -> String:
 	return OPPONENTS[opp_id].get("zone", "caceres")
 
@@ -501,6 +539,12 @@ const LANDMARKS := {
 	"r_sugarloaf": {"name": "Pão de Açúcar Cable Car", "pos": Vector3(62, 0, 40), "radius": 10.0, "zone": "rio"},
 	"r_cristo": {"name": "Corcovado Summit", "pos": Vector3(-46, 0, -62), "radius": 9.0, "zone": "rio"},
 	"r_morro": {"name": "The Morro", "pos": Vector3(38, 0, -50), "radius": 14.0, "zone": "rio"},
+	"s_airport": {"name": "Lindbergh Shuttle Stop", "pos": Vector3(-82, 0, 6), "radius": 10.0, "zone": "socal"},
+	"s_pier": {"name": "Ocean Beach Pier", "pos": Vector3(48, 0, 50), "radius": 12.0, "zone": "socal"},
+	"s_boardwalk": {"name": "The Boardwalk", "pos": Vector3(0, 0, 28), "radius": 14.0, "zone": "socal"},
+	"s_garage": {"name": "The Garage", "pos": Vector3(-18, 0, -40), "radius": 10.0, "zone": "socal"},
+	"s_tacos": {"name": "Taco Truck Row", "pos": Vector3(30, 0, -10), "radius": 10.0, "zone": "socal"},
+	"s_cliffs": {"name": "Sunset Cliffs", "pos": Vector3(-72, 0, 46), "radius": 12.0, "zone": "socal"},
 }
 
 # ---------------------------------------------------------------- academy wars
@@ -519,11 +563,14 @@ const TERRITORIES := {
 	"t_beach": {"name": "Copacabana", "zone": "rio", "pos": Vector3(8, 0, 36), "academy": "Copacabana Top Team"},
 	"t_arpoador": {"name": "Arpoador", "zone": "rio", "pos": Vector3(-68, 0, 40), "academy": "Arpoador BJJ"},
 	"t_morro": {"name": "The Morro", "zone": "rio", "pos": Vector3(38, 0, -40), "academy": "Projeto Morro"},
+	"t_boardwalk": {"name": "The Boardwalk", "zone": "socal", "pos": Vector3(-8, 0, 32), "academy": "Gold League USA"},
+	"t_cliffs": {"name": "Sunset Cliffs", "zone": "socal", "pos": Vector3(-64, 0, 38), "academy": "Coastline Grappling"},
+	"t_canyon": {"name": "Canyon Trails", "zone": "socal", "pos": Vector3(50, 0, -56), "academy": "Tatame Livre"},
 }
 const ACADEMY_COLORS := {"Tatame Livre": Color(0.9, 0.9, 0.85), "Rio Negro Team": Color(0.15, 0.15, 0.2), "Cuiabá Combat": Color(0.85, 0.3, 0.2),
 	"Pantanal Fight": Color(0.3, 0.55, 0.3), "Jacaré BJJ": Color(0.4, 0.45, 0.2), "Ilha Grappling": Color(0.2, 0.6, 0.75),
 	"Cachoeira Team": Color(0.5, 0.75, 0.95), "Copacabana Top Team": Color(0.95, 0.75, 0.2), "Arpoador BJJ": Color(0.95, 0.5, 0.3),
-	"Projeto Morro": Color(0.6, 0.3, 0.75)}
+	"Projeto Morro": Color(0.6, 0.3, 0.75), "Gold League USA": Color(0.86, 0.68, 0.16), "Coastline Grappling": Color(0.25, 0.5, 0.7)}
 const YOUR_ACADEMY_COLOR := Color(0.1, 0.55, 0.32)
 
 static func territories_in(zone: String) -> Array:
@@ -545,6 +592,7 @@ const COLLECTIBLES := {
 	"pantanal": [Vector3(-60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(70, 0.8, -70), Vector3(84, 0.8, 10), Vector3(20, 0.8, -12), Vector3(-75, 0.8, 60)],
 	"chapada": [Vector3(-66, 0.8, -12), Vector3(60, 0.8, -60), Vector3(-10, 0.8, 70), Vector3(-30, 0.8, -78), Vector3(75, 0.8, 20), Vector3(12, 0.8, -4)],
 	"rio": [Vector3(-14, 0.8, 50), Vector3(44, 0.8, 46), Vector3(-82, 0.8, 40), Vector3(-40, 0.8, -46), Vector3(52, 0.8, -60), Vector3(-56, 0.8, -8)],
+	"socal": [Vector3(-24, 0.8, 46), Vector3(70, 0.8, 44), Vector3(-60, 0.8, 52), Vector3(10, 0.8, -60), Vector3(66, 0.8, -50), Vector3(-40, 0.8, -12)],
 }
 
 const TERERE_CUPS := [
@@ -592,6 +640,11 @@ const ACHIEVEMENTS := [
 	{"id": "coconuts", "name": "Água de Coco", "desc": "Find all 6 green coconuts in Rio.", "goal": 6},
 	{"id": "black_belt", "name": "Black Belt", "desc": "Get promoted by Grão-Mestre Leão."},
 	{"id": "rio_king", "name": "Rei do Rio", "desc": "Beat every fighter in Rio."},
+	{"id": "s_explorer", "name": "Local, Bro", "desc": "Discover every landmark in San Diego.", "goal": 6},
+	{"id": "sanddollars", "name": "Beachcomber", "desc": "Find all 6 sand dollars in San Diego.", "goal": 6},
+	{"id": "socal_king", "name": "King of the Coast", "desc": "Beat every fighter in San Diego."},
+	{"id": "flight", "name": "Passport Control", "desc": "Fly to América do Norte."},
+	{"id": "pan_am", "name": "Pan-American", "desc": "Earn a stamp on two continents."},
 	{"id": "cristo", "name": "Arms Wide Open", "desc": "Climb Corcovado to the statue.", "hidden": true},
 	{"id": "first_medal", "name": "On the Podium", "desc": "Win a medal at a competition."},
 	{"id": "first_gold", "name": "Campeão", "desc": "Win gold at a competition."},
@@ -651,6 +704,8 @@ const COMPS := {
 		"blurb": "Competitors come from all over Mato Grosso. Cold mornings, hot matches."},
 	"rio_open": {"name": "Rio International Open", "zone": "rio", "min_rank": 0, "rounds": 3, "power": 0.7,
 		"blurb": "Teams from every corner of Brazil and abroad. The bracket is stacked."},
+	"socal_open": {"name": "Pan-American Open", "zone": "socal", "min_rank": 0, "rounds": 4, "power": 0.95,
+		"blurb": "Gi and no-gi divisions, teams from both continents. The Gold League sponsored half the bracket."},
 	"mundial": {"name": "Campeonato Mundial", "zone": "rio", "min_rank": 20, "rounds": 4, "power": 1.1,
 		"blurb": "The world championship. Black belts only. Sixteen in the bracket, one on top."},
 }
@@ -740,6 +795,10 @@ const QUEST_GIVERS := {
 	"iracema": {"name": "Dona Iracema", "zone": "pantanal", "pos": Vector3(70, 0, 53), "shirt": Color(0.6, 0.35, 0.2), "skin": 0.65, "story": true, "body": "female"},
 	"iara": {"name": "Iara", "zone": "chapada", "pos": Vector3(34, 0, 46), "shirt": Color(0.3, 0.55, 0.75), "skin": 0.55, "story": true, "body": "female"},
 	"bia": {"name": "Professora Bia", "zone": "rio", "pos": Vector3(4, 0, -16), "shirt": Color(0.95, 0.95, 0.95), "skin": 0.8, "story": true, "body": "female"},
+	"rae": {"name": "Professor Rae", "zone": "socal", "pos": Vector3(-74, 0, 14), "shirt": Color(0.1, 0.1, 0.12), "skin": 0.55, "story": true},
+	"carmen": {"name": "Abuela Carmen", "zone": "socal", "pos": Vector3(28, 0, -4), "shirt": Color(0.85, 0.3, 0.3), "skin": 0.5, "body": "female"},
+	"jayden": {"name": "Jayden", "zone": "socal", "pos": Vector3(-6, 0, 24), "shirt": Color(0.2, 0.7, 0.75), "skin": 0.3},
+	"kim": {"name": "Lifeguard Kim", "zone": "socal", "pos": Vector3(34, 0, 36), "shirt": Color(0.9, 0.2, 0.2), "skin": 0.25, "body": "female"},
 }
 
 ## The main story: four chapters, one passport stamp each. The Liga Ouro buys academies, sells belts
@@ -749,8 +808,9 @@ const CHAPTERS := [
 	{"id": "ch2", "zone": "pantanal", "name": "Chapter 2: Swamp Law", "stamp": "Fazenda Jacaré", "master": "jacare", "color": Color(0.35, 0.65, 0.3)},
 	{"id": "ch3", "zone": "chapada", "name": "Chapter 3: The Waterfall Deal", "stamp": "Cachoeira Team", "master": "cachoeira", "color": Color(0.85, 0.35, 0.25)},
 	{"id": "ch4", "zone": "rio", "name": "Chapter 4: Grande Final", "stamp": "Leão Jiu-Jitsu", "master": "leao", "color": Color(0.3, 0.55, 0.95)},
+	{"id": "ch5", "zone": "socal", "name": "Chapter 5: The Pan-American Trip", "stamp": "The Garage", "master": "dale", "color": Color(0.85, 0.3, 0.35)},
 ]
-const STORY_QUEST_OF_STAMP := {"Academia Onça": "s1_onca", "Fazenda Jacaré": "s2_jacare", "Cachoeira Team": "s3_cachoeira", "Leão Jiu-Jitsu": "s4_leao"}
+const STORY_QUEST_OF_STAMP := {"Academia Onça": "s1_onca", "Fazenda Jacaré": "s2_jacare", "Cachoeira Team": "s3_cachoeira", "Leão Jiu-Jitsu": "s4_leao", "The Garage": "s5_dale"}
 
 ## Gi / No-Gi paths: everyone trains both, you specialise in one at blue belt.
 const PATHS := {
@@ -857,6 +917,23 @@ const QUESTS := {
 		"offer": "Every surfer here trains every day. Win two Daily Challenges, then come drink another coco.",
 		"done": "Consistency, campeão. That's the whole secret, on the mat and in the waves.",
 		"obj": [{"type": "daily_wins", "n": 2, "text": "Daily Challenges won"}]},
+	# ---------------- San Diego
+	"sand_dollars": {"giver": "kim", "title": "Sand Dollars", "min_level": 40, "xp": 650,
+		"offer": "Tourists keep taking the sand dollars home. Can you find four before they do? I'll put them back where they belong.",
+		"done": "Perfect. And hey, if you ever want to train lifeguard-style, we swim at 6 a.m. Bring your gas.",
+		"obj": [{"type": "collect", "zone": "socal", "n": 4, "text": "Sand dollars found"}]},
+	"local_tour": {"giver": "jayden", "title": "Local Tour", "min_level": 40, "xp": 650,
+		"offer": "Yo, you're the Brazilian guy everyone's talking about? Before you roll here you gotta see the spots. Pier, cliffs, tacos. Non-negotiable.",
+		"done": "Okay, you're basically a local now. Don't tell anyone about the cliffs.",
+		"obj": [{"type": "landmarks", "ids": ["s_pier", "s_cliffs", "s_tacos"], "text": "Visit the pier, the cliffs and Taco Truck Row"}]},
+	"taco_tuesday": {"giver": "carmen", "title": "Taco Tuesday", "min_level": 41, "xp": 700,
+		"offer": "Mijo, the Gold League boys eat my tacos and never pay. Every Tuesday. You look strong. Teach Tyler and Brooke some manners and the carne asada is on me.",
+		"done": "Ay, they paid! With interest! Sit, eat. You remind me of my grandson.",
+		"obj": [{"type": "beat", "ids": ["tyler", "brooke"], "text": "Beat Tyler and Brooke"}]},
+	"no_gi_night": {"giver": "rae", "title": "No-Gi Night", "min_level": 42, "xp": 720,
+		"offer": "Friday night at The Garage is no-gi, and they don't care about belts. Win three rolls by submission, any outfit. That's how you earn a seat at the table here.",
+		"done": "Three taps on a Friday. Dale's crew is calling you 'the Passport' now.",
+		"obj": [{"type": "sub_wins", "n": 3, "text": "Submission wins"}]},
 	# ================= MAIN STORY: Passaporte do Tatame
 	# ---- Chapter 1: Cáceres
 	"s1_passport": {"giver": "tati", "story": true, "chapter": "ch1", "title": "A Blank Passport", "min_level": 1, "xp": 80,
@@ -942,6 +1019,27 @@ const QUESTS := {
 		"offer": "Grão-Mestre Leão stamps the passport himself. Nobody has filled one in twenty years. Win your rolls around Rio and go see him.",
 		"done": "Four stamps. Your passport is full, and you're part of the lineage now, gringo. Word is a Pan-American team is putting together a trip north. America. You'll want to be on that bus.",
 		"obj": [{"type": "beat", "ids": ["leao"], "text": "Earn Grão-Mestre Leão's stamp"}]},
+	# ---- Chapter 5: San Diego (América do Norte)
+	"s5_arrive": {"giver": "rae", "story": true, "chapter": "ch5", "title": "Passport Control", "min_level": 40, "xp": 800,
+		"offer": "Welcome to America, gringo. Funny, here YOU'RE the Brazilian. I left Rio twenty years ago and opened a school by the beach. Leão called. He says the Liga's money comes from here. Walk the coast first: boardwalk, pier, the garage gyms.",
+		"done": "See all the gold banners? 'Gold League USA'. Same people, new flag. The Liga is the Sterling family's business.",
+		"obj": [{"type": "landmarks", "ids": ["s_boardwalk", "s_pier", "s_garage"], "text": "Visit the boardwalk, the pier and The Garage"}]},
+	"s5_garage": {"giver": "rae", "story": true, "chapter": "ch5", "title": "Garage Rules", "min_level": 41, "xp": 900, "requires": ["s5_arrive"],
+		"offer": "American jiu-jitsu grew up in garages and wrestling rooms. They respect results, not belts. Marcus and Kenji run the Friday crew. Earn their respect.",
+		"done": "Kenji says you 'solved the leg lock problem'. From him, that's a marriage proposal.",
+		"obj": [{"type": "beat", "ids": ["marcus", "kenji"], "text": "Beat Marcus and Kenji"}]},
+	"s5_sterling": {"giver": "rae", "story": true, "chapter": "ch5", "title": "Gold League USA", "min_level": 43, "xp": 1000, "requires": ["s5_garage"],
+		"offer": "Brock Sterling. His father bankrolls the Liga Ouro. The kid parades on the boardwalk in a gold gi. Beat him in public and the investors start asking questions.",
+		"done": "The video already has a million views. 'Brazilian passport guy humbles Gold League heir.' The sponsors are running.",
+		"obj": [{"type": "beat", "ids": ["sterling"], "text": "Beat Brock Sterling"}]},
+	"s5_open": {"giver": "rae", "story": true, "chapter": "ch5", "title": "The Pan-American Open", "min_level": 44, "xp": 1100, "requires": ["s5_sterling"],
+		"offer": "The Pan-American Open: both continents, gi and no-gi. The Gold League bought the naming rights and lost the war. Go take a medal home.",
+		"done": "A medal on two continents. Dale's waiting in The Garage. He doesn't give stamps. He's never had a passport to stamp.",
+		"obj": [{"type": "medal", "comp": "socal_open", "text": "Win a medal at the Pan-American Open"}]},
+	"s5_dale": {"giver": "rae", "story": true, "chapter": "ch5", "title": "The Fifth Stamp", "min_level": 46, "xp": 1500, "requires": ["s5_open"], "stamp": "The Garage",
+		"offer": "Win your rolls around San Diego, then go see Coach Dale. If you survive his leg locks, The Garage goes in your passport. Two continents. Nobody's done that.",
+		"done": "Five stamps, two continents. The Liga Ouro is finished, and you're the bridge between Brazil and America now. Some say there's a faction war brewing over who owns jiu-jitsu. We'll see. Oss.",
+		"obj": [{"type": "beat", "ids": ["dale"], "text": "Earn Coach Dale's stamp"}]},
 }
 
 static func quests_of(giver: String) -> Array:
