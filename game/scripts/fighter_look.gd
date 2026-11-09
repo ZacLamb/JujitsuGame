@@ -116,6 +116,10 @@ void fragment() {
 	float gm = smoothstep(0.3, 0.5, lum) * (1.0 - smoothstep(0.08, 0.2, sat)) * (1.0 - mk.g) * (1.0 - mk.r);
 	float warm = step(cs.b, cs.g) * step(cs.g, cs.r);
 	float sm = warm * smoothstep(0.12, 0.24, sat) * smoothstep(0.06, 0.14, lum) * (1.0 - gm);
+	// on the head only recolour what is close to the painted skin (keeps red / blond hair its colour)
+	vec3 cn = c / max(c.r + c.g + c.b, 0.001);
+	vec3 rn = skin_ref.rgb / max(skin_ref.r + skin_ref.g + skin_ref.b, 0.001);
+	sm *= mix(1.0, 1.0 - smoothstep(0.07, 0.13, distance(cn, rn)), mk.g);
 	float bm = mk.r;
 	vec3 W = vec3(0.2126, 0.7152, 0.0722);
 	vec3 o = c;

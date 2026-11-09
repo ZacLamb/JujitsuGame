@@ -8,6 +8,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var kit: String = args[0] if args.size() > 0 else "nogi"
 	var body: String = args[1] if args.size() > 1 else "male"
+	var preset: String = args[2] if args.size() > 2 else "classic"
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -28,6 +29,7 @@ func _ready() -> void:
 		add_child(holder)
 		holder.position = Vector3((i - 2) * 1.25, 0, 0)
 		var rig := BodyRig.new()
+		rig.head_id = preset
 		holder.add_child(rig)
 		if kit == "nogi":
 			rig.look = {"kit": "nogi", "rash": {"color": gis[i]}, "spats": {"color": gis[i]}}
@@ -42,7 +44,7 @@ func _ready() -> void:
 	cam.look_at(Vector3(0, 0.95, 0))
 	cam.make_current()
 	for f in 50: await get_tree().process_frame
-	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s.png" % [kit, body])
+	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s_%s.png" % [kit, body, preset])
 	# grappling: rig 4 takes an in-world attack pose (pose system -> retarget onto the Mixamo bones)
 	rigs[4].action(CombatAnim.attack("sub", rigs[4].rotation.y), true)
 	print("knockdown clip: ", rigs[0].action_clip("KnockDown", true))

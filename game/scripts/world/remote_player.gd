@@ -65,7 +65,7 @@ func set_char(ch: Dictionary) -> void:
 	rig.look = Net.dec(ch.get("look", {}))
 	rig.build = Rpg.class_build(st)
 	rig.crest = st
-	rig.head_id = str(ch.get("head", "")) if str(ch.get("head", "")) in BodyRig.HEADS else ""
+	rig.head_id = str(ch.get("head", "classic"))
 	var belt := clampi(int(ch.get("belt", 0)), 0, Data.BELTS.size() - 1)
 	var gi := Color.html(str(ch.get("gi", "f2f2ee"))) if Color.html_is_valid(str(ch.get("gi", ""))) else Color(0.95, 0.95, 0.93)
 	rig.setup(gi, Data.BELTS[belt].color, UiKit.skin_tone(float(ch.get("skin", 0.35))), Color(0.55, 0.36, 0.18), 0, str(ch.get("body", "male")))

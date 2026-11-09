@@ -19,7 +19,7 @@ func _ready() -> void:
 	sel._pick_origin("carioca")
 	sel._pick_style("wrestler")
 	sel._pick_body("female")
-	sel._pick_head(6)
+	sel._pick_head(2)
 	for i in 30: await get_tree().process_frame
 	_shot("a_screen")
 	sel._begin()

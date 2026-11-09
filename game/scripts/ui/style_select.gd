@@ -174,18 +174,29 @@ func _ready() -> void:
 	r2.add_theme_constant_override("separation", 8)
 	r2.alignment = BoxContainer.ALIGNMENT_CENTER
 	bv.add_child(r2)
-	# skin tone (the Meshy hero bodies each carry one face; the tone recolours it)
+	# face preset (each is its own Meshy body) + skin tone
+	r2.add_child(Wow.label("Face", 15, Wow.PALE))
+	var prev := Wow.button("<", Vector2(30, 30))
+	prev.pressed.connect(func(): _pick_head(-1))
+	r2.add_child(prev)
+	_head_lbl = Wow.label("", 14, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER)
+	_head_lbl.custom_minimum_size = Vector2(104, 0)
+	r2.add_child(_head_lbl)
+	var nxt := Wow.button(">", Vector2(30, 30))
+	nxt.pressed.connect(func(): _pick_head(1))
+	r2.add_child(nxt)
+	r2.add_child(_spacer(10))
 	r2.add_child(Wow.label("Skin", 15, Wow.PALE))
 	_skin_btns.clear()
 	for i in SKINS.size():
 		var sb := Button.new()
-		sb.custom_minimum_size = Vector2(30, 30)
+		sb.custom_minimum_size = Vector2(26, 30)
 		sb.focus_mode = Control.FOCUS_NONE
 		var st: float = SKINS[i]
 		sb.pressed.connect(func(): _pick_skin(st))
 		r2.add_child(sb)
 		_skin_btns.append(sb)
-	r2.add_child(_spacer(16))
+	r2.add_child(_spacer(8))
 	r2.add_child(Wow.label("Gi", 15, Wow.PALE))
 	for i in Rpg.GI_COLORS.size():
 		var b := Wow.button(Rpg.GI_NAMES[i], Vector2(74, 30))
@@ -193,7 +204,7 @@ func _ready() -> void:
 		b.pressed.connect(func(): _pick_gi(gi))
 		r2.add_child(b)
 		_gi_btns.append(b)
-	r2.add_child(_spacer(16))
+	r2.add_child(_spacer(8))
 	var go := Wow.button("Save look" if barber else "Begin training", Vector2(190, 38))
 	go.add_theme_font_size_override("font_size", 18)
 	go.add_theme_color_override("font_color", Wow.GOLD)
@@ -318,18 +329,21 @@ func _pick_style(id: String) -> void:
 func _pick_body(b: String) -> void:
 	_body = b
 	_mark(_body_btns, b)
-	_preview()
+	if not _head in BodyRig.presets_for(_body):
+		_head = "classic"
+	_pick_head(0)
 
 var _head := ""
 var _head_lbl: Label
 
 func _pick_head(step: int) -> void:
+	var pool := BodyRig.presets_for(_body)
 	if _head == "":
-		_head = Game.head_id() if barber else ("braid" if _body == "female" else "fade")
-	var i := BodyRig.HEADS.find(_head)
-	_head = BodyRig.HEADS[wrapi(i + step, 0, BodyRig.HEADS.size())]
+		_head = Game.head_id() if barber else "classic"
+	var i := maxi(pool.find(_head), 0)
+	_head = pool[wrapi(i + step, 0, pool.size())]
 	if _head_lbl:
-		_head_lbl.text = BodyRig.HEAD_NAMES[_head]
+		_head_lbl.text = "%s  %d/%d" % [BodyRig.PRESET_NAMES.get(_head, _head), pool.find(_head) + 1, pool.size()]
 	_preview()
 
 func _pick_skin(t: float) -> void:

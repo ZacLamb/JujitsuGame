@@ -460,9 +460,9 @@ func set_identity(origin_id: String, body_type: String, skin: float, face := "")
 
 ## The face worn (BodyRig.HEADS id).
 func head_id() -> String:
-	if head in BodyRig.HEADS:
+	if head in BodyRig.presets_for(body):
 		return head
-	return "braid" if body == "female" else "fade"
+	return "classic"
 
 func skin_color() -> Color:
 	return UiKit.skin_tone(skin_t)

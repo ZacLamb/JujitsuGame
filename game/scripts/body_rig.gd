@@ -139,11 +139,34 @@ func action_clip(key: String, hold := false) -> bool:
 	_action_until = INF if hold else Time.get_ticks_msec() * 0.001 + a.length
 	return true
 
+## Face presets: each is a full Meshy body (gi + no-gi) with its own face and hair.
+## "classic" = the base bodies above; the others live at native_<kit>_<m|f>_<id>.scn.
+const PRESETS_M := ["classic", "curls", "veteran"]
+const PRESETS_F := ["classic", "braids", "redhead"]
+const PRESET_NAMES := {"classic": "Classic", "curls": "Curls & Beard", "veteran": "Veteran",
+	"braids": "Braids", "redhead": "Red Pixie"}
+
+static func presets_for(b: String) -> Array:
+	var out: Array = []
+	for id in (PRESETS_F if b == "female" else PRESETS_M):
+		if id == "classic" or ResourceLoader.exists("res://assets/models/native/native_gi_%s_%s.scn" % ["f" if b == "female" else "m", id]):
+			out.append(id)
+	return out
+
 func _native_path() -> String:
 	if not use_meshy:
 		return ""
 	var kit := "nogi" if str(current_look().get("kit", "gi")) != "gi" else "gi"
 	var p: String = NATIVE[kit].get(body, "")
+	var pool := presets_for(body)
+	var pid := head_id
+	if not pid in pool:
+		# NPCs (and old saves): a preset from the look hash, so crowds vary
+		pid = pool[absi(hash(gi_color.to_html() + skin_color.to_html() + hair_color.to_html())) % pool.size()]
+	if pid != "classic":
+		var alt := "res://assets/models/native/native_%s_%s_%s.scn" % [kit, "f" if body == "female" else "m", pid]
+		if ResourceLoader.exists(alt):
+			p = alt
 	return p if p != "" and ResourceLoader.exists(p) else ""
 var _meshy := false
 ## Body width for the Meshy bodies (1 = as modelled). 0 = pick from the look hash (0.92-1.1) so

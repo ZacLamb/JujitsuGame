@@ -58,6 +58,33 @@ if WW.max() > 1.5:
     WW = WW / 255.0
 head_j = [k for k, ni in enumerate(skin["joints"]) if any(h in J["nodes"][ni]["name"] for h in ("Head", "headfront"))]
 headw = (np.isin(JW, head_j) * WW).sum(1)
+neck_j = [k for k, ni in enumerate(skin["joints"]) if "Neck" in J["nodes"][ni]["name"]]
+hairw = headw + (np.isin(JW, neck_j) * WW).sum(1)   # ponytails / braids hang off the head + neck
+# long hair hanging down the back (braids are often skinned to the spine): every UV island that
+# reaches the head, is mostly dark and is small (not the torso) counts as hair
+behind = np.zeros(len(P), bool)
+if kit == "nogi":
+    _bv = J["bufferViews"][J["images"][J["textures"][J["materials"][prim.get("material", 0)]["pbrMetallicRoughness"]["baseColorTexture"]["index"]]["source"]]["bufferView"]]
+    _A0 = np.asarray(Image.open(io.BytesIO(BIN[_bv.get("byteOffset", 0):_bv.get("byteOffset", 0) + _bv["byteLength"]])).convert("RGB").resize((256, 256))).astype(np.float32) / 255
+    _px = np.clip((UV * 255).astype(int), 0, 255)
+    _lum = _A0[_px[:, 1], _px[:, 0]] @ np.array([0.299, 0.587, 0.114], np.float32)
+    par = np.arange(len(P))
+    def _f(a):
+        while par[a] != a:
+            par[a] = par[par[a]]
+            a = par[a]
+        return a
+    for t in I:
+        ra = _f(t[0])
+        for v in t[1:]:
+            rb = _f(v)
+            if rb != ra:
+                par[rb] = ra
+    roots = np.array([_f(i) for i in range(len(P))])
+    for r in np.unique(roots):
+        m = roots == r
+        if headw[m].max() > 0.5 and (_lum[m] < 0.18).mean() > 0.5 and m.sum() < 600:
+            behind |= m
 y0, y1 = P[:, 1].min(), P[:, 1].max()
 H = y1 - y0
 
@@ -74,6 +101,7 @@ A = np.asarray(alb).astype(np.float32) / 255
 # per-triangle region flags rasterised in UV space
 reg_r = np.zeros((N, N), np.float32)
 reg_g = np.zeros((N, N), np.float32)
+reg_h = np.zeros((N, N), np.float32)   # anything hanging off the head/neck (long hair): never cloth
 pix = UV * (N - 1)
 for t in I:
     q = P[t]
@@ -82,7 +110,8 @@ for t in I:
     r = 1.0 if (kit == "gi" and hy - 0.16 * H < cy < hy + 0.11 * H and cx < 0.16 * H) else 0.0
     # face / hair: skinned (mostly) to the head bones, so collars and big trapezius muscles stay cloth
     g = 1.0 if headw[t].mean() > 0.6 else 0.0
-    if r == 0.0 and g == 0.0:
+    hh = 1.0 if (kit == "nogi" and ((hairw[t].max() > 0.25 and cy > hy) or behind[t].any())) else 0.0
+    if r == 0.0 and g == 0.0 and hh == 0.0:
         continue
     p = pix[t]
     x0, yy0 = np.floor(p.min(0)).astype(int); x1, yy1 = np.ceil(p.max(0)).astype(int)
@@ -100,18 +129,24 @@ for t in I:
         reg_r[sl] = np.maximum(reg_r[sl], inside * r)
     if g:
         reg_g[sl] = np.maximum(reg_g[sl], inside * g)
+    if hh:
+        reg_h[sl] = 1.0   # whole (padded) box: hair strands are often smaller than a texel
 
 lum = A @ np.array([0.299, 0.587, 0.114], np.float32)
 mx = A.max(2); mn = A.min(2)
-sat = (mx - mn) / np.maximum(mx, 1e-3)
+sat = (mx - mn) / np.maximum(mx, 1e-3) * np.clip((mx - 0.04) / 0.12, 0, 1)   # near-black reads as neutral
 dark = np.clip((0.3 - lum) / 0.1, 0, 1) * np.clip((0.4 - sat) / 0.15, 0, 1)
 belt = reg_r * (1 - reg_g) * dark
 # no-gi: the dark rashguard / shorts (B channel) get tinted to the gear colour by brightness
 dark_cloth = np.zeros_like(belt)
 if kit == "nogi":
-    dark_cloth = np.clip((0.32 - lum) / 0.12, 0, 1) * np.clip((0.45 - sat) / 0.2, 0, 1) * (1 - reg_g)
+    dark_cloth = np.clip((0.32 - lum) / 0.12, 0, 1) * np.clip((0.45 - sat) / 0.2, 0, 1) * (1 - reg_g) * (1 - reg_h)
     dark_cloth = np.asarray(Image.fromarray((dark_cloth * 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5))).astype(np.float32) / 255
-mask = Image.fromarray((np.stack([belt, reg_g, dark_cloth], 2) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+# small belt islands fade out in the mip chain: grow them more
+grow = 7 if (belt > 0.5).sum() < 6000 else 3
+bimg = Image.fromarray((belt * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(grow))
+rest = Image.fromarray((np.stack([np.zeros_like(belt), reg_g, dark_cloth], 2) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+mask = Image.merge("RGB", (bimg, rest.split()[1], rest.split()[2]))
 mask.save(os.path.join(OUT, f"{name}_mask.png"))
 
 # reference colours: the painted skin and the painted cloth
