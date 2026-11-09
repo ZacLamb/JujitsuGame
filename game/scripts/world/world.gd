@@ -22,6 +22,7 @@ var _rng := RandomNumberGenerator.new()
 var game_started := false
 var zone := "caceres"
 var spots: Array = []       # interactable spots: {pos, radius, label, action, arg}
+var chests: Chests          # hidden chests (scripts/world/chests.gd)
 var nearby_spot: Dictionary = {}
 var _jaguar_area: Area3D
 var _blocked: Array = []  # Rect2 areas with no trees/houses
@@ -42,6 +43,9 @@ func build(z := "caceres") -> void:
 			var vp: Vector3 = v[0]
 			_label(str(v[1]).trim_prefix("Shop: ").to_upper(), Vector3(vp.x, ground_y(vp.x, vp.z) + 2.8, vp.z), 56, Color(1, 0.95, 0.75))
 	_build_territories()
+	chests = Chests.new()
+	add_child(chests)
+	chests.build(self)
 	_dress_props()
 	_batch_static()
 	apply_graphics()

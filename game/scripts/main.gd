@@ -523,6 +523,8 @@ func _use_spot(spot: Dictionary) -> void:
 			hud.open_shop(str(spot.arg))
 		"barber":
 			open_barber()
+		"chest":
+			_open_chest(str(spot.arg), spot)
 		"job":
 			_open_job(str(spot.arg))
 		"raid":
@@ -534,6 +536,34 @@ func _use_spot(spot: Dictionary) -> void:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
 				return
 			_start_drill(spot.arg)
+
+## Hidden chest: money, food, maybe a bag or rolled gear; XP the first time you find it.
+func _open_chest(id: String, spot: Dictionary) -> void:
+	var loot: Dictionary = world.chests.open(id)
+	if loot.is_empty():
+		Game.toast.emit("Empty. Someone beat you to it: it refills in %dh." % ceili(Chests.refill_left(id) / 3600.0), Wow.GREY)
+		return
+	Sfx.play("collect", -4.0)
+	Game.money += int(loot.money)
+	var got: Array = []
+	for it in loot.items:
+		if Game.add_item(str(it)) == 0:
+			got.append(str(it))
+		else:
+			Game.toast.emit("Bags full: %s left in the chest." % str(Loot.item(str(it)).get("name", it)), UiKit.RED)
+	Game.toast.emit("%s! R$ %d" % ["Golden chest" if loot.golden else "Hidden chest", int(loot.money)], Color(1, 0.85, 0.35))
+	for it in got:
+		Game.toast.emit("Looted: %s" % str(Loot.item(it).get("name", it)), Loot.color(it))
+	if loot.first:
+		Game.add_xp(int(loot.xp))
+		Game.toast.emit("Discovered! +%d XP  ·  hidden chests in %s: %d/%d" % [int(loot.xp), Data.ZONES[world.zone].name, world.chests.found_count(), world.chests.chests.size()], UiKit.ACCENT)
+		Game.unlock("chest_first")
+		if world.chests.found_count() >= world.chests.chests.size():
+			Game.unlock("chest_zone")
+	Game.bump("chest_hunter")
+	Game.save_game()
+	hud.set_spot_prompt(spot)
+	hud.refresh()
 
 # ------------------------------------------------------------ quests
 var _quest_prompt := ""  # "offer:<id>" / "turnin:<id>" / "info" while a quest dialogue is open
