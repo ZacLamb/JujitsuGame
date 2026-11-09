@@ -194,6 +194,33 @@ static func textured(mi: MeshInstance3D, jacket: Dictionary, pants_l: Dictionary
 	_chain(m, grow, ref, team, ink)
 	return m
 
+## Toon-shaded texture as-is (modular heads: their skin and hair are painted, not recoloured).
+const PLAIN_CODE := """
+shader_type spatial;
+render_mode diffuse_toon, specular_disabled;
+%STENCIL%
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform float rim_amount = 0.2;
+void fragment() {
+	ALBEDO = texture(albedo_tex, UV).rgb;
+	ROUGHNESS = 0.85;
+	RIM = rim_amount;
+	RIM_TINT = 0.5;
+}
+"""
+static var _plain := {}
+static func plain_textured(tex: Texture2D, grow: float, ref := 0, team := Color(0, 0, 0, 0), ink := Color(0.09, 0.07, 0.06)) -> ShaderMaterial:
+	if not _plain.has(ref):
+		var sh := Shader.new()
+		sh.code = PLAIN_CODE.replace("%STENCIL%", "stencil_mode write, compare_always, %d;" % ref if ref > 0 else "")
+		_plain[ref] = sh
+	var m := ShaderMaterial.new()
+	m.shader = _plain[ref]
+	m.set_shader_parameter("albedo_tex", tex)
+	m.set_shader_parameter("rim_amount", 0.35 if ref > 0 else 0.15)
+	_chain(m, grow, ref, team, ink)
+	return m
+
 static func _chain(m: ShaderMaterial, grow: float, ref: int, team: Color, ink: Color) -> void:
 	var last: Material = m
 	if grow > 0.0:

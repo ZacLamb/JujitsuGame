@@ -134,11 +134,11 @@ func _init():
 	var root := Node3D.new()
 	root.name = "Fighter"
 	var mi := MeshInstance3D.new()
-	mi.name = "Body"
+	mi.name = str(d.get("mesh_name", "Body"))
 	mi.mesh = im.get_mesh()
 	mi.skin = skin
 	mi.set_meta("own_skin", true)
-	mi.set_meta("albedo", "res://assets/models/%s_albedo.png" % nm)
+	mi.set_meta("albedo", str(d.get("albedo", "res://assets/models/%s_albedo.png" % nm)))
 	var sr: Array = d.get("skin_ref", [0.6, 0.45, 0.4])
 	var gr: Array = d.get("gi_ref", [0.85, 0.85, 0.85])
 	mi.set_meta("skin_ref", Color(sr[0], sr[1], sr[2]))
@@ -148,5 +148,8 @@ func _init():
 	var ps := PackedScene.new()
 	ps.pack(root)
 	var path := "res://assets/models/%s.scn" % nm
+	if d.has("mesh_name") and d.mesh_name == "Head":
+		DirAccess.make_dir_recursive_absolute("res://assets/models/heads")
+		path = "res://assets/models/heads/%s.scn" % nm
 	print("save ", path, " -> ", ResourceSaver.save(ps, path, ResourceSaver.FLAG_COMPRESS), " verts ", v.size())
 	quit()

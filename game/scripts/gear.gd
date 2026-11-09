@@ -171,7 +171,7 @@ const OTHER := {
 	"touro_rash": {"slot": "rash", "name": "Touro Singlet Top", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 2, "cardio": 2},
 		"look": {"color": Color(0.6, 0.07, 0.08)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Red rag. Bull inside."},
 	"touro_spats": {"slot": "spats", "name": "Touro Singlet Shorts", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 2, "cardio": 1},
-		"look": {"color": Color(0.62, 0.08, 0.08), "pattern": "stripes", "accent": Color(0.95, 0.75, 0.25), "pscale": 1.4}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Low centre of gravity, high output."},
+		"look": {"color": Color(0.5, 0.05, 0.06)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Low centre of gravity, high output."},
 	"touro_ears": {"slot": "head", "name": "Touro Horned Headgear", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"iq": 1, "strength": 1}, "piece": "EarGuards",
 		"look": {"color": Color(0.95, 0.75, 0.25), "pattern": "stripes", "accent": Color(0.62, 0.08, 0.08)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Gold straps. Head down, drive through."},
 	"touro_knees": {"slot": "knees", "name": "Touro Shot Pads", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 1, "flexibility": 1},

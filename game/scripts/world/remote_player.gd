@@ -49,7 +49,7 @@ func setup(id: int, d: Dictionary) -> RemotePlayer:
 
 func set_char(ch: Dictionary) -> void:
 	var same_look := JSON.stringify(ch.get("look", {})) == JSON.stringify(char.get("look", {})) and str(ch.get("body", "")) == str(char.get("body", "")) \
-		and float(ch.get("skin", 0)) == float(char.get("skin", -1)) and int(ch.get("belt", 0)) == int(char.get("belt", -1)) and rig != null
+		and float(ch.get("skin", 0)) == float(char.get("skin", -1)) and str(ch.get("head", "")) == str(char.get("head", "-")) and int(ch.get("belt", 0)) == int(char.get("belt", -1)) and rig != null
 	char = ch
 	var st := str(ch.get("style", ""))
 	var cls := Rpg.class_name_of(st)
@@ -65,6 +65,7 @@ func set_char(ch: Dictionary) -> void:
 	rig.look = Net.dec(ch.get("look", {}))
 	rig.build = Rpg.class_build(st)
 	rig.crest = st
+	rig.head_id = str(ch.get("head", "")) if str(ch.get("head", "")) in BodyRig.HEADS else ""
 	var belt := clampi(int(ch.get("belt", 0)), 0, Data.BELTS.size() - 1)
 	var gi := Color.html(str(ch.get("gi", "f2f2ee"))) if Color.html_is_valid(str(ch.get("gi", ""))) else Color(0.95, 0.95, 0.93)
 	rig.setup(gi, Data.BELTS[belt].color, UiKit.skin_tone(float(ch.get("skin", 0.35))), Color(0.55, 0.36, 0.18), 0, str(ch.get("body", "male")))

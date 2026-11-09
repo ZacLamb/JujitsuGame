@@ -37,7 +37,8 @@ lum = alb @ np.array([0.299, 0.587, 0.114], np.float32)
 mx = alb.max(2); mn = alb.min(2)
 sat = (mx - mn) / np.maximum(mx, 1e-3) * np.clip((mx - 0.04) / 0.12, 0, 1)
 dark = np.clip((0.3 - lum) / 0.12, 0, 1) * np.clip((0.45 - sat) / 0.15, 0, 1)
-belt = reg_r * (1 - reg_g) * dark
+geo = np.clip(reg_r - 1.0, 0, 1)                      # shape-found belt (white belts)
+belt = np.maximum(np.minimum(reg_r, 1.0) * (1 - reg_g) * dark, geo * (1 - reg_g))
 img = np.stack([belt, reg_g, np.zeros_like(belt)], 2)
 out = Image.fromarray((img * 255).astype(np.uint8))
 # dilate into the gutters so mip levels don't bleed the gi in

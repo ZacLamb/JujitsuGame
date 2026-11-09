@@ -67,7 +67,15 @@ const MODELS := {"male": "res://assets/models/worker.glb", "female": "res://asse
 const FIGHTERS := {"male": "res://assets/models/fighter_male.scn", "female": "res://assets/models/fighter_female.scn"}
 ## Textured Meshy bodies (tools/import_meshy.gd): used for plain gi looks; gear with patterns, no-gi
 ## and casual clothes keep the sculpted piece models above.
-const MESHY := {"male": "res://assets/models/meshy_male.scn", "female": "res://assets/models/meshy_female.scn"}
+static var MESHY := {"male": "res://assets/models/hero_gi_m.scn", "female": "res://assets/models/hero_gi_f.scn"}
+static var MESHY_NOGI := {"male": "res://assets/models/hero_nogi_m.scn", "female": "res://assets/models/hero_nogi_f.scn"}
+## Modular faces (tools/meshybuild/heads.sh). Any face fits any body; NPCs pick by hash.
+const HEADS := ["fade", "curly", "blond", "goatee", "topknot", "braid", "puff", "pixie"]
+const HEAD_NAMES := {"fade": "Fade & beard", "curly": "Curls", "blond": "Surfer", "goatee": "Old guard",
+	"topknot": "Top knot", "braid": "Braid", "puff": "Puff", "pixie": "Pixie"}
+const HEADS_M := ["fade", "curly", "blond", "goatee", "topknot"]
+const HEADS_F := ["braid", "puff", "pixie"]
+var _meshy_path := ""
 static var use_meshy := true
 var _meshy := false
 ## Body width for the Meshy bodies (1 = as modelled). 0 = pick from the look hash (0.92-1.1) so
@@ -450,10 +458,10 @@ func _update_crest() -> void:
 		right = (sx * skel.get_bone_global_pose(_bones["UpperArm.R"])).origin - (sx * skel.get_bone_global_pose(_bones["UpperArm.L"])).origin
 	var b := _frame(right, nk - ab)
 	var gs := global_transform.basis.get_scale()
-	_crest_node.global_transform = Transform3D(b.scaled(gs * build.x), ab.lerp(nk, CREST_UP) + b.z * (CREST_BACK if _meshy else 0.26) * gs.x * build.x)
+	_crest_node.global_transform = Transform3D(b.scaled(gs * build.x), ab.lerp(nk, CREST_UP + (0.1 if _meshy_path.contains("_gi_") else 0.0)) + b.z * ((CREST_BACK + (0.06 if _meshy_path.contains("_gi_") else 0.0)) if _meshy else 0.26) * gs.x * build.x)
 
-const CREST_UP := 0.8
-const CREST_BACK := 0.215
+const CREST_UP := 0.72
+const CREST_BACK := 0.27
 
 func _build_skinned() -> void:
 	for n in [_torso_parts, _hair_node]:
@@ -682,7 +690,12 @@ func _attach_fighter() -> void:
 		return
 	_meshy = _wants_meshy()
 	if _meshy:
-		var ms: Node3D = (load(MESHY[body]) as PackedScene).instantiate()
+		var nogi := str(current_look().get("kit", "gi")) != "gi"
+		_meshy_path = str((MESHY_NOGI if nogi else MESHY)[body])
+		if head_id == "":
+			var pool: Array = HEADS_F if body == "female" else HEADS_M
+			head_id = pool[absi(hash(gi_color.to_html() + skin_color.to_html() + hair_color.to_html())) % pool.size()]
+		var ms: Node3D = (load(_meshy_path) as PackedScene).instantiate()
 		var bmi := ms.get_node("Body") as MeshInstance3D
 		bmi.owner = null
 		ms.remove_child(bmi)
@@ -693,6 +706,7 @@ func _attach_fighter() -> void:
 		# Sculpted hair / head gear are built for the cartoon cranium and sit wrong on these realistic
 		# heads, so Meshy bodies show neither (head gear stats still apply).
 		base.queue_free()
+		_attach_head(bmi)
 		_apply_materials()
 		return
 	var parts: Node3D = (load(FIGHTERS[body]) as PackedScene).instantiate()
@@ -711,13 +725,33 @@ func _attach_fighter() -> void:
 	base.queue_free()
 	_apply_materials()
 
+## Modular heads: a face + hair mesh fitted to this body's neck (assets/models/heads/<body>__<id>.scn),
+## skinned to the same skeleton. The face sets the skin tone, so the body is tinted to match it.
+var head_id := ""
+var _head_mi: MeshInstance3D
+
+func _attach_head(bmi: MeshInstance3D) -> void:
+	_head_mi = null
+	if head_id == "":
+		return
+	var bname := _meshy_path.get_file().get_basename()
+	var path := "res://assets/models/heads/%s__%s.scn" % [bname, head_id]
+	if not ResourceLoader.exists(path):
+		return
+	var hs: Node3D = (load(path) as PackedScene).instantiate()
+	var hmi := hs.get_node("Head") as MeshInstance3D
+	hmi.owner = null
+	hs.remove_child(hmi)
+	bmi.get_parent().add_child(hmi)
+	hmi.skeleton = hmi.get_path_to(bmi.get_node(bmi.skeleton))
+	hs.free()
+	_head_mi = hmi
+	_pieces["Head"] = hmi
+	skin_color = hmi.get_meta("skin_ref", skin_color)
+
 func _wants_meshy() -> bool:
-	if not use_meshy or casual or not ResourceLoader.exists(MESHY.get(body, "")):
-		return false
-	var lk := current_look()
-	if str(lk.get("kit", "gi")) != "gi":
-		return false
-	return true
+	# every look (gi, no-gi, villagers' casual clothes) uses the textured hero bodies now
+	return use_meshy and ResourceLoader.exists(MESHY.get(body, "")) and ResourceLoader.exists(MESHY_NOGI.get(body, ""))
 
 ## The look actually worn: gear look if set, else derived from the setup colours.
 func current_look() -> Dictionary:
@@ -788,7 +822,12 @@ func _apply_materials() -> void:
 		var bm: MeshInstance3D = _pieces.Body
 		var jk: Dictionary = want.get("Jacket", {"color": gi_color})
 		var pt: Dictionary = want.get("Pants", jk)
+		if not want.has("Jacket"):   # no-gi: rashguard on top, spats (or casual pants) below
+			jk = want.get("Rash", {"color": gi_color})
+			pt = want.get("Spats", want.get("Pants", jk))
 		bm.material_override = FighterLook.textured(bm, jk, pt, belt_color, skin_color, grow * 0.8, _ref, _team)
+		if _head_mi:
+			_head_mi.material_override = FighterLook.plain_textured(load(str(_head_mi.get_meta("albedo"))), grow * 0.35, _ref, _team)
 		_collect_lod()
 		return
 	for n in _pieces:

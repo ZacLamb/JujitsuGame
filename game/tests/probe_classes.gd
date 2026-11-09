@@ -39,6 +39,7 @@ func _ready() -> void:
 				Game.inventory[pid] = true
 				Game.equipped[Gear.ITEMS[pid].slot] = pid
 		Game.body = "female" if i == 3 else "male"
+		Game.head = ["fade", "curly", "topknot", "puff", "goatee"][i]
 		var rig := BodyRig.new()
 		add_child(rig)
 		Game.dress(rig)

@@ -8,7 +8,7 @@ signal chosen(style_id: String, player_name: String, gi: int)
 signal edited
 signal cancelled
 
-## Barber mode: re-style an existing fighter. Name / body / skin / gi are free, origin costs R$,
+## Barber mode: re-style an existing fighter. Name / body / face / gi are free, origin costs R$,
 ## class is locked (talents and specs are built on it).
 var barber := false
 const ORIGIN_COST := 100
@@ -61,7 +61,7 @@ func _ready() -> void:
 	title.offset_top = 14
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(title)
-	var sub := Wow.label("Seu Zé changes your look, not who you are: name, body, skin tone and gi colour. Origin and class stay (a new one means a new character)." if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	var sub := Wow.label("Seu Zé changes your look, not who you are: name, body, face and gi colour. Origin and class stay (a new one means a new character)." if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
 	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	sub.offset_left = -480
 	sub.offset_right = 480
@@ -174,15 +174,17 @@ func _ready() -> void:
 	r2.add_theme_constant_override("separation", 8)
 	r2.alignment = BoxContainer.ALIGNMENT_CENTER
 	bv.add_child(r2)
-	r2.add_child(Wow.label("Skin", 15, Wow.PALE))
-	for i in SKINS.size():
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(30, 30)
-		b.focus_mode = Control.FOCUS_NONE
-		var t: float = SKINS[i]
-		b.pressed.connect(func(): _pick_skin(t))
-		r2.add_child(b)
-		_skin_btns.append(b)
+	# face (hair, features and skin tone come with it)
+	r2.add_child(Wow.label("Face", 15, Wow.PALE))
+	var prev := Wow.button("<", Vector2(34, 30))
+	prev.pressed.connect(func(): _pick_head(-1))
+	r2.add_child(prev)
+	_head_lbl = Wow.label("", 15, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER)
+	_head_lbl.custom_minimum_size = Vector2(118, 0)
+	r2.add_child(_head_lbl)
+	var nxt := Wow.button(">", Vector2(34, 30))
+	nxt.pressed.connect(func(): _pick_head(1))
+	r2.add_child(nxt)
 	r2.add_child(_spacer(16))
 	r2.add_child(Wow.label("Gi", 15, Wow.PALE))
 	for i in Rpg.GI_COLORS.size():
@@ -206,7 +208,7 @@ func _ready() -> void:
 	_pick_origin(_origin)
 	_pick_style(_style)
 	_pick_body(_body)
-	_pick_skin(_skin)
+	_pick_head(0)
 	_pick_gi(_gi)
 
 func _panel(pos: Vector2, sz: Vector2, on_left: bool) -> VBoxContainer:
@@ -317,6 +319,18 @@ func _pick_body(b: String) -> void:
 	_mark(_body_btns, b)
 	_preview()
 
+var _head := ""
+var _head_lbl: Label
+
+func _pick_head(step: int) -> void:
+	if _head == "":
+		_head = Game.head_id() if barber else ("braid" if _body == "female" else "fade")
+	var i := BodyRig.HEADS.find(_head)
+	_head = BodyRig.HEADS[wrapi(i + step, 0, BodyRig.HEADS.size())]
+	if _head_lbl:
+		_head_lbl.text = BodyRig.HEAD_NAMES[_head]
+	_preview()
+
 func _pick_skin(t: float) -> void:
 	_skin = t
 	for i in _skin_btns.size():
@@ -342,6 +356,9 @@ func _preview() -> void:
 	_rig = BodyRig.new()
 	_rig.lod_enabled = false
 	_rig.bulk = 1.0
+	_rig.head_id = _head
+	_rig.build = Rpg.class_build(_style)
+	_rig.crest = _style
 	_pivot.add_child(_rig)
 	_rig.setup(Rpg.GI_COLORS[_gi], Data.BELTS[0].color, UiKit.skin_tone(_skin), Color(0.2, 0.12, 0.06), 0, _body)
 	_rig.rotation.y = PI
@@ -360,12 +377,12 @@ func _preview_input(e: InputEvent) -> void:
 
 func _begin() -> void:
 	if barber:
-		Game.set_identity(Game.origin, _body, _skin)
+		Game.set_identity(Game.origin, _body, _skin, _head)
 		Game.player_name = _name_edit.text.strip_edges().left(16) if _name_edit.text.strip_edges() != "" else Game.player_name
 		Game.gi_index = clampi(_gi, 0, Rpg.GI_COLORS.size() - 1)
 		Game.save_game()
 		Game.progress_changed.emit()
 		edited.emit()
 		return
-	Game.set_identity(_origin, _body, _skin)
+	Game.set_identity(_origin, _body, _skin, _head)
 	chosen.emit(_style, _name_edit.text, _gi)

@@ -58,6 +58,9 @@ for nm in ("UpperLeg", "LowerLeg", "Foot"):
     if len(cents) == 2:
         legs[nm] = cents
     print(nm, "slice", round(zz, 3), [c.round(3) for c in cents])
+# both foot clusters on one side (heel + toes of one foot): put the feet under the knees
+if "Foot" in legs and "LowerLeg" in legs and (legs["Foot"][0][0] - CX) * (legs["Foot"][1][0] - CX) > 0:
+    legs["Foot"] = [np.array(c) for c in legs["LowerLeg"]]
 for nm in ("UpperLeg", "LowerLeg", "Foot"):
     z = fz(nm + ".L")
     for side, i in (("R", 0), ("L", 1)):
@@ -79,6 +82,7 @@ for nm in ("Hips", "Abdomen", "Torso", "Neck", "Head", "Body", "Bone"):
     J[nm] = np.array([CX, ctr[1], z])
 # arms: walk down from shoulder height; outermost clusters
 arm_pts = {"L": [], "R": []}
+done = set()
 zs = np.linspace(fz("UpperArm.L"), z0 + 0.25 * H, 60)
 for z in zs:
     cl = slice_clusters(z, band=0.008, link=0.02)
@@ -88,8 +92,36 @@ for z in zs:
     lc, rc = cl[-1], cl[0]  # +x = L
     for side, c in (("L", lc), ("R", rc)):
         ctr = c.mean(0)
+        if side in done:
+            continue
+        prev = arm_pts[side][-1] if arm_pts[side] else None
+        # follow one continuous arm: once the outermost cluster jumps sideways (the hand ended and
+        # the leg is now outermost), stop - wide A-poses would otherwise trace down a leg
+        far = max((abs(q[0] - CX) for q in arm_pts[side]), default=0.0)
+        if prev is not None and abs(ctr[0] - CX) < far - 0.07:
+            done.add(side)
+            continue
         if abs(ctr[0] - CX) > 0.12:
             arm_pts[side].append(ctr)
+import os
+if os.environ.get("ARM_WIDE"):
+    # wide A-pose: fingertip = outermost vertex; the arm = centroids of points near the
+    # shoulder-to-fingertip line, binned along it
+    for side in "LR":
+        sgn = 1 if side == "L" else -1
+        tip = P[np.argmax(sgn * (P[:, 0] - CX))]
+        sh = np.array([CX + sgn * abs(W["UpperArm." + side][0] - W["Hips"][0]) * (H / wH), 0.0, fz("UpperArm." + side)])
+        d = tip - sh
+        L = np.linalg.norm(d); u = d / L
+        rel = P - sh
+        t = rel @ u / L
+        dist = np.linalg.norm(rel - np.outer(t * L, u), axis=1)
+        pts = []
+        for b in np.linspace(0.08, 0.98, 30):
+            sel = P[(np.abs(t - b) < 0.02) & (dist < 0.11) & (sgn * (P[:, 0] - CX) > 0.12)]
+            if len(sel) > 5:
+                pts.append(sel.mean(0))
+        arm_pts[side] = pts + [tip]
 for side in "LR":
     a = np.array(arm_pts[side])
     print(side, "arm samples", len(a), a[:1].round(3), a[-1:].round(3))

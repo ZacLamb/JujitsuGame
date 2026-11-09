@@ -71,7 +71,7 @@ function attach(server, pool, isReady) {
     return {
       name: cleanName(ch.name), style: String(ch.style || '').slice(0, 16), level: Math.max(1, Math.min(99, ch.level | 0)),
       belt: Math.max(0, Math.min(9, ch.belt | 0)), body: ch.body === 'female' ? 'female' : 'male', skin: num(ch.skin, 1),
-      gi: String(ch.gi || '').slice(0, 12), title: String(ch.title || '').slice(0, 40), look: s.length < 6000 ? ch.look || {} : {},
+      gi: String(ch.gi || '').slice(0, 12), head: String(ch.head || '').replace(/[^a-z]/g, '').slice(0, 12), title: String(ch.title || '').slice(0, 40), look: s.length < 6000 ? ch.look || {} : {},
     };
   }
 

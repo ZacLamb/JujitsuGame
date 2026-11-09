@@ -21,3 +21,10 @@ The importer also stores each vertex's worker-space rest position (CUSTOM0.xyz) 
 (jaguar rosettes, croc scales...) paint onto the gi, and a leg weight (CUSTOM0.w) so pants can take
 their own colour. BodyRig uses these bodies for every gi look (`BodyRig.MESHY`); no-gi and casual
 clothes stay on the sculpted piece models, and sculpted hair / head gear are not shown on them.
+
+## Hero bodies + modular faces (Nov 2026)
+`tools/meshybuild/heroes.sh` rebuilds everything: four A-pose bodies (hero_{gi,nogi}_{m,f}, generated
+on Higgsfield with pose_mode a-pose; wide arms need `ARM_WIDE=1`) and eight faces fitted to every body
+by `head.py` (body's bald head trimmed at mid-neck, face scaled by head height minus a per-hairstyle
+allowance, weighted Neck->Head). White belts are found by shape: `BELT_GEO=z0,z1` (+`KNOT_DROP`) per
+body, picked from a render. Faces carry their own skin tone; BodyRig tints the body to match.

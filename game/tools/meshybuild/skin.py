@@ -59,6 +59,54 @@ bpy.ops.object.select_all(action='DESELECT'); m.select_set(True); ao.select_set(
 bpy.context.view_layer.objects.active = ao
 bpy.ops.object.parent_set(type='ARMATURE_AUTO')
 vg = {g.index: g.name for g in m.vertex_groups}
+# Heat weighting hands the outer thigh to the palm bones (the hands hang right next to the legs).
+# A vertex that sits on the leg's surface facing outward, and faces away from the arm, is leg.
+def _segd(p, a, b):
+    ab = b - a
+    t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.dot(ab), 1e-9)))
+    q = a + ab * t
+    return (p - q).length, p - q
+ARMS = [[s_ + side for s_ in ("Shoulder", "UpperArm", "LowerArm", "Palm", "Fingers")] for side in (".L", ".R")]
+ARM_SET = set(sum(ARMS, []))
+LEGS = [("Hips", "UpperLeg.L"), ("UpperLeg.L", "LowerLeg.L"), ("Hips", "UpperLeg.R"), ("UpperLeg.R", "LowerLeg.R"), ("Hips", "Abdomen")]
+arm_segs = []
+for side in (".L", ".R"):
+    chain = ["UpperArm", "LowerArm", "Palm", "Fingers", "Tip"]
+    for a_, b_ in zip(chain, chain[1:]):
+        if a_ + side in J and b_ + side in J:
+            arm_segs.append((J[a_ + side], J[b_ + side]))
+leg_segs = [(J[a_], J[b_]) for a_, b_ in LEGS if a_ in J and b_ in J]
+fixed = 0
+gidx = {g.name: g for g in m.vertex_groups}
+for v in m.data.vertices:
+    names = [vg[g.group] for g in v.groups if g.weight > 0.01]
+    if not any(n in ARM_SET for n in names):
+        continue
+    dl, vl = min((_segd(v.co, a_, b_) for a_, b_ in leg_segs), key=lambda x: x[0])
+    da, va = min((_segd(v.co, a_, b_) for a_, b_ in arm_segs), key=lambda x: x[0])
+    n_ = v.normal
+    if dl < 0.17 and vl.normalized().dot(n_) > 0.2 and va.normalized().dot(n_) < 0.0:
+        for n in ARM_SET:
+            if n in gidx:
+                gidx[n].remove([v.index])
+        leg = min(("UpperLeg.L", "UpperLeg.R", "Hips"), key=lambda n: (J[n] - v.co).length)
+        if not [g for g in v.groups if g.weight > 0.01]:
+            gidx[leg].add([v.index], 1.0, 'REPLACE')
+        fixed += 1
+print('thigh verts given back to the legs', fixed)
+# Meshy often fuses the fingertips to the thigh: drop triangles that join hand and leg vertices.
+import bmesh
+def _dom(v):
+    gs = [(g.weight, vg[g.group]) for g in v.groups if g.weight > 0.01]
+    return max(gs)[1] if gs else ""
+HANDISH = {p_ + s_ for s_ in (".L", ".R") for p_ in ("LowerArm", "Palm", "Fingers")}
+LEGISH = {"Hips", "UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R", "Abdomen"}
+dom = [_dom(v) for v in m.data.vertices]
+bm = bmesh.new(); bm.from_mesh(m.data); bm.faces.ensure_lookup_table()
+kill = [f for f in bm.faces if any(dom[v.index] in HANDISH for v in f.verts) and any(dom[v.index] in LEGISH for v in f.verts)]
+bmesh.ops.delete(bm, geom=kill, context='FACES_ONLY')
+bm.to_mesh(m.data); bm.free()
+print('hand-thigh bridge faces removed', len(kill))
 empty = [g.name for g in m.vertex_groups if not any(g.index in [x.group for x in v.groups] for v in list(m.data.vertices)[::7])]
 print('empty groups', empty)
 # texture
@@ -101,6 +149,9 @@ px = np.array(img.pixels[:]).reshape(1024, 1024, 4)[:, :, :3]
 def samp(u, v):
     return px[min(1023, max(0, int((1 - v) * 1024))), min(1023, max(0, int(u * 1024)))] if False else px[min(1023, max(0, int(v * 1023))), min(1023, max(0, int(u * 1023)))]
 C = []
+import os
+KNOT_DROP = float(os.environ.get("KNOT_DROP", "0.13"))
+BELT_GEO = [float(x) for x in os.environ["BELT_GEO"].split(",")] if os.environ.get("BELT_GEO") else None
 skin_s, gi_s = [], []
 chest_z = J["Torso"].z + 0.04
 for k in range(len(V)):
@@ -108,6 +159,12 @@ for k in range(len(V)):
     trunk = top in ("Hips", "Abdomen", "Torso", "UpperLeg.L", "UpperLeg.R")
     z = V[k][2]
     r = 1.0 if (trunk and -0.32 < z < chest_z and abs(V[k][0]) < 0.3) else 0.0
+    if BELT_GEO:   # white belts can't be found by colour: band + front knot/tails by shape (r = 2)
+        b0, b1 = BELT_GEO
+        x, y = V[k][0], V[k][1]
+        if top not in ("Palm.L", "Palm.R", "Fingers.L", "Fingers.R", "UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R") and (
+                (b0 < z < b1 and abs(x) < 0.27) or (y < -0.12 and abs(x) < 0.13 and b0 - KNOT_DROP < z < b1)):
+            r = 2.0
     g = 1.0 if top in ("Head", "Palm.L", "Palm.R", "Fingers.L", "Fingers.R", "Foot.L", "Foot.R") else 0.0
     C.append([r, g, 0.0])
     u, v_ = UV[k][0], 1 - UV[k][1]

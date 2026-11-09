@@ -36,7 +36,8 @@ var spec := ""             # Specs id; "" until chosen at level 10
 var gi_index := 0
 var origin := "gringo"     # Origins id (Tatame's "race")
 var body := "male"         # "male" / "female"
-var skin_t := 0.35         # skin tone 0..1 (UiKit.skin_tone)
+var skin_t := 0.35         # skin tone 0..1 (UiKit.skin_tone); the hero bodies take it from the face
+var head := ""             # face (BodyRig.HEADS); "" = default for the body
 var bar_layout: Array = [] # action bar slots 1-0: ability ids ("" = empty)
 var attr_alloc := {}       # attribute -> points spent
 var talents := {}          # talent id -> rank
@@ -233,7 +234,7 @@ func save_game() -> void:
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
-		"origin": origin, "body": body, "skin_t": skin_t, "bar_layout": bar_layout, "rolled": rolled,
+		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
@@ -266,6 +267,7 @@ func load_game() -> void:
 	origin = str(parsed.get("origin", "gringo"))
 	body = str(parsed.get("body", "male"))
 	skin_t = float(parsed.get("skin_t", 0.35))
+	head = str(parsed.get("head", ""))
 	bar_layout = parsed.get("bar_layout", [])
 	attr_alloc = parsed.get("attrs", {})
 	talents = parsed.get("talents", {})
@@ -433,10 +435,18 @@ func bar_set(slot: int, id: String) -> void:
 	save_game()
 
 ## Character creation extras: origin, body and skin tone.
-func set_identity(origin_id: String, body_type: String, skin: float) -> void:
+func set_identity(origin_id: String, body_type: String, skin: float, face := "") -> void:
 	origin = origin_id if Origins.ORIGINS.has(origin_id) else "gringo"
 	body = "female" if body_type == "female" else "male"
 	skin_t = clampf(skin, 0.0, 1.0)
+	if face != "":
+		head = face
+
+## The face worn (BodyRig.HEADS id).
+func head_id() -> String:
+	if head in BodyRig.HEADS:
+		return head
+	return "braid" if body == "female" else "fade"
 
 func skin_color() -> Color:
 	return UiKit.skin_tone(skin_t)
@@ -491,6 +501,7 @@ func dress(rig: BodyRig) -> void:
 	rig.look = look()
 	rig.build = Rpg.class_build(style)
 	rig.crest = style
+	rig.head_id = head_id()
 
 ## Graphics quality: 0 low (phones), 1 high, 2 ultra (desktop default; steps down if slow).
 const GFX_NAMES := ["low", "high", "ultra"]
@@ -515,7 +526,7 @@ func graphics_low() -> bool:
 	return graphics_level() == 0
 
 func look_key() -> String:
-	return "%s|%s|%s|%s|%s|%s" % [gi_color().to_html(), kit, str(equipped), body, str(skin_t), style]
+	return "%s|%s|%s|%s|%s|%s|%s" % [gi_color().to_html(), kit, str(equipped), body, str(skin_t), style, head_id()]
 
 # ------------------------------------------------------------ gear
 ## Item ids that count right now (the active kit's slots).
