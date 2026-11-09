@@ -5,7 +5,7 @@ extends RefCounted
 ## colour = wall tint, per-instance custom data = shutter / door tint. Surfaces are matched by the
 ## material names the Blender script gives them (wall, base, trim, roof, wood, glass, iron).
 
-const KINDS := ["casa_a", "casa_b", "casa_c", "casa_d", "casa_varanda", "sobrado_a", "sobrado_loja", "igreja"]
+const KINDS := ["casa_a", "casa_b", "casa_c", "casa_d", "casa_varanda", "sobrado_a", "sobrado_loja", "igreja", "academia"]
 
 const CODE := """
 shader_type spatial;

@@ -377,3 +377,53 @@ def igreja(name="igreja"):
 
 if __name__ == "__main__" and os.environ.get("ONLY", "igreja") == "igreja":
     igreja()
+
+
+def academia(name="academia"):
+    """The gym: an 18 x 14 hall, open arcaded front (+Z in game), padded dark base inside."""
+    reset()
+    W, D, H = 18.0, 14.0, 5.4
+    t = 0.45
+    # back + side walls (front left open for the arcade)
+    obj_box((W, t, H), (0, D / 2 - t / 2, H / 2), "wall")
+    for sx in (-1, 1):
+        obj_box((t, D, H), (sx * (W / 2 - t / 2), 0, H / 2), "wall")
+        for y in (-3.5, 0.5, 4.0):   # high windows (clerestory) as dark insets with trim
+            obj_box((0.06, 1.6, 1.0), (sx * (W / 2 + 0.01), y, H - 1.1), "glass")
+            obj_box((0.1, 1.9, 0.12), (sx * (W / 2 + 0.03), y, H - 0.5), "trim")
+            obj_box((0.16, 1.9, 0.08), (sx * (W / 2 + 0.05), y, H - 1.65), "trim")
+    # padded base band inside and out
+    obj_box((W + 0.08, t + 0.08, 1.2), (0, D / 2 - t / 2, 0.6), "base")
+    for sx in (-1, 1):
+        obj_box((t + 0.08, D + 0.08, 1.2), (sx * (W / 2 - t / 2), 0, 0.6), "base")
+    # front arcade: 4 piers, 3 wide arches, a deep entablature with the sign band
+    fy = -D / 2
+    for x in (-W / 2 + 0.6, -3.0, 3.0, W / 2 - 0.6):
+        obj_box((1.1, 0.9, H - 1.2), (x, fy + 0.45, (H - 1.2) / 2), "trim")
+        obj_box((1.3, 1.0, 0.4), (x, fy + 0.45, 0.2), "base")
+    obj_box((W + 0.2, 1.0, 1.25), (0, fy + 0.45, H - 0.6), "wall")      # sign band (game paints the name)
+    obj_box((W + 0.5, 1.2, 0.2), (0, fy + 0.45, H + 0.05), "trim")
+    obj_box((W + 0.3, 1.1, 0.14), (0, fy + 0.45, H - 1.25), "trim")
+    for x in (-6.0, 0.0, 6.0):   # arch tops
+        bpy.ops.mesh.primitive_cylinder_add(radius=2.3, depth=0.95, location=(x, fy + 0.45, H - 2.3), rotation=(math.pi / 2, 0, 0), vertices=24)
+        a = bpy.context.object
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='DESELECT'); bpy.ops.object.mode_set(mode='OBJECT')
+        a.data.materials.append(M["trim"])
+        # keep only an arch ring: subtract a slightly smaller cylinder and the lower half
+        cut(a, (6, 2, 2.4), (x, fy + 0.45, H - 2.3 - 1.2))
+        inner = obj_box((1, 1, 1), (0, 0, 0), "trim", "inner")
+        bpy.data.objects.remove(inner)
+        bpy.ops.mesh.primitive_cylinder_add(radius=1.95, depth=2.0, location=(x, fy + 0.45, H - 2.3), rotation=(math.pi / 2, 0, 0), vertices=24)
+        c = bpy.context.object
+        mod = a.modifiers.new("ring", "BOOLEAN"); mod.operation = 'DIFFERENCE'; mod.object = c; mod.solver = 'EXACT'
+        bpy.context.view_layer.objects.active = a; bpy.ops.object.modifier_apply(modifier="ring")
+        bpy.data.objects.remove(c)
+    for sx in (-1, 1):   # corner pilasters on the back
+        obj_box((0.5, 0.5, H), (sx * (W / 2 - 0.15), D / 2 - 0.15, H / 2), "trim")
+    obj_box((W + 0.3, D + 0.3, 0.2), (0, 0, H + 0.05), "trim")
+    hip_roof(W, D, H + 0.2, 20, 0.6)
+    finish(name)
+
+
+if __name__ == "__main__" and os.environ.get("ONLY") == "academia":
+    academia()

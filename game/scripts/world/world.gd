@@ -615,19 +615,21 @@ func _build_academia() -> void:
 	var c := Vector3(0, ground_y(0, -54), -54)
 	var wall := Color(0.92, 0.6, 0.25)
 	_box(Vector3(18, 0.3, 14), c + Vector3(0, 0.15, 0), Color(0.6, 0.55, 0.5))
-	_box(Vector3(0.5, 5, 14), c + Vector3(-9, 2.5, 0), wall)
-	_box(Vector3(0.5, 5, 14), c + Vector3(9, 2.5, 0), wall)
-	_box(Vector3(18, 5, 0.5), c + Vector3(0, 2.5, -7), wall)
-	_box(Vector3(19, 0.4, 15), c + Vector3(0, 5.2, 0), Color(0.3, 0.3, 0.32), false)
-	# front pillars, open front facing +Z
-	for x in [-9, -3, 3, 9]:
-		_box(Vector3(0.6, 5, 0.6), c + Vector3(x, 2.5, 7), wall)
+	# the hall itself is a Blender model (tools/townbuild/houses.py academia); these boxes only collide
+	for b in [[Vector3(0.5, 5, 14), Vector3(-9, 2.5, 0)], [Vector3(0.5, 5, 14), Vector3(9, 2.5, 0)], [Vector3(18, 5, 0.5), Vector3(0, 2.5, -7)]]:
+		_box(b[0], c + b[1], wall).visible = false
+	for x in [-8.4, -3, 3, 8.4]:
+		_box(Vector3(1.1, 5, 0.9), c + Vector3(x, 2.5, 6.55), wall).visible = false
+	TownKit.build(self, [{"kind": "academia", "xform": Transform3D(Basis.IDENTITY, c + Vector3(0, -0.02, 0)),
+		"wall": Color(0.95, 0.62, 0.28), "wood": Color(0.3, 0.2, 0.12)}])
+	_kit_footprints.append([Rect2(c.x - 9, c.z - 7, 18, 14), wall])
 	# tatame inside
 	for x in 8:
 		for z in 6:
 			var col := Color(0.13, 0.38, 0.26) if (x + z) % 2 == 0 else Color(0.78, 0.62, 0.22)
 			_box(Vector3(1.96, 0.08, 1.96), c + Vector3(-7 + x * 2, 0.34, -5 + z * 2), col, false)
-	_label("ACADEMIA ONÇA", c + Vector3(0, 6.3, 7.4), 140, Color(0.98, 0.82, 0.3))
+	var sign_l := _label("ACADEMIA ONÇA", c + Vector3(0, 4.82, 7.1), 120, Color(0.2, 0.12, 0.05))
+	sign_l.outline_size = 0
 	# the founder in bronze on one side of the door, the kids-class mascot on the other
 	_statue("statue_mestre", c + Vector3(-6.2, 0, 10.5), 0.25, 1.25, "O MESTRE", "Fundador · Academia Onça")
 	var kid := _place_model("mascot_junior", c + Vector3(6.2, 0.55, 10.5), 1.0, -0.25, Vector3(1.2, 1.6, 1.2))
