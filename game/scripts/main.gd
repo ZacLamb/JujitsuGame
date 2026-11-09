@@ -55,6 +55,10 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.__tatameReady = true;")
 	_hook_net()
+	gm_panel = GmPanel.new()
+	gm_panel.main = self
+	hud.root.add_child(gm_panel)
+	hud.combat_log.gm_requested.connect(gm_panel.toggle)
 	if OS.get_cmdline_user_args().has("--autoplay") or Game.boot_into:
 		Game.boot_into = false
 		_start_game.call_deferred()
@@ -190,6 +194,7 @@ func _process(delta: float) -> void:
 
 # ------------------------------------------------------------ live world: other players + chat
 var remotes := {}   # net id -> RemotePlayer
+var gm_panel: GmPanel
 
 func _hook_net() -> void:
 	Net.leave_world()
@@ -379,6 +384,11 @@ func _on_world_click(screen: Vector2) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _in_title or roll != null or Game.style == "":
+		return
+	# Ctrl+G: Game Master window (only opens for server-confirmed GM accounts)
+	if event is InputEventKey and event.pressed and not event.echo and (event as InputEventKey).keycode == KEY_G and (event as InputEventKey).ctrl_pressed:
+		gm_panel.toggle()
+		get_viewport().set_input_as_handled()
 		return
 	# Enter (or /) opens chat, like WoW
 	if event is InputEventKey and event.pressed and not event.echo and hud.combat_log and not hud.dialogue_open():

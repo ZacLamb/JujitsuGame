@@ -49,20 +49,20 @@ function attach(server, pool, isReady) {
 
   const send = (c, m) => { if (c.ws.readyState === WebSocket.OPEN) c.ws.send(JSON.stringify(m)); };
   const inZone = (zone, except) => [...clients.values()].filter((c) => c.ok && c.zone === zone && c !== except);
+  const seen = (zone, except) => inZone(zone, except).filter((c) => !c.invisible);
   const pub = (c) => ({ id: c.id, char: c.char, zone: c.zone, x: c.x, y: c.y, z: c.z, yaw: c.yaw, c: c.combat });
   const byName = (n) => [...clients.values()].find((c) => c.ok && c.char.name.toLowerCase() === String(n || '').toLowerCase());
 
   function leaveZone(c) {
     if (!c.zone) return;
-    for (const o of inZone(c.zone, c)) send(o, { t: 'leave', id: c.id });
+    if (!c.invisible) for (const o of inZone(c.zone, c)) send(o, { t: 'leave', id: c.id });
     c.zone = '';
   }
   function enterZone(c, zone) {
     leaveZone(c);
     c.zone = zone;
-    const others = inZone(zone, c);
-    for (const o of others) send(o, { t: 'join', ...pub(c) });
-    send(c, { t: 'zone_list', players: others.map(pub) });
+    if (!c.invisible) for (const o of inZone(zone, c)) send(o, { t: 'join', ...pub(c) });
+    send(c, { t: 'zone_list', players: seen(zone, c).map(pub) });
   }
 
   function sanitizeChar(ch) {
@@ -91,7 +91,8 @@ function attach(server, pool, isReady) {
     const lines = recent.get(c.pid) || [];
     lines.push(`[${new Date().toISOString()}] ${m.ch}: ${text}`);
     recent.set(c.pid, lines.slice(-20));
-    const msg = { t: 'chat', ch: m.ch, from: c.char.name, fid: c.id, style: c.char.style, text };
+    if (c.mutedUntil > now) return send(c, { t: 'sys', text: `A Game Master muted you for ${Math.ceil((c.mutedUntil - now) / 60000)} more minute(s).` });
+    const msg = { t: 'chat', ch: m.ch, from: c.char.name, fid: c.id, style: c.char.style, text, gm: c.gm || undefined };
     if (m.ch === 'whisper') {
       const to = byName(m.to);
       if (!to) return send(c, { t: 'sys', text: `No one called ${cleanName(m.to)} is online.` });
@@ -106,7 +107,9 @@ function attach(server, pool, isReady) {
       msg.ch = 'say';
       targets = inZone(c.zone).filter((o) => o === c || Math.hypot(o.x - c.x, o.z - c.z) <= SAY_RANGE).concat([c]);
     }
-    for (const o of new Set(targets)) send(o, msg);
+    const sent = new Set(targets);
+    for (const o of sent) send(o, msg);
+    for (const g of clients.values()) if (g.ok && g.gm && g.gmWatch && !sent.has(g)) send(g, { ...msg, watch: true, zone: c.zone });
   }
 
   async function report(c, m) {
@@ -123,6 +126,63 @@ function attach(server, pool, isReady) {
     }
   }
 
+  // ---------------------------------------------------------------- Game Master tools
+  // Only connections whose account has role 'gm' in the database get here (checked at hello).
+  const glog = (c, action, target, detail) => pool.query('INSERT INTO gm_log (gm_id, action, target, detail) VALUES ($1, $2, $3, $4)', [c.pid, action, String(target || ''), String(detail || '').slice(0, 500)]).catch(() => {});
+  const byId = (id) => clients.get(Number(id));
+  async function gm(c, m) {
+    const t = m.target != null ? byId(m.target) : null;
+    switch (m.op) {
+      case 'list':
+        send(c, { t: 'gm_list', players: [...clients.values()].filter((o) => o.ok).map((o) => ({ id: o.id, name: o.char.name, style: o.char.style, level: o.char.level, zone: o.zone, x: +o.x.toFixed(1), z: +o.z.toFixed(1), combat: o.combat, gm: o.gm, muted: o.mutedUntil > Date.now(), invisible: !!o.invisible })) });
+        break;
+      case 'watch':
+        c.gmWatch = !!m.on;
+        send(c, { t: 'sys', text: c.gmWatch ? 'GM: watching chat in every zone.' : 'GM: chat watch off.' });
+        break;
+      case 'invisible':
+        if (m.on && !c.invisible) { for (const o of inZone(c.zone, c)) send(o, { t: 'leave', id: c.id }); c.invisible = true; }
+        else if (!m.on && c.invisible) { c.invisible = false; for (const o of inZone(c.zone, c)) send(o, { t: 'join', ...pub(c) }); }
+        send(c, { t: 'sys', text: c.invisible ? 'GM: you are invisible to players.' : 'GM: you are visible again.' });
+        glog(c, 'invisible', '', String(!!c.invisible));
+        break;
+      case 'announce': {
+        const text = clean(m.text);
+        if (!text) return;
+        for (const o of clients.values()) if (o.ok) send(o, { t: 'announce', text, from: c.char.name });
+        glog(c, 'announce', '', text);
+        break;
+      }
+      case 'kick':
+        if (!t) return send(c, { t: 'sys', text: 'GM: no such player online.' });
+        send(t, { t: 'sys', text: `You were removed from the live world by a Game Master${m.reason ? ': ' + clean(m.reason) : '.'}` });
+        t.ws.close(4000, 'kicked');
+        send(c, { t: 'sys', text: `GM: kicked ${t.char.name}.` });
+        glog(c, 'kick', t.char.name, m.reason);
+        break;
+      case 'mute': {
+        if (!t) return send(c, { t: 'sys', text: 'GM: no such player online.' });
+        const mins = Math.max(0, Math.min(10080, Number(m.minutes) || 10));
+        t.mutedUntil = mins ? Date.now() + mins * 60000 : 0;
+        await pool.query('UPDATE players SET muted_until = $2 WHERE id = $1', [t.pid, mins ? new Date(t.mutedUntil) : null]).catch(() => {});
+        send(t, { t: 'sys', text: mins ? `A Game Master muted your chat for ${mins} minute(s).` : 'A Game Master unmuted your chat.' });
+        send(c, { t: 'sys', text: mins ? `GM: muted ${t.char.name} for ${mins} min.` : `GM: unmuted ${t.char.name}.` });
+        glog(c, 'mute', t.char.name, String(mins));
+        break;
+      }
+      case 'goto':
+        if (!t) return send(c, { t: 'sys', text: 'GM: no such player online.' });
+        send(c, { t: 'gm_goto', zone: t.zone, x: t.x, y: t.y, z: t.z, name: t.char.name });
+        break;
+      case 'reports': {
+        const r = await pool.query('SELECT r.id, r.target_name, r.reason, r.context, extract(epoch from r.created_at) AS at, p.email AS reporter FROM reports r LEFT JOIN players p ON p.id = r.reporter_id ORDER BY r.id DESC LIMIT 30').catch(() => ({ rows: [] }));
+        send(c, { t: 'gm_reports', reports: r.rows.map((x) => ({ id: x.id, target: x.target_name, reason: x.reason, context: x.context, at: Number(x.at), reporter: String(x.reporter || '').replace(/(^.).*(@.*$)/, '$1***$2') })) });
+        break;
+      }
+      default:
+    }
+  }
+
   wss.on('connection', (ws) => {
     const c = { ws, id: 0, ok: false, pid: 0, char: {}, zone: '', x: 0, y: 0, z: 0, yaw: 0, s: 0, air: 0, combat: 0, sent: [], timeoutUntil: 0, alive: true };
     ws.on('pong', () => { c.alive = true; });
@@ -133,17 +193,19 @@ function attach(server, pool, isReady) {
       if (!m || typeof m !== 'object') return;
       if (!c.ok) {
         if (m.t !== 'hello' || !pool || !isReady()) return;
-        const r = await pool.query('SELECT p.id FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token = $1', [String(m.token || '')]).catch(() => ({ rows: [] }));
+        const r = await pool.query('SELECT p.id, p.role, extract(epoch from p.muted_until) AS mu FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token = $1', [String(m.token || '')]).catch(() => ({ rows: [] }));
         if (!r.rows.length) return ws.close(4003, 'not logged in');
         clearTimeout(helloTimer);
         c.pid = r.rows[0].id;
+        c.gm = r.rows[0].role === 'gm';
+        c.mutedUntil = r.rows[0].mu ? Number(r.rows[0].mu) * 1000 : 0;
         // one live connection per account: the newest wins
         for (const o of clients.values()) if (o.pid === c.pid) { send(o, { t: 'sys', text: 'You logged in somewhere else.' }); o.ws.close(4000, 'replaced'); }
         c.id = nextId++;
         c.ok = true;
         c.char = sanitizeChar(m.char);
         clients.set(c.id, c);
-        send(c, { t: 'welcome', id: c.id, online: [...clients.values()].filter((o) => o.ok).length });
+        send(c, { t: 'welcome', id: c.id, gm: c.gm, online: [...clients.values()].filter((o) => o.ok).length });
         return;
       }
       switch (m.t) {
@@ -169,6 +231,10 @@ function attach(server, pool, isReady) {
         case 'report':
           report(c, m);
           break;
+        case 'gm':
+          if (c.gm) gm(c, m);
+          else send(c, { t: 'sys', text: 'Unknown command.' });
+          break;
         default:
       }
     });
@@ -189,7 +255,7 @@ function attach(server, pool, isReady) {
     }
     for (const list of zones.values()) {
       if (list.length < 2) continue;
-      const moved = list.filter((c) => c.moved);
+      const moved = list.filter((c) => c.moved && !c.invisible);
       if (!moved.length) continue;
       const rows = moved.map((c) => [c.id, +c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2), +c.yaw.toFixed(2), +c.s.toFixed(2), c.air, c.combat]);
       const msg = JSON.stringify({ t: 'st', p: rows });

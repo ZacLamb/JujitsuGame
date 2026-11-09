@@ -643,7 +643,11 @@ func _type_bonus(u: Unit, a: Dictionary) -> float:
 	b += float(m.get("zone_role", {}).get(str(a.get("role", "any")), 0.0)) * 0.5
 	return b
 
+static var gm_god := false   # Game Master test tool: the player takes no damage
+
 func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> void:
+	if gm_god and t.player:
+		amount = 0.0
 	var dm := dom(src, t)
 	if dm != 0:
 		amount *= 1.0 + 0.08 * dm if dm > 0 else 1.0 / (1.0 - 0.08 * dm)

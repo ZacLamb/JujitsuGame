@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const world = require('./world');
+const isGmEmail = (e) => (process.env.GM_EMAILS || '').split(',').map((x) => x.trim().toLowerCase()).includes(String(e || '').toLowerCase());
 
 const app = express();
 app.use(compression({ filter: (req, res) => /\.(wasm|pck|js|html)$/.test(req.path) || compression.filter(req, res) }));
@@ -41,7 +42,20 @@ async function migrate() {
       reason TEXT,
       context TEXT,
       created_at TIMESTAMPTZ DEFAULT now()
+    );
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player';
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS muted_until TIMESTAMPTZ;
+    CREATE TABLE IF NOT EXISTS gm_log (
+      id SERIAL PRIMARY KEY,
+      gm_id INT REFERENCES players(id) ON DELETE SET NULL,
+      action TEXT, target TEXT, detail TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
     );`);
+  // Game Masters come from the GM_EMAILS variable on Railway (comma separated); nobody can
+  // promote themselves from the game.
+  const gms = (process.env.GM_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  await pool.query("UPDATE players SET role = 'player' WHERE role = 'gm' AND NOT (lower(email) = ANY($1))", [gms]);
+  if (gms.length) await pool.query("UPDATE players SET role = 'gm' WHERE lower(email) = ANY($1)", [gms]);
   ready = true;
   console.log('db ready');
 }
@@ -75,7 +89,7 @@ function needDb(_req, res, next) {
 async function auth(req, res, next) {
   const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ error: 'Not logged in.' });
-  const r = await pool.query('SELECT p.id, p.email FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token = $1', [token]);
+  const r = await pool.query('SELECT p.id, p.email, p.role FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token = $1', [token]);
   if (!r.rows.length) return res.status(401).json({ error: 'Session expired. Log in again.' });
   req.player = r.rows[0];
   req.token = token;
@@ -92,7 +106,7 @@ app.post('/api/register', needDb, async (req, res) => {
     if (limited(`${req.ip}|reg`)) return res.status(429).json({ error: 'Too many tries. Wait a few minutes.' });
     const exists = await pool.query('SELECT 1 FROM players WHERE email = $1', [email]);
     if (exists.rows.length) return res.status(409).json({ error: 'That email already has an account. Log in instead.' });
-    const r = await pool.query('INSERT INTO players (email, pw_hash) VALUES ($1, $2) RETURNING id', [email, await hashPw(pw)]);
+    const r = await pool.query('INSERT INTO players (email, pw_hash, role) VALUES ($1, $2, $3) RETURNING id', [email, await hashPw(pw), isGmEmail(email) ? 'gm' : 'player']);
     const token = newToken();
     await pool.query('INSERT INTO sessions (token, player_id) VALUES ($1, $2)', [token, r.rows[0].id]);
     res.json({ token, email });
@@ -123,7 +137,7 @@ app.post('/api/logout', needDb, auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/me', needDb, auth, (req, res) => res.json({ email: req.player.email }));
+app.get('/api/me', needDb, auth, (req, res) => res.json({ email: req.player.email, role: req.player.role }));
 
 // ------------------------------------------------------------------ cloud saves
 // data: {index: {...}, chars: {id: save}, at: unix seconds of the client's last save}

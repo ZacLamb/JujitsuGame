@@ -9,6 +9,7 @@ const AUTH_PATH := "user://tatame_auth.json"
 const CHAR_FILE := "user://tatame_char_%s.json"
 
 var token := ""
+var role := "player"   # from /api/me; "gm" = Game Master (set on the server, GM_EMAILS)
 var email := ""
 var status := ""   # short line for the title screen ("Saved to cloud", errors...)
 var base := ""
@@ -31,6 +32,8 @@ func _ready() -> void:
 				status = "Session expired: log in again."
 				changed.emit()
 			elif code == 200:
+				role = str(d.get("role", "player"))
+				changed.emit()
 				pull(false))
 
 func available() -> bool:

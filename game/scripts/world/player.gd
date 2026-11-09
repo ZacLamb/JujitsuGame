@@ -34,7 +34,8 @@ var _last_look_ms := -100000
 const FOLLOW_TOUCH := 1.1   # follow-camera turn rate on phones (rad/s per rad of offset)
 const FOLLOW_KEYS := 0.55   # gentler with keyboard + mouse
 var last_safe := Vector3.ZERO
-var swimming := false   # chest-deep or more: float at the surface, slower, no jumping
+var swimming := false
+var speed_mult := 1.0   # Game Master speed tool   # chest-deep or more: float at the surface, slower, no jumping
 
 signal jumped
 signal clicked(screen_pos: Vector2)
@@ -182,7 +183,7 @@ func _physics_process(delta: float) -> void:
 		move = move.normalized()
 	var wl: float = (get_parent() as World).water_level() if get_parent() is World else -INF
 	swimming = global_position.y < wl - 0.8
-	var speed := RUN if sprint else WALK
+	var speed := (RUN if sprint else WALK) * speed_mult
 	if swimming:
 		speed = WALK * 0.6
 	var target_v := move * speed

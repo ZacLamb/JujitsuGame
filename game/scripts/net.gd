@@ -8,6 +8,9 @@ signal moved(rows: Array)                   # [[id, x, y, z, yaw, speed, air, co
 signal char_changed(id: int, ch: Dictionary)
 signal chat(m: Dictionary)                  # {ch, from, fid, style, text, to?, echo?} or {ch:"sys", text}
 signal status_changed
+signal gm_data(kind: String, d: Dictionary)   # GM: "list" / "reports" / "goto"
+
+var gm := false   # the server confirmed this account is a Game Master
 
 var ws: WebSocketPeer
 var my_id := 0
@@ -110,6 +113,7 @@ func _on_msg(d: Dictionary) -> void:
 		"welcome":
 			my_id = int(d.id)
 			online = int(d.get("online", 1))
+			gm = bool(d.get("gm", false))
 			connected = true
 			_backoff = 2.0
 			status_changed.emit()
@@ -135,6 +139,15 @@ func _on_msg(d: Dictionary) -> void:
 			chat.emit(d)
 		"sys":
 			chat.emit({"ch": "sys", "text": str(d.get("text", ""))})
+		"announce":
+			chat.emit({"ch": "announce", "text": str(d.get("text", "")), "from": str(d.get("from", ""))})
+			Game.toast.emit("[Game Master] " + str(d.get("text", "")), Color(0.4, 0.75, 1.0))
+		"gm_list":
+			gm_data.emit("list", d)
+		"gm_reports":
+			gm_data.emit("reports", d)
+		"gm_goto":
+			gm_data.emit("goto", d)
 
 func _send(m: Dictionary) -> void:
 	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
@@ -161,6 +174,11 @@ func send_chat(ch: String, text: String, to := "") -> void:
 	var m := {"t": "chat", "ch": ch, "text": text}
 	if to != "":
 		m["to"] = to
+	_send(m)
+
+func send_gm(op: String, args := {}) -> void:
+	var m := {"t": "gm", "op": op}
+	m.merge(args)
 	_send(m)
 
 func who() -> void:

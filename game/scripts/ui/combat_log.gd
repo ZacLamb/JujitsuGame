@@ -12,10 +12,12 @@ const CH := {
 	"world": {"tag": "[World] ", "color": Color(1.0, 0.86, 0.5)},
 	"whisper": {"tag": "", "color": Color(1.0, 0.5, 1.0)},
 	"sys": {"tag": "", "color": Color(1.0, 0.95, 0.35)},
+	"announce": {"tag": "[Game Master] ", "color": Color(0.4, 0.75, 1.0)},
 }
 const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper"}
 
-static var typing := false   # the player reads this so WASD doesn't walk while you type
+static var typing := false
+signal gm_requested   # the player reads this so WASD doesn't walk while you type
 
 var _text: RichTextLabel
 var _input: LineEdit
@@ -123,8 +125,15 @@ func add_chat(m: Dictionary) -> void:
 	if ch == "sys":
 		_line("[color=#%s]%s[/color]" % [cc.to_html(false), text])
 		return
+	if ch == "announce":
+		_line("[color=#66bfff][Game Master] %s[/color]" % text)
+		return
 	var nm := str(m.get("from", "?"))
 	var who := "[color=#%s]%s[/color]" % [Rpg.class_color(str(m.get("style", ""))).to_html(false), _esc(nm)]
+	if m.get("gm", false):
+		who = "[color=#66bfff][lb]GM[rb][/color] " + who
+	if m.get("watch", false):
+		who = "[color=#888888](%s)[/color] " % _esc(str(m.get("zone", "?"))) + who
 	var body := ""
 	match ch:
 		"say":
@@ -230,6 +239,8 @@ func _command(t: String) -> void:
 				Net.send_chat("whisper", rest, whisper_to)
 		"/who":
 			Net.who()
+		"/gm":
+			gm_requested.emit()
 		"/ignore":
 			if rest == "":
 				add_chat({"ch": "sys", "text": "Ignoring: %s" % (", ".join(Net.ignored.keys()) if not Net.ignored.is_empty() else "no one")})
