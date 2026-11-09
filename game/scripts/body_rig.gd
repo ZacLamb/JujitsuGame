@@ -77,6 +77,29 @@ const HEADS_M := ["fade", "curly", "blond", "goatee", "topknot"]
 const HEADS_F := ["braid", "puff", "pixie"]
 var _meshy_path := ""
 static var use_meshy := true
+## Meshy-rigged characters (tools/import_native.gd): their own Mixamo skeleton, skin weights and clips.
+## Used whenever one exists for the body + kit; the pose system drives them through NATIVE_BONES.
+static var NATIVE := {
+	"gi": {"male": "res://assets/models/native/native_gi_m.scn", "female": "res://assets/models/native/native_gi_f.scn"},
+	"nogi": {"male": "res://assets/models/native/native_nogi_m.scn", "female": "res://assets/models/native/native_nogi_f.scn"}}
+const NATIVE_BONES := {"Hips": "Hips", "Abdomen": "Spine", "Torso": "Spine2", "Neck": "Neck", "Head": "Head",
+	"UpperArm.L": "LeftArm", "LowerArm.L": "LeftForeArm", "Palm.L": "LeftHand",
+	"UpperArm.R": "RightArm", "LowerArm.R": "RightForeArm", "Palm.R": "RightHand",
+	"UpperLeg.L": "LeftUpLeg", "LowerLeg.L": "LeftLeg", "Foot.L": "LeftFoot",
+	"UpperLeg.R": "RightUpLeg", "LowerLeg.R": "RightLeg", "Foot.R": "RightFoot"}
+## game clip name -> Meshy clip name
+const NATIVE_CLIPS := {"Idle": "Idle_02", "Walk": "Walking", "Run": "Running", "Jump": "Regular_Jump",
+	"Stance": "Combat_Stance", "FightForward": "Walk_Fight_Forward", "FightBack": "Walk_Fight_Back",
+	"Backward": "Walk_Backward", "KnockDown": "Knock_Down", "FallDown": "Fall_Down",
+	"Tapped": "Strangled_and_Fall_Forward", "Takedown": "Jumping_Head_Scissor_Takedown"}
+var native := false
+
+func _native_path() -> String:
+	if not use_meshy:
+		return ""
+	var kit := "nogi" if str(current_look().get("kit", "gi")) != "gi" else "gi"
+	var p: String = NATIVE[kit].get(body, "")
+	return p if p != "" and ResourceLoader.exists(p) else ""
 var _meshy := false
 ## Body width for the Meshy bodies (1 = as modelled). 0 = pick from the look hash (0.92-1.1) so
 ## NPCs sharing a body still read as lighter / heavier builds.
@@ -477,7 +500,9 @@ func _build_skinned() -> void:
 	# hide the primitive body; it stays as an invisible pose guide
 	for m in hips.find_children("*", "MeshInstance3D", true, false):
 		(m as MeshInstance3D).visible = false
-	var sc: PackedScene = load(MODELS[body])
+	var npath := _native_path()
+	native = npath != ""
+	var sc: PackedScene = load(npath if native else MODELS[body])
 	skinned = sc.instantiate()
 	skinned.rotation.y = PI  # models face +Z; this rig faces -Z
 	add_child(skinned)
@@ -500,9 +525,16 @@ func _build_skinned() -> void:
 			for loop_name in ["Idle", "Walk", "Run"]:
 				if short == loop_name:
 					anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	if native and anim:
+		for k in NATIVE_CLIPS:
+			for a in anim.get_animation_list():
+				if str(a) == NATIVE_CLIPS[k] or str(a).ends_with("|" + str(NATIVE_CLIPS[k])):
+					_anim_names[k] = a
 	for n in ["Hips", "Abdomen", "Torso", "Neck", "Head", "UpperArm.L", "LowerArm.L", "UpperArm.R", "LowerArm.R",
 			"UpperLeg.L", "LowerLeg.L", "UpperLeg.R", "LowerLeg.R", "Foot.L", "Foot.R", "Palm.L", "Palm.R", "Fist.L", "Fist.R"]:
 		_bones[n] = skel.find_bone(n)
+		if native:
+			_bones[n] = skel.find_bone("mixamorig_" + str(NATIVE_BONES.get(n, "-"))) if NATIVE_BONES.has(n) else -1
 	_bones["Hand.L"] = _bones["Palm.L"] if _bones["Palm.L"] >= 0 else _bones["Fist.L"]
 	_bones["Hand.R"] = _bones["Palm.R"] if _bones["Palm.R"] >= 0 else _bones["Fist.R"]
 	# scale so the model's hips sit where this rig's hips are
@@ -521,7 +553,9 @@ func _build_skinned() -> void:
 		var fb: int = _bones["Foot." + side]
 		if lb >= 0 and fb >= 0:
 			_foot_rel[side] = skel.get_bone_global_rest(lb).affine_inverse() * skel.get_bone_global_rest(fb)
-	if ResourceLoader.exists(FIGHTERS.get(body, "")):
+	if native:
+		_attach_native(npath)
+	elif ResourceLoader.exists(FIGHTERS.get(body, "")):
 		_attach_fighter()
 	else:
 		_recolor()
@@ -676,6 +710,20 @@ func _recolor() -> void:
 			var mat := (_mat(col, 0.8) as StandardMaterial3D).duplicate() as StandardMaterial3D
 			mat.next_pass = outline
 			m.set_surface_override_material(i, mat)
+
+# ------------------------------------------------------------ Meshy-rigged model
+func _attach_native(path: String) -> void:
+	_pieces.clear()
+	_head_mi = null
+	_meshy = true
+	_meshy_path = path
+	var found := skinned.find_children("Body", "MeshInstance3D", true, false)
+	if found.is_empty():
+		found = skinned.find_children("*", "MeshInstance3D", true, false)
+	if found.is_empty():
+		return
+	_pieces["Body"] = found[0]
+	_apply_materials()
 
 # ------------------------------------------------------------ sculpted fighter model
 func _attach_fighter() -> void:
@@ -1183,7 +1231,7 @@ static var HERO_SCALE := {"Head": 1.03, "Palm.L": 1.22, "Palm.R": 1.22, "Foot.L"
 var _hero_ids := []
 
 func _hero_proportions() -> void:
-	if not _meshy or skel == null:
+	if not _meshy or native or skel == null:
 		return
 	if _hero_ids.is_empty():
 		for n in HERO_SCALE:

@@ -174,17 +174,17 @@ func _ready() -> void:
 	r2.add_theme_constant_override("separation", 8)
 	r2.alignment = BoxContainer.ALIGNMENT_CENTER
 	bv.add_child(r2)
-	# face (hair, features and skin tone come with it)
-	r2.add_child(Wow.label("Face", 15, Wow.PALE))
-	var prev := Wow.button("<", Vector2(34, 30))
-	prev.pressed.connect(func(): _pick_head(-1))
-	r2.add_child(prev)
-	_head_lbl = Wow.label("", 15, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER)
-	_head_lbl.custom_minimum_size = Vector2(118, 0)
-	r2.add_child(_head_lbl)
-	var nxt := Wow.button(">", Vector2(34, 30))
-	nxt.pressed.connect(func(): _pick_head(1))
-	r2.add_child(nxt)
+	# skin tone (the Meshy hero bodies each carry one face; the tone recolours it)
+	r2.add_child(Wow.label("Skin", 15, Wow.PALE))
+	_skin_btns.clear()
+	for i in SKINS.size():
+		var sb := Button.new()
+		sb.custom_minimum_size = Vector2(30, 30)
+		sb.focus_mode = Control.FOCUS_NONE
+		var st: float = SKINS[i]
+		sb.pressed.connect(func(): _pick_skin(st))
+		r2.add_child(sb)
+		_skin_btns.append(sb)
 	r2.add_child(_spacer(16))
 	r2.add_child(Wow.label("Gi", 15, Wow.PALE))
 	for i in Rpg.GI_COLORS.size():
@@ -209,6 +209,7 @@ func _ready() -> void:
 	_pick_style(_style)
 	_pick_body(_body)
 	_pick_head(0)
+	_pick_skin(_skin)
 	_pick_gi(_gi)
 
 func _panel(pos: Vector2, sz: Vector2, on_left: bool) -> VBoxContainer:

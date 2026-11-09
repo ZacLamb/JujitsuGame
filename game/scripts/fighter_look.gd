@@ -122,7 +122,7 @@ void fragment() {
 	cloth = mix(cloth, accent.rgb, clamp(m, 0.0, 1.0) * accent.a);
 	o = mix(o, c * (cloth / max(gi_ref.rgb, vec3(0.05))), gm);
 	float sk = dot(c, W) / max(dot(skin_ref.rgb, W), 0.01);
-	o = mix(o, skin.rgb * min(sk, 1.1), sm);
+	o = mix(o, skin.rgb * clamp(sk, 0.0, 1.0) * 0.88, sm);
 	o = mix(o, belt.rgb * clamp(0.6 + lum * 1.6, 0.0, 1.1), bm);
 	ALBEDO = clamp(o, 0.0, 1.0);
 	ROUGHNESS = 0.85;
