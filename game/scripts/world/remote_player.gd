@@ -51,10 +51,7 @@ func set_char(ch: Dictionary) -> void:
 	var same_look := JSON.stringify(ch.get("look", {})) == JSON.stringify(char.get("look", {})) and str(ch.get("body", "")) == str(char.get("body", "")) \
 		and float(ch.get("skin", 0)) == float(char.get("skin", -1)) and str(ch.get("head", "")) == str(char.get("head", "-")) and int(ch.get("belt", 0)) == int(char.get("belt", -1)) and rig != null
 	char = ch
-	var st := str(ch.get("style", ""))
-	var cls := Rpg.class_name_of(st)
-	plate.text = "%s\n<Level %d%s>" % [str(ch.get("name", "?")), int(ch.get("level", 1)), (" " + cls) if cls != "" else ""]
-	plate.modulate = Rpg.class_color(st)
+	refresh_plate()
 	if same_look:
 		return
 	if rig:
@@ -63,8 +60,8 @@ func set_char(ch: Dictionary) -> void:
 	rig.bulk = 1.0
 	add_child(rig)
 	rig.look = Net.dec(ch.get("look", {}))
-	rig.build = Rpg.class_build(st)
-	rig.crest = st
+	rig.build = Rpg.class_build(str(ch.get("style", "")))
+	rig.crest = str(ch.get("style", ""))
 	rig.head_id = str(ch.get("head", "classic"))
 	var belt := clampi(int(ch.get("belt", 0)), 0, Data.BELTS.size() - 1)
 	var gi := Color.html(str(ch.get("gi", "f2f2ee"))) if Color.html_is_valid(str(ch.get("gi", ""))) else Color(0.95, 0.95, 0.93)
@@ -90,7 +87,11 @@ func net_state(x: float, y: float, z: float, yaw: float, s: float, air: bool, co
 func refresh_plate() -> void:
 	var st := str(char.get("style", ""))
 	var cls := Rpg.class_name_of(st)
-	plate.text = "%s%s\n<Level %d%s>" % ["⚔ " if _combat else "", str(char.get("name", "?")), int(char.get("level", 1)), (" " + cls) if cls != "" else ""]
+	var fid := str(char.get("faction", "brasil"))
+	var fname := str(Origins.faction(fid).name)
+	plate.text = "%s%s\n<Level %d%s · %s>" % ["⚔ " if _combat else "", str(char.get("name", "?")), int(char.get("level", 1)), (" " + cls) if cls != "" else "", fname]
+	# WoW-style: your own faction reads friendly blue, the other side reads red
+	plate.modulate = Color(0.55, 0.8, 1.0) if fid == Game.faction() else Color(1.0, 0.45, 0.4)
 
 func say(text: String) -> void:
 	bubble.text = text

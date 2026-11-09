@@ -11,6 +11,8 @@ static var _cache := {}
 static func tex(key: String) -> Texture2D:
 	if key == "":
 		return null
+	if key == "racial" and Game.faction() == "usa":
+		key = "racial_usa"
 	if not _cache.has(key):
 		var p := DIR + key + ".png"
 		_cache[key] = load(p) if ResourceLoader.exists(p) else null

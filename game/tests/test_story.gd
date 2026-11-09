@@ -73,5 +73,29 @@ func _ready() -> void:
 	check(not Game.set_path("gi"), "retraining costs money")
 	Game.money = 600
 	check(Game.set_path("gi") and Game.money == 100 and Game.path == "gi", "retrain for R$500")
+	# factions: origin decides the side, the starting town and the story
+	check(Game.faction() == "brasil", "gringo origin is Time Brasil")
+	for c in Data.CHAPTERS:
+		check(Data.ZONES.has(c.zone) and Data.OPPONENTS.has(c.master), "chapter %s zone + master exist" % c.id)
+	for f in Origins.FACTIONS:
+		var path: Array = Origins.FACTIONS[f].path
+		check(path.size() == 4 and int(Data.ZONES[path[0]].levels[0]) == 1 and int(Data.ZONES[path[3]].levels[1]) == 50, "%s levels 1 to 50" % f)
+		for i in 3:
+			check(int(Data.ZONES[path[i + 1]].levels[0]) == int(Data.ZONES[path[i]].levels[1]) + 1, "%s: %s follows %s" % [f, path[i + 1], path[i]])
+		check(Data.chapters_for(f).size() == 5, "%s has five chapters" % f)
+	Game.reset()
+	Game.set_identity("texan", "male", 0.3)
+	Game.choose_style("guard", "Tex", 0)
+	check(Game.faction() == "usa" and Game.zone == "texas", "Team USA starts in Dry Creek, Texas")
+	check(Game.quest_available("u1_passport") and not Game.quest_available("s1_passport"), "Team USA gets its own story, not Brasil's")
+	check(str(Game.story_next()[0].get("id", "")) == "u1", "tracker on chapter u1")
+	check(Game.quest_available("buckle_hunt"), "side quests are open to everyone")
+	Game.set_level(46)
+	check(not Game.quest_available("s5_arrive") and not Game.quest_locked_by_level("s4_arrive" if Data.QUESTS.has("s4_arrive") else "s5_arrive"), "the other faction's chapters stay closed")
+	Game.reset()
+	Game.set_identity("carioca", "female", 0.5)
+	Game.choose_style("guard", "Bia", 0)
+	check(Game.faction() == "brasil" and Game.zone == "caceres", "Time Brasil starts in Cáceres")
+	check(not Game.quest_available("u1_passport"), "Brasil can't take Team USA's story")
 	print("PASS (0 failures)" if fails == 0 else "FAILED: %d" % fails)
 	get_tree().quit()

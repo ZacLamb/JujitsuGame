@@ -500,7 +500,7 @@ func _passport_box() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	v.add_child(row)
-	for ch in Data.CHAPTERS:
+	for ch in Data.chapters_for(Game.faction()):
 		var got: bool = Game.stamps.has(str(ch.stamp))
 		var st := PanelContainer.new()
 		st.custom_minimum_size = Vector2(150, 74)

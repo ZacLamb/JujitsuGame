@@ -328,7 +328,7 @@ func _ready() -> void:
 	# ---------------- academy wars
 	game.reset()
 	game.clock_override = 1000000
-	check(Data.territories_in("caceres").size() == 3 and Data.TERRITORIES.size() == 15, "3 territories per zone")
+	check(Data.territories_in("caceres").size() == 3 and Data.TERRITORIES.size() == 24, "3 territories per zone")
 	check(game.territory_state("t_plaza") == "rival", "territories start with the rivals")
 	game.capture("t_plaza")
 	check(game.territory_state("t_plaza") == "held" and game.unlocked.has("flag_taken"), "capture")

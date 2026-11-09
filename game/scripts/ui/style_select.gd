@@ -31,6 +31,8 @@ var _skin := 0.35
 var _name_edit: LineEdit
 var _style_btns := {}
 var _origin_btns := {}
+var _faction_btns := {}
+var _faction_info: Label
 var _gi_btns: Array = []
 var _skin_btns: Array = []
 var _body_btns := {}
@@ -61,7 +63,7 @@ func _ready() -> void:
 	title.offset_top = 14
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(title)
-	var sub := Wow.label("Seu Zé changes your look, not who you are: name, body, face and gi colour. Origin and class stay (a new one means a new character)." if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	var sub := Wow.label("Seu Zé changes your look, not who you are: name, body, face and gi colour. Origin and class stay (a new one means a new character)." if barber else "Faction is where you start. Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
 	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	sub.offset_left = -480
 	sub.offset_right = 480
@@ -69,6 +71,23 @@ func _ready() -> void:
 	add_child(sub)
 	# --- left: origin
 	var left := _panel(Vector2(16, 86), Vector2(300, 0), true)
+	left.add_child(Wow.title("FACTION", 16, Wow.GOLD))
+	var frow := HBoxContainer.new()
+	frow.add_theme_constant_override("separation", 6)
+	left.add_child(frow)
+	for fid in Origins.FACTIONS:
+		var fd: Dictionary = Origins.FACTIONS[fid]
+		var fb := _choice_btn(str(fd.long))
+		fb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fb.add_theme_color_override("font_color", (fd.color as Color).lightened(0.35))
+		fb.pressed.connect(func(): _pick_faction(fid))
+		if barber and fid != Origins.faction_of(_origin):
+			fb.disabled = true
+		frow.add_child(fb)
+		_faction_btns[fid] = fb
+	_faction_info = Wow.label("", 13, Wow.PALE, true)
+	_faction_info.custom_minimum_size = Vector2(276, 0)
+	left.add_child(_faction_info)
 	left.add_child(Wow.title("ORIGIN", 16, Wow.GOLD))
 	for id in Origins.ORDER:
 		var o: Dictionary = Origins.ORIGINS[id]
@@ -217,6 +236,7 @@ func _ready() -> void:
 		_err = Wow.label("", 14, Wow.RED, false, HORIZONTAL_ALIGNMENT_CENTER)
 		bv.add_child(_err)
 	_pick_origin(_origin)
+	_pick_faction(Origins.faction_of(_origin))
 	_pick_style(_style)
 	_pick_body(_body)
 	_pick_head(0)
@@ -266,8 +286,23 @@ func _line(v: VBoxContainer, text: String, col: Color, size := 13) -> void:
 	l.custom_minimum_size = Vector2(v.custom_minimum_size.x if v.custom_minimum_size.x > 0 else 270, 0)
 	v.add_child(l)
 
+## Faction tab: shows only that side's origins (and picks its first one if the current is the other side's).
+func _pick_faction(fid: String) -> void:
+	_mark(_faction_btns, fid)
+	var fd := Origins.faction(fid)
+	_faction_info.text = "%s  %s" % [str(fd.tag), str(fd.desc)]
+	for id in _origin_btns:
+		(_origin_btns[id] as Control).visible = Origins.faction_of(id) == fid
+	if Origins.faction_of(_origin) != fid:
+		for id in Origins.ORDER:
+			if Origins.faction_of(id) == fid:
+				_pick_origin(id)
+				return
+
 func _pick_origin(id: String) -> void:
 	_origin = id
+	if _faction_btns.size() > 0 and _faction_info and Origins.faction_of(id) != "":
+		_mark(_faction_btns, Origins.faction_of(id))
 	_mark(_origin_btns, id)
 	for c in _origin_info.get_children():
 		c.queue_free()

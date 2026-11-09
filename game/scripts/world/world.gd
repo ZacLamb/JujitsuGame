@@ -32,7 +32,10 @@ var aggro_grace := 0.0    # seconds during which mobs won't pull you (after a fi
 const VENDOR_SPOTS := {"pantanal": [Vector3(-76, 0, 2), "Shop: Bar do Pantaneiro", "Seu Bené"],
 	"chapada": [Vector3(38, 0, 44), "Shop: Lanchonete da Trilha", "Dona Lia"],
 	"rio": [Vector3(6, 0, 40), "Shop: Quiosque da Orla", "Tio Beto"],
-	"socal": [Vector3(-16, 0, 30), "Shop: Surf & Smoothie", "Becky"]}
+	"socal": [Vector3(-16, 0, 30), "Shop: Surf & Smoothie", "Becky"],
+	"texas": [Vector3(36, 0, -14), "Shop: Feed & Tack", "Miss Dolly"],
+	"everglades": [Vector3(-76, 0, 4), "Shop: Bait & Tackle", "Earline"],
+	"sedona": [Vector3(38, 0, 46), "Shop: Trading Post", "Two Feathers"]}
 
 func build(z := "caceres") -> void:
 	_build_zone(z)
@@ -139,6 +142,15 @@ func _build_zone(z: String) -> void:
 	if zone == "socal":
 		_build_socal()
 		return
+	if zone == "texas":
+		_build_texas()
+		return
+	if zone == "everglades":
+		_build_everglades()
+		return
+	if zone == "sedona":
+		_build_sedona()
+		return
 	noise.seed = 7
 	noise.frequency = 0.03
 	_rng.seed = 2026
@@ -197,7 +209,7 @@ func river_x(z: float) -> float:
 
 ## Surface height of this zone's water (rivers, wetland, sea).
 func water_level() -> float:
-	return -0.35 if zone == "pantanal" else WATER_Y
+	return -0.35 if zone in ["pantanal", "everglades"] else (-1.0 if zone == "sedona" else WATER_Y)
 
 func height(x: float, z: float) -> float:
 	if zone == "pantanal":
@@ -208,6 +220,12 @@ func height(x: float, z: float) -> float:
 		return _height_rio(x, z)
 	if zone == "socal":
 		return _height_socal(x, z)
+	if zone == "texas":
+		return _height_texas(x, z)
+	if zone == "everglades":
+		return _height_everglades(x, z)
+	if zone == "sedona":
+		return _height_sedona(x, z)
 	var h := noise.get_noise_2d(x, z) * 1.4
 	var town := 1.0 - _ss(38.0, 62.0, maxf(absf(x) * 0.9, absf(z + 15.0) * 0.8))
 	h *= 1.0 - town * 0.88
@@ -226,6 +244,12 @@ func _ground_color(x: float, z: float, h: float) -> Color:
 		return _rio_color(x, z, h)
 	if zone == "socal":
 		return _socal_color(x, z, h)
+	if zone == "texas":
+		return _texas_color(x, z, h)
+	if zone == "everglades":
+		return _everglades_color(x, z, h)
+	if zone == "sedona":
+		return _sedona_color(x, z, h)
 	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
 	if zone == "chapada":
 		var cg := Color(0.34, 0.38, 0.16).lerp(Color(0.44, 0.43, 0.2), n)
@@ -404,6 +428,19 @@ func _build_lamps() -> void:
 				pts.append(Vector3(x, 0, 25.0))
 			for c in [Vector3(32, 0, -36), Vector3(40, 0, -46), Vector3(36, 0, -56), Vector3(-80, 0, 2)]:
 				pts.append(c)
+		"texas":
+			for x in range(-44, 72, 16):
+				pts.append(Vector3(x, 0, -3.4))
+			for c in [Vector3(-11, 0, 1), Vector3(11, 0, 1), Vector3(-11, 0, 15), Vector3(11, 0, 15), Vector3(76, 0, -6)]:
+				pts.append(c)
+		"everglades":
+			for c in [Vector3(-78, 0, -8), Vector3(-86, 0, 2), Vector3(52, 0, 44), Vector3(68, 0, 44), Vector3(-36, 0, 20), Vector3(32, 0, -34)]:
+				pts.append(c)
+		"sedona":
+			for i in 5:
+				pts.append(Vector3(26 + i * 8.0, 0, 46))
+			for c in [Vector3(-76, 0, 36), Vector3(36, 0, 4), Vector3(56, 0, 4)]:
+				pts.append(c)
 		"socal":
 			for x in range(-48, 92, 20):
 				pts.append(Vector3(x, 0, 25.4))
@@ -453,8 +490,8 @@ func _build_ground_detail() -> void:
 	var blade := PrismMesh.new()
 	blade.size = Vector3(0.18, 0.42, 0.02)
 	var parts := {
-		"grass_a": {"mesh": blade, "color": Color(0.32, 0.55, 0.2) if zone != "chapada" else Color(0.55, 0.55, 0.25), "xf": []},
-		"grass_b": {"mesh": blade, "color": Color(0.42, 0.63, 0.24) if zone != "chapada" else Color(0.65, 0.58, 0.3), "xf": []},
+		"grass_a": {"mesh": blade, "color": Color(0.32, 0.55, 0.2) if not zone in ["chapada", "sedona"] else Color(0.55, 0.55, 0.25), "xf": []},
+		"grass_b": {"mesh": blade, "color": Color(0.42, 0.63, 0.24) if not zone in ["chapada", "sedona"] else Color(0.65, 0.58, 0.3), "xf": []},
 		"flower_y": {"mesh": BodyRig._sph(0.07, -1, 6), "color": Color(0.98, 0.85, 0.2), "xf": []},
 		"flower_p": {"mesh": BodyRig._sph(0.07, -1, 6), "color": Color(0.9, 0.45, 0.75), "xf": []},
 	}
@@ -526,7 +563,7 @@ func _build_terrain() -> void:
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	mi.material_override = EnvShaders.terrain({"chapada": 1.0, "rio": 0.7}.get(zone, 0.35))
+	mi.material_override = EnvShaders.terrain({"chapada": 1.0, "rio": 0.7, "sedona": 1.0}.get(zone, 0.35))
 	mi.name = "Terrain"
 	add_child(mi)
 	# collision: 1 m heightmap
@@ -784,7 +821,7 @@ func _build_trees() -> void:
 	var xf := {"palm": [], "oak": [], "fat": [], "ipe": []}
 	var placed := 0
 	var tries := 0
-	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120, "rio": 150, "socal": 70}[zone] and tries < 3000:
+	while placed < {"caceres": 170, "pantanal": 140, "chapada": 120, "rio": 150, "socal": 70, "texas": 130, "everglades": 140, "sedona": 110}[zone] and tries < 3000:
 		tries += 1
 		var x := _rng.randf_range(-92, 92)
 		var z := _rng.randf_range(-92, 92)
@@ -802,12 +839,22 @@ func _build_trees() -> void:
 			if absf(ground_y(x, z + 2.0) - gy) > 1.2 or absf(ground_y(x + 2.0, z) - gy) > 1.2 or gy < -0.3:
 				continue
 			d = 40.0
-		if zone == "pantanal":
+		if zone == "pantanal" or zone == "everglades":
 			if gy < -0.15:
 				continue
-			d = 18.0 if _rng.randf() < 0.45 else 40.0  # carandá palms are everywhere
+			d = 18.0 if _rng.randf() < (0.45 if zone == "pantanal" else 0.3) else 40.0  # carandá / cabbage palms
+		if zone == "texas" or zone == "sedona":
+			if gy < -0.5 or absf(ground_y(x, z + 2.0) - gy) > 1.0 or absf(ground_y(x + 2.0, z) - gy) > 1.0 or (zone == "sedona" and gy > 3.0):
+				continue
+			if zone == "texas" and Vector2(x, z).distance_to(Vector2(0, -20)) < 30.0 and absf(x) < 60.0 and z > -40.0 and z < 22.0:
+				continue   # keep the town centre open
+			d = 40.0
 		var s := _rng.randf_range(0.8, 1.3)
 		var kind := _rng.randf()
+		if zone == "texas" or zone == "sedona":
+			kind = 0.3 + kind * 0.7   # live oaks and junipers, no palms
+		if zone == "sedona":
+			s *= 0.7
 		var base := Vector3(x, gy, z)
 		var cs := CollisionShape3D.new()
 		var sh := CylinderShape3D.new()
@@ -827,6 +874,8 @@ func _build_trees() -> void:
 			xf.fat.append(Transform3D(b.scaled(Vector3.ONE * 4.8 * s), base))
 		placed += 1
 	var ipe_col := Color(0.9, 0.45, 0.7) if zone == "pantanal" else Color(0.98, 0.78, 0.15)
+	if zone in ["texas", "sedona", "everglades"]:
+		ipe_col = {"texas": Color(0.3, 0.42, 0.2), "sedona": Color(0.25, 0.38, 0.25), "everglades": Color(0.22, 0.36, 0.16)}[zone]
 	_mm("tree_palm", xf.palm)
 	_mm("tree_oak", xf.oak)
 	_mm("tree_fat", xf.fat, Color(0.2, 0.42, 0.18))
@@ -999,6 +1048,29 @@ func _dress_props() -> void:
 			_dress_camp("orla", [["kiosk", 0.0], ["surf_rack", 0.8], ["bar_table", 1.4], ["bar_table", 2.0], ["acai_cart", 2.6]])
 			_dress_camp("lapa", [["street_lamp", 0.0], ["street_lamp", 1.6], ["bar_table", 0.7], ["bar_table", 2.2], ["bus_stop", 3.1]])
 			_dress_near(VENDOR_SPOTS.rio[0], [["surf_rack", 0.5], ["bar_table", 1.1], ["street_lamp", 2.0]])
+		"texas":
+			_dress_camp("tailgate", [["bar_table", 0.2], ["bench", 1.2], ["bar_table", 2.0]])
+			_dress_camp("creekbed", [["canoe", 0.6], ["hammock", 1.6], ["bench", 2.6]])
+			_dress_near(VENDOR_SPOTS.texas[0], [["bench", 0.5], ["market_stall", 1.6]])
+			var tg := Vector3(TX_GYM.x, 0, TX_GYM.y)
+			_prop("heavy_bag", tg.x - 7.2, tg.z - 5.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("weights", tg.x + 7.8, tg.z - 4.0, -PI / 2, Vector3(0.5, 0.6, 1.2), true)
+			for p in [Vector2(-17, -12), Vector2(-14, -16), Vector2(-30, -14)]:
+				_prop("bar_table", p.x, p.y, randf() * TAU)
+		"everglades":
+			_dress_camp("airboat", [["canoe", 0.4], ["pier", 0.0], ["bench", 1.8]])
+			_dress_camp("hermits", [["hammock", 0.0], ["bar_table", 0.8]])
+			_dress_near(VENDOR_SPOTS.everglades[0], [["bar_table", 0.3], ["bar_table", 1.5], ["hammock", 0.8]])
+			var gp := Vector3(GL_PIT.x, 0, GL_PIT.y)
+			_prop("heavy_bag", gp.x - 7.2, gp.z - 5.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("mat_stack", gp.x + 7.6, gp.z + 1.0, 0.3, Vector3(1, 0.5, 2), true)
+		"sedona":
+			_dress_camp("jeep", [["bench", 0.3], ["acai_cart", 1.4]])
+			_dress_camp("vortex", [["hammock", 0.6], ["bench", 2.4]])
+			_dress_near(VENDOR_SPOTS.sedona[0], [["bar_table", 0.0], ["acai_cart", 1.0], ["bench", 2.2]])
+			var sg := Vector3(SD_GYM.x, 0, SD_GYM.y)
+			_prop("heavy_bag", sg.x - 7.2, sg.z - 5.0, 0.0, Vector3(1.2, 2.4, 0.6), true)
+			_prop("weights", sg.x + 7.8, sg.z - 4.0, -PI / 2, Vector3(0.5, 0.6, 1.2), true)
 		"socal":
 			_dress_camp("boardwalk", [["surf_rack", 0.0], ["kiosk", 1.0], ["surf_rack", 2.2], ["bench", 3.0]])
 			_dress_camp("hills", [["bench", 0.4], ["hammock", 1.6]])
@@ -1269,6 +1341,26 @@ func _build_cups() -> void:
 			qm.size = Vector3(0.35, 0.8, 0.35)
 			cup.mesh = qm
 			cup.material_override = _mat(Color(0.85, 0.75, 1.0), 0.15)
+		if zone == "texas":
+			# rodeo buckle: a big shiny oval
+			var bm := CylinderMesh.new()
+			bm.top_radius = 0.34
+			bm.bottom_radius = 0.34
+			bm.height = 0.08
+			cup.mesh = bm
+			cup.rotation.x = PI / 2
+			cup.scale = Vector3(1.3, 1, 1)
+			cup.material_override = _mat(Color(0.85, 0.78, 0.6), 0.25)
+		if zone == "everglades":
+			var tmh := PrismMesh.new()
+			tmh.size = Vector3(0.22, 0.7, 0.18)
+			cup.mesh = tmh
+			cup.material_override = _mat(Color(0.95, 0.92, 0.82), 0.4)
+		if zone == "sedona":
+			var qm2 := PrismMesh.new()
+			qm2.size = Vector3(0.35, 0.8, 0.35)
+			cup.mesh = qm2
+			cup.material_override = _mat(Color(0.95, 0.55, 0.85), 0.15)
 		if zone == "socal":
 			# sand dollar: a flat pale disc
 			var sdm := CylinderMesh.new()
@@ -1434,6 +1526,8 @@ func _build_fighters() -> void:
 			y = ground_y(RIO_GYM.x, RIO_GYM.z) + 0.38
 		elif id == "dale":
 			y = ground_y(SOCAL_GYM.x, SOCAL_GYM.z) + 0.38
+		elif id in ["boone", "gator", "sol"]:
+			y = ground_y(p.x, p.z) + 0.38
 		npc.position = Vector3(p.x, y, p.z)
 		npc.rig.rotation.y = PI
 		fighters[id] = npc
@@ -1444,6 +1538,12 @@ func _build_villagers() -> void:
 		where = [Vector3(-75, 0, -4), Vector3(-40, 0, 26), Vector3(56, 0, 50), Vector3(38, 0, -30)]
 	elif zone == "chapada":
 		where = [Vector3(42, 0, 40), Vector3(36, 0, 36), Vector3(-74, 0, 40), Vector3(20, 0, 10)]
+	elif zone == "texas":
+		where = [Vector3(0, 0, 8), Vector3(20, 0, -10), Vector3(-20, 0, -4), Vector3(40, 0, -4), Vector3(4, 0, 10), Vector3(-30, 0, 28), Vector3(50, 0, 30)]
+	elif zone == "everglades":
+		where = [Vector3(-75, 0, -4), Vector3(-40, 0, 26), Vector3(56, 0, 46), Vector3(36, 0, -30), Vector3(-18, 0, -40)]
+	elif zone == "sedona":
+		where = [Vector3(42, 0, 40), Vector3(36, 0, 36), Vector3(-74, 0, 40), Vector3(20, 0, 12), Vector3(50, 0, 44)]
 	elif zone == "socal":
 		where = [Vector3(-20, 0, 40), Vector3(10, 0, 28), Vector3(60, 0, 44), Vector3(-40, 0, 28), Vector3(30, 0, -8), Vector3(-76, 0, 10), Vector3(48, 0, 60)]
 	elif zone == "rio":
@@ -1495,6 +1595,17 @@ func _nearest_unbeaten(z: String) -> Vector3:
 	return best
 
 func objective_target() -> Vector3:
+	if zone in ["texas", "everglades", "sedona"]:
+		var bid: String = Data.ZONES[zone].boss
+		if Game.beaten(bid):
+			var road: Array = Origins.FACTIONS.usa.path
+			var bus: Vector3 = {"texas": Vector3(80, 0, 0), "everglades": Vector3(-82, 0, -4), "sedona": Vector3(-80, 0, 40)}[zone]
+			return bus if road.find(zone) < 3 else Data.OPPONENTS[bid].pos
+		if Game.town_wins(zone) < Data.BOSS_REQUIRED_WINS:
+			var tu := _nearest_unbeaten(zone)
+			if tu != Vector3.INF:
+				return tu
+		return Data.OPPONENTS[bid].pos
 	if zone == "socal":
 		if Game.town_wins("socal") < Data.BOSS_REQUIRED_WINS:
 			var ts := _nearest_unbeaten("socal")
@@ -2281,7 +2392,7 @@ func _comp_board(pos: Vector3, comp_id: String) -> void:
 	_box(Vector3(2.4, 1.6, 0.1), Vector3(pos.x, gy + 2.1, pos.z), Color(0.55, 0.12, 0.12), false)
 	var nm: String = Data.COMPS[comp_id].name.to_upper()
 	for side in [1, -1]:
-		var l := _label("CAMPEONATO\n%s" % nm, Vector3(pos.x, gy + 2.15, pos.z + 0.07 * side), 40, Color(1, 0.88, 0.4), 0.0 if side == 1 else PI)
+		var l := _label(("TOURNAMENT\n%s" if Data.continent_of(zone) == "america" else "CAMPEONATO\n%s") % nm, Vector3(pos.x, gy + 2.15, pos.z + 0.07 * side), 40, Color(1, 0.88, 0.4), 0.0 if side == 1 else PI)
 		l.pixel_size = 0.0055
 	var medal := _cyl(0.22, 0.22, 0.05, Vector3(pos.x, gy + 3.15, pos.z), Color(0.98, 0.78, 0.2), 14)
 	medal.rotation.x = PI / 2
@@ -2358,7 +2469,7 @@ func _team_board(pos: Vector3) -> void:
 	_box(Vector3(0.15, 2.4, 0.15), Vector3(pos.x + 0.9, gy + 1.2, pos.z), wood, false)
 	_box(Vector3(2.2, 1.4, 0.1), Vector3(pos.x, gy + 2.0, pos.z), Color(0.1, 0.42, 0.28), false)
 	for side in [1, -1]:
-		var l := _label("DESAFIO DE EQUIPES\n5 v 5", Vector3(pos.x, gy + 2.05, pos.z + 0.07 * side), 40, Color(0.98, 0.82, 0.22), 0.0 if side == 1 else PI)
+		var l := _label("TEAM CHALLENGE\n5 v 5" if Data.continent_of(zone) == "america" else "DESAFIO DE EQUIPES\n5 v 5", Vector3(pos.x, gy + 2.05, pos.z + 0.07 * side), 40, Color(0.98, 0.82, 0.22), 0.0 if side == 1 else PI)
 		l.pixel_size = 0.0055
 	_spot(Vector3(pos.x, gy, pos.z), 2.2, "Team Challenge (5v5)", "team", zone)
 
@@ -2367,9 +2478,9 @@ func _challenge_board(pos: Vector3) -> void:
 	_box(Vector3(0.15, 2.2, 0.15), Vector3(pos.x - 0.9, gy + 1.1, pos.z), Color(0.4, 0.28, 0.18), false)
 	_box(Vector3(0.15, 2.2, 0.15), Vector3(pos.x + 0.9, gy + 1.1, pos.z), Color(0.4, 0.28, 0.18), false)
 	_box(Vector3(2.2, 1.3, 0.1), Vector3(pos.x, gy + 1.9, pos.z), Color(0.15, 0.25, 0.2), false)
-	var l := _label("DESAFIO\nDO DIA", Vector3(pos.x, gy + 1.95, pos.z + 0.07), 44, UiKit.ACCENT)
+	var l := _label("DAILY\nCHALLENGE" if Data.continent_of(zone) == "america" else "DESAFIO\nDO DIA", Vector3(pos.x, gy + 1.95, pos.z + 0.07), 44, UiKit.ACCENT)
 	l.pixel_size = 0.006
-	var l2 := _label("DESAFIO\nDO DIA", Vector3(pos.x, gy + 1.95, pos.z - 0.07), 44, UiKit.ACCENT, PI)
+	var l2 := _label("DAILY\nCHALLENGE" if Data.continent_of(zone) == "america" else "DESAFIO\nDO DIA", Vector3(pos.x, gy + 1.95, pos.z - 0.07), 44, UiKit.ACCENT, PI)
 	l2.pixel_size = 0.006
 	_spot(Vector3(pos.x, gy, pos.z), 2.4, "Daily Challenge board", "daily")
 
@@ -3109,3 +3220,536 @@ func _s_gold_gym() -> void:
 	_box(Vector3(22, 0.1, 12), c + Vector3(0, 0.04, 8), Color(0.3, 0.3, 0.32), false)
 	for k in 6:
 		_box(Vector3(0.12, 0.02, 4.5), c + Vector3(-9 + k * 3.6, 0.1, 9), Color(0.95, 0.95, 0.95), false)
+
+# ================================================================ Team USA zones
+## A gym on its own pad with the usual drill stations, challenge board and competition board.
+func _usa_gym(c2: Vector2, title: String, wall: Color, comp: String) -> Vector3:
+	var g := Vector3(c2.x, ground_y(c2.x, c2.y), c2.y)
+	_gym(g, title, wall)
+	_label(title, g + Vector3(0, 6.0, 7.6), 100, Color(0.98, 0.82, 0.3))
+	var xs := [-7.0, -3.5, 0.0, 3.5, 7.0]
+	for i in Rpg.ATTR_ORDER.size():
+		_drill_station(Rpg.ATTR_ORDER[i], g + Vector3(xs[i], 0, 5.0))
+	_challenge_board(g + Vector3(-12, 0, 9))
+	_comp_board(g + Vector3(12, 0, 9), comp)
+	return g
+
+func _gator(p: Vector3) -> void:
+	var gy := maxf(ground_y(p.x, p.z), -0.4)
+	var body := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = 0.3
+	cm.height = 2.6
+	body.mesh = cm
+	body.material_override = _mat(Color(0.18, 0.22, 0.13))
+	body.rotation = Vector3(PI / 2, _rng.randf() * TAU, 0)
+	body.position = Vector3(p.x, gy + 0.05, p.z)
+	body.scale = Vector3(1, 1, 0.5)
+	add_child(body)
+	var lab := _label("gator", Vector3(p.x, gy + 1.0, p.z), 36, Color(1, 1, 1, 0.8))
+	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+# ---------------------------------------------------------------- Dry Creek, Texas (Lv 1-10)
+const TX_GYM := Vector2(0, -52)
+
+func creek_x(z: float) -> float:
+	return -63.0 + sin(z * 0.04) * 4.0
+
+func _height_texas(x: float, z: float) -> float:
+	var h := noise.get_noise_2d(x, z) * 1.6 + 0.3
+	var town := 1.0 - _ss(36.0, 58.0, maxf(absf(x) * 0.85, absf(z + 12.0) * 0.8))
+	h *= 1.0 - town * 0.9
+	# rolling hill country rising to the edges (open to the east where the highway leaves)
+	var e := maxf(absf(x), absf(z))
+	var gap := _ss(9.0, 4.0, absf(z)) * _ss(55.0, 70.0, x)
+	h += _ss(78.0, 98.0, e) * 12.0 * (1.0 - gap)
+	# Dry Creek: limestone banks and a deep swimming hole
+	var d := absf(x - creek_x(z))
+	h = lerpf(h, -2.6, _ss(10.0, 4.5, d))
+	h = lerpf(h, -3.0, _ss(9.0, 4.0, Vector2(x, z).distance_to(Vector2(creek_x(6.0), 6.0))))
+	# flat pads: gym, rodeo grounds, stadium
+	h = lerpf(h, 0.3, _ss(15.0, 11.0, Vector2(x, z).distance_to(TX_GYM)))
+	h = lerpf(h, 0.3, _ss(20.0, 15.0, Vector2(x, z).distance_to(Vector2(52, 40))))
+	h = lerpf(h, 0.3, _ss(16.0, 12.0, Vector2(x, z).distance_to(Vector2(62, 68))))
+	return h
+
+func _texas_color(x: float, z: float, h: float) -> Color:
+	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
+	if h < -0.6:
+		return Color(0.72, 0.68, 0.56).lerp(Color(0.6, 0.56, 0.46), _ss(-0.6, -2.0, h))   # limestone banks
+	if absf(z + 7.0) < 3.0 and x > -52.0:
+		return Color(0.26, 0.26, 0.28)   # Main Street
+	if Vector2(x, z).distance_to(Vector2(0, 8)) < 13.0:
+		return Color(0.36, 0.52, 0.22).lerp(Color(0.42, 0.58, 0.26), n)   # courthouse lawn
+	if Vector2(x, z).distance_to(Vector2(52, 40)) < 15.0:
+		return Color(0.62, 0.5, 0.36).lerp(Color(0.68, 0.56, 0.4), n)   # arena dirt
+	var g := Color(0.52, 0.52, 0.26).lerp(Color(0.62, 0.58, 0.3), n)   # dry grass
+	if h > 4.0:
+		g = g.lerp(Color(0.5, 0.48, 0.34), _ss(4.0, 10.0, h))
+	return g
+
+func _build_texas() -> void:
+	noise.seed = 41
+	noise.frequency = 0.03
+	_rng.seed = 2050
+	_static = StaticBody3D.new()
+	add_child(_static)
+	_blocked = [
+		Rect2(-16, -2, 32, 22),     # square
+		Rect2(-12, -30, 24, 18),    # courthouse
+		Rect2(-14, -66, 28, 26),    # gym
+		Rect2(-56, -10, 130, 7),    # Main Street
+		Rect2(-56, -16, 130, 20),   # storefronts
+		Rect2(30, 22, 42, 38),      # rodeo
+		Rect2(48, 54, 30, 26),      # stadium lot
+		Rect2(68, -12, 30, 24),     # bus stop
+		Rect2(40, -74, 30, 26),     # oilfield
+		Rect2(20, -34, 22, 20),     # feed store
+		Rect2(30, -50, 18, 18),     # water tower
+	]
+	_build_environment()
+	_build_terrain()
+	var mi := MeshInstance3D.new()
+	mi.mesh = EnvShaders.water_plane(Vector2(26, 220), 3.0)
+	mi.material_override = EnvShaders.water(Color(0.06, 0.26, 0.26), Color(0.2, 0.55, 0.5, 0.85), 0.04, 0.18, Vector2(0.0, 0.4))
+	mi.position = Vector3(-63, WATER_Y, 0)
+	add_child(mi)
+	_tx_town()
+	_tx_rodeo()
+	_tx_outskirts()
+	_build_trees()
+	_build_ground_detail()
+	_build_props()
+	_p_bus_stop(Vector3(80, 0, 0), "GREYHOUND")
+	var g := _usa_gym(TX_GYM, "LONE STAR BJJ", Color(0.78, 0.72, 0.6), "dry_creek_open")
+	_box(Vector3(0.1, 2.2, 3.4), g + Vector3(-9.3, 2.6, 0), Color(0.75, 0.15, 0.15), false)   # flag on the wall
+	_box(Vector3(0.11, 0.7, 1.2), g + Vector3(-9.31, 3.3, -1.1), Color(0.15, 0.25, 0.6), false)
+	_build_cups()
+	_build_landmarks()
+	_build_fighters()
+	_build_villagers()
+	_build_bounds()
+	_build_beacon()
+
+func _tx_storefront(x: float, z: float, front: float, col: Color, sign: String) -> void:
+	var gy := ground_y(x, z)
+	var w := _rng.randf_range(6.0, 7.5)
+	var h := _rng.randf_range(3.6, 4.6)
+	_box(Vector3(w, h, 7), Vector3(x, gy + h / 2.0, z), col)
+	# western false front, taller than the roof
+	_box(Vector3(w + 0.2, 1.6, 0.3), Vector3(x, gy + h + 0.6, z + front * 3.55), col.darkened(0.12), false)
+	_box(Vector3(w * 0.75, 1.0, 0.1), Vector3(x, gy + 1.6, z + front * 3.56), Color(0.22, 0.3, 0.38), false)
+	# wooden porch roof
+	_box(Vector3(w, 0.15, 1.8), Vector3(x, gy + 2.9, z + front * 4.4), Color(0.45, 0.32, 0.2), false)
+	for sx in [-w / 2.0 + 0.3, w / 2.0 - 0.3]:
+		_box(Vector3(0.15, 2.9, 0.15), Vector3(x + sx, gy + 1.45, z + front * 5.2), Color(0.45, 0.32, 0.2), false)
+	if sign != "":
+		_label(sign, Vector3(x, gy + h + 0.6, z + front * 3.75), 48, Color(1, 0.95, 0.85), 0.0 if front > 0 else PI)
+
+func _tx_town() -> void:
+	# Main Street and the side street down to the square
+	_road(Vector3(-52, 0, -7), Vector3(74, 0, -7), 6.0)
+	_road(Vector3(0, 0, -7), Vector3(0, 0, 20), 5.0)
+	var cols := [Color(0.82, 0.62, 0.42), Color(0.7, 0.42, 0.32), Color(0.86, 0.8, 0.66), Color(0.55, 0.62, 0.66), Color(0.88, 0.72, 0.5), Color(0.62, 0.5, 0.4)]
+	var signs := ["HARDWARE", "SALOON", "BOOTS", "", "POST OFFICE", "", "PAWN", "BAKERY", "", "BARBER", "TACOS", ""]
+	var i := 0
+	for x in range(-46, 72, 9):
+		if absf(x) < 12 or absf(x - 30) < 8:
+			continue
+		_tx_storefront(x, 0.5, -1.0, cols[i % cols.size()], signs[i % signs.size()])
+		i += 1
+	# courthouse: limestone, columns, a clock tower
+	var c := Vector3(0, ground_y(0, -20), -20)
+	_box(Vector3(18, 7, 10), c + Vector3(0, 3.5, 0), Color(0.86, 0.82, 0.7))
+	_box(Vector3(19, 0.6, 11), c + Vector3(0, 7.3, 0), Color(0.72, 0.68, 0.58), false)
+	for k in 6:
+		_cyl(0.35, 0.35, 6.0, c + Vector3(-6.25 + k * 2.5, 3.0, 5.4), Color(0.92, 0.9, 0.82), 8)
+	_box(Vector3(4, 5, 4), c + Vector3(0, 10, 0), Color(0.86, 0.82, 0.7))
+	_cyl(0.0, 2.6, 2.4, c + Vector3(0, 13.7, 0), Color(0.45, 0.5, 0.42), 4)
+	var clock := MeshInstance3D.new()
+	clock.mesh = _mk_sphere(1.0, 0.1)
+	clock.material_override = _mat(Color(0.95, 0.95, 0.9))
+	clock.position = c + Vector3(0, 10.5, 2.05)
+	add_child(clock)
+	_label("DRY CREEK COUNTY COURTHOUSE", c + Vector3(0, 7.9, 5.6), 60, Color(0.25, 0.2, 0.15))
+	# the square: gazebo and benches
+	var sq := Vector3(0, ground_y(0, 8), 8)
+	for k in 8:
+		var a := k * TAU / 8.0
+		_cyl(0.12, 0.12, 2.6, sq + Vector3(cos(a) * 2.6, 1.3, sin(a) * 2.6), Color(0.95, 0.95, 0.92), 6)
+	_cyl(0.0, 3.4, 1.4, sq + Vector3(0, 3.3, 0), Color(0.75, 0.2, 0.2), 8)
+	_box(Vector3(6, 0.3, 6), sq + Vector3(0, 0.15, 0), Color(0.9, 0.88, 0.84))
+	for p in [Vector2(-9, 4), Vector2(9, 4), Vector2(-9, 13), Vector2(9, 13)]:
+		_prop("bench", p.x, p.y, 0.0 if p.y < 8 else PI, Vector3(1.8, 0.8, 0.5))
+	_label("COURTHOUSE SQUARE", sq + Vector3(0, 5.2, 0), 70, Color(1, 0.95, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# Dottie's diner and Earl's BBQ
+	var dn := Vector3(20, ground_y(20, 20), 20)
+	_box(Vector3(9, 3.4, 5), dn + Vector3(0, 1.7, 0), Color(0.85, 0.85, 0.88))
+	_box(Vector3(9.2, 0.4, 5.2), dn + Vector3(0, 3.6, 0), Color(0.85, 0.3, 0.35), false)
+	_box(Vector3(7, 1.2, 0.1), dn + Vector3(0, 1.8, -2.55), Color(0.25, 0.35, 0.45), false)
+	_label("DOTTIE'S DINER", dn + Vector3(0, 4.4, -2.6), 56, Color(1, 0.4, 0.45), PI)
+	var bb := Vector3(-24, ground_y(-24, -20), -20)
+	_box(Vector3(8, 3.6, 6), bb + Vector3(0, 1.8, 0), Color(0.55, 0.32, 0.22))
+	_cyl(0.7, 0.7, 2.4, bb + Vector3(5.2, 1.0, 2.0), Color(0.12, 0.12, 0.12), 10)   # smoker
+	_cyl(0.18, 0.18, 2.2, bb + Vector3(5.2, 3.0, 2.0), Color(0.12, 0.12, 0.12), 6)
+	_label("EARL'S BBQ", bb + Vector3(0, 4.3, 3.1), 56, Color(1, 0.75, 0.4))
+	# Feed & Tack: a red barn with hay bales out front
+	var fd := Vector3(30, ground_y(30, -24), -24)
+	_box(Vector3(12, 5, 8), fd + Vector3(0, 2.5, 0), Color(0.62, 0.16, 0.14))
+	var roof := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(12.6, 2.4, 8.6)
+	roof.mesh = pm
+	roof.material_override = _mat(Color(0.35, 0.35, 0.38))
+	roof.position = fd + Vector3(0, 6.2, 0)
+	add_child(roof)
+	_box(Vector3(4, 3.4, 0.1), fd + Vector3(0, 1.7, 4.05), Color(0.95, 0.93, 0.88), false)
+	for k in 4:
+		_cyl(0.7, 0.7, 1.3, fd + Vector3(-5 + k * 1.6, 0.7, 5.6), Color(0.85, 0.72, 0.38), 10)
+	_label("FEED & TACK", fd + Vector3(0, 5.6, 4.1), 70, Color(1, 0.95, 0.85))
+	# water tower
+	var wt := Vector3(40, ground_y(40, -42), -42)
+	for k in 4:
+		var a := k * PI / 2 + PI / 4
+		_cyl(0.15, 0.15, 10.0, wt + Vector3(cos(a) * 2.4, 5.0, sin(a) * 2.4), Color(0.7, 0.72, 0.75), 6)
+	_cyl(3.2, 3.2, 4.0, wt + Vector3(0, 12.0, 0), Color(0.82, 0.84, 0.86), 16)
+	_cyl(0.0, 3.4, 1.4, wt + Vector3(0, 14.7, 0), Color(0.7, 0.72, 0.75), 16)
+	_label("DRY CREEK", wt + Vector3(0, 12.0, 3.3), 110, Color(0.15, 0.25, 0.55))
+	# houses on the south side
+	var palette := [Color(0.95, 0.93, 0.88), Color(0.7, 0.8, 0.85), Color(0.92, 0.82, 0.6), Color(0.75, 0.6, 0.5)]
+	for x in [-44.0, -34.0, 30.0, 40.0]:
+		_house(Vector3(x, 0, 30), Vector3(0, 0, -1), palette)
+	# swimming hole: rope swing tree and a lifeguard chair
+	var sh := Vector3(creek_x(6.0) + 8.0, 0, 6.0)
+	_mango_tree(Vector3(sh.x, ground_y(sh.x, sh.z), sh.z - 6.0), 1.1)
+	_box(Vector3(0.05, 4.0, 0.05), Vector3(sh.x - 2.0, ground_y(sh.x, sh.z - 6) + 3.0, sh.z - 6.0), Color(0.75, 0.65, 0.45), false)
+	var ch := Vector3(-50, ground_y(-50, -12), -12)
+	for sx in [-0.6, 0.6]:
+		_box(Vector3(0.12, 2.2, 0.12), ch + Vector3(sx, 1.1, 0), Color(0.95, 0.95, 0.95), false)
+	_box(Vector3(1.4, 0.15, 1.0), ch + Vector3(0, 2.2, 0), Color(0.85, 0.2, 0.2), false)
+	_animal("pug", Vector3(4, ground_y(4, 14), 14), 0.55, 1.2)
+	_animal("cat", Vector3(-20, ground_y(-20, -14), -14), 0.45, 0.5)
+
+func _tx_rodeo() -> void:
+	var r := Vector3(52, ground_y(52, 40), 40)
+	for k in 28:
+		var a := k * TAU / 28.0
+		var p := r + Vector3(cos(a) * 13.0, 0, sin(a) * 9.0)
+		_box(Vector3(0.2, 1.6, 0.2), Vector3(p.x, ground_y(p.x, p.z) + 0.8, p.z), Color(0.5, 0.36, 0.22), false)
+		var a2 := (k + 1) * TAU / 28.0
+		var p2 := r + Vector3(cos(a2) * 13.0, 0, sin(a2) * 9.0)
+		if k % 7 != 0:
+			var mid := (p + p2) * 0.5
+			var rail := _box(Vector3(0.1, 0.12, p.distance_to(p2)), Vector3(mid.x, ground_y(mid.x, mid.z) + 1.3, mid.z), Color(0.55, 0.4, 0.25), false)
+			rail.rotation.y = atan2(p2.x - p.x, p2.z - p.z)
+	# bleachers
+	for row in 4:
+		_box(Vector3(14, 0.3, 1.0), r + Vector3(0, 0.5 + row * 0.6, -12.0 - row * 1.0), Color(0.75, 0.75, 0.78), true)
+	_label("DRY CREEK RODEO", r + Vector3(0, 4.6, -14.5), 90, Color(1, 0.85, 0.5))
+	_animal("deer", Vector3(70, ground_y(70, 24), 24), 1.5, 0.4)
+
+func _tx_outskirts() -> void:
+	# Friday-night football: stadium lot
+	var st := Vector3(62, ground_y(62, 68), 68)
+	_box(Vector3(22, 0.1, 14), st + Vector3(0, 0.04, 0), Color(0.3, 0.3, 0.32), false)
+	for k in 3:
+		_place_model(["truck", "sedan", "truck"][k], st + Vector3(-7 + k * 7, 0, -3), 1.7, 0.2 * k, Vector3(4.6, 2.0, 2.4))
+	for row in 5:
+		_box(Vector3(20, 0.3, 1.0), st + Vector3(0, 0.6 + row * 0.7, 9.0 + row * 1.0), Color(0.75, 0.75, 0.78), true)
+	_cyl(0.2, 0.2, 14.0, st + Vector3(-11, 7.0, 6.0), Color(0.6, 0.6, 0.62), 6)
+	_cyl(0.2, 0.2, 14.0, st + Vector3(11, 7.0, 6.0), Color(0.6, 0.6, 0.62), 6)
+	_label("GO MUSTANGS", st + Vector3(0, 5.6, 13.6), 90, Color(0.95, 0.3, 0.3), PI)
+	# oilfield: pump jacks
+	var of := Vector3(58, ground_y(58, -62), -62)
+	for k in 3:
+		var p := of + Vector3(-8 + k * 8, 0, -4 + (k % 2) * 6)
+		var gy := ground_y(p.x, p.z)
+		_box(Vector3(1.4, 2.4, 0.6), Vector3(p.x, gy + 1.2, p.z), Color(0.25, 0.25, 0.28))
+		var beam := _box(Vector3(6.0, 0.5, 0.5), Vector3(p.x, gy + 2.7, p.z), Color(0.35, 0.36, 0.4), false)
+		beam.rotation.z = 0.15 * (1 if k % 2 == 0 else -1)
+		_box(Vector3(0.6, 1.4, 0.8), Vector3(p.x + 3.0, gy + 2.2, p.z), Color(0.25, 0.25, 0.28), false)
+	_label("PUMP JACKS", of + Vector3(0, 4.4, 0), 70, Color(1, 0.85, 0.5)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	# creek bed camp: tubes and a cooler
+	var cb := Vector3(-34, 0, 66)
+	for k in 3:
+		var tp := cb + Vector3(-6 + k * 5, 0, (k % 2) * 4)
+		var tube := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = 0.35
+		tm.outer_radius = 0.75
+		tube.mesh = tm
+		tube.material_override = _mat([Color(0.95, 0.3, 0.25), Color(0.2, 0.55, 0.9), Color(1, 0.85, 0.2)][k])
+		tube.position = Vector3(tp.x, ground_y(tp.x, tp.z) + 0.2, tp.z)
+		add_child(tube)
+
+# ---------------------------------------------------------------- Saw Grass Landing, Everglades (Lv 11-20)
+const GL_PIT := Vector2(60, 52)
+
+func _height_everglades(x: float, z: float) -> float:
+	var h := noise.get_noise_2d(x, z) * 0.9 + 0.1
+	var n2 := noise.get_noise_2d(x * 0.6 + 300.0, z * 0.6 - 120.0)
+	h = lerpf(h, -0.9, _ss(-0.15, -0.32, n2))   # sloughs everywhere
+	for lg in [[Vector2(42, -54), 14.0], [Vector2(-10, 46), 12.0], [Vector2(70, 0), 10.0]]:
+		h = lerpf(h, -0.9, _ss(lg[1], lg[1] - 5.0, Vector2(x, z).distance_to(lg[0])))
+	for fl in [[GL_PIT, 17.0], [Vector2(-40, 26), 15.0], [Vector2(-18, -48), 10.0], [Vector2(-82, -4), 11.0], [Vector2(10, 20), 10.0], [Vector2(30, -64), 10.0], [Vector2(-52, -36), 10.0], [Vector2(-56, 62), 9.0], [Vector2(36, -34), 6.0]]:
+		h = lerpf(h, 0.25, _ss(fl[1], fl[1] - 4.0, Vector2(x, z).distance_to(fl[0])))
+	h = lerpf(h, 0.3, _ss(5.0, 3.0, absf(z + 4.0)))   # Tamiami Trail on its causeway
+	var e := maxf(absf(x), absf(z))
+	h += _ss(84.0, 98.0, e) * 6.0
+	return h
+
+func _everglades_color(x: float, z: float, h: float) -> Color:
+	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
+	if absf(z + 4.0) < 2.8:
+		return Color(0.28, 0.28, 0.3)
+	var g := Color(0.5, 0.52, 0.26).lerp(Color(0.58, 0.56, 0.3), n)   # sawgrass
+	if h < -0.2:
+		g = g.lerp(Color(0.3, 0.27, 0.18), _ss(-0.2, -0.6, h))
+	if Vector2(x, z).distance_to(Vector2(10, 20)) < 10.0:
+		g = Color(0.26, 0.38, 0.16)   # hammock under the trees
+	return g
+
+func _build_everglades() -> void:
+	noise.seed = 52
+	noise.frequency = 0.028
+	_rng.seed = 2051
+	_static = StaticBody3D.new()
+	add_child(_static)
+	_blocked = [
+		Rect2(-92, -14, 22, 20),   # bus stop
+		Rect2(44, 38, 34, 30),     # gator pit
+		Rect2(-56, 12, 32, 30),    # fish camp
+		Rect2(-28, -58, 20, 20),   # ranger station
+		Rect2(28, -48, 22, 28),    # dock and its path
+		Rect2(-100, -7, 200, 6),   # the trail
+	]
+	_build_environment()
+	_build_terrain()
+	var water := MeshInstance3D.new()
+	water.mesh = EnvShaders.water_plane(Vector2(200, 200), 4.0)
+	water.material_override = EnvShaders.water(Color(0.07, 0.13, 0.09), Color(0.2, 0.3, 0.18, 0.86), 0.03, 0.25)
+	water.position = Vector3(0, -0.35, 0)
+	add_child(water)
+	_road(Vector3(-96, 0, -4), Vector3(96, 0, -4), 5.0)
+	_build_trees()
+	_build_ground_detail()
+	_build_props()
+	_p_bus_stop(Vector3(-82, 0, -4), "TAMIAMI TRAIL")
+	var g := _usa_gym(GL_PIT, "THE GATOR PIT", Color(0.6, 0.62, 0.64), "glades_open")
+	# corrugated tin roof stripes + big fans
+	for k in 7:
+		_box(Vector3(19, 0.05, 0.4), g + Vector3(0, 5.45, -6 + k * 2.0), Color(0.5, 0.52, 0.54), false)
+	for sx in [-8.6, 8.6]:
+		var fan := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = 0.7
+		tm.outer_radius = 0.85
+		fan.mesh = tm
+		fan.material_override = _mat(Color(0.2, 0.2, 0.22))
+		fan.position = g + Vector3(sx, 3.2, 0)
+		fan.rotation.z = PI / 2
+		add_child(fan)
+	_gl_dock()
+	_gl_fishcamp()
+	_gl_ranger()
+	_gl_hammock()
+	for p in [Vector3(1, 0, 40), Vector3(-14, 0, 50), Vector3(40, 0, -56), Vector3(48, 0, -48), Vector3(70, 0, 4), Vector3(66, 0, -4)]:
+		_gator(p)
+	for p in [Vector3(-2, 0, 12), Vector3(24, 0, 26)]:
+		_animal("deer", Vector3(p.x, ground_y(p.x, p.z), p.z), 1.4, _rng.randf() * TAU)
+	for p in [Vector3(-6, 0, 30), Vector3(36, 0, -46)]:
+		_animal("frog", Vector3(p.x, maxf(ground_y(p.x, p.z), -0.3), p.z), 0.25, _rng.randf() * TAU)
+	_label("THE EVERGLADES", Vector3(0, 6.0, -4), 110, Color(0.85, 1, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_build_cups()
+	_build_landmarks()
+	_build_fighters()
+	_build_villagers()
+	_build_bounds()
+	_build_beacon()
+
+func _gl_dock() -> void:
+	var c := Vector3(38, 0, -40)
+	for k in 5:
+		_box(Vector3(3.0, 0.25, 2.2), Vector3(c.x, 0.1, c.z - 2.0 - k * 2.2), Color(0.5, 0.4, 0.3))
+		for sx in [-1.4, 1.4]:
+			_cyl(0.12, 0.12, 1.6, Vector3(c.x + sx, -0.6, c.z - 2.0 - k * 2.2), Color(0.35, 0.28, 0.2), 6)
+	for k in 2:
+		var b := Vector3(c.x + (-3.5 if k == 0 else 3.5), -0.2, c.z - 6.0 - k * 3.0)
+		_box(Vector3(2.0, 0.4, 4.2), b, Color(0.85, 0.85, 0.82), false)
+		var ring := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = 0.9
+		tm.outer_radius = 1.05
+		ring.mesh = tm
+		ring.material_override = _mat(Color(0.2, 0.2, 0.22))
+		ring.position = b + Vector3(0, 1.3, 2.0)
+		ring.rotation.x = PI / 2
+		add_child(ring)
+		_box(Vector3(0.6, 1.0, 0.6), b + Vector3(0, 0.7, 0.6), Color(0.3, 0.3, 0.32), false)
+	_label("AIRBOAT TOURS", c + Vector3(0, 3.0, 1.0), 70, Color(1, 0.9, 0.5)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _gl_fishcamp() -> void:
+	var c := Vector3(-40, ground_y(-40, 26), 26)
+	var cols := [Color(0.55, 0.68, 0.7), Color(0.85, 0.82, 0.7), Color(0.6, 0.45, 0.35)]
+	for k in 3:
+		var p := c + Vector3(-8 + k * 8, 0, -6 + (k % 2) * 10)
+		for sx in [-1.3, 1.3]:
+			for sz in [-1.3, 1.3]:
+				_cyl(0.12, 0.12, 1.4, p + Vector3(sx, 0.7, sz), Color(0.35, 0.28, 0.2), 6)
+		_box(Vector3(3.4, 2.6, 3.4), p + Vector3(0, 2.7, 0), cols[k])
+		var rf := _box(Vector3(4.0, 0.15, 4.0), p + Vector3(0, 4.1, 0), Color(0.45, 0.47, 0.5), false)
+		rf.rotation.x = 0.12
+	_place_model("campfire", c + Vector3(0, 0, 2), 3.0)
+	_place_model("tent", c + Vector3(8, 0, 8), 4.0, 0.6, Vector3(3.0, 2.2, 2.6))
+	_label("FISH CAMP", c + Vector3(0, 5.2, 0), 80, Color(1, 0.9, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _gl_ranger() -> void:
+	var c := Vector3(-18, ground_y(-18, -50), -50)
+	for sx in [-2.0, 2.0]:
+		for sz in [-2.0, 2.0]:
+			_cyl(0.15, 0.15, 2.4, c + Vector3(sx, 1.2, sz), Color(0.4, 0.32, 0.22), 6)
+	_box(Vector3(5, 3, 5), c + Vector3(0, 3.9, 0), Color(0.42, 0.5, 0.36))
+	_box(Vector3(5.8, 0.3, 5.8), c + Vector3(0, 5.5, 0), Color(0.35, 0.28, 0.2), false)
+	_box(Vector3(1.2, 0.15, 4.0), c + Vector3(0, 1.3, 4.0), Color(0.45, 0.35, 0.25), false).rotation.x = 0.55
+	_label("RANGER STATION", c + Vector3(0, 6.4, 0), 70, Color(0.85, 1, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _gl_hammock() -> void:
+	var c := Vector2(10, 20)
+	var xf: Array = []
+	for k in 14:
+		var a := _rng.randf() * TAU
+		var r := _rng.randf_range(2.0, 9.0)
+		var p := Vector3(c.x + cos(a) * r, 0, c.y + sin(a) * r)
+		xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(5.0, 6.5)), Vector3(p.x, ground_y(p.x, p.z), p.z)))
+	_mm("tree_fat", xf, Color(0.18, 0.32, 0.14))
+
+# ---------------------------------------------------------------- Red Rock, Sedona (Lv 21-30)
+const SD_GYM := Vector2(46, -6)
+const BELL_ROCK := Vector2(10, -16)
+const CATHEDRAL := Vector2(-34, -52)
+const AIRPORT_MESA := Vector2(30, -70)
+
+func _height_sedona(x: float, z: float) -> float:
+	var p := Vector2(x, z)
+	var h := noise.get_noise_2d(x, z) * 1.3 + 0.4
+	# Bell Rock: a steep bell-shaped butte
+	h += 15.0 * _ss(13.0, 4.0, p.distance_to(BELL_ROCK))
+	# Cathedral Rock: a ridge of spires
+	h += 12.0 * _ss(16.0, 6.0, p.distance_to(CATHEDRAL)) * (0.8 + 0.2 * sin(x * 0.7))
+	# Airport Mesa: flat-topped, climbable from the south
+	var mesa := _ss(26.0, 10.0, p.distance_to(AIRPORT_MESA))
+	h = lerpf(h, 7.5, mesa)
+	# Oak Creek Canyon on the west side
+	var cx := -66.0 + sin(z * 0.05) * 4.0
+	h = lerpf(h, -1.8, _ss(9.0, 3.5, absf(x - cx)) * _ss(30.0, 10.0, absf(z + 8.0)))
+	# red walls around the valley
+	var e := maxf(absf(x), absf(z))
+	h += _ss(76.0, 96.0, e) * 16.0 * (1.0 - _ss(22.0, 30.0, Vector2(x, z).distance_to(Vector2(-90, 40))))
+	for fl in [[SD_GYM, 15.0], [Vector2(42, 40), 22.0], [Vector2(-80, 40), 11.0], [Vector2(-64, -54), 9.0]]:
+		h = lerpf(h, 0.4, _ss(fl[1], fl[1] - 5.0, p.distance_to(fl[0])))
+	return h
+
+func _sedona_color(x: float, z: float, h: float) -> Color:
+	var n := noise.get_noise_2d(x * 3.0 + 100.0, z * 3.0) * 0.5 + 0.5
+	var slope := absf(height(x, z + 1.5) - height(x, z - 1.5)) + absf(height(x + 1.5, z) - height(x - 1.5, z))
+	if slope > 1.8 or h > 4.0:
+		var band := sin(h * 1.6) * 0.5 + 0.5   # sandstone layers
+		return Color(0.72, 0.32, 0.18).lerp(Color(0.84, 0.5, 0.3), band * 0.7 + n * 0.3)
+	if h < -0.6:
+		return Color(0.4, 0.5, 0.3)   # creek bottom
+	if Vector2(x, z).distance_to(Vector2(42, 40)) < 18.0:
+		return Color(0.72, 0.58, 0.44).lerp(Color(0.78, 0.64, 0.5), n)   # Uptown plaza
+	var g := Color(0.7, 0.42, 0.28).lerp(Color(0.62, 0.5, 0.32), n)   # red dirt with sage
+	return g
+
+func _build_sedona() -> void:
+	noise.seed = 63
+	noise.frequency = 0.03
+	_rng.seed = 2052
+	_static = StaticBody3D.new()
+	add_child(_static)
+	_blocked = [
+		Rect2(-92, 28, 22, 22),    # shuttle
+		Rect2(32, -20, 28, 28),    # gym
+		Rect2(22, 22, 40, 36),     # uptown
+		Rect2(-6, -32, 32, 32),    # bell rock
+		Rect2(-52, -70, 36, 36),   # cathedral
+		Rect2(14, -86, 32, 32),    # airport mesa
+		Rect2(-74, -64, 20, 20),   # ghost town
+	]
+	_build_environment()
+	_build_terrain()
+	var creek := MeshInstance3D.new()
+	creek.mesh = EnvShaders.water_plane(Vector2(16, 60), 3.0)
+	creek.material_override = EnvShaders.water(Color(0.08, 0.24, 0.22), Color(0.3, 0.55, 0.45, 0.85), 0.05, 0.22, Vector2(0.0, 0.5))
+	creek.position = Vector3(-66, -1.0, -8)
+	add_child(creek)
+	_build_trees()
+	_build_ground_detail()
+	_build_props()
+	_p_bus_stop(Vector3(-80, 0, 40), "SEDONA SHUTTLE")
+	var g := _usa_gym(SD_GYM, "VORTEX JIU-JITSU", Color(0.86, 0.66, 0.5), "red_rock_open")
+	_sd_uptown()
+	_sd_cathedral()
+	_sd_mesa()
+	_sd_ghost_town()
+	_label("BELL ROCK", Vector3(BELL_ROCK.x, ground_y(BELL_ROCK.x, BELL_ROCK.y) + 3.0, BELL_ROCK.y), 110, Color(1, 0.85, 0.7)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label("OAK CREEK", Vector3(-60, ground_y(-60, -8) + 3.0, -8), 80, Color(0.8, 1, 0.85)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_animal("deer", Vector3(-52, ground_y(-52, -20), -20), 1.5, 0.3)
+	_animal("fox", Vector3(60, ground_y(60, -30), -30), 0.9, 1.4)
+	_animal("fox", Vector3(-20, ground_y(-20, 60), 60), 0.9, -0.6)
+	_build_cups()
+	_build_landmarks()
+	_build_fighters()
+	_build_villagers()
+	_build_bounds()
+	_build_beacon()
+
+func _sd_uptown() -> void:
+	var c := Vector3(42, ground_y(42, 40), 40)
+	var cols := [Color(0.82, 0.6, 0.45), Color(0.88, 0.72, 0.55), Color(0.75, 0.5, 0.38), Color(0.9, 0.8, 0.66)]
+	var shops := ["CRYSTALS", "PSYCHIC", "TACOS", "GALLERY", "JEEP TOURS", "COFFEE"]
+	for k in 6:
+		var x := c.x - 15.0 + k * 6.0
+		var z := c.z + 12.0
+		var gy := ground_y(x, z)
+		var h := _rng.randf_range(3.4, 4.6)
+		_box(Vector3(5.4, h, 6), Vector3(x, gy + h / 2.0, z), cols[k % cols.size()])
+		for b in 3:   # adobe vigas
+			_cyl(0.12, 0.12, 0.9, Vector3(x - 1.8 + b * 1.8, gy + h - 0.6, z - 3.2), Color(0.42, 0.3, 0.2), 6).rotation.x = PI / 2
+		_box(Vector3(3.6, 1.1, 0.1), Vector3(x, gy + 1.6, z - 3.02), Color(0.2, 0.28, 0.34), false)
+		_label(shops[k], Vector3(x, gy + h + 0.5, z - 3.1), 46, Color(1, 0.92, 0.8), PI)
+	# turquoise trim shop with crystals out front
+	for k in 5:
+		_place_model("crystal", c + Vector3(-12 + k * 2.4, 0, 6.5), 0.7, _rng.randf() * TAU)
+	_label("UPTOWN", c + Vector3(0, 7.0, 4), 100, Color(1, 0.9, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_place_model("van", c + Vector3(-14, 0, -6), 1.7, 0.4, Vector3(4.6, 2.0, 2.4))
+	_place_model("truck", c + Vector3(12, 0, -8), 1.7, -0.3, Vector3(4.6, 2.0, 2.4))
+
+func _sd_cathedral() -> void:
+	var c := Vector3(CATHEDRAL.x, 0, CATHEDRAL.y)
+	for k in 4:
+		var p := c + Vector3(-6 + k * 4.0, 0, -2 + (k % 2) * 3)
+		var gy := ground_y(p.x, p.z)
+		var h := 8.0 + k % 2 * 4.0
+		_cyl(0.8, 2.2, h, Vector3(p.x, gy + h / 2.0 - 0.5, p.z), Color(0.74, 0.34, 0.2), 7, true)
+	_label("CATHEDRAL ROCK", Vector3(c.x, ground_y(c.x, c.z + 14) + 4.0, c.z + 14), 100, Color(1, 0.8, 0.65)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+func _sd_mesa() -> void:
+	var c := Vector3(AIRPORT_MESA.x, ground_y(AIRPORT_MESA.x, AIRPORT_MESA.y), AIRPORT_MESA.y)
+	_cyl(0.06, 0.06, 2.0, c + Vector3(0, 1.0, 0), Color(0.3, 0.3, 0.3), 6)
+	_label("AIRPORT MESA VORTEX", c + Vector3(0, 3.0, 0), 80, Color(0.9, 0.8, 1.0)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	for k in 9:   # a stone spiral where people meditate
+		var a := k * 0.8
+		var r := 1.0 + k * 0.35
+		_box(Vector3(0.5, 0.3, 0.5), c + Vector3(cos(a) * r, 0.15, sin(a) * r), Color(0.6, 0.5, 0.42), false)
+
+func _sd_ghost_town() -> void:
+	var c := Vector3(-64, ground_y(-64, -54), -54)
+	for k in 4:
+		var p := c + Vector3(-6 + k * 4.2, 0, (k % 2) * 5 - 2)
+		var gy := ground_y(p.x, p.z)
+		var shack := _box(Vector3(3.4, 2.8, 3.0), Vector3(p.x, gy + 1.4, p.z), Color(0.48, 0.38, 0.28), true, 0.1 * k)
+		shack.rotation.z = 0.04 * (k - 1.5)
+		_box(Vector3(3.8, 0.12, 3.4), Vector3(p.x, gy + 2.9, p.z), Color(0.38, 0.3, 0.22), false, 0.1 * k)
+	_label("GHOST TOWN", c + Vector3(0, 4.4, 0), 80, Color(1, 0.85, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED

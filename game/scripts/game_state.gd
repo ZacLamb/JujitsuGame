@@ -467,8 +467,17 @@ func head_id() -> String:
 func skin_color() -> Color:
 	return UiKit.skin_tone(skin_t)
 
+## Time Brasil or Team USA (decided by origin, like a WoW race).
+func faction() -> String:
+	return Origins.faction_of(origin)
+
+func faction_path() -> Array:
+	return Origins.faction(faction()).path
+
 func choose_style(id: String, name_: String, gi: int) -> void:
 	var fresh := style == ""
+	if fresh and xp == 0:
+		zone = str(Origins.faction(faction()).start)   # each faction starts in its own town
 	style = id
 	player_name = name_.strip_edges().left(16) if name_.strip_edges() != "" else "Gringo"
 	gi_index = clampi(gi, 0, Rpg.GI_COLORS.size() - 1)
@@ -1080,7 +1089,7 @@ func discover_landmark(id: String) -> bool:
 	if landmarks.has(id):
 		return false
 	landmarks[id] = true
-	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer", "socal": "s_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
+	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer", "socal": "s_explorer", "texas": "x_explorer", "everglades": "e_explorer", "sedona": "d_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
 	toast.emit("Discovered: %s" % Data.LANDMARKS[id].name, Color(0.6, 0.9, 1.0))
 	save_game()
 	progress_changed.emit()
@@ -1105,7 +1114,7 @@ func collect_cup(i: int, z := "caceres") -> bool:
 		return false
 	cups[key] = true
 	Sfx.play("collect")
-	bump({"pantanal": "feathers", "chapada": "crystals", "rio": "coconuts", "socal": "sanddollars"}.get(z, "terere"))
+	bump({"pantanal": "feathers", "chapada": "crystals", "rio": "coconuts", "socal": "sanddollars", "texas": "buckles", "everglades": "gator_teeth", "sedona": "vortex_crystals"}.get(z, "terere"))
 	toast.emit("%s %d/%d" % [Data.ZONES[z].collect, collected_count(z), Data.COLLECTIBLES[z].size()], Color(0.55, 0.9, 0.4))
 	save_game()
 	progress_changed.emit()
@@ -1134,19 +1143,31 @@ func zone_beaten(z: String) -> bool:
 # ------------------------------------------------------------ quests
 func current_objective() -> String:
 	# already past this zone's belt: point at the furthest zone the player can ride to
-	var zi := ["caceres", "pantanal", "chapada", "rio"].find(zone)
+	var road: Array = Origins.FACTIONS.usa.path if Data.continent_of(zone) == "america" else Origins.FACTIONS.brasil.path
+	var zi := road.find(zone)
 	if zi >= 0 and zi < 3 and belt_index() > zi + 1:
-		var best := "rio" if rank >= 15 else ("chapada" if rank >= 10 else "pantanal")
+		var best: String = road[3] if rank >= 15 else (road[2] if rank >= 10 else road[1])
 		return "You've outgrown %s. Ride the bus to %s, or hunt quests and medals here." % [Data.ZONES[zone].name, Data.ZONES[best].name]
+	if zone in ["texas", "everglades", "sedona"]:
+		var zd: Dictionary = Data.ZONES[zone]
+		var nxt: String = road[zi + 1]
+		if rank >= int(Data.ZONES[nxt].rank):
+			return "%s belt! Ride the bus to %s." % [Data.BELTS[belt_index()].name, Data.ZONES[nxt].name]
+		if town_wins(zone) < Data.BOSS_REQUIRED_WINS:
+			return "Win rolls around %s (%d/%d)." % [zd.name, town_wins(zone), Data.BOSS_REQUIRED_WINS]
+		var b: Dictionary = Data.OPPONENTS[zd.boss]
+		return "Challenge %s (%s)." % [b.name, b.title]
 	if zone == "socal":
 		if beaten("dale"):
+			if faction() == "usa" and player_level() >= 40:
+				return "Black belt. Fly south to Rio de Janeiro: there's a fifth stamp waiting."
 			return "The Garage is yours. Roll anyone on either continent."
 		if town_wins("socal") < Data.BOSS_REQUIRED_WINS:
 			return "Win rolls around San Diego (%d/%d)." % [town_wins("socal"), Data.BOSS_REQUIRED_WINS]
 		return "Challenge Coach Dale at The Garage."
 	if zone == "rio":
 		if rank >= 20:
-			if player_level() >= 40:
+			if player_level() >= 40 and faction() == "brasil":
 				return "Black belt. Fly north to San Diego: there's a fifth stamp waiting."
 			return "Black belt. Oss! Roll anyone, anywhere: the mat is yours."
 		if town_wins("rio") < Data.BOSS_REQUIRED_WINS:
@@ -1256,6 +1277,12 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 			unlock("rio_king")
 		if zone_beaten("socal"):
 			unlock("socal_king")
+		if zone_beaten("texas"):
+			unlock("texas_king")
+		if zone_beaten("everglades"):
+			unlock("glades_king")
+		if zone_beaten("sedona"):
+			unlock("sedona_king")
 	else:
 		losses[opp_id] = int(losses.get(opp_id, 0)) + 1
 		gained = 0   # a loss (tapping out included) pays nothing, like dying in WoW
@@ -1266,7 +1293,7 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 	if result.won and Gear.BOSS_SET.has(opp_id):
 		boss_drop(Gear.BOSS_SET[opp_id])
 	if result.won and opp.get("boss", false):
-		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4, "socal": 4}.get(Data.zone_of(opp_id), 1))
+		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4, "texas": 1, "everglades": 2, "sedona": 3, "socal": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()
 	progress_changed.emit()
 	return gained
@@ -1285,8 +1312,13 @@ func quest_state(id: String) -> String:
 	return str(quests.get(id, {}).get("state", ""))
 
 ## Can the player pick this quest up right now?
+## Story chapters belong to one faction: Brasil's story is not Team USA's, and vice versa.
+func quest_for_me(id: String) -> bool:
+	var ch := str(Data.QUESTS[id].get("chapter", ""))
+	return ch == "" or Data.chapter_faction(ch) == faction()
+
 func quest_available(id: String) -> bool:
-	if quest_state(id) != "":
+	if quest_state(id) != "" or not quest_for_me(id):
 		return false
 	var q: Dictionary = Data.QUESTS[id]
 	for r in q.get("requires", []):
@@ -1296,7 +1328,7 @@ func quest_available(id: String) -> bool:
 
 func quest_locked_by_level(id: String) -> bool:
 	var q: Dictionary = Data.QUESTS[id]
-	if quest_state(id) != "":
+	if quest_state(id) != "" or not quest_for_me(id):
 		return false
 	for r in q.get("requires", []):
 		if quest_state(r) != "done":
@@ -1405,7 +1437,7 @@ func complete_quest(id: String) -> int:
 	give_item(Gear.QUEST_LOOT.get(id, ""))
 	if q.has("stamp") and not stamps.has(str(q.stamp)):
 		stamps.append(str(q.stamp))
-		toast.emit("Passport stamped: %s  (%d/%d)" % [str(q.stamp), stamps.size(), Data.CHAPTERS.size()], Color(1, 0.8, 0.25))
+		toast.emit("Passport stamped: %s  (%d/%d)" % [str(q.stamp), stamps.size(), Data.chapters_for(faction()).size()], Color(1, 0.8, 0.25))
 		var conts := {}
 		for ch in Data.CHAPTERS:
 			if stamps.has(str(ch.stamp)):
@@ -1417,7 +1449,7 @@ func complete_quest(id: String) -> int:
 
 ## Where the main story is: [chapter dict, text of the next step]. Empty chapter = finished.
 func story_next() -> Array:
-	for ch in Data.CHAPTERS:
+	for ch in Data.chapters_for(faction()):
 		for id in Data.QUESTS:
 			var q: Dictionary = Data.QUESTS[id]
 			if str(q.get("chapter", "")) != ch.id or quest_state(id) == "done":
@@ -1435,7 +1467,7 @@ func story_next() -> Array:
 				return [ch, "%s: talk to %s." % [q.title, where]]
 			if quest_locked_by_level(id):
 				return [ch, "%s: reach level %d, then see %s." % [q.title, int(q.min_level), where]]
-	return [{}, "Your passport is full. A Pan-American trip north is coming..."]
+	return [{}, "Your passport is full. Oss! Roll anyone, on either continent."]
 
 ## Gi / No-Gi specialisation. Free the first time; retraining with a master costs R$.
 func set_path(p: String) -> bool:

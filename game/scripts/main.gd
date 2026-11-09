@@ -255,6 +255,11 @@ func _show_style_select() -> void:
 	layer.add_child(sel)
 	sel.chosen.connect(func(id: String, nm: String, gi: int):
 		Game.choose_style(id, nm, gi)
+		if Game.zone != world.zone:
+			_make_world(Game.zone)
+			player.make_current()
+			Net.enter(Game.zone)
+			world.game_started = true
 		player.refresh_look()
 		layer.queue_free()
 		hud.set_exploring(true)
@@ -291,7 +296,13 @@ func _begin_play() -> void:
 		Game.flags.erase("spec_reset")
 		Game.save_game()
 		hud.open_dialogue("Professor Gil", "Coaching is a Guard Player and Judoka thing now: those are the only classes that can take the Professor spec. Your spec has been reset, so pick a new one from the Talents window (N). No charge.", "", "Oss")
-	if Game.xp == 0 and not Game.flags.get("intro_seen", false):
+	if Game.xp == 0 and not Game.flags.get("intro_seen", false) and Game.faction() == "usa":
+		Game.flags["intro_seen"] = true
+		Game.save_game()
+		hud.open_dialogue("Dry Creek, Texas",
+			"Hill Country. One stoplight, two barbecue joints and a garage gym behind the feed store. Follow the golden light: Coach Mae's students roll on the town square every afternoon. Win rolls, earn stripes, and find Lone Star BJJ.",
+			"", "Let's go")
+	elif Game.xp == 0 and not Game.flags.get("intro_seen", false):
 		Game.flags["intro_seen"] = true
 		Game.save_game()
 		hud.open_dialogue("Cáceres, Mato Grosso",
@@ -449,7 +460,7 @@ func _make_world(z: String) -> void:
 	var spawn := Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z)
 	player.position = spawn
 	world.add_child(player)
-	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio", "socal"] else 0.0)
+	player.teleport(spawn, PI / 2 if z in ["pantanal", "rio", "socal", "everglades", "sedona"] else 0.0)
 	world.attach_player(player)
 	if hud:
 		hud.minimap.set_world(world, player)
@@ -487,8 +498,7 @@ func _travel(z: String, free := false) -> void:
 			return
 		Game.money -= Data.FLIGHT_COST
 		Game.toast.emit("Flight booked: R$ %d. Passport out, gringo." % Data.FLIGHT_COST, Color(0.55, 0.85, 1.0))
-		if Data.continent_of(z) == "america":
-			Game.unlock("flight")
+		Game.unlock("flight")
 	if Game.player_level() < lo - 2:
 		Game.toast.emit("Careful: %s is a level %s zone and you're level %d. Locals there hit hard." % [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()], Color(1.0, 0.5, 0.35))
 	Game.zone = z
@@ -510,8 +520,19 @@ func _travel(z: String, free := false) -> void:
 	if z == "socal" and not Game.flags.get("socal_intro", false):
 		Game.flags["socal_intro"] = true
 		Game.save_game()
-		hud.open_dialogue("San Diego, California", "América do Norte. Here, you're the Brazilian. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who have watched every instructional ever made. Coach Dale runs The Garage up the hill. Beat %d locals first. And watch out for the gold gis: the Liga Ouro's money comes from here." % Data.BOSS_REQUIRED_WINS, "", "Let's roll")
+		if Game.faction() == "usa":
+			hud.open_dialogue("San Diego, California", "The end of the road west. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who've watched every instructional ever made. The Gold League's headquarters sits on the hill, and Coach Dale's Garage is the last holdout on the coast. Find Professor Rae by the shuttle stop.", "", "Let's roll")
+		else:
+			hud.open_dialogue("San Diego, California", "América do Norte. Here, you're the Brazilian. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who have watched every instructional ever made. Coach Dale runs The Garage up the hill. Beat %d locals first. And watch out for the gold gis: the Liga Ouro's money comes from here." % Data.BOSS_REQUIRED_WINS, "", "Let's roll")
 
+	if z == "everglades" and not Game.flags.get("everglades_intro", false):
+		Game.flags["everglades_intro"] = true
+		Game.save_game()
+		hud.open_dialogue("Saw Grass Landing, Florida", "The Everglades. Sawgrass to the horizon, airboats, pythons, and gators in every ditch. Captain Gator trains his crew in a tin shed called the Gator Pit, out east past the water. Beat %d locals to earn a roll with him." % Data.BOSS_REQUIRED_WINS, "", "Let's go")
+	if z == "sedona" and not Game.flags.get("sedona_intro", false):
+		Game.flags["sedona_intro"] = true
+		Game.save_game()
+		hud.open_dialogue("Red Rock, Arizona", "Red sandstone towers, juniper and sage, and crystal shops on every corner. Master Sol's Vortex Jiu-Jitsu sits at the foot of the mesas. He taught half the coaches in the country. Beat %d locals first." % Data.BOSS_REQUIRED_WINS, "", "Let's go")
 	if z == "rio" and not Game.flags.get("rio_intro", false):
 		Game.flags["rio_intro"] = true
 		Game.save_game()
@@ -929,6 +950,14 @@ func _interact(target: Npc = null) -> void:
 		Game.flags["met_jacare"] = true
 		if Game.town_wins("pantanal") < Data.BOSS_REQUIRED_WINS:
 			hud.open_dialogue("Mestre Jacaré", "Onça's student, eh? Beat %d of my locals first. You have %d. The swamp will teach you." % [Data.BOSS_REQUIRED_WINS, Game.town_wins("pantanal")], "", "Oss")
+			return
+	if npc.opp_id in ["boone", "gator", "sol"] and not Game.beaten(npc.opp_id):
+		var zid := Data.zone_of(npc.opp_id)
+		if Game.town_wins(zid) < Data.BOSS_REQUIRED_WINS:
+			var gate := {"boone": "So you're the new kid everybody's talking about. Before you step on my mat, beat %d fighters around town. You have %d. Go on.",
+				"gator": "Boone's student, huh? Beat %d of my swamp rats first. You have %d. The swamp will teach you.",
+				"sol": "Patience. Roll with %d people in this valley first. You have %d. The desert decides when you're ready."}
+			hud.open_dialogue(str(o.name), gate[npc.opp_id] % [Data.BOSS_REQUIRED_WINS, Game.town_wins(zid)], "", "Oss")
 			return
 	var intro: String = o.intro
 	if Game.beaten(npc.opp_id):

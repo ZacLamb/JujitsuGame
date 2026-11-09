@@ -64,6 +64,9 @@ func setup(zone: String, player: Node3D) -> void:
 		"pantanal": [[Color(0.9, 0.15, 0.12), Color(0.15, 0.4, 0.9), Color(0.98, 0.95, 0.9)], 10, 0.9, 14.0, 30.0, [Vector3(10, 0, 20), Vector3(-40, 0, -40), Vector3(50, 0, -10)]],
 		"chapada": [[Color(0.1, 0.1, 0.1)], 6, 1.6, 30.0, 34.0, [Vector3(20, 0, -20), Vector3(-30, 0, -50)]],
 		"rio": [[Color(0.95, 0.95, 0.95), Color(0.15, 0.15, 0.17)], 8, 1.2, 22.0, 40.0, [Vector3(0, 0, 70), Vector3(60, 0, 50)]],
+		"texas": [[Color(0.35, 0.35, 0.4), Color(0.85, 0.75, 0.55)], 8, 0.8, 16.0, 26.0, [Vector3(-50, 0, 0), Vector3(30, 0, 40)]],
+		"everglades": [[Color(0.98, 0.98, 0.98), Color(0.95, 0.6, 0.7)], 10, 1.2, 14.0, 30.0, [Vector3(10, 0, 20), Vector3(-40, 0, -40), Vector3(50, 0, -10)]],
+		"sedona": [[Color(0.1, 0.1, 0.1)], 5, 1.6, 30.0, 34.0, [Vector3(20, 0, -20), Vector3(-30, 0, -50)]],
 		"socal": [[Color(0.95, 0.95, 0.95), Color(0.6, 0.62, 0.66)], 9, 1.1, 20.0, 40.0, [Vector3(-20, 0, 66), Vector3(50, 0, 56)]],
 	}
 	var sp: Array = specs.get(zone, specs.caceres)

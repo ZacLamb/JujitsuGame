@@ -16,7 +16,8 @@ func _ready() -> void:
 	for c in main.get_children():
 		if c is CanvasLayer and c.get_child_count() > 0 and c.get_child(0) is StyleSelect:
 			sel = c.get_child(0)
-	sel._pick_origin("carioca")
+	sel._pick_faction("usa")
+	sel._pick_origin("texan")
 	sel._pick_style("wrestler")
 	sel._pick_body("female")
 	sel._pick_head(2)

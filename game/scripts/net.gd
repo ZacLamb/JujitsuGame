@@ -199,7 +199,7 @@ func set_ignored(name_: String, on: bool) -> void:
 # ------------------------------------------------------------ what others see of you
 func my_char() -> Dictionary:
 	return {"name": Game.player_name, "style": Game.style, "level": Game.player_level(), "belt": Game.belt_index(),
-		"body": Game.body, "skin": Game.skin_t, "head": Game.head_id(), "gi": Game.gi_color().to_html(), "look": enc(Game.look())}
+		"body": Game.body, "skin": Game.skin_t, "faction": Game.faction(), "head": Game.head_id(), "gi": Game.gi_color().to_html(), "look": enc(Game.look())}
 
 func _send_char_if_changed() -> void:
 	if not connected:
