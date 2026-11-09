@@ -19,6 +19,8 @@ static func tex(key: String) -> Texture2D:
 ## Key for an ability dictionary: its id (base/frame/...), else its type.
 static func ability_key(a: Dictionary) -> String:
 	var id := str(a.get("id", ""))
+	if id == "spec" and Game.spec != "" and tex("spec_" + Game.spec) != null:
+		return "spec_" + Game.spec   # your signature wears your spec's crest
 	if tex(id) != null:
 		return id
 	return str(a.get("type", ""))

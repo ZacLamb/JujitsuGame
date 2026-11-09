@@ -162,9 +162,10 @@ func _ready() -> void:
 	check(main.team_match != null and main.team_board.visible and main.team_board.state == "lineup", "team board opens on the lineup")
 	main.team_board.start_pressed.emit()
 	main.team_board.play_pressed.emit()
-	check(main.roll != null and not main.roll.team.is_empty(), "taking the mat starts a team bout")
-	var tb = await play_roll_existing("team")
-	check(tb.done and main.team_match != null and main.team_match.bouts == 1, "team bout finished and recorded on the board")
+	check(main.combat.target != null or main.team_match.bouts == 1, "taking the mat starts a real-time team bout (or the corner sims a teammate)")
+	if main.combat.target != null:
+		await play_bout(func(): return main.team_board.visible)
+	check(main.team_match != null and main.team_match.bouts == 1, "team bout finished and recorded on the board")
 	var guard_t := 0
 	while main.team_match != null and not main.team_match.over() and guard_t < 12:
 		main.team_board.sim_pressed.emit()
@@ -183,8 +184,8 @@ func _ready() -> void:
 	main.circuit_board.card_picked.emit(main.circuit_run.offers[0])
 	check(main.circuit_run.perks.size() == 1 and main.circuit_board.state == "ready", "card drafted")
 	main.circuit_board.fight_pressed.emit()
-	check(main.roll != null and not main.roll.team.is_empty(), "Circuito match starts a roll")
-	var cr = await play_roll_existing("circuit")
+	check(main.combat.target != null, "Circuito match starts a real-time bout")
+	var cr = await play_bout(func(): return main.circuit_board.visible)
 	check(cr.done and main.circuit_run != null, "Circuito match finished (won=%s)" % cr.won)
 	if not main.circuit_run.over():
 		main.circuit_board.quit_pressed.emit()
@@ -211,9 +212,10 @@ func _ready() -> void:
 	main.team_board.close_pressed.emit()
 	# ---- daily challenge through the real roll scene
 	main._start_daily()
-	check(main.roll != null and not main.roll.daily.is_empty(), "daily challenge starts a roll")
-	var rr = await play_roll_existing("daily")
+	check(main.combat.target != null, "daily challenge starts a real-time bout")
+	var rr = await play_bout(func(): return main.hud.dialogue_open())
 	check(rr.done and Game.daily.has("last_try"), "daily challenge recorded (won=%s)" % rr.won)
+	main.hud._close_dialogue(false)
 	main._travel("caceres")
 	await get_tree().process_frame
 	check(main.world.zone == "caceres" and main.world.fighters.has("onca"), "bus back to Cáceres")
@@ -295,8 +297,8 @@ func play_comp(cid: String) -> Dictionary:
 	check(main.hud.dialogue_open() and size >= 8, "%s bracket opens (%d entries)" % [cid, size])
 	main.hud._close_dialogue(true)
 	var matches := 0
-	while matches < 6 and main.roll != null:
-		await play_roll_existing("comp")
+	while matches < 6 and main.combat.target != null:
+		await play_bout(func(): return main.hud.dialogue_open())
 		matches += 1
 		if main._comp_prompt == "next":
 			main.hud._close_dialogue(true)
@@ -304,6 +306,20 @@ func play_comp(cid: String) -> Dictionary:
 			break
 	main.hud._close_dialogue(false)
 	return {"matches": matches}
+
+## A real-time event bout (comp / team / Circuito / daily): finish it with a tap, wait for the
+## event to take over again (done()).
+func play_bout(done: Callable) -> Dictionary:
+	var c = main.combat
+	var e = c.target
+	if e == null:
+		return {"done": false, "won": false}
+	c._on_tap(e, c.me, "rnc")
+	for i in 3000:
+		await get_tree().process_frame
+		if done.call():
+			return {"done": true, "won": true}
+	return {"done": false, "won": true}
 
 func play_roll(opp: String, skilled: bool) -> Dictionary:
 	main._start_roll(opp)

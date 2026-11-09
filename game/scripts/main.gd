@@ -398,6 +398,7 @@ func _make_world(z: String) -> void:
 		combat.setup(world, player)
 		combat.player_tapped.connect(_on_player_tapped)
 		combat.duel_over.connect(_after_duel)
+		combat.bout_over.connect(_on_bout_over)
 	else:
 		combat.set_world(world)
 	if hud:
@@ -539,7 +540,8 @@ func _comp_start_match() -> void:
 		Game.counters["comp_entries"] = int(Game.counters.get("comp_entries", 0)) + 1
 	var rd: int = comp_run.round
 	var m := {"id": comp_run.id, "round_name": Data.round_name(comp_run.rounds, rd), "opp": comp_run.path[rd], "final": rd == comp_run.rounds - 1}
-	_start_roll("comp", {}, m)
+	Game.toast.emit("%s: %s (%s)" % [m.round_name, m.opp.name, str(m.opp.get("academy", ""))], Color(1, 0.85, 0.35))
+	_bout(m.opp, "comp", bool(m.final))
 
 func _comp_after_match(result: Dictionary) -> void:
 	var c: Dictionary = Data.COMPS[comp_run.id]
@@ -627,12 +629,23 @@ func _open_team(zone: String, territory := "") -> void:
 	team_board.show_match(team_match, "lineup")
 
 func _team_play() -> void:
+	# your own bout is a real-time fight; teammates' bouts are called from the corner (simulated)
+	if not bool(team_match.current_ours().get("player", false)):
+		_team_sim()
+		return
 	team_board.visible = false
-	_start_roll("team", {}, {}, {"me": team_match.current_ours(), "them": team_match.current_theirs(),
-		"me_stam": team_match.stam_ours, "them_stam": team_match.stam_theirs})
+	_bout(team_match.current_theirs(), "team", false)
 
 func _team_sim() -> void:
-	var r := Team.sim_bout(team_match.current_ours(), team_match.current_theirs(), team_match.stam_ours, team_match.stam_theirs)
+	var ours: Dictionary = team_match.current_ours()
+	var stam: float = team_match.stam_ours
+	# a Professor in the corner: teammates fight fresher and sharper
+	if Game.spec == "professor" and not bool(ours.get("player", false)):
+		ours = ours.duplicate()
+		ours["level"] = float(ours.get("level", 1.0)) + 0.35
+		stam = minf(1.0, stam + 0.25)
+		Game.toast.emit("Coaching %s from the corner" % str(ours.name), Team.ROLES.coach.color)
+	var r := Team.sim_bout(ours, team_match.current_theirs(), stam, team_match.stam_theirs)
 	_team_after(r, float(r.me_stam), float(r.them_stam))
 
 func _team_after(result: Dictionary, me_stam: float, them_stam: float) -> void:
@@ -689,8 +702,7 @@ func _open_circuit() -> void:
 
 func _circuit_fight() -> void:
 	circuit_board.visible = false
-	_start_roll("circuit", {}, {}, {"me": Team.you(), "them": circuit_run.current(), "me_stam": circuit_run.stamina, "them_stam": 1.0,
-		"opts": {"roles": false, "rule": "", "perks": circuit_run.perks}, "back": "Back to the Circuito"})
+	_bout(circuit_run.current(), "circuit", circuit_run.round >= 4)
 
 func _circuit_after(result: Dictionary) -> void:
 	player.input_enabled = false
@@ -721,7 +733,9 @@ func _start_daily() -> void:
 	if hud.journal.visible:
 		hud.toggle_journal()
 	var dc := Game.daily_challenge()
-	_start_roll("daily", dc)
+	_daily_rule = str(dc.rule)
+	Game.toast.emit("Daily Challenge: %s" % str(dc.opp.name), Color(1, 0.85, 0.35))
+	_bout(dc.opp, "daily", false)
 
 func _start_drill(attr: String) -> void:
 	player.input_enabled = false
@@ -916,6 +930,48 @@ func _on_player_tapped(info: Dictionary) -> void:
 	hud.open_dialogue("You tapped to %s%s" % [str(info.by), how],
 		"No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure)." % str(info.lesson),
 		"Shake it off", "Back to the academy")
+
+# ------------------------------------------------------------ event bouts in real time
+var _daily_rule := ""
+
+func _bout(opp: Dictionary, tag: String, elite := false) -> void:
+	if hud.dialogue_open():
+		hud._close_dialogue(false)
+	if hud.journal.visible:
+		hud.toggle_journal()
+	player.input_enabled = true
+	hud.minimap.visible = true
+	combat.start_bout(opp, tag, elite)
+
+func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
+	var res := {"won": won, "by_sub": not bool(info.get("forfeit", false)), "sub": str(info.get("sub", "")) if won else "tap",
+		"signature": false, "min_stamina": float(info.get("gas", 1.0))}
+	match tag:
+		"comp":
+			await get_tree().create_timer(1.6).timeout
+			_comp_after_match(res)
+		"team":
+			await get_tree().create_timer(1.6).timeout
+			if team_match == null:
+				return
+			team_board.visible = true
+			_team_after(res, float(info.get("gas", 1.0)), 0.0 if won else float(info.get("their_hp", 1.0)))
+		"circuit":
+			await get_tree().create_timer(1.6).timeout
+			if circuit_run == null:
+				return
+			circuit_board.visible = true
+			res["me_stam"] = float(info.get("gas", 1.0))
+			_circuit_after(res)
+		"daily":
+			var xp := Game.record_daily(res)
+			await get_tree().create_timer(1.6).timeout
+			player.input_enabled = false
+			if won:
+				hud.open_dialogue("Daily Challenge", "Won! Streak: %d day%s.\n\n+%d XP. Same time tomorrow." % [Game.daily_streak(), "" if Game.daily_streak() == 1 else "s", xp], "", "Oss")
+			else:
+				hud.open_dialogue("Daily Challenge", "Not today. The challenge stays open until midnight: rest, then run it back.", "", "Oss")
+	hud.refresh()
 
 ## A named fighter's duel ended (story beats that used to follow a roll).
 func _after_duel(opp_id: String, won: bool) -> void:

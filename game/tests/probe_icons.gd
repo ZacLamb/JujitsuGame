@@ -63,4 +63,18 @@ func _ready() -> void:
 	main.hud.open_window("talents", main.hud.TAB_SPECS)
 	main.hud._fill_journal()
 	await _shot("specs")
+	Game.money = 500
+	print("PROF choose: '", Game.choose_spec("professor"), "' spec=", Game.spec)
+	main.combat.rebuild_player()
+	var adv: Dictionary = main.combat.core.ability(main.combat.me, "spec")
+	print("PROF ability: ", adv.get("name", "?"), " effect=", adv.get("effect", ""))
+	main.combat.me.hp = main.combat.me.max_hp * 0.5
+	var why = main.combat.core.use(main.combat.me, "spec", null)
+	print("PROF use: '", why, "' hp%=", main.combat.me.pct(), " auras=", main.combat.me.auras.keys())
+	main.hud.open_window("talents", main.hud.TAB_SPECS)
+	main.hud._fill_journal()
+	await _shot("specs_prof")
+	main.hud.open_window("talents", main.hud.TAB_TALENTS)
+	main.hud._fill_journal()
+	await _shot("talents_prof")
 	get_tree().quit()

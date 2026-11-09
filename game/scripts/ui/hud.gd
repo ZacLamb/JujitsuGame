@@ -1104,23 +1104,41 @@ func _spec_card(sp: Dictionary) -> Control:
 	col.add_child(Wow.banner("Passive"))
 	col.add_child(Wow.label(str(sp.passive), 13, Wow.GREEN, true))
 	col.add_child(Wow.banner("Technique"))
-	var e := SpellEntry.new()
-	e.move_id = str(sp.move)
-	e.add_theme_constant_override("separation", 8)
-	var ic := SpellIcon.new()
-	ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(str(sp.move))]
-	ic.glyph = CombatUi.slot_icon(str(sp.move), "move")
-	ic.key = IconArt.move_key(str(sp.move))
-	ic.glow = true
-	e.add_child(ic)
-	var tv := VBoxContainer.new()
-	tv.add_theme_constant_override("separation", -2)
-	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tv.add_child(Wow.label(str(Data.MOVES[sp.move].name), 15, Wow.WHITE))
-	tv.add_child(Wow.label("%s  ·  hover for details" % MoveInfo.TYPE_NAMES.get(str(Data.MOVES[sp.move].type), ""), 12, Wow.GREY))
-	e.add_child(tv)
-	col.add_child(e)
+	if str(sp.move) == "":
+		# Professor: Corner Advice instead of a technique
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 8)
+		var ic2 := SpellIcon.new()
+		ic2.col = Team.ROLES.coach.color
+		ic2.glyph = "star"
+		ic2.key = "t_secondwind"
+		ic2.glow = true
+		hb.add_child(ic2)
+		var tv2 := VBoxContainer.new()
+		tv2.add_theme_constant_override("separation", -2)
+		tv2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tv2.add_child(Wow.label(Specs.ADVICE_NAME, 15, Wow.WHITE))
+		tv2.add_child(Wow.label("Heal 20%, +30 Gas, +15% damage for 10s", 12, Wow.GREY))
+		hb.add_child(tv2)
+		col.add_child(hb)
+	else:
+		var e := SpellEntry.new()
+		e.move_id = str(sp.move)
+		e.add_theme_constant_override("separation", 8)
+		var ic := SpellIcon.new()
+		ic.col = CombatUi.KIND_COLORS[RollSim.counter_kind(str(sp.move))]
+		ic.glyph = CombatUi.slot_icon(str(sp.move), "move")
+		ic.key = IconArt.move_key(str(sp.move))
+		ic.glow = true
+		e.add_child(ic)
+		var tv := VBoxContainer.new()
+		tv.add_theme_constant_override("separation", -2)
+		tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tv.add_child(Wow.label(str(Data.MOVES[sp.move].name), 15, Wow.WHITE))
+		tv.add_child(Wow.label("%s  ·  hover for details" % MoveInfo.TYPE_NAMES.get(str(Data.MOVES[sp.move].type), ""), 12, Wow.GREY))
+		e.add_child(tv)
+		col.add_child(e)
 	var fill := Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(fill)

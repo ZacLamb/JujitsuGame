@@ -215,9 +215,11 @@ func _buttons() -> Control:
 			h.add_child(_btn("Not now", close_pressed, UiKit.MUTED, 160))
 		"between":
 			var a := m.current_ours()
-			var play_t := "Take the mat (you)" if a.get("player", false) else "Take the mat as %s" % a.name
-			h.add_child(_btn(play_t, play_pressed, UiKit.ACCENT, 300))
-			h.add_child(_btn("Sim this bout", sim_pressed, Color(0.6, 0.85, 1), 200))
+			if a.get("player", false):
+				h.add_child(_btn("Take the mat (fight it yourself)", play_pressed, UiKit.ACCENT, 320))
+				h.add_child(_btn("Sim this bout", sim_pressed, Color(0.6, 0.85, 1), 200))
+			else:
+				h.add_child(_btn("Coach %s from the corner" % a.name, sim_pressed, UiKit.ACCENT, 320))
 			h.add_child(_btn("Forfeit", forfeit_pressed, UiKit.RED, 140))
 		"done":
 			h.add_child(_btn("Oss", close_pressed, UiKit.ACCENT, 200))

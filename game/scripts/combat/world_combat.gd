@@ -262,6 +262,9 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 
 ## Leashed (you ran away / pulled it too far): it walks home at full health, like WoW evading.
 func _evade(npc: Npc, u: CombatCore.Unit, quiet := false) -> void:
+	if npc.mob.has("bout"):
+		_finish_bout(npc, u, false, "", true)   # you left the mat: forfeit
+		return
 	if not u.in_combat and not npc.in_combat:
 		return   # already evading: say it once
 	npc.set_meta("no_aggro_until", Time.get_ticks_msec() + 6000)
@@ -503,6 +506,11 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 		vr.release()
 	npc.in_combat = false
 	npc.rig.combat_ready = false
+	if npc.mob.has("bout"):
+		_finish_bout(npc, victim, true, sub_id)
+		if core.engaged_enemies().is_empty():
+			core.leave_combat(me)
+		return
 	if not npc.mob.is_empty():
 		var loot := Game.record_mob({"won": true, "by_sub": true, "sub": sub_id}, npc.mob)
 		_reward_toasts(int(loot.xp), int(loot.money), loot.items)
@@ -553,8 +561,87 @@ func _end_duel(npc: Npc, u: CombatCore.Unit, won: bool, walked := false, sub := 
 
 signal duel_over(opp_id: String, won: bool)
 
+# ------------------------------------------------------------ event bouts (comps, team, daily)
+## tag: "comp" / "team" / "daily". info: {sub, gas (0..1), their_hp (0..1), forfeit}
+signal bout_over(tag: String, won: bool, info: Dictionary)
+
+## Spawns the opponent on the mat in front of you and starts the fight (real-time, your moves).
+func start_bout(opp: Dictionary, tag: String, elite := false) -> Npc:
+	var m := opp.duplicate()
+	m["mob"] = true
+	m["bout"] = tag
+	m["elite"] = elite
+	m["rare"] = false
+	m["aggro"] = false
+	m["title"] = str(opp.get("title", "Opponent"))
+	for k in ["gi", "skin"]:
+		if not m.has(k):
+			m[k] = Color(0.95, 0.95, 0.95) if k == "gi" else Color(0.7, 0.5, 0.35)
+	if not m.has("rank"):
+		m["rank"] = Game.rank
+	var fwd := Vector3(sin(player.rig.global_rotation.y), 0, cos(player.rig.global_rotation.y)) if player.rig else Vector3.FORWARD
+	var pos: Vector3 = player.global_position + fwd.normalized() * 3.0
+	pos.y = world.ground_y(pos.x, pos.z)
+	var npc := Npc.new()
+	world.add_child(npc)
+	npc.setup_mob(m, world, pos, 6.0)
+	npc.global_position = pos
+	npc._player = player
+	npc.wander = false
+	var u := unit_for(npc)
+	u.hp = u.max_hp
+	me.hp = me.max_hp
+	me.gas = me.max_gas
+	me.grip = 0
+	target = u
+	engage_npc(npc)
+	_float(npc, "FIGHT!", Color(1, 0.85, 0.35), 1.3)
+	return npc
+
+func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit := false) -> void:
+	if npc.has_meta("bout_done"):
+		return
+	npc.set_meta("bout_done", true)
+	var tag := str(npc.mob.bout)
+	var info := {"sub": sub, "gas": me.gas / maxf(1.0, me.max_gas), "their_hp": u.pct(), "forfeit": forfeit}
+	core.remove(u)
+	_unit_of.erase(npc.get_instance_id())
+	_npc_of.erase(u.id)
+	if target == u:
+		target = null
+	npc.in_combat = false
+	npc.rig.combat_ready = false
+	npc.rig.release()
+	if won:
+		_float(npc, str(npc.mob.get("lose", "Oss.")), Color(0.8, 0.9, 1.0), 0.75)
+	else:
+		_float(npc, str(npc.mob.get("win", "Oss.")), Color(1, 0.85, 0.5), 0.75)
+	get_tree().create_timer(2.0).timeout.connect(func(): if is_instance_valid(npc): npc.queue_free())
+	bout_over.emit(tag, won, info)
+
 ## You tapped: no XP. Back on your feet at the zone's spawn with half Composure; fights reset.
 func _player_tapped(by_name: String, winner: Npc = null) -> void:
+	# a competition / team / daily bout: the loss goes to that event, not the open-world tap flow
+	var bout_npc: Npc = null
+	for u in core.units.duplicate():
+		var bn := npc_of(u)
+		if bn and bn.mob.has("bout") and u.in_combat:
+			bout_npc = bn
+			_finish_bout(bn, u, false, "tap")
+	if bout_npc != null:
+		for u in core.units.duplicate():
+			var on := npc_of(u)
+			if on and not u.player and u.in_combat:
+				_evade(on, u, true)
+		core.leave_combat(me)
+		me.auras.clear()
+		me.grip = 0
+		me.dead = false
+		me.hp = me.max_hp
+		me.gas = me.max_gas
+		target = null
+		player.rig.release(CombatAnim.getup(player.rig.rotation.y))
+		return
 	for u in core.units.duplicate():
 		if u.player:
 			continue

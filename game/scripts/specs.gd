@@ -82,10 +82,24 @@ const SPECS := {
 	],
 }
 
+## The Professor: a support spec every class can take (the game's "healer"). Its signature is
+## Corner Advice (heal + Game Plan buff) instead of a technique, and teammates you coach from the
+## corner in team matches fight sharper.
+const PROFESSOR := {"id": "professor", "name": "Professor", "role": "coach", "move": "",
+	"desc": "The voice in the corner. Keeps you calm, keeps the plan, keeps teammates alive.",
+	"passive": "Breathe heals 10% more. Teammates you coach in team matches start their bouts fresher and sharper.",
+	"mods": {"breathe_heal": 0.10}}
+const ADVICE_NAME := "Corner Advice"
+
 static func list(style: String) -> Array:
-	return SPECS.get(style, [])
+	var out: Array = SPECS.get(style, []).duplicate()
+	if not out.is_empty():
+		out.append(PROFESSOR)
+	return out
 
 static func get_spec(id: String) -> Dictionary:
+	if id == "professor":
+		return PROFESSOR
 	for st in SPECS:
 		for s in SPECS[st]:
 			if s.id == id:
@@ -93,6 +107,8 @@ static func get_spec(id: String) -> Dictionary:
 	return {}
 
 static func style_of(id: String) -> String:
+	if id == "professor":
+		return Game.style
 	for st in SPECS:
 		for s in SPECS[st]:
 			if s.id == id:
@@ -119,3 +135,5 @@ static func apply(m: Dictionary, spec_id: String) -> void:
 				m[k] = float(m[k]) * (1.0 + float(mm[k]))
 			"cost":
 				m[k] = float(m[k]) * float(mm[k])
+			_:
+				m[k] = float(m.get(k, 0.0)) + float(mm[k])

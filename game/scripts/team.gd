@@ -15,6 +15,8 @@ const ROLES := {
 		"desc": "Submissions start deeper and squeeze harder."},
 	"scrambler": {"name": "Scrambler", "color": Color(0.35, 0.82, 0.45), "icon": "loop", "beats": "finisher",
 		"desc": "Reads and escapes: 15% more time to answer, faster submission escapes."},
+	"coach": {"name": "Coach", "color": Color(0.35, 0.85, 0.78), "icon": "star", "beats": "",
+		"desc": "Support: heals with Corner Advice; teammates you coach fight fresher."},
 	"grinder": {"name": "Grinder", "color": Color(0.72, 0.5, 0.95), "icon": "down", "beats": "anchor",
 		"desc": "Heavy wear-downs, and whoever survives a bout with them loses 15 more stamina."},
 }

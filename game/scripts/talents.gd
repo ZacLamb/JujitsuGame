@@ -93,7 +93,16 @@ const ROLE := {
 		{"n": "Grind", "d": "+5% damage per rank.", "fx": {"dmg_all": 0.05}, "max": 2, "icon": "bolt"},
 	],
 }
+const _COACH_ROLE := [
+	{"n": "Patient Teacher", "d": "+6% maximum Composure per rank.", "fx": {"hp": 0.06}, "max": 2, "icon": "shield"},
+	{"n": "Deep Breaths", "d": "Breathe's cooldown is 30% shorter.", "fx": {"cd": {"breathe": 0.3}}, "max": 1, "icon": "wave"},
+	{"n": "Fundamentals", "d": "Take 4% less damage per rank.", "fx": {"dr": 0.04}, "max": 2, "icon": "shield"},
+	{"n": "Read the Game", "d": "+4% critical strike chance per rank.", "fx": {"crit": 0.04}, "max": 2, "icon": "star"},
+	[{"n": "Corner Voice", "d": "Corner Advice heals 10% more.", "fx": {"advice_heal": 0.10}}, {"n": "Fresh Legs", "d": "+20 maximum Gas.", "fx": {"gas": 20}}],
+	{"n": "Lead by Example", "d": "+5% damage per rank.", "fx": {"dmg_all": 0.05}, "max": 2, "icon": "bolt"},
+]
 const CAPSTONE := {
+	"coach": {"n": "Black Belt Professor", "d": "Corner Advice's cooldown is halved and it heals 10% more.", "fx": {"cd": {"spec": 0.5}, "advice_heal": 0.10}},
 	"finisher": {"n": "Tap Machine", "d": "Finishing a tap resets all of your cooldowns.", "fx": {"tap_reset": true}},
 	"scrambler": {"n": "Flow State", "d": "+10% haste, and Escape costs no Gas.", "fx": {"haste": 0.10, "cost_add": {"escape": -20}}},
 	"anchor": {"n": "Immovable", "d": "Take 12% less damage; Base lasts 3s longer.", "fx": {"dr": 0.12, "aura_dur": {"base": 3.0}}},
@@ -113,9 +122,9 @@ static func spec_tree(spec_id: String) -> Array:
 	if s.is_empty():
 		return []
 	var role := str(s.role)
-	var lib: Array = ROLE.get(role, ROLE.finisher)
+	var lib: Array = _COACH_ROLE if role == "coach" else ROLE.get(role, ROLE.finisher)
 	var mv: Dictionary = Data.MOVES.get(str(s.move), {})
-	var mname := str(mv.get("name", s.name))
+	var mname := Specs.ADVICE_NAME if role == "coach" else str(mv.get("name", s.name))
 	var out: Array = []
 	var ids := {}
 	for slot in SPEC_LAYOUT:
@@ -124,7 +133,10 @@ static func spec_tree(spec_id: String) -> Array:
 		var k: int = slot[2]
 		var nd := {"row": r, "col": c}
 		nd["id"] = "s_%s_%d_%d" % [spec_id, r, c]
-		if k == -1:
+		if k == -1 and role == "coach":
+			nd.merge({"name": "Mastery", "max": 2, "icon": "star",
+				"desc": "Corner Advice heals 8% more per rank.", "fx": {"advice_heal": 0.08}})
+		elif k == -1:
 			nd.merge({"name": "Mastery", "max": 2, "icon": "star",
 				"desc": "Your signature, %s, deals 15%% more damage per rank." % mname, "fx": {"ab_dmg": {"spec": 0.15}}})
 		elif k == -2:

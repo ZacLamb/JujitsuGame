@@ -237,6 +237,8 @@ static func pos_label(pos: String, top: bool) -> String:
 ## The technique an ability button means right now (strongest known move of that type from this
 ## position), "@stand" for a generic scramble up, or "" if there's nothing from here.
 func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
+	if str(a.get("effect", "")) == "advice":
+		return ""   # Corner Advice is not a technique
 	var tp := str(a.get("type", ""))
 	if not u.player or not (tp in POSITIONAL or str(a.get("id", "")) == "spec"):
 		return str(a.get("_mv", a.get("move", "")))
@@ -261,7 +263,7 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "Not learned yet"
 	if u.dead:
 		return "You tapped"
-	if u.down() and str(a.type) != "escape" and str(a.get("effect", "")) != "jeitinho":
+	if u.down() and str(a.type) != "escape" and not str(a.get("effect", "")) in ["jeitinho", "advice"]:
 		return "You're down!"
 	if not u.cast.is_empty():
 		return "Busy"
@@ -275,7 +277,7 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "Needs grip (build it first)"
 	if bool(a.get("ooc", false)) and u.in_combat:
 		return "Can't do that in combat"
-	if u.player and (str(a.get("type", "")) in POSITIONAL or str(a.get("id", "")) == "spec"):
+	if u.player and (str(a.get("type", "")) in POSITIONAL or str(a.get("id", "")) == "spec") and str(a.get("effect", "")) != "advice":
 		var pi := pos_info(u, t if t != null else u.target)
 		if move_for(u, a, t if t != null else u.target) == "":
 			return "Not from %s" % pos_label(str(pi[0]), bool(pi[1]))
@@ -370,7 +372,14 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			return
 		"breathe":
 			u.gas = minf(u.max_gas, u.gas + 45.0)
-			_heal(u, u.max_hp * (0.5 if not u.in_combat else 0.08), u)
+			_heal(u, u.max_hp * ((0.5 if not u.in_combat else 0.08) + float(u.mods.get("breathe_heal", 0.0))), u)
+			return
+		"advice":
+			# Professor: the corner's voice. Heal, refill gas, and a damage buff
+			_heal(u, u.max_hp * (0.20 + float(u.mods.get("advice_heal", 0.0))), u)
+			u.gas = minf(u.max_gas, u.gas + 30.0)
+			_aura(u, "game_plan", 10.0, u)
+			emit({"t": "proc", "u": u, "text": "Corner: \"Breathe. Stick to the plan.\""})
 			return
 		"escape":
 			for k in ["down", "pinned", "exposed"]:
@@ -418,6 +427,8 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			emit({"t": "aura_off", "u": u, "aura": "lucky"})
 		if u.has("rush"):
 			amount *= 1.2
+		if u.has("game_plan"):
+			amount *= 1.15
 		if u.has("rattled"):
 			amount *= 0.85
 		if crit:

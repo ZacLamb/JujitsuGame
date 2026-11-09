@@ -1661,7 +1661,7 @@ func choose_spec(id: String) -> String:
 	reset_talents("spec")
 	spec = id
 	var s := Specs.get_spec(id)
-	toast.emit("Specialization: %s. New technique: %s" % [s.name, Data.MOVES[s.move].name], Color(0.75, 0.55, 1.0))
+	toast.emit("Specialization: %s. New %s: %s" % [s.name, "ability" if str(s.move) == "" else "technique", Specs.ADVICE_NAME if str(s.move) == "" else str(Data.MOVES[s.move].name)], Color(0.75, 0.55, 1.0))
 	save_game()
 	progress_changed.emit()
 	return ""

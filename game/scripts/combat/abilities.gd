@@ -128,6 +128,10 @@ static func _make(t: String, move_id: String, style: String) -> Dictionary:
 	return a
 
 static func _spec_ability(s: Dictionary) -> Dictionary:
+	if str(s.id) == "professor":
+		return {"id": "spec", "type": "advice", "name": Specs.ADVICE_NAME, "cost": 0.0, "cd": 30.0, "harm": false,
+			"gcd": true, "effect": "advice", "dmg": 0.0, "grip": 0,
+			"text": "Your corner calls it: heal 20% Composure, +30 Gas, and Game Plan (+15% damage) for 10s. Works while Down or Pinned."}
 	var m: Dictionary = Data.MOVES.get(str(s.move), {})
 	var t := str(m.get("type", "sub"))
 	var a := {"id": "spec", "type": t, "move": str(s.move), "name": str(m.get("name", s.name)), "cost": 30.0, "cd": 30.0,

@@ -19,6 +19,7 @@ const ROLE_INFO := {
 	"finisher": {"name": "Finisher", "wow": "Burst damage", "col": Color(1.0, 0.4, 0.35), "glyph": "bolt"},
 	"scrambler": {"name": "Scrambler", "wow": "Mobile damage", "col": Color(1.0, 0.75, 0.3), "glyph": "loop"},
 	"grinder": {"name": "Grinder", "wow": "Control", "col": Color(0.55, 0.9, 0.45), "glyph": "chevron"},
+	"coach": {"name": "Coach", "wow": "Support / healer", "col": Color(0.35, 0.85, 0.78), "glyph": "star"},
 }
 const SKINS := [0.0, 0.18, 0.35, 0.55, 0.75, 0.95]
 
