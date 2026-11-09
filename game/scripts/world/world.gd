@@ -1595,6 +1595,18 @@ func _barbershop(p: Vector3) -> void:
 	_label("BARBEARIA", b + Vector3(0, 3.3, -1.4), 48, Color(1, 0.95, 0.8))
 	_spot(b + Vector3(-0.6, 0, 1.2), 3.5, "Barber: Seu Zé (change your look)", "barber")
 
+## Covil da Sucuri: the raid entrance (a green-and-black banner on two posts and a mat).
+func _raid_gate(p: Vector3) -> void:
+	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
+	_box(Vector3(5.0, 0.1, 4.0), b + Vector3(0, 0.05, 0), Color(0.18, 0.32, 0.2), false)
+	for x in [-2.2, 2.2]:
+		_cyl(0.09, 0.09, 3.2, b + Vector3(x, 1.6, -1.8), Color(0.25, 0.2, 0.15), 8)
+	_box(Vector3(4.6, 1.0, 0.08), b + Vector3(0, 2.7, -1.8), Color(0.08, 0.2, 0.1), false)
+	_label("COVIL DA SUCURI", b + Vector3(0, 2.75, -1.7), 44, Color(0.6, 1.0, 0.55))
+	var l := _label("Raid  ·  5 fighters", b + Vector3(0, 2.05, -1.7), 28, Color(1, 0.9, 0.6))
+	l.no_depth_test = false
+	_spot(b + Vector3(0, 0, 0.5), 3.5, "Raid: Covil da Sucuri (you + 4 partners)", "raid")
+
 func _build_caceres_spots() -> void:
 	_spot(Vector3(74, 0, 0), 6.0, "Take the bus", "travel_menu")
 	var c := Vector3(0, 0, -54)
@@ -2599,6 +2611,7 @@ func _build_vila_nova() -> void:
 	_label("MERCADINHO DO SEU JORGE", shop + Vector3(0, 4.0, 1.2), 56, Color(1, 0.95, 0.75))
 	_spot(shop + Vector3(0, 0, 3.0), 4.0, "Shop: Mercadinho do Seu Jorge", "vendor", "Seu Jorge")
 	_barbershop(sq + Vector3(11.5, 0, -2.0))
+	_raid_gate(sq + Vector3(-12.0, 0, 6.0))
 	# a gi on a stand by the counter: what's for sale
 	if _place_model("gi_mannequin", shop + Vector3(3.6, 0, 1.5), 1.0, -0.35, Vector3(0.9, 1.7, 0.6)):
 		_cyl(0.05, 0.05, 0.1, shop + Vector3(3.6, 0.05, 1.5), Color(0.3, 0.3, 0.3), 8)

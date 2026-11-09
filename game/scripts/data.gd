@@ -517,6 +517,7 @@ const NEST_POS := Vector3(-36, 10.6, 52)
 const ACHIEVEMENTS := [
 	{"id": "first_roll", "name": "First Roll", "desc": "Finish your first roll."},
 	{"id": "first_tap", "name": "First Tap", "desc": "Win a roll by submission."},
+	{"id": "raid_sucuri", "name": "Shed Your Skin", "desc": "Clear Covil da Sucuri with your academy party."},
 	{"id": "tapped", "name": "Tap Early, Tap Often", "desc": "Get submitted. It happens to everyone."},
 	{"id": "points_win", "name": "Points Fighter", "desc": "Win a roll on points."},
 	{"id": "triangle_win", "name": "Triangle Club", "desc": "Finish someone with a triangle choke."},

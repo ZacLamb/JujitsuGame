@@ -74,8 +74,10 @@ func unit_for(npc: Npc, kind := "") -> CombatCore.Unit:
 	if _unit_of.has(key):
 		return _unit_of[key]
 	var u: CombatCore.Unit
-	if not npc.mob.is_empty():
-		u = core.add_enemy(npc.mob, "mob")
+	if npc.mob.has("ally"):
+		u = core.add_ally(npc.mob, str(npc.mob.get("role", "dps")), Game.player_level())
+	elif not npc.mob.is_empty():
+		u = core.add_enemy(npc.mob, kind if kind != "" else "mob")
 	elif npc.opp_id != "":
 		var o: Dictionary = Data.OPPONENTS[npc.opp_id]
 		u = core.add_enemy(o, kind if kind != "" else ("boss" if o.get("boss", false) else "named"))
@@ -91,7 +93,7 @@ func npc_of(u: CombatCore.Unit) -> Npc:
 	return n if n != null and is_instance_valid(n) else null
 
 func is_hostile(npc: Npc) -> bool:
-	return npc != null and not npc.mob.is_empty()
+	return npc != null and not npc.mob.is_empty() and not npc.mob.has("ally")
 
 ## A mob noticed you, or you attacked: start fighting.
 func engage_npc(npc: Npc) -> void:
@@ -219,7 +221,9 @@ func _process(delta: float) -> void:
 			core.remove(u)
 			continue
 		u.pos = npc.global_position
-		if u.in_combat and not u.dead:
+		if u.ally and not u.dead:
+			_drive_ally(npc, u, delta)
+		elif u.in_combat and not u.dead:
 			_drive_npc(npc, u, delta)
 	# a ground fight only lasts while you're tangled up with that one opponent
 	var g := _ground_unit()
@@ -238,11 +242,45 @@ func _process(delta: float) -> void:
 	player.rig.combat_ready = me.in_combat
 	player.rooted = me.down() or _finishing or _ground_unit() != null
 
+## A raid partner: stand around your target (spread out), or follow you between pulls.
+func _drive_ally(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
+	npc.rig.combat_ready = u.in_combat
+	if u.down() or not u.cast.is_empty() or npc.rig.in_action():
+		return
+	var t := u.target
+	var goal: Vector3
+	var reach := 1.6
+	if t != null and not t.dead and u.in_combat:
+		var idx := float(u.id % 5)
+		var ang := idx * 1.25
+		goal = t.pos + Vector3(sin(ang), 0, cos(ang)) * (1.6 if u.role != "heal" else 5.0)
+		reach = 0.4
+	else:
+		goal = player.global_position + Vector3(sin(u.id * 1.7), 0, cos(u.id * 1.7)) * 2.5
+		reach = 1.5
+	var to := goal - npc.global_position
+	to.y = 0
+	var d := to.length()
+	var speed := 0.0
+	if d > reach:
+		npc.global_position += to.normalized() * minf(CHASE_SPEED * 1.1 * delta, d)
+		npc.global_position.y = world.ground_y(npc.global_position.x, npc.global_position.z)
+		speed = 0.8
+	var face := (t.pos - npc.global_position) if (t != null and not t.dead and u.in_combat) else to
+	if face.length() > 0.05:
+		npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, atan2(-face.x, -face.z), clampf(delta * 9.0, 0, 1))
+	npc.rig.animate_locomotion(delta, speed)
+
 func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	var t := u.target
-	var home_d: float = (npc.global_position - npc._home).length() if not npc.mob.is_empty() else 0.0
+	var home_d: float = (npc.global_position - npc._home).length() if not npc.mob.is_empty() and not npc.mob.has("raid") else 0.0
 	if _finishing and t != null and t.dead:
 		return   # watching the tap
+	if npc.mob.has("raid") and (t == null or t.dead):
+		t = core._top_threat(u)
+		u.target = t
+		if t == null:
+			return
 	if t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
 		_evade(npc, u)
 		return
@@ -399,6 +437,8 @@ func _on_event(e: Dictionary) -> void:
 			Sfx.play("hit", -6.0, 0.8)
 		"use":
 			var a: Dictionary = e.ab
+			if raid and is_instance_valid(raid):
+				raid.on_use(u, a)
 			var r := _rig_of(u)
 			if r and not u.down() and not _grounded(u) and not _grounded(e.get("target")):
 				var kind := str(a.get("type", "handfight"))
@@ -549,6 +589,9 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 		_player_tapped(by_name, winner_npc)
 		return
 	var npc := npc_of(victim)
+	if npc and npc.mob.has("raid"):
+		_raid_tap(npc, victim)
+		return
 	if npc == null:
 		core.remove(victim)
 		return
@@ -611,6 +654,58 @@ func _end_duel(npc: Npc, u: CombatCore.Unit, won: bool, walked := false, sub := 
 
 signal duel_over(opp_id: String, won: bool)
 
+# ------------------------------------------------------------ raids
+var raid: Raid = null
+signal raid_warning(head: String, sub: String)
+signal raid_over(won: bool)
+
+## Starts Covil da Sucuri around `at` (the party spawns, the boss waits for your pull).
+func start_raid(at: Vector3) -> void:
+	if raid != null and is_instance_valid(raid):
+		return
+	raid = Raid.new()
+	add_child(raid)
+	raid.warning.connect(func(h, sb): raid_warning.emit(h, sb))
+	raid.finished.connect(func(won):
+		raid_over.emit(won)
+		raid = null)
+	raid.start(self, at, Game.player_level())
+	target = raid.boss
+
+## Somebody in the raid tapped: a partner sits out, a student is done, the boss means victory.
+func _raid_tap(npc: Npc, victim: CombatCore.Unit) -> void:
+	var vr := npc.rig
+	if victim.ally:
+		_float(npc, "%s tapped!" % victim.name, Color(1, 0.5, 0.4), 0.8)
+		core.remove(victim)
+		_unit_of.erase(npc.get_instance_id())
+		_npc_of.erase(victim.id)
+		npc.in_combat = false
+		if vr:
+			vr.release()
+		return
+	if raid and victim == raid.boss:
+		Sfx.play("win", -2.0)
+		raid.warning.emit("VICTORY!", "Grão-Mestre Sucuri taps. The academy is yours.")
+		raid.end(true)
+		target = null
+		core.leave_combat(me)
+		return
+	core.remove(victim)
+	_unit_of.erase(npc.get_instance_id())
+	_npc_of.erase(victim.id)
+	if target == victim:
+		target = raid.boss if raid else null
+	npc.in_combat = false
+	if vr:
+		vr.release()
+	get_tree().create_timer(2.5).timeout.connect(func(): if is_instance_valid(npc): npc.queue_free())
+
+func _float_on(u: CombatCore.Unit, text: String, col: Color) -> void:
+	var n := _node_of(u)
+	if n:
+		_float(n, text, col, 0.9)
+
 # ------------------------------------------------------------ event bouts (comps, team, daily)
 ## tag: "comp" / "team" / "daily". info: {sub, gas (0..1), their_hp (0..1), forfeit}
 signal bout_over(tag: String, won: bool, info: Dictionary)
@@ -671,6 +766,19 @@ func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit :=
 
 ## You tapped: no XP. Back on your feet at the zone's spawn with half Composure; fights reset.
 func _player_tapped(by_name: String, winner: Npc = null) -> void:
+	if raid != null and is_instance_valid(raid) and not raid.over:
+		# a wipe: the whole party resets, nobody loses anything but pride
+		raid.warning.emit("WIPE", "The Sucuri holds the academy. Regroup and try again.")
+		raid.end(false)
+		core.leave_combat(me)
+		me.auras.clear()
+		me.grip = 0
+		me.dead = false
+		me.hp = me.max_hp
+		me.gas = me.max_gas
+		target = null
+		player.rig.release(CombatAnim.getup(player.rig.rotation.y))
+		return
 	# a competition / team / daily bout: the loss goes to that event, not the open-world tap flow
 	var bout_npc: Npc = null
 	for u in core.units.duplicate():

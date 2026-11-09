@@ -399,6 +399,8 @@ func _make_world(z: String) -> void:
 		combat.player_tapped.connect(_on_player_tapped)
 		combat.duel_over.connect(_after_duel)
 		combat.bout_over.connect(_on_bout_over)
+		combat.raid_over.connect(_on_raid_over)
+		combat.raid_warning.connect(func(h, sb): hud.combat_hud.flash(h, sb) if hud.combat_hud else null)
 	else:
 		combat.set_world(world)
 	if hud:
@@ -466,6 +468,10 @@ func _use_spot(spot: Dictionary) -> void:
 			hud.open_shop(str(spot.arg))
 		"barber":
 			open_barber()
+		"raid":
+			_raid_prompt = true
+			player.input_enabled = false
+			hud.open_dialogue("Covil da Sucuri", "Grão-Mestre Sucuri took over the old gym and he's teaching his students to crush everyone in town. Five fighters walk in: you and four academy partners who fill the roles you don't (a tank to hold him, Professor Gil to keep you in it, finishers).\n\nHis Crushing Kesa flattens whoever he's fighting. When he starts his Takedown Wave, SPRAWL (Q) or the whole party goes down. At 60%% and 30%% his students come for your Professor.\n\nScaled to your level. Tap and the whole party resets.", "Gather the party", "Not now")
 		"drill":
 			if not Game.drills_ready:
 				hud.open_dialogue("Coach", "You're cooked. Go roll with someone, then come back and drill.", "", "Oss")
@@ -797,6 +803,13 @@ func _interact(target: Npc = null) -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _raid_prompt:
+		_raid_prompt = false
+		if accepted:
+			_start_raid()
+		else:
+			player.input_enabled = true
+		return
 	if _tap_prompt:
 		_tap_prompt = false
 		combat.resolve_tap(accepted)
@@ -930,6 +943,23 @@ func _on_player_tapped(info: Dictionary) -> void:
 	hud.open_dialogue("You tapped to %s%s" % [str(info.by), how],
 		"No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure)." % str(info.lesson),
 		"Shake it off", "Back to the academy")
+
+# ------------------------------------------------------------ raids
+var _raid_prompt := false
+
+func _start_raid() -> void:
+	player.input_enabled = true
+	var fwd := Vector3(sin(player.rig.global_rotation.y), 0, cos(player.rig.global_rotation.y))
+	combat.start_raid(player.global_position + fwd * 7.0)
+
+func _on_raid_over(won: bool) -> void:
+	await get_tree().create_timer(2.5).timeout
+	player.input_enabled = false
+	if won:
+		hud.open_dialogue("Covil da Sucuri", "The Sucuri taps! The old gym is open again, and his students are already asking to train with you.\n\nYour loot is in your bags. Run it again any time: he scales to your level.", "", "Oss")
+	else:
+		hud.open_dialogue("Covil da Sucuri", "Wiped. Watch the cast bar: Sprawl (Q) the Takedown Wave, and help your partners with the students when they come for Gil.", "", "Oss")
+	hud.refresh()
 
 # ------------------------------------------------------------ event bouts in real time
 var _daily_rule := ""

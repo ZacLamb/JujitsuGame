@@ -18,6 +18,9 @@ class Unit:
 	var id := 0
 	var name := ""
 	var player := false
+	var ally := false              # AI party member (raids): fights on the player's side
+	var role := ""                 # ally role: "tank" / "heal" / "dps"
+	var threat := {}               # enemies: unit id -> threat (raids: who the boss attacks)
 	var level := 1
 	var hp := 100.0
 	var max_hp := 100.0
@@ -147,7 +150,43 @@ func enemies() -> Array:
 	return units.filter(func(o): return not o.player and not o.dead)
 
 func engaged_enemies() -> Array:
-	return units.filter(func(o): return not o.player and not o.dead and o.in_combat)
+	return units.filter(func(o): return not o.player and not o.ally and not o.dead and o.in_combat)
+
+static func friendly(u: Unit) -> bool:
+	return u != null and (u.player or u.ally)
+
+## An AI party member (raids). d: {name, level}. role: tank / heal / dps.
+func add_ally(d: Dictionary, role: String, level: int) -> Unit:
+	var u := Unit.new()
+	u.ally = true
+	u.role = role
+	u.data = d
+	u.name = str(d.get("name", "Ally"))
+	u.level = level
+	var hm: float = {"tank": 1.6, "heal": 0.9, "dps": 1.0}.get(role, 1.0)
+	u.max_hp = (140.0 + 18.0 * level) * hm * (1.0 + 0.035 * (level - 1))
+	u.hp = u.max_hp
+	u.dmg = dmg_scale(level) * (1.0 + 0.03 * (level - 1)) * {"tank": 0.6, "heal": 0.35, "dps": 1.0}.get(role, 1.0)
+	u.auto_dmg = u.dmg * 0.7
+	u.swing_time = 2.0
+	u.max_gas = 100.0
+	u.gas = 100.0
+	u.gas_regen = 18.0
+	u.ai_t = rng.randf_range(0.5, 1.5)
+	return _add(u)
+
+## Who an enemy should be fighting: the friendly unit with the most threat on it.
+func _top_threat(u: Unit) -> Unit:
+	var best: Unit = null
+	var bt := -1.0
+	for o in units:
+		if not friendly(o) or o.dead:
+			continue
+		var th := float(u.threat.get(o.id, 0.0))
+		if th > bt:
+			bt = th
+			best = o
+	return best
 
 func dist(a: Unit, b: Unit) -> float:
 	return Vector2(a.pos.x, a.pos.z).distance_to(Vector2(b.pos.x, b.pos.z))
@@ -357,6 +396,9 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		u.cds[a.id] = cd
 	var eff := str(a.get("effect", ""))
 	emit({"t": "use", "u": u, "ab": a, "target": t})
+	if a.has("heal") and t != null and not t.dead:
+		_heal(t, t.max_hp * float(a.heal), u)
+		return
 	match eff:
 		"base":
 			_aura(u, "base", float(a.get("dur", 5.0)) + _extra(u, "base"), u)
@@ -621,6 +663,8 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		amount /= float(t.mods.get("defense_vs", {}).get(str(a.get("type", "")), 1.0))
 	amount = maxf(1.0, round(amount))
 	t.hp -= amount
+	if not friendly(t) and friendly(src):
+		t.threat[src.id] = float(t.threat.get(src.id, 0.0)) + amount * (3.0 if src.role == "tank" else 1.0)
 	engage(src, t)
 	emit({"t": "dmg", "u": src, "target": t, "amount": amount, "crit": crit, "ab": a})
 	if t.player and not t.second_wind_used and t.mods.get("second_wind", false) and t.pct() < 0.2 and t.hp > 0.0:
@@ -644,6 +688,10 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 func _heal(u: Unit, amount: float, src: Unit) -> void:
 	var before := u.hp
 	u.hp = minf(u.max_hp, u.hp + amount)
+	if src != null and friendly(src):
+		for e in units:
+			if not friendly(e) and e.in_combat and not e.threat.is_empty():
+				e.threat[src.id] = float(e.threat.get(src.id, 0.0)) + (u.hp - before) * 0.4
 	if u.hp - before >= 1.0:
 		emit({"t": "heal", "u": src, "target": u, "amount": round(u.hp - before)})
 
@@ -713,11 +761,82 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			_damage(u, tg, u.auto_dmg * (CRIT_MULT if crit else 1.0) * rng.randf_range(0.85, 1.15), crit, {"id": "auto", "type": "auto", "name": "Hand fighting"})
 			if u.player and rng.randf() < 0.25 + float(u.mods.get("auto_grip", 0.0)):
 				u.grip = mini(u.max_grip, u.grip + 1)
-	if not u.player:
+	if u.ally:
+		_ally_ai(u, delta)
+	elif not u.player:
 		_ai(u, delta)
+
+# ------------------------------------------------------------ party AI (raids)
+func _ally_ai(u: Unit, delta: float) -> void:
+	if u.down() or not u.cast.is_empty():
+		return
+	u.ai_t -= delta
+	if u.ai_t > 0.0:
+		return
+	u.ai_t = rng.randf_range(0.9, 1.4)
+	var foes := engaged_enemies()
+	if foes.is_empty():
+		return
+	var boss: Unit = null
+	for f in foes:
+		if f.boss:
+			boss = f
+	match u.role:
+		"heal":
+			# mend the lowest friendly under 75%
+			var low: Unit = null
+			for o in units:
+				if friendly(o) and not o.dead and o.pct() < 0.75 and (low == null or o.pct() < low.pct()):
+					low = o
+			if low != null and float(u.cds.get("mend", 0.0)) <= 0.0:
+				u.cds["mend"] = 2.5
+				var ab := {"id": "mend", "name": "Corner Advice", "type": "advice", "harm": false, "cast": 1.4, "heal": 0.22, "range": 40.0}
+				u.cast = {"ab": ab, "t": 0.0, "dur": 1.4, "target": low}
+				emit({"t": "cast", "u": u, "ab": ab, "target": low, "dur": 1.4})
+				return
+			u.target = boss if boss else foes[0]
+		"tank":
+			# hold the boss: taunt it back when it turns, Base on cooldown under pressure
+			var tgt: Unit = boss if boss else foes[0]
+			u.target = tgt
+			if tgt.target != u and float(u.cds.get("taunt", 0.0)) <= 0.0:
+				u.cds["taunt"] = 8.0
+				var top := 0.0
+				for k in tgt.threat:
+					top = maxf(top, float(tgt.threat[k]))
+				tgt.threat[u.id] = top * 1.1 + 50.0
+				tgt.target = u
+				emit({"t": "proc", "u": u, "text": "Taunt!"})
+				return
+			if u.pct() < 0.5 and not u.has("base") and float(u.cds.get("base", 0.0)) <= 0.0:
+				u.cds["base"] = 15.0
+				_aura(u, "base", 5.0, u)
+				return
+		_:
+			# damage: adds first (they go for the healer), then the boss
+			var add: Unit = null
+			for f in foes:
+				if not f.boss:
+					add = f
+			u.target = add if add else (boss if boss else foes[0])
+	var t := u.target
+	if t == null or t.dead or dist(u, t) > MELEE:
+		return
+	if float(u.cds.get("big", 0.0)) <= 0.0 and u.role != "heal":
+		u.cds["big"] = 10.0
+		var crit := rng.randf() < CRIT
+		_damage(u, t, u.dmg * 2.2 * (CRIT_MULT if crit else 1.0), crit, {"id": "big", "type": "pass", "name": "Pressure Pass" if u.role == "tank" else "Takedown"})
+	elif float(u.cds.get("hit", 0.0)) <= 0.0:
+		u.cds["hit"] = 3.0
+		_damage(u, t, u.dmg * 1.1, false, {"id": "hit", "type": "handfight", "name": "Grip Fight"})
 
 # ------------------------------------------------------------ enemy AI
 func _ai(u: Unit, delta: float) -> void:
+	# raids: fight whoever has the most threat
+	if not u.threat.is_empty():
+		var top := _top_threat(u)
+		if top != null and top != u.target and not u.has("taunted"):
+			u.target = top
 	var t := u.target
 	if t == null or t.dead or u.down() or not u.cast.is_empty():
 		return
