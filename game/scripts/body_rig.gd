@@ -1172,6 +1172,24 @@ func _apply_lod() -> void:
 			if c != _belt_node:
 				(c as Node3D).visible = _lod < 2
 
+## WoW-style heroic proportions on the realistic bodies: a touch more head, bigger hands and feet,
+## heavier shoulders, so fighters read clearly from the camera distance the game is played at.
+## Applied as bone scale after animation / retargeting, so every clip and grappling pose keeps it.
+static var HERO_SCALE := {"Head": 1.03, "Palm.L": 1.22, "Palm.R": 1.22, "Foot.L": 1.12, "Foot.R": 1.12,
+	"Shoulder.L": 1.06, "Shoulder.R": 1.06}
+var _hero_ids := []
+
+func _hero_proportions() -> void:
+	if not _meshy or skel == null:
+		return
+	if _hero_ids.is_empty():
+		for n in HERO_SCALE:
+			var b := skel.find_bone(n)
+			if b >= 0:
+				_hero_ids.append([b, Vector3.ONE * float(HERO_SCALE[n])])
+	for e in _hero_ids:
+		skel.set_bone_pose_scale(e[0], e[1])
+
 func _process(_delta: float) -> void:
 	if not skel:
 		return
@@ -1190,6 +1208,7 @@ func _process(_delta: float) -> void:
 		_update_gi_parts()
 	_update_hair()
 	_update_crest()
+	_hero_proportions()
 	if layered:
 		_layer_apply(-1.0)
 

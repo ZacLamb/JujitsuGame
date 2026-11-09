@@ -486,6 +486,10 @@ func _on_event(e: Dictionary) -> void:
 	match str(e.t):
 		"position":
 			_show_position(e.e, str(e.get("move", "")), e.get("by"))
+			var mvd: Dictionary = Data.MOVES.get(str(e.get("move", "")), {})
+			var pn := _node_of(e.e)
+			if pn and str(mvd.get("type", "")) in ["takedown", "sweep", "pass", "back", "advance"]:
+				CastFX.slam(world, pn.global_position, {"type": str(mvd.type)})
 			var mover := _node_of(e.by)
 			if int(e.pts) > 0 and mover:
 				_float(mover, "+%d  %s" % [int(e.pts), Data.POSITION_NAMES.get(str(e.pos), "")], Color(0.5, 1.0, 0.6), 0.9)
@@ -510,6 +514,7 @@ func _on_event(e: Dictionary) -> void:
 			var r := _rig_of(u)
 			var ca: Dictionary = e.get("ab", {})
 			var tg: CombatCore.Unit = e.get("target")
+			_fx_cast(u, ca, float(e.get("dur", 1.0)), tg)
 			if str(ca.get("type", "")) == "sub" and tg and (_grounded(u) or _grounded(tg) or str(Data.MOVES.get(str(ca.get("_mv", "")), {}).get("pos", "")) == "standing"):
 				_show_sub_setup(u, tg, str(ca.get("_mv", "")))
 				Sfx.play("squeeze", -8.0)
@@ -517,6 +522,7 @@ func _on_event(e: Dictionary) -> void:
 				r.action(CombatAnim.squeeze(_yaw_to(u, e.get("target"))), true)
 				Sfx.play("squeeze", -10.0)
 		"cast_stop":
+			_fx_stop(u, false)
 			var r := _rig_of(u)
 			var eu: CombatCore.Unit = u if not u.player else u.target
 			if eu and not eu.player and eu.gpos != "standing" and not u.dead:
@@ -528,6 +534,9 @@ func _on_event(e: Dictionary) -> void:
 			if t.player:
 				_last_hit = {"ab": e.ab, "by": u.name}
 			var n := _node_of(t)
+			_fx_stop(u, true)
+			if n and str(e.ab.get("id", "")) != "auto":
+				CastFX.impact(world, n.global_position, e.ab, bool(e.crit))
 			var col := Color(1, 1, 1)
 			if t.player:
 				col = Color(1, 0.25, 0.2)
@@ -551,6 +560,9 @@ func _on_event(e: Dictionary) -> void:
 				Sfx.play("perfect" if bool(e.crit) else "hit", -8.0)
 		"heal":
 			var n := _node_of(e.target)
+			_fx_stop(u, true)
+			if n:
+				CastFX.heal(world, n.global_position)
 			if n:
 				_float(n, "+%d" % int(e.amount), Color(0.3, 1, 0.4))
 		"aura":
@@ -573,6 +585,9 @@ func _on_event(e: Dictionary) -> void:
 					r.release(CombatAnim.getup(r.rotation.y))
 		"interrupt":
 			var n := _node_of(e.target)
+			_fx_stop(e.target, false)
+			if n:
+				CastFX.interrupted(world, n.global_position)
 			if n:
 				_float(n, str(e.get("text", "Interrupted")), Color(0.6, 0.85, 1.0))
 		"miss":
@@ -590,6 +605,26 @@ func _on_event(e: Dictionary) -> void:
 					Sfx.music("roll")
 				else:
 					Sfx.music("explore")
+
+# ------------------------------------------------------------ cast effects (CastFX)
+var _cast_fx := {}   # unit id -> rune circle node
+
+func _fx_cast(u: CombatCore.Unit, ab: Dictionary, dur: float, tg: CombatCore.Unit) -> void:
+	_fx_stop(u, false)
+	var n := _node_of(u)
+	if n == null:
+		return
+	_cast_fx[u.id] = CastFX.cast_start(n, ab, dur)
+	if str(ab.get("type", "")) == "sub" and tg:
+		var tn := _node_of(tg)
+		if tn:
+			CastFX.constrict(world, tn.global_position, dur)
+
+func _fx_stop(u, success: bool) -> void:
+	if u == null or not _cast_fx.has(u.id):
+		return
+	CastFX.cast_stop(_cast_fx[u.id], success)
+	_cast_fx.erase(u.id)
 
 func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 	var l := Label3D.new()
@@ -613,6 +648,10 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 # ------------------------------------------------------------ taps (WoW: the kill)
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
+	_fx_stop(by, true)
+	var vn := _node_of(victim)
+	if vn:
+		CastFX.finisher(world, vn.global_position)
 	var gu := victim if not victim.player else by
 	if gu:
 		gu.gpos = "standing"

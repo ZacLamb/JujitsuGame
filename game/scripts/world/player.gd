@@ -34,6 +34,7 @@ var _last_look_ms := -100000
 const FOLLOW_TOUCH := 1.1   # follow-camera turn rate on phones (rad/s per rad of offset)
 const FOLLOW_KEYS := 0.55   # gentler with keyboard + mouse
 var last_safe := Vector3.ZERO
+var swimming := false   # chest-deep or more: float at the surface, slower, no jumping
 
 signal jumped
 signal clicked(screen_pos: Vector2)
@@ -179,27 +180,35 @@ func _physics_process(delta: float) -> void:
 			move = to.normalized() if to.length() > 0.1 else Vector3.ZERO
 	if move.length() > 1.0:
 		move = move.normalized()
+	var wl: float = (get_parent() as World).water_level() if get_parent() is World else -INF
+	swimming = global_position.y < wl - 0.8
 	var speed := RUN if sprint else WALK
+	if swimming:
+		speed = WALK * 0.6
 	var target_v := move * speed
 	# ease into and out of a run (accelerate a bit softer than we brake)
 	var accel := 22.0 if target_v.length() > Vector2(velocity.x, velocity.z).length() else 30.0
 	velocity.x = move_toward(velocity.x, target_v.x, delta * accel)
 	velocity.z = move_toward(velocity.z, target_v.z, delta * accel)
-	if not is_on_floor():
+	if swimming:
+		# buoyancy: settle with the chest at the waterline
+		velocity.y = lerpf(velocity.y, ((wl - 1.15) - global_position.y) * 5.0, clampf(delta * 6.0, 0, 1))
+	elif not is_on_floor():
 		velocity.y -= GRAVITY * delta
 	elif keys_ok and Input.is_action_just_pressed("jump"):
 		do_jump()
 	var hvel := Vector3(velocity.x, 0, velocity.z)
 	move_and_slide()
 	# step up small ledges (plaza curbs, gym floors, mats) instead of stopping dead
-	if is_on_wall() and hvel.length() > 0.5 and is_on_floor():
+	# climbing out of the water onto a bank counts as a step too
+	if is_on_wall() and hvel.length() > 0.5 and (is_on_floor() or swimming):
 		var step := Vector3.UP * STEP_HEIGHT
 		var fwd := hvel.normalized() * 0.3
 		if not test_move(global_transform, step) and not test_move(global_transform.translated(step), fwd):
 			global_position += step + fwd
 			velocity.y = 0.0
 
-	if is_on_floor() and global_position.y > -0.5:
+	if is_on_floor() and not swimming:
 		last_safe = global_position
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if hspeed > 0.2:
@@ -214,7 +223,7 @@ func _physics_process(delta: float) -> void:
 			if absf(off) < 2.3:
 				var rate := FOLLOW_TOUCH if touch_move.length() > 0.05 or autorun else FOLLOW_KEYS
 				cam_yaw += off * clampf(delta * rate * clampf(hspeed / RUN, 0.3, 1.0), 0.0, 1.0)
-	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor())
+	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor() and not swimming)
 	# footsteps
 	if is_on_floor() and hspeed > 1.0:
 		_step_dist += hspeed * delta
@@ -237,7 +246,7 @@ func _physics_process(delta: float) -> void:
 		cam.v_offset = 0.0
 
 func do_jump() -> void:
-	if is_on_floor():
+	if is_on_floor() and not swimming:
 		velocity.y = JUMP_V
 		jumped.emit()
 

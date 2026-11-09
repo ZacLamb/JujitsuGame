@@ -191,6 +191,10 @@ static func _ss(a: float, b: float, x: float) -> float:
 func river_x(z: float) -> float:
 	return -72.0 + sin(z * 0.035) * 6.0
 
+## Surface height of this zone's water (rivers, wetland, sea).
+func water_level() -> float:
+	return -0.35 if zone == "pantanal" else WATER_Y
+
 func height(x: float, z: float) -> float:
 	if zone == "pantanal":
 		return _height_pantanal(x, z)
@@ -1576,10 +1580,10 @@ func _process(_delta: float) -> void:
 	if bs != nearby_spot:
 		nearby_spot = bs
 		spot_changed.emit(bs)
-	# don't let the player drown
-	if zone == "caceres" and player.global_position.y < WATER_Y + 0.2:
-		player.teleport(player.last_safe + (player.last_safe - Vector3(river_x(player.last_safe.z), 0, player.last_safe.z)).normalized() * 2.0 * Vector3(1, 0, 1), player.cam_yaw)
-		Game.toast.emit("Too deep! Piranhas. Back to the bank.", Color(0.6, 0.85, 1))
+	# deep water: the player swims (Player handles it); a heads-up the first time
+	if player.swimming and not Game.flags.get("swam", false):
+		Game.flags["swam"] = true
+		Game.toast.emit("Swimming. Watch for piranhas: head back to the bank whenever you like.", Color(0.6, 0.85, 1))
 
 
 # ================================================================ interactable spots
