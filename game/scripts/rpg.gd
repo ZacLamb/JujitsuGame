@@ -9,9 +9,9 @@ const ATTR_CAP := 20
 const ATTRS := {
 	"strength": {"name": "Strength", "short": "STR", "desc": "+1.5% damage with every move, +2% more with passes, takedowns and mount. Harder finishing squeezes."},
 	"flexibility": {"name": "Flexibility", "short": "FLX", "desc": "+3% Composure (health). +2% damage with sweeps, guard and escapes."},
-	"grip": {"name": "Grip", "short": "GRP", "desc": "+1% critical chance. +2% damage with submissions and back takes."},
+	"grip": {"name": "Grip", "short": "GRP", "desc": "+0.5% critical chance. +2% damage with submissions and back takes."},
 	"cardio": {"name": "Cardio", "short": "CRD", "desc": "+4 max Gas, +5% Gas regen, moves cost 2% less."},
-	"iq": {"name": "Jiu-Jitsu IQ", "short": "IQ", "desc": "Take 3% less damage, +2% critical chance."},
+	"iq": {"name": "Jiu-Jitsu IQ", "short": "IQ", "desc": "Take 3% less damage, +1% critical chance."},
 }
 const ATTR_ORDER := ["strength", "flexibility", "grip", "cardio", "iq"]
 
@@ -119,6 +119,9 @@ const START_TALENT_POINTS := 1
 
 # ---------------------------------------------------------------- modifiers
 ## Builds the modifier set a roll uses. attrs = final attribute values, talents = {id: rank}.
+## [damage, composure] adjustments per class, tuned so every class clears content at the same pace.
+const CLASS_TUNE := {"guard": [0.0, 0.0], "wrestler": [0.03, 0.0], "judoka": [-0.15, -0.04], "athlete": [0.05, 0.04], "passer": [0.14, 0.12]}
+
 static func build_mods(style_id: String, attrs: Dictionary, talents: Dictionary) -> Dictionary:
 	var m := {
 		"zone": {},            # move type -> additive fraction (0.1 = +10%)
@@ -154,7 +157,7 @@ static func build_mods(style_id: String, attrs: Dictionary, talents: Dictionary)
 	# real-time fights: every point (from levels, gear and sets) shows up in the numbers
 	m.dmg_all += 0.015 * d.call("strength")
 	m.hp_mult += 0.03 * d.call("flexibility")
-	m.crit += 0.01 * d.call("grip")
+	m.crit += 0.005 * d.call("grip")
 	# style passives
 	match style_id:
 		"guard":
@@ -175,6 +178,9 @@ static func build_mods(style_id: String, attrs: Dictionary, talents: Dictionary)
 			_add(m.zone, "advance", 0.15)
 			_mul(m.defense_vs, "sweep", 1.25)
 			_mul(m.defense_vs, "escape", 1.25)
+	# class tuning from the balance sweep (tests/test_balance.gd)
+	m["dmg_all"] = float(m.get("dmg_all", 0.0)) + float(CLASS_TUNE.get(style_id, [0.0, 0.0])[0])
+	m["hp_mult"] = float(m.get("hp_mult", 1.0)) + float(CLASS_TUNE.get(style_id, [0.0, 0.0])[1])
 	# talents
 	var r := func(id: String) -> int: return int(talents.get(id, 0))
 	_add(m.zone, "takedown", 0.08 * r.call("shot_speed"))

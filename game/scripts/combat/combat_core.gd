@@ -68,6 +68,11 @@ func _init() -> void:
 	rng.randomize()
 
 # ------------------------------------------------------------ units
+const HP_GROWTH := 0.05
+const DMG_GROWTH := 0.045
+const HP_CURVE := 0.0009
+const ENEMY_DMG := 1.25
+
 static func dmg_scale(level: int) -> float:
 	return 6.0 + 1.5 * float(level)
 
@@ -112,9 +117,12 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	elif u.elite:
 		hm = 2.2
 		dm = 1.5
-	u.max_hp = (110.0 + 26.0 * u.level) * hm
+	# enemies keep pace with a typical character of their level (talents, attributes, gear grow
+	# the player multiplicatively; see tests/test_balance.gd)
+	var lvf := float(u.level - 1)
+	u.max_hp = (110.0 + 26.0 * u.level) * hm * (1.0 + HP_GROWTH * lvf + HP_CURVE * lvf * lvf)
 	u.hp = u.max_hp
-	u.dmg = dmg_scale(u.level) * dm
+	u.dmg = dmg_scale(u.level) * dm * ENEMY_DMG * (1.0 + DMG_GROWTH * lvf)
 	u.auto_dmg = u.dmg * 0.5
 	u.swing_time = 1.8
 	u.abilities = Abilities.enemy_kit(d, u.elite, u.boss)
@@ -429,7 +437,8 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		var crit_c := CRIT + (0.25 if t.has("exposed") and t.auras.exposed.src == u else 0.0)
 		if u.player:
 			var m := u.mods
-			crit_c += (float(m.get("perfect", 1.0)) - 1.0) * 0.5 + float(m.get("crit", 0.0))
+			crit_c += (float(m.get("perfect", 1.0)) - 1.0) * 0.25 + float(m.get("crit", 0.0))
+			crit_c = minf(crit_c, 0.4)
 			if t.has("pinned"):
 				amount *= 1.0 + float(m.get("pinned_vuln", 0.0))
 			if t.down():
@@ -448,7 +457,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		if u.has("rattled"):
 			amount *= 0.85
 		if crit:
-			amount *= CRIT_MULT * (float(u.mods.get("struggle_atk", 1.0)) if u.player else 1.0)
+			amount *= CRIT_MULT + (0.5 * (float(u.mods.get("struggle_atk", 1.0)) - 1.0) if u.player else 0.0)
 			if u.player and bool(a.get("finisher", false)):
 				amount *= 1.0 + float(u.mods.get("sub_crit", 0.0))
 		_damage(u, t, amount, crit, a)

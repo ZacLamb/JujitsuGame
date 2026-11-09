@@ -120,8 +120,10 @@ static func _make(t: String, move_id: String, style: String) -> Dictionary:
 		var m: Dictionary = Data.MOVES[move_id]
 		a["name"] = str(m.name)
 		a["role"] = str(m.get("role", "any"))
-		# higher-rank techniques hit a little harder
-		a["dmg"] = float(a.get("dmg", 0.0)) * (1.0 + 0.04 * int(m.get("rank", 0)) + 0.03 * int(m.get("diff", 0)))
+		# higher-rank techniques hit a little harder (talent techniques, rank 99, count as belt 12)
+		var rk := int(m.get("rank", 0))
+		rk = 12 if rk >= 99 else mini(rk, 24)
+		a["dmg"] = float(a.get("dmg", 0.0)) * (1.0 + 0.02 * rk + 0.03 * int(m.get("diff", 0)))
 	else:
 		a["name"] = {"guard": "Collar & Sleeve", "wrestler": "Underhooks", "judoka": "Kumikata", "athlete": "Hand Fighting", "passer": "Grip Break"}.get(style, "Hand Fight")
 	a["text"] = str(a.text).replace("%ss", "%ss" % str(a.get("dur", ""))).replace("%%", "%")
