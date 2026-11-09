@@ -137,7 +137,10 @@ def fit_head(glb, body, hname, tweak=1.0):
             if c[0] > c[1] > c[2] and 0.15 < sat < 0.75 and mxv > 0.12:
                 samp.append(c)
     skin = np.median(np.array(samp), 0).tolist() if samp else [0.7, 0.5, 0.4]
-    out = {"joints": J, "v": V, "n": N, "uv": UV, "b": B, "w": Wt, "i": I, "c": [[0, 0, 0]] * len(V),
+    # the bottom of these busts is a painted shirt collar: fade the neck to this face's skin tone
+    # (vertex colour R, read by FighterLook's head shader) from the narrowest neck slice down
+    col = [[float(np.clip((nk["z"] + LIFT - v_[2]) / 0.03, 0, 1)), 0, 0] for v_ in V]
+    out = {"joints": J, "v": V, "n": N, "uv": UV, "b": B, "w": Wt, "i": I, "c": col,
            "skin_ref": skin, "gi_ref": [0.85, 0.85, 0.85], "mesh_name": "Head",
            "albedo": f"res://assets/models/heads/{hname}_albedo.png"}
     json.dump(out, open(f"{W}/{body}__{hname}.json", "w"))

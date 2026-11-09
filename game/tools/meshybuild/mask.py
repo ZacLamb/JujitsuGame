@@ -10,11 +10,17 @@ N = alb.shape[0]
 UV = np.array(d["uv"]) * (N - 1)
 C = np.array(d["c"])
 I = np.array(d["i"])
+P = np.array(d["v"])
+nk = d.get("neck")
 reg_r = np.zeros((N, N), np.float32)
 reg_g = np.zeros((N, N), np.float32)
 for t in I:
     p = UV[t]
     r = C[t, 0].mean(); g = C[t, 1].mean()
+    if nk:   # what's left of the trimmed head's neck is collar: the shirt/gi colour, not skin
+        q = P[t]
+        if q[:, 2].max() > nk["z"] - 0.07:
+            g = 0.0
     if r < 0.01 and g < 0.01:
         continue
     x0, y0 = np.floor(p.min(0)).astype(int); x1, y1 = np.ceil(p.max(0)).astype(int)

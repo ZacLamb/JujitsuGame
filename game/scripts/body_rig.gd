@@ -827,7 +827,10 @@ func _apply_materials() -> void:
 			pt = want.get("Spats", want.get("Pants", jk))
 		bm.material_override = FighterLook.textured(bm, jk, pt, belt_color, skin_color, grow * 0.8, _ref, _team)
 		if _head_mi:
-			_head_mi.material_override = FighterLook.plain_textured(load(str(_head_mi.get_meta("albedo"))), grow * 0.35, _ref, _team)
+			var hm := FighterLook.plain_textured(load(str(_head_mi.get_meta("albedo"))), grow * 0.35, _ref, _team)
+			hm.set_shader_parameter("neck_skin", Vector3(skin_color.r, skin_color.g, skin_color.b))
+			hm.set_shader_parameter("neck_mix", 1.0)
+			_head_mi.material_override = hm
 		_collect_lod()
 		return
 	for n in _pieces:

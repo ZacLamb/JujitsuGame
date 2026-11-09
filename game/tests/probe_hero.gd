@@ -44,6 +44,16 @@ func _ready() -> void:
 	cam.look_at(Vector3(-1.8, 1.15, 0))
 	for f in 5: await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/%s_face.png" % body)
+	if OS.get_cmdline_user_args().has("nohead"):
+		for r in rigs:
+			for mi in r.find_children("*", "MeshInstance3D", true, false):
+				if mi.name == "Head" or mi.get_meta("albedo", "").contains("heads/"):
+					mi.visible = false
+		cam.fov = 34
+		cam.position = Vector3(0, 1.1, 8.5)
+		cam.look_at(Vector3(0, 0.95, 0))
+		for f in 5: await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("/home/claude/shots/%s_nohead.png" % body)
 	get_tree().quit()
 var rigs: Array = []
 func _process(d: float) -> void:

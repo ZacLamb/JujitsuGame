@@ -201,8 +201,10 @@ render_mode diffuse_toon, specular_disabled;
 %STENCIL%
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_disable;
 uniform float rim_amount = 0.2;
+uniform vec3 neck_skin = vec3(0.7, 0.5, 0.4);
+uniform float neck_mix = 0.0;   // heads: vertex colour R fades the bust's collar to skin
 void fragment() {
-	ALBEDO = texture(albedo_tex, UV).rgb;
+	ALBEDO = mix(texture(albedo_tex, UV).rgb, neck_skin, COLOR.r * neck_mix);
 	ROUGHNESS = 0.85;
 	RIM = rim_amount;
 	RIM_TINT = 0.5;
