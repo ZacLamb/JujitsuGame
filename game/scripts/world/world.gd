@@ -748,17 +748,21 @@ func _facade(base: Vector3, size: Vector3, front: Vector3, col: Color) -> void:
 	_box(Vector3(size.x + 0.1, 0.18, size.z + 0.1), base + Vector3(0, size.y - 0.09, 0), white, false)
 
 func _mango_tree(p: Vector3, s := 1.0) -> void:
-	_cyl(0.25 * s, 0.35 * s, 3.0 * s, p + Vector3(0, 1.5 * s, 0), Color(0.4, 0.28, 0.18), 7, true)
-	var c := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 2.2 * s
-	sm.height = 3.6 * s
-	sm.radial_segments = 9
-	sm.rings = 5
-	c.mesh = sm
-	c.material_override = _mat(Color(0.18, 0.42, 0.18))
-	c.position = p + Vector3(0, 3.9 * s, 0)
-	add_child(c)
+	# trunk collider + the sculpted mango (tools/townbuild/trees.py), swaying in the wind
+	var cs := CollisionShape3D.new()
+	var sh := CylinderShape3D.new()
+	sh.radius = 0.4 * s
+	sh.height = 3.0 * s
+	cs.shape = sh
+	cs.position = p + Vector3(0, 1.5 * s, 0)
+	_static.add_child(cs)
+	var md := _model_mesh("tree_fat", Color(0.18, 0.42, 0.18))
+	if md.is_empty():
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = _swaying(md.mesh, "tree_fat")
+	mi.transform = Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * 5.2 * s), p) * (md.xf as Transform3D)
+	add_child(mi)
 
 func _build_trees() -> void:
 	# CC0 models (Kenney Nature Kit), batched with MultiMesh to stay cheap on phones.
