@@ -9,6 +9,7 @@ signal char_changed(id: int, ch: Dictionary)
 signal chat(m: Dictionary)                  # {ch, from, fid, style, text, to?, echo?} or {ch:"sys", text}
 signal status_changed
 signal gm_data(kind: String, d: Dictionary)   # GM: "list" / "reports" / "goto"
+signal duel_msg(from: int, d: Dictionary)     # live duel relay (see Pvp)
 
 var gm := false   # the server confirmed this account is a Game Master
 
@@ -142,6 +143,9 @@ func _on_msg(d: Dictionary) -> void:
 		"announce":
 			chat.emit({"ch": "announce", "text": str(d.get("text", "")), "from": str(d.get("from", ""))})
 			Game.toast.emit("[Game Master] " + str(d.get("text", "")), Color(0.4, 0.75, 1.0))
+		"duel":
+			if d.get("d") is Dictionary:
+				duel_msg.emit(int(d.get("from", 0)), d.d)
 		"gm_list":
 			gm_data.emit("list", d)
 		"gm_reports":
@@ -175,6 +179,9 @@ func send_chat(ch: String, text: String, to := "") -> void:
 	if to != "":
 		m["to"] = to
 	_send(m)
+
+func send_duel(to: int, d: Dictionary) -> void:
+	_send({"t": "duel", "to": to, "d": d})
 
 func send_gm(op: String, args := {}) -> void:
 	var m := {"t": "gm", "op": op}

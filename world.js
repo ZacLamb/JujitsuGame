@@ -18,7 +18,10 @@ const MAX_TEXT = 200;
 const RATE_N = 5;             // chat messages...
 const RATE_MS = 10000;        // ...per 10 seconds, then a 30s chat timeout
 const TIMEOUT_MS = 30000;
-const ZONES = new Set(['caceres', 'pantanal', 'chapada', 'rio', 'cerrado', 'litoral', 'mata', 'serra', 'sertao', 'amazonia']);
+const ZONES = new Set(['caceres', 'pantanal', 'chapada', 'rio', 'socal', 'texas', 'everglades', 'sedona', 'cerrado', 'litoral', 'mata', 'serra', 'sertao', 'amazonia']);
+// local testing only: WORLD_DEV=1 with no database accepts any token
+const DEV = process.env.WORLD_DEV === '1';
+const DUEL_RATE = 40;         // live duel relay: messages per second per client
 
 // A short word filter (English + Portuguese). Matches whole words, ignoring case and simple
 // letter swaps; the word is replaced with asterisks rather than the message being dropped.
@@ -69,7 +72,7 @@ function attach(server, pool, isReady) {
     ch = ch && typeof ch === 'object' ? ch : {};
     const s = JSON.stringify(ch.look || {});
     return {
-      name: cleanName(ch.name), style: String(ch.style || '').slice(0, 16), level: Math.max(1, Math.min(99, ch.level | 0)),
+      name: cleanName(ch.name), style: String(ch.style || '').slice(0, 16), faction: ch.faction === 'usa' ? 'usa' : 'brasil', level: Math.max(1, Math.min(99, ch.level | 0)),
       belt: Math.max(0, Math.min(9, ch.belt | 0)), body: ch.body === 'female' ? 'female' : 'male', skin: num(ch.skin, 1),
       gi: String(ch.gi || '').slice(0, 12), head: String(ch.head || '').replace(/[^a-z]/g, '').slice(0, 12), title: String(ch.title || '').slice(0, 40), look: s.length < 6000 ? ch.look || {} : {},
     };
@@ -192,6 +195,16 @@ function attach(server, pool, isReady) {
       try { m = JSON.parse(raw); } catch { return; }
       if (!m || typeof m !== 'object') return;
       if (!c.ok) {
+        if (m.t === 'hello' && DEV && !pool) {
+          clearTimeout(helloTimer);
+          c.pid = -(nextId + 1000);
+          c.id = nextId++;
+          c.ok = true;
+          c.char = sanitizeChar(m.char);
+          clients.set(c.id, c);
+          send(c, { t: 'welcome', id: c.id, gm: false, online: [...clients.values()].filter((o) => o.ok).length });
+          return;
+        }
         if (m.t !== 'hello' || !pool || !isReady()) return;
         const r = await pool.query('SELECT p.id, p.role, extract(epoch from p.muted_until) AS mu FROM sessions s JOIN players p ON p.id = s.player_id WHERE s.token = $1', [String(m.token || '')]).catch(() => ({ rows: [] }));
         if (!r.rows.length) return ws.close(4003, 'not logged in');
@@ -231,6 +244,16 @@ function attach(server, pool, isReady) {
         case 'report':
           report(c, m);
           break;
+        case 'duel': {
+          // live duels: a relay between two players in the same zone (the challenger's game
+          // runs the fight, the other sends inputs and gets snapshots)
+          const now = Date.now();
+          if (!c.duelWin || now - c.duelWin > 1000) { c.duelWin = now; c.duelN = 0; }
+          if (++c.duelN > DUEL_RATE) break;
+          const to = clients.get(m.to | 0);
+          if (to && to.ok && to !== c && to.zone === c.zone) send(to, { t: 'duel', from: c.id, d: m.d });
+          break;
+        }
         case 'gm':
           if (c.gm) gm(c, m);
           else send(c, { t: 'sys', text: 'Unknown command.' });

@@ -63,6 +63,12 @@ class Unit:
 		return hp / max_hp
 
 var units: Array = []
+## Live duels: the guest's game only mirrors the host's fight (no logic runs, snapshots drive it).
+var puppet := false
+
+## A unit with a real player's numbers: you, or (live duels, on the host) the other human.
+static func pm(u: Unit) -> bool:
+	return u.player or bool(u.data.get("pvp_peer", false))
 var player: Unit = null
 var _next_id := 1
 var rng := RandomNumberGenerator.new()
@@ -224,7 +230,7 @@ func ability(u: Unit, id: String) -> Dictionary:
 
 func cost_of(u: Unit, a: Dictionary) -> float:
 	var c := float(a.get("cost", 0.0))
-	if u.player:
+	if pm(u):
 		var m := u.mods
 		c += float(m.get("cost_add", {}).get(str(a.get("id", "")), 0.0))
 		c *= float(m.get("cost", 1.0)) * (1.0 - float(m.get("cost_mult", 0.0)))
@@ -236,7 +242,7 @@ func cost_of(u: Unit, a: Dictionary) -> float:
 
 func cd_of(u: Unit, a: Dictionary) -> float:
 	var c := float(a.get("cd", 0.0))
-	if u.player:
+	if pm(u):
 		if str(a.get("type", "")) == "escape" and u.mods.get("scramble", false):
 			c *= 0.5
 		c *= 1.0 - float(u.mods.get("cd", {}).get(str(a.get("id", "")), 0.0))
@@ -246,7 +252,7 @@ func cd_of(u: Unit, a: Dictionary) -> float:
 	return maxf(c, 0.0)
 
 func haste(u: Unit) -> float:
-	return float(u.mods.get("decision", 1.0)) if u.player else 1.0
+	return float(u.mods.get("decision", 1.0)) if pm(u) else 1.0
 
 # ------------------------------------------------------------ positions (the grappling layer)
 ## Every fight with your target has a position (standing, guard, half, side, mount, back) and a
@@ -402,7 +408,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 	match eff:
 		"base":
 			_aura(u, "base", float(a.get("dur", 5.0)) + _extra(u, "base"), u)
-			if u.player and u.mods.get("base_grip", false):
+			if pm(u) and u.mods.get("base_grip", false):
 				u.grip = mini(u.max_grip, u.grip + 2)
 				u.gas = minf(u.max_gas, u.gas + 30.0)
 			_counter(u, u.target, "base")
@@ -453,7 +459,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 					u.auras.erase(k)
 					emit({"t": "aura_off", "u": u, "aura": k})
 			_heal(u, u.max_hp * 0.12, u)
-			if u.player:
+			if pm(u):
 				u.grip = mini(u.max_grip, u.grip + 1)
 				u.gas = minf(u.max_gas, u.gas + float(u.mods.get("escape_gas", 0.0)))
 			_transition(u, u.target if u.player else t, str(a.get("_mv", "")), a)
@@ -470,14 +476,14 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 	var mult := float(a.get("dmg", 0.0))
 	if bool(a.get("finisher", false)):
 		mult += float(a.get("per_grip", 0.9)) * u.grip
-		if u.player:
+		if pm(u):
 			mult *= 1.0 + float(u.mods.get("sub_start", 0.0)) + float(u.mods.get("sub_start_move", {}).get(str(a.get("move", "")), 0.0))
-		u.last_sub = str(a.get("move", "sub"))
+		u.last_sub = str(a.get("_mv", a.get("move", "sub"))) if not u.player else str(a.get("move", "sub"))
 		u.grip = 0
 	if mult > 0.0:
 		var amount := u.dmg * mult * _type_bonus(u, a)
 		var crit_c := CRIT + (0.25 if t.has("exposed") and t.auras.exposed.src == u else 0.0)
-		if u.player:
+		if pm(u):
 			var m := u.mods
 			crit_c += (float(m.get("perfect", 1.0)) - 1.0) * 0.25 + float(m.get("crit", 0.0))
 			crit_c = minf(crit_c, 0.4)
@@ -507,7 +513,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		return
 	_start_chain(u, a)
 	var g := int(a.get("grip", 0))
-	if u.player:
+	if pm(u):
 		g += int(u.mods.get("grip_bonus", {}).get(str(a.get("id", "")), 0.0))
 	if g > 0:
 		u.grip = mini(u.max_grip, u.grip + g)
@@ -635,7 +641,7 @@ func _extra(u: Unit, aura: String) -> float:
 	return float(u.mods.get("aura_dur", {}).get(aura, 0.0)) if u.player else 0.0
 
 func _type_bonus(u: Unit, a: Dictionary) -> float:
-	if not u.player:
+	if not pm(u):
 		return 1.0
 	var m := u.mods
 	var b := 1.0 + float(m.get("zone", {}).get(str(a.type), 0.0)) + float(m.get("zone_move", {}).get(str(a.get("move", "")), 0.0))
@@ -664,7 +670,7 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 	# turtles shell up: hard to hurt until you've passed (side / mount / back on top)
 	if str(t.data.get("trait", "")) == "turtle" and friendly(src) and not (t.gpos in ["side", "mount", "back"] and t.ptop):
 		amount *= 0.5
-	if t.player:
+	if pm(t):
 		amount *= 1.0 - clampf(float(t.mods.get("dr", 0.0)), 0.0, 0.6)
 		amount /= float(t.mods.get("defense", 1.0))
 		amount /= float(t.mods.get("defense_vs", {}).get(str(a.get("type", "")), 1.0))
@@ -715,6 +721,8 @@ func _check_ooc(p: Unit) -> void:
 
 # ------------------------------------------------------------ tick
 func tick(delta: float) -> void:
+	if puppet:
+		return
 	for u in units.duplicate():
 		if u.dead:
 			continue
@@ -766,11 +774,11 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			u.swing = u.swing_time / haste(u)
 			var crit := rng.randf() < CRIT
 			_damage(u, tg, u.auto_dmg * (CRIT_MULT if crit else 1.0) * rng.randf_range(0.85, 1.15), crit, {"id": "auto", "type": "auto", "name": "Hand fighting"})
-			if u.player and rng.randf() < 0.25 + float(u.mods.get("auto_grip", 0.0)):
+			if pm(u) and rng.randf() < 0.25 + float(u.mods.get("auto_grip", 0.0)):
 				u.grip = mini(u.max_grip, u.grip + 1)
 	if u.ally:
 		_ally_ai(u, delta)
-	elif not u.player:
+	elif not u.player and not bool(u.data.get("remote", false)):
 		_ai(u, delta)
 
 # ------------------------------------------------------------ party AI (raids)

@@ -11,6 +11,7 @@ signal ability_learned(a: Dictionary)
 signal enemy_tapped(npc: Npc, sub: String)
 
 var core := CombatCore.new()
+var pvp: Pvp = null   # live duels (set by Main)
 var world: World
 var player: Player
 var me: CombatCore.Unit
@@ -156,6 +157,11 @@ func press(slot_id: String) -> void:
 	if a.is_empty():
 		_error("Not learned yet")
 		return
+	if pvp and pvp.is_guest():
+		var gw := pvp.guest_press(slot_id)
+		if gw != "" and gw != "gcd":
+			_error(gw)
+		return
 	# no target for an attack: grab the nearest enemy in reach
 	if bool(a.get("harm", true)) and (target == null or target.dead):
 		_auto_target()
@@ -231,7 +237,7 @@ func _process(delta: float) -> void:
 				_drive_npc(npc, u, delta)
 	# a ground fight only lasts while you're tangled up with that one opponent
 	var g := _ground_unit()
-	if g and (g != target or g.dead or core.dist(me, g) > 3.2 or not g.in_combat):
+	if g and not core.puppet and (g != target or g.dead or core.dist(me, g) > 3.2 or not g.in_combat):
 		if not _finishing:
 			core.stand_up(g)
 	core.tick(delta)

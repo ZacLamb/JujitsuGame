@@ -789,6 +789,8 @@ const ACHIEVEMENTS := [
 	{"id": "vortex_crystals", "name": "Aligned Chakras", "desc": "Find all 6 vortex crystals in Red Rock.", "goal": 6},
 	{"id": "sedona_king", "name": "Lord of the Mesa", "desc": "Beat every fighter in Red Rock."},
 	{"id": "pan_am", "name": "Pan-American", "desc": "Earn a stamp on two continents."},
+	{"id": "duel_win", "name": "Live and Learn", "desc": "Win a live duel against another player."},
+	{"id": "duel_10", "name": "Mat Champion", "desc": "Win 10 live duels.", "goal": 10},
 	{"id": "honor_gear", "name": "Earned, Not Bought", "desc": "Buy a piece of faction gear with Honor."},
 	{"id": "rival_win", "name": "For the Faction", "desc": "Beat a rival faction player's shadow."},
 	{"id": "rival_10", "name": "War Hero", "desc": "Beat 10 rival faction shadows.", "goal": 10},

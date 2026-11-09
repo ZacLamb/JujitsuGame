@@ -214,6 +214,7 @@ func reset_state() -> void:
 	path = ""
 	stamps = []
 	honor = 0
+	pvp_record = {"w": 0, "l": 0}
 	inventory = {}
 	rolled = {}
 	for id in Gear.STARTER:
@@ -240,7 +241,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
@@ -289,6 +290,7 @@ func load_game() -> void:
 	path = str(parsed.get("path", ""))
 	stamps = parsed.get("stamps", [])
 	honor = int(parsed.get("honor", 0))
+	pvp_record = parsed.get("pvp_record", {"w": 0, "l": 0})
 	rolled = parsed.get("rolled", {})
 	for rid in rolled:
 		Gear.register_rolled(str(rid), rolled[rid])
@@ -1884,6 +1886,26 @@ func buy_honor(id: String) -> String:
 	give_item(id)
 	unlock("honor_gear")
 	return ""
+
+## A live duel against another player. Same-faction duels are friendly (a little XP for a win);
+## beating the other faction is worth 20 war points (and Honor).
+var pvp_record := {"w": 0, "l": 0}
+
+func record_pvp(won: bool, cross: bool) -> int:
+	if won:
+		pvp_record.w = int(pvp_record.get("w", 0)) + 1
+		unlock("duel_win")
+		bump("duel_10")
+		if cross:
+			add_war(20, "live duel")
+		var g := 30 + 8 * player_level()
+		add_xp(g)
+		save_game()
+		progress_changed.emit()
+		return int(round(g * xp_mult()))
+	pvp_record.l = int(pvp_record.get("l", 0)) + 1
+	save_game()
+	return 0
 
 func war_spoils() -> bool:
 	return str(war.get("last", {}).get("winner", "")) == faction()

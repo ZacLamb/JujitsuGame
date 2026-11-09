@@ -241,7 +241,7 @@ func _rival_process() -> void:
 		var bd := 3.2
 		for id in remotes:
 			var rp = remotes[id]
-			if not is_instance_valid(rp) or str(rp.char.get("faction", "brasil")) == Game.faction():
+			if not is_instance_valid(rp) or not rp.visible:
 				continue
 			var d: float = rp.global_position.distance_to(player.global_position)
 			if d < bd:
@@ -254,11 +254,8 @@ func _rival_process() -> void:
 		else:
 			var nm := str(best.char.get("name", "?"))
 			var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-			if wait <= 0:
-				hud.prompt.text = "[E]  Challenge %s's shadow  (%s, Lv %d)" % [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))]
-			else:
-				hud.prompt.text = "%s's shadow needs %d min to recover" % [nm, ceili(wait / 60.0)]
-			hud.touch.interact_btn.visible = wait <= 0
+			hud.prompt.text = "[E]  Duel %s  (%s, Lv %d)" % [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))]
+			hud.touch.interact_btn.visible = true
 			hud.touch.interact_btn.text = "ROLL"
 
 func rival_opponent(ch: Dictionary) -> Dictionary:
@@ -274,6 +271,48 @@ func rival_opponent(ch: Dictionary) -> Dictionary:
 		"level": 1.0 + float(lv - 1) * 0.55 / 2.0, "gi": gi, "skin": UiKit.skin_tone(float(ch.get("skin", 0.35))),
 		"body": str(ch.get("body", "male")), "style": styles.get(str(ch.get("style", "")), "balanced"), "extra": extras, "zone": "",
 		"intro": "For %s!" % fac.long, "win": "Not today. Tell your side.", "lose": "Oss. Your faction trains hard."}
+
+# ------------------------------------------------------------ live duels (see Pvp)
+var pvp: Pvp = null
+var _duel_ask := ""          # "menu" (you picked a player) / "incoming" (someone challenged you)
+var _duel_rp: RemotePlayer = null
+
+func _duel_menu(rp: RemotePlayer) -> void:
+	if pvp == null or pvp.busy():
+		return
+	_duel_rp = rp
+	_duel_ask = "menu"
+	player.input_enabled = false
+	var ch: Dictionary = rp.char
+	var other := str(ch.get("faction", "brasil")) != Game.faction()
+	var nm := str(ch.get("name", "?"))
+	var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
+	var txt := "%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept)." % [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))]
+	var no := "Not now"
+	if other:
+		txt += " A win counts for the Faction War (20 points)."
+		if wait <= 0:
+			txt += "\n\nOr fight their shadow: an AI copy of their character, no need to ask."
+			no = "Fight their shadow"
+		else:
+			txt += "\n\n(Their shadow needs %d min to recover.)" % ceili(wait / 60.0)
+	hud.open_dialogue("Duel", txt, "Challenge to a live duel", no)
+
+func ask_duel(ch: Dictionary) -> void:
+	_duel_ask = "incoming"
+	player.input_enabled = false
+	var other := str(ch.get("faction", "brasil")) != Game.faction()
+	hud.open_dialogue("Duel!", "%s (%s, level %d) challenges you to a live duel.%s" % [str(ch.get("name", "?")), Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1)),
+		"\n\nFor the Faction War: a win is worth 20 points." if other else ""], "Accept", "Decline")
+
+func _on_pvp_finished(won: bool, opp_name: String, cross: bool) -> void:
+	var xp := Game.record_pvp(won, cross)
+	await get_tree().create_timer(1.6).timeout
+	if won:
+		Game.toast.emit("You beat %s in a live duel!%s" % [opp_name, ("  +%d XP" % xp) if xp > 0 else ""], Wow.GOLD)
+	else:
+		Game.toast.emit("%s won the duel. Oss." % opp_name, Color(1, 0.7, 0.5))
+	hud.refresh()
 
 func _start_rival(rp: RemotePlayer) -> void:
 	var nm := str(rp.char.get("name", "?"))
@@ -535,6 +574,11 @@ func _make_world(z: String) -> void:
 		combat.player_tapped.connect(_on_player_tapped)
 		combat.duel_over.connect(_after_duel)
 		combat.bout_over.connect(_on_bout_over)
+		pvp = Pvp.new()
+		add_child(pvp)
+		pvp.setup(self)
+		combat.pvp = pvp
+		pvp.finished.connect(_on_pvp_finished)
 		combat.raid_over.connect(_on_raid_over)
 		combat.raid_warning.connect(func(h, sb): hud.combat_hud.flash(h, sb) if hud.combat_hud else null)
 	else:
@@ -999,7 +1043,7 @@ func _interact(target: Npc = null) -> void:
 		if not world.nearby_spot.is_empty():
 			_use_spot(world.nearby_spot)
 		elif _rival != null and is_instance_valid(_rival):
-			_start_rival(_rival)
+			_duel_menu(_rival)
 		return
 	_talking_to = npc
 	player.input_enabled = false
@@ -1036,6 +1080,24 @@ func _interact(target: Npc = null) -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _duel_ask != "":
+		var kind := _duel_ask
+		_duel_ask = ""
+		player.input_enabled = true
+		if kind == "incoming":
+			pvp.answer(accepted)
+		elif _duel_rp and is_instance_valid(_duel_rp):
+			var rid := -1
+			for id in remotes:
+				if remotes[id] == _duel_rp:
+					rid = id
+			if accepted and rid >= 0:
+				pvp.invite(rid, _duel_rp.char)
+			elif not accepted and str(_duel_rp.char.get("faction", "brasil")) != Game.faction():
+				var nm := str(_duel_rp.char.get("name", "?"))
+				if int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN <= int(Time.get_unix_time_from_system()):
+					_start_rival(_duel_rp)
+		return
 	if _job_prompt != "":
 		var jid := _job_prompt
 		_job_prompt = ""
@@ -1279,6 +1341,9 @@ func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
 	var res := {"won": won, "by_sub": not bool(info.get("forfeit", false)), "sub": str(info.get("sub", "")) if won else "tap",
 		"signature": false, "min_stamina": float(info.get("gas", 1.0))}
 	match tag:
+		"pvp":
+			if pvp:
+				pvp.on_bout_over(won, bool(info.get("forfeit", false)))
 		"comp":
 			await get_tree().create_timer(1.6).timeout
 			_comp_after_match(res)
