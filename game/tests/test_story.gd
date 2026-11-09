@@ -97,5 +97,22 @@ func _ready() -> void:
 	Game.choose_style("guard", "Bia", 0)
 	check(Game.faction() == "brasil" and Game.zone == "caceres", "Time Brasil starts in Cáceres")
 	check(not Game.quest_available("u1_passport"), "Brasil can't take Team USA's story")
+	# faction war + rival shadows
+	Game.war_pending = 0
+	Game.add_war(5)
+	check(Game.war_pending == 5, "wins queue war points")
+	Game.war = {"last": {"winner": "brasil"}}
+	var xm := Game.xp_mult()
+	Game.war = {"last": {"winner": "usa"}}
+	check(xm - Game.xp_mult() > 0.04, "last week's winners get +5% XP")
+	Game.war = {}
+	var shadow: Dictionary = load("res://scripts/main.gd").new().rival_opponent({"name": "Tex", "level": 30, "belt": 2, "style": "wrestler", "faction": "usa", "gi": "1a3fbf", "skin": 0.4})
+	check(shadow.style == "pressure" and Data.display_level(float(shadow.level)) == 30 and shadow.rank == 12, "rival shadow mirrors the player: " + str([shadow.style, Data.display_level(float(shadow.level)), shadow.rank]))
+	var p0 := Game.war_pending
+	var rx := Game.record_rival({"won": true, "by_sub": true})
+	check(rx > 0 and Game.war_pending == p0 + 15 and Game.unlocked.has("rival_win"), "beating a shadow: XP, war points, achievement")
+	for id in Loot.VENDOR:
+		for it in Loot.VENDOR[id]:
+			check(not Loot.item(it).is_empty(), "vendor %s sells known item %s" % [id, it])
 	print("PASS (0 failures)" if fails == 0 else "FAILED: %d" % fails)
 	get_tree().quit()

@@ -45,6 +45,14 @@ async function migrate() {
     );
     ALTER TABLE players ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player';
     ALTER TABLE players ADD COLUMN IF NOT EXISTS muted_until TIMESTAMPTZ;
+    CREATE TABLE IF NOT EXISTS war (
+      week TEXT NOT NULL,
+      player_id INT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      faction TEXT NOT NULL,
+      name TEXT,
+      points INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (week, player_id, faction)
+    );
     CREATE TABLE IF NOT EXISTS gm_log (
       id SERIAL PRIMARY KEY,
       gm_id INT REFERENCES players(id) ON DELETE SET NULL,
@@ -156,6 +164,76 @@ app.put('/api/saves', needDb, auth, async (req, res) => {
     [req.player.id, data]
   );
   res.json({ ok: true });
+});
+
+
+// ------------------------------------------------------------------ faction war
+// Every win a player earns adds points to their faction's weekly total (Brasil vs USA). The
+// client batches points; the server caps each push and each player's week so nobody can
+// hand their side the war on their own.
+const FACTIONS = ['brasil', 'usa'];
+const WAR_PUSH_MAX = 300;
+const WAR_WEEK_MAX = 15000;
+function isoWeek(d = new Date()) {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `${t.getUTCFullYear()}-W${String(Math.ceil(((t - y0) / 86400000 + 1) / 7)).padStart(2, '0')}`;
+}
+function lastWeek() {
+  return isoWeek(new Date(Date.now() - 7 * 86400000));
+}
+const warPushAt = new Map();
+let warCache = null;
+let warCacheAt = 0;
+async function warState() {
+  if (warCache && Date.now() - warCacheAt < 15000) return warCache;
+  const week = isoWeek();
+  const prev = lastWeek();
+  const tot = await pool.query('SELECT week, faction, SUM(points)::int AS p FROM war WHERE week = ANY($1) GROUP BY week, faction', [[week, prev]]);
+  const sum = (w, f) => (tot.rows.find((r) => r.week === w && r.faction === f) || { p: 0 }).p;
+  const top = {};
+  for (const f of FACTIONS) {
+    const r = await pool.query('SELECT name, points FROM war WHERE week = $1 AND faction = $2 ORDER BY points DESC LIMIT 5', [week, f]);
+    top[f] = r.rows.map((x) => ({ name: x.name || '?', points: x.points }));
+  }
+  const pb = sum(prev, 'brasil');
+  const pu = sum(prev, 'usa');
+  warCache = { week, brasil: sum(week, 'brasil'), usa: sum(week, 'usa'), top,
+    last: { week: prev, brasil: pb, usa: pu, winner: pb === pu ? '' : (pb > pu ? 'brasil' : 'usa') } };
+  warCacheAt = Date.now();
+  return warCache;
+}
+app.get('/api/war', needDb, async (_req, res) => {
+  try { res.json(await warState()); } catch (e) { console.error(e); res.status(500).json({ error: 'War report unavailable.' }); }
+});
+app.post('/api/war', needDb, auth, async (req, res) => {
+  try {
+    const faction = String(req.body.faction || '');
+    const name = String(req.body.name || '').slice(0, 16);
+    let pts = Math.floor(Number(req.body.points) || 0);
+    if (!FACTIONS.includes(faction) || pts <= 0) return res.status(400).json({ error: 'Bad report.' });
+    const last = warPushAt.get(req.player.id) || 0;
+    if (Date.now() - last < 25000) return res.status(429).json({ error: 'Slow down.' });
+    warPushAt.set(req.player.id, Date.now());
+    pts = Math.min(pts, WAR_PUSH_MAX);
+    const week = isoWeek();
+    const cur = await pool.query('SELECT COALESCE(SUM(points),0)::int AS p FROM war WHERE week = $1 AND player_id = $2', [week, req.player.id]);
+    pts = Math.max(0, Math.min(pts, WAR_WEEK_MAX - cur.rows[0].p));
+    if (pts > 0) {
+      await pool.query(
+        `INSERT INTO war (week, player_id, faction, name, points) VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (week, player_id, faction) DO UPDATE SET points = war.points + EXCLUDED.points, name = EXCLUDED.name`,
+        [week, req.player.id, faction, name, pts]);
+      warCache = null;
+    }
+    const mine = await pool.query('SELECT COALESCE(SUM(points),0)::int AS p FROM war WHERE week = $1 AND player_id = $2', [week, req.player.id]);
+    res.json({ ok: true, added: pts, mine: mine.rows[0].p, war: await warState() });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Something went wrong.' });
+  }
 });
 
 // ------------------------------------------------------------------ the game

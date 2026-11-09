@@ -183,6 +183,7 @@ func _process(delta: float) -> void:
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
 	_mouse_process()
+	_rival_process()
 	if hud and combat and hud.combat_hud == null:
 		hud.set_combat(combat)
 	if not _in_title and roll == null:
@@ -225,6 +226,64 @@ func _hook_net() -> void:
 			var rp = remotes[int(m.fid)]
 			if is_instance_valid(rp):
 				rp.say(str(m.get("text", ""))))
+
+# ------------------------------------------------------------ rival shadows (faction PvP)
+## Walk up to a player from the other faction and challenge their shadow: an AI fighter built from
+## their character (level, belt, class, gi). Wins count for your side of the Faction War.
+var _rival: RemotePlayer = null
+var _rival_cd := {}   # name -> unix time of the last shadow roll (no farming the same player)
+const RIVAL_COOLDOWN := 600
+
+func _rival_process() -> void:
+	var best: RemotePlayer = null
+	if not _in_title and is_instance_valid(world) and world.nearby == null and world.nearby_spot.is_empty() and roll == null \
+			and not hud.dialogue_open() and is_instance_valid(player) and (combat == null or combat.me == null or not combat.me.in_combat):
+		var bd := 3.2
+		for id in remotes:
+			var rp = remotes[id]
+			if not is_instance_valid(rp) or str(rp.char.get("faction", "brasil")) == Game.faction():
+				continue
+			var d: float = rp.global_position.distance_to(player.global_position)
+			if d < bd:
+				bd = d
+				best = rp
+	if best != _rival:
+		_rival = best
+		if best == null:
+			hud.set_prompt(null)
+		else:
+			var nm := str(best.char.get("name", "?"))
+			var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
+			if wait <= 0:
+				hud.prompt.text = "[E]  Challenge %s's shadow  (%s, Lv %d)" % [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))]
+			else:
+				hud.prompt.text = "%s's shadow needs %d min to recover" % [nm, ceili(wait / 60.0)]
+			hud.touch.interact_btn.visible = wait <= 0
+			hud.touch.interact_btn.text = "ROLL"
+
+func rival_opponent(ch: Dictionary) -> Dictionary:
+	var lv := clampi(int(ch.get("level", 1)), 1, 60)
+	var styles := {"guard": "guard", "wrestler": "pressure", "judoka": "balanced", "athlete": "back", "passer": "pressure"}
+	var gi := Color.html(str(ch.get("gi", "f2f2ee"))) if Color.html_is_valid(str(ch.get("gi", ""))) else Color(0.95, 0.95, 0.93)
+	var fac := Origins.faction(str(ch.get("faction", "brasil")))
+	var extras: Array = []
+	for mid in Data.MOVES:
+		if int(Data.MOVES[mid].rank) <= lv / 2 and int(Data.MOVES[mid].rank) != 99 and randf() < 0.3:
+			extras.append(mid)
+	return {"name": "%s's Shadow" % str(ch.get("name", "?")), "title": str(fac.long), "rank": clampi(int(ch.get("belt", 0)) * 5 + 2, 0, 24),
+		"level": 1.0 + float(lv - 1) * 0.55 / 2.0, "gi": gi, "skin": UiKit.skin_tone(float(ch.get("skin", 0.35))),
+		"body": str(ch.get("body", "male")), "style": styles.get(str(ch.get("style", "")), "balanced"), "extra": extras, "zone": "",
+		"intro": "For %s!" % fac.long, "win": "Not today. Tell your side.", "lose": "Oss. Your faction trains hard."}
+
+func _start_rival(rp: RemotePlayer) -> void:
+	var nm := str(rp.char.get("name", "?"))
+	if int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN > int(Time.get_unix_time_from_system()):
+		return
+	_rival_cd[nm] = int(Time.get_unix_time_from_system())
+	_rival = null
+	hud.set_prompt(null)
+	Game.toast.emit("Rival shadow: %s  (%s)" % [nm, Origins.faction(str(rp.char.get("faction", ""))).long], Color(1.0, 0.5, 0.4))
+	_bout(rival_opponent(rp.char), "rival", false)
 
 func _clear_remotes() -> void:
 	for id in remotes:
@@ -929,6 +988,8 @@ func _interact(target: Npc = null) -> void:
 	if npc == null:
 		if not world.nearby_spot.is_empty():
 			_use_spot(world.nearby_spot)
+		elif _rival != null and is_instance_valid(_rival):
+			_start_rival(_rival)
 		return
 	_talking_to = npc
 	player.input_enabled = false
@@ -1222,6 +1283,11 @@ func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
 			circuit_board.visible = true
 			res["me_stam"] = float(info.get("gas", 1.0))
 			_circuit_after(res)
+		"rival":
+			var rx := Game.record_rival(res)
+			await get_tree().create_timer(1.6).timeout
+			if won:
+				Game.toast.emit("Shadow beaten! +%d XP for %s." % [rx, Origins.faction(Game.faction()).long], Wow.GOLD)
 		"daily":
 			var xp := Game.record_daily(res)
 			await get_tree().create_timer(1.6).timeout

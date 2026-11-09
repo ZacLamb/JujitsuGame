@@ -525,7 +525,7 @@ func _passport_box() -> Control:
 	v.add_child(nl)
 	# path
 	if Game.path == "":
-		v.add_child(UiKit.label("Path: not chosen yet (Professora Tati offers the choice at blue belt)", 16, UiKit.MUTED))
+		v.add_child(UiKit.label("Path: not chosen yet (%s offers the choice at blue belt)" % ("Coach Mae" if Game.faction() == "usa" else "Professora Tati"), 16, UiKit.MUTED))
 	else:
 		var pd: Dictionary = Data.PATHS[Game.path]
 		var pl := UiKit.label("Path: %s  ·  +%d%% technique damage in your %s kit%s" % [pd.name, int(Data.PATH_MASTERY * 100), pd.name,
@@ -546,6 +546,86 @@ func _passport_box() -> Control:
 				rb.text = "Sure? Tap again")
 		ph.add_child(rb)
 	return pc
+
+## Faction War: this week's score, Brasil vs USA, the top fighters on each side and your share.
+func _war_box() -> Control:
+	var pc := PanelContainer.new()
+	var mine := Origins.faction(Game.faction())
+	pc.add_theme_stylebox_override("panel", Wow.sb(Color(0.05, 0.06, 0.1, 0.88), (mine.color as Color).darkened(0.1), 6, 10, 2))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	pc.add_child(v)
+	var w: Dictionary = Game.war
+	v.add_child(UiKit.label("FACTION WAR%s" % (("  ·  " + str(w.week)) if w.has("week") else ""), 24, Color(1.0, 0.8, 0.35)))
+	var b := int(w.get("brasil", 0))
+	var u := int(w.get("usa", 0))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	v.add_child(row)
+	var fb: Dictionary = Origins.FACTIONS.brasil
+	var fu: Dictionary = Origins.FACTIONS.usa
+	var lb := UiKit.label("%s  %s" % [fb.long, _thousands(b)], 18, (fb.color as Color).lightened(0.3))
+	lb.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(lb)
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(240, 18)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.show_percentage = false
+	bar.max_value = 1.0
+	bar.value = 0.5 if b + u == 0 else float(b) / float(b + u)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = fb.color
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = fu.color
+	bar.add_theme_stylebox_override("fill", fill)
+	bar.add_theme_stylebox_override("background", bg)
+	row.add_child(bar)
+	var lu := UiKit.label("%s  %s" % [_thousands(u), fu.long], 18, (fu.color as Color).lightened(0.3))
+	lu.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(lu)
+	var lines: Array = []
+	if not w.has("week"):
+		lines.append("The war report loads from the server (web version, online).")
+	lines.append("You fight for %s. Every win adds points: rolls 5, bosses 25, street rollers 1-10, medals 5-20, territories 15, daily 10, rival shadows 15." % mine.long)
+	if Cloud.logged_in():
+		lines.append("Your points this week: %s%s" % [_thousands(Game.war_mine), ("  (%d waiting to send)" % Game.war_pending) if Game.war_pending > 0 else ""])
+	else:
+		lines.append("Log in (title screen) so your points count for %s." % mine.long)
+	var last: Dictionary = w.get("last", {})
+	if str(last.get("winner", "")) != "":
+		var wf: Dictionary = Origins.faction(str(last.winner))
+		lines.append("Last week: %s won %s to %s.%s" % [wf.long, _thousands(maxi(int(last.brasil), int(last.usa))), _thousands(mini(int(last.brasil), int(last.usa))),
+			("  Spoils of war: +%d%% XP for you all week." % int(Game.WAR_SPOILS * 100)) if Game.war_spoils() else "  Win this week for +5% XP next week."])
+	for t in lines:
+		var l := UiKit.label(str(t), 15, UiKit.TEXT)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(l)
+	var top: Dictionary = w.get("top", {})
+	if not top.is_empty():
+		var tr := HBoxContainer.new()
+		tr.add_theme_constant_override("separation", 24)
+		v.add_child(tr)
+		for f in ["brasil", "usa"]:
+			var col := VBoxContainer.new()
+			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			tr.add_child(col)
+			col.custom_minimum_size = Vector2(240, 0)
+			col.add_child(UiKit.label("Top %s" % Origins.FACTIONS[f].name, 15, (Origins.FACTIONS[f].color as Color).lightened(0.3)))
+			var arr: Array = top.get(f, [])
+			if arr.is_empty():
+				col.add_child(UiKit.label("nobody yet", 14, UiKit.MUTED))
+			for i in arr.size():
+				col.add_child(UiKit.label("%d. %s  %s" % [i + 1, str(arr[i].name), _thousands(int(arr[i].points))], 14, UiKit.TEXT))
+	return pc
+
+static func _thousands(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return ("-" if n < 0 else "") + s + out
 
 # ------------------------------------------------------------ journal
 func _build_journal() -> void:
@@ -726,6 +806,7 @@ func _fill_journal() -> void:
 	# Quests
 	var q := _scroll_tab("Quests")
 	q.add_child(_passport_box())
+	q.add_child(_war_box())
 	q.add_child(_daily_box())
 	q.add_child(UiKit.label("Next belt: " + Game.current_objective(), 20, UiKit.ACCENT))
 	var held := 0

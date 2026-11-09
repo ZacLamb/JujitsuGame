@@ -183,6 +183,8 @@ func reset() -> void:
 	progress_changed.emit()
 
 func reset_state() -> void:
+	war_pending = 0
+	war_mine = 0
 	player_name = "Gringo"
 	xp = 0
 	rank = 0
@@ -478,6 +480,10 @@ func choose_style(id: String, name_: String, gi: int) -> void:
 	var fresh := style == ""
 	if fresh and xp == 0:
 		zone = str(Origins.faction(faction()).start)   # each faction starts in its own town
+		if faction() == "usa":
+			for i in bag.size():
+				if typeof(bag[i]) == TYPE_DICTIONARY and str(bag[i].get("id", "")) == "pao_queijo":
+					bag[i].id = "pbj"
 	style = id
 	player_name = name_.strip_edges().left(16) if name_.strip_edges() != "" else "Gringo"
 	gi_index = clampi(gi, 0, Rpg.GI_COLORS.size() - 1)
@@ -749,6 +755,7 @@ func held_in(z: String) -> int:
 func capture(tid: String) -> void:
 	territories[tid] = {"owner": "you", "attack_at": now() + randi_range(8, 16) * 3600}
 	unlock("flag_taken")
+	add_war(15, "territory")
 	var z: String = Data.TERRITORIES[tid].zone
 	if held_in(z) == Data.territories_in(z).size():
 		unlock("zone_owner")
@@ -1292,6 +1299,8 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 	add_xp(gained)
 	if result.won and Gear.BOSS_SET.has(opp_id):
 		boss_drop(Gear.BOSS_SET[opp_id])
+	if result.won:
+		add_war(25 if opp.get("boss", false) else 5, str(opp.name))
 	if result.won and opp.get("boss", false):
 		promote_belt({"caceres": 1, "pantanal": 2, "chapada": 3, "rio": 4, "texas": 1, "everglades": 2, "sedona": 3, "socal": 4}.get(Data.zone_of(opp_id), 1))
 	save_game()
@@ -1555,6 +1564,7 @@ func award_medal(comp_id: String, belt: int, medal: String) -> int:
 		medals[key] = medal
 	unlock("first_medal")
 	var xp_gain: int = {"gold": 260, "silver": 150, "bronze": 90}.get(medal, 0)
+	add_war({"gold": 20, "silver": 10, "bronze": 5}.get(medal, 0), "%s medal" % medal)
 	if medal == "gold":
 		unlock("first_gold")
 		give_item("tape_pro")
@@ -1623,6 +1633,7 @@ func record_daily(result: Dictionary, date_str := "") -> int:
 			daily["last_win"] = date_str
 			gained = 120 + 30 * mini(streak, 7)
 			unlock("daily_1")
+			add_war(10, "daily")
 			counters["daily_3"] = streak
 			counters["daily_7"] = streak
 			if streak >= 3:
@@ -1818,8 +1829,47 @@ func _buff_mods(m: Dictionary) -> void:
 				"read_resist":
 					m["read_resist"] = float(m.get("read_resist", 1.0)) * float(e[k])
 
+# ------------------------------------------------------------ faction war
+## Points earned for your faction this session, waiting to be sent (Cloud batches them).
+var war_pending := 0
+var war_mine := 0          # your points this week (from the server)
+var war := {}              # last war report: {week, brasil, usa, top, last: {winner}}
+const WAR_SPOILS := 0.05   # last week's winners: +5% XP all week
+
+func add_war(n: int, why := "") -> void:
+	if n <= 0 or style == "":
+		return
+	war_pending += n
+	war_mine += n
+	if why != "":
+		toast.emit("+%d %s war points  (%s)" % [n, str(Origins.faction(faction()).name), why], Origins.faction(faction()).color.lightened(0.3))
+
+## A rival faction player's shadow: XP like a strong roll, war points, an achievement.
+func record_rival(result: Dictionary) -> int:
+	unlock("first_roll")
+	drills_ready = true
+	if not result.won:
+		save_game()
+		return 0
+	if result.by_sub:
+		quest_event("sub_wins")
+	var gained := 40 + 14 * player_level()
+	add_xp(gained)
+	gained = int(round(gained * xp_mult()))
+	add_war(15, "rival shadow")
+	unlock("rival_win")
+	bump("rival_10")
+	save_game()
+	progress_changed.emit()
+	return gained
+
+func war_spoils() -> bool:
+	return str(war.get("last", {}).get("winner", "")) == faction()
+
 func xp_mult() -> float:
 	var x := 1.0 + float(Origins.get_origin(origin).mods.get("xp_bonus", 0.0))
+	if war_spoils():
+		x += WAR_SPOILS
 	for id in active_buffs():
 		x += float(Loot.item(id).get("effect", {}).get("xp", 0.0))
 	return x
@@ -1846,6 +1896,8 @@ func record_mob(result: Dictionary, mob: Dictionary) -> Dictionary:
 	out.xp = gained
 	add_xp(gained)
 	bump("mob_kills")
+	if Data.display_level(lv) >= player_level() - 6:
+		add_war(10 if mob.get("rare", false) else (2 if mob.get("elite", false) else 1))
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var loot := Loot.roll_loot(mob, zone, rng)

@@ -788,6 +788,8 @@ const ACHIEVEMENTS := [
 	{"id": "vortex_crystals", "name": "Aligned Chakras", "desc": "Find all 6 vortex crystals in Red Rock.", "goal": 6},
 	{"id": "sedona_king", "name": "Lord of the Mesa", "desc": "Beat every fighter in Red Rock."},
 	{"id": "pan_am", "name": "Pan-American", "desc": "Earn a stamp on two continents."},
+	{"id": "rival_win", "name": "For the Faction", "desc": "Beat a rival faction player's shadow."},
+	{"id": "rival_10", "name": "War Hero", "desc": "Beat 10 rival faction shadows.", "goal": 10},
 	{"id": "cristo", "name": "Arms Wide Open", "desc": "Climb Corcovado to the statue.", "hidden": true},
 	{"id": "first_medal", "name": "On the Podium", "desc": "Win a medal at a competition."},
 	{"id": "first_gold", "name": "Campeão", "desc": "Win gold at a competition."},

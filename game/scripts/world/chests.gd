@@ -189,6 +189,8 @@ func open(id: String) -> Dictionary:
 	var golden: bool = c.golden
 	var loot := {"money": int((12 + plv * 4) * (2.5 if golden else 1.0) * rng.randf_range(0.8, 1.3)), "items": [], "golden": golden}
 	var food := ["acai", "coco", "pao_queijo", "terere", "guarana"]
+	if Data.continent_of(world.zone) == "america":
+		food = ["smoothie_bowl", "shake", "pbj", "sweet_tea", "energy_drink"]
 	loot.items.append(food[rng.randi() % food.size()])
 	if rng.randf() < (0.65 if not golden else 1.0):
 		loot.items.append("gear:" + Game.make_rolled(Gear.roll(plv + (2 if golden else 0), rng, golden, golden)))

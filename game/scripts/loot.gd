@@ -38,6 +38,23 @@ const ITEMS := {
 		"effect": {"xp": 0.1}, "desc": "+10% XP from rolls for 20 min."},
 	"pacu": {"name": "Pacu Assado", "kind": "food", "q": "rare", "stack": 5, "sell": 15, "icon": "fish", "mins": 30,
 		"effect": {"stamina_max": 15.0, "regen": 0.15}, "desc": "Pantanal river fish. +15 max stamina and 15% faster recovery for 30 min."},
+	# --- American food & drink (Team USA's vendors and drops)
+	"pbj": {"name": "PB&J Sandwich", "kind": "food", "q": "common", "stack": 20, "sell": 2, "buy": 8, "icon": "bread", "mins": 20,
+		"effect": {"xp": 0.1}, "desc": "+10% XP from rolls for 20 min."},
+	"shake": {"name": "Protein Shake", "kind": "food", "q": "common", "stack": 10, "sell": 3, "buy": 10, "icon": "bottle", "mins": 15,
+		"effect": {"stamina_max": 15.0}, "desc": "+15 max stamina for 15 min."},
+	"energy_drink": {"name": "Energy Drink", "kind": "food", "q": "uncommon", "stack": 10, "sell": 6, "buy": 22, "icon": "drop", "mins": 10,
+		"effect": {"decision": 0.08}, "desc": "Your techniques cast 8% faster for 10 min."},
+	"sweet_tea": {"name": "Sweet Tea", "kind": "food", "q": "uncommon", "stack": 10, "sell": 5, "buy": 18, "icon": "cup", "mins": 15,
+		"effect": {"read_resist": 0.85}, "desc": "Ice-cold and way too sweet. They read your techniques 15% less for 15 min."},
+	"smoothie_bowl": {"name": "Smoothie Bowl", "kind": "food", "q": "common", "stack": 10, "sell": 4, "buy": 14, "icon": "bowl", "mins": 15,
+		"effect": {"regen": 0.2}, "desc": "Stamina recovers 20% faster in rolls for 15 min."},
+	"brisket": {"name": "Smoked Brisket", "kind": "food", "q": "rare", "stack": 5, "sell": 15, "icon": "bread", "mins": 30,
+		"effect": {"stamina_max": 15.0, "xp": 0.1}, "desc": "Twelve hours in Earl's smoker. +15 max stamina and +10% XP for 30 min."},
+	"gator_bites": {"name": "Fried Gator Bites", "kind": "food", "q": "rare", "stack": 5, "sell": 15, "icon": "fish", "mins": 30,
+		"effect": {"stamina_max": 15.0, "regen": 0.15}, "desc": "Tastes like chicken. +15 max stamina and 15% faster recovery for 30 min."},
+	"fish_taco": {"name": "Fish Taco", "kind": "food", "q": "uncommon", "stack": 10, "sell": 5, "buy": 20, "icon": "bread", "mins": 15,
+		"effect": {"regen": 0.12, "defense": 0.05}, "desc": "Baja-style. 12% faster recovery and their casts take 5% longer for 15 min."},
 	# --- bags
 	"bag_lona": {"name": "Canvas Mochila", "kind": "bag", "q": "common", "stack": 1, "sell": 8, "buy": 40, "icon": "bag", "slots": 6, "desc": "A 6-slot bag."},
 	"bag_treino": {"name": "Training Duffel", "kind": "bag", "q": "uncommon", "stack": 1, "sell": 25, "buy": 120, "icon": "bag", "slots": 8, "desc": "An 8-slot bag. Fits two gis if you fold them right."},
@@ -54,10 +71,10 @@ const VENDOR := {
 	"pantanal": ["acai", "coco", "tape", "terere", "guarana", "bag_lona", "bag_treino"],
 	"chapada": ["acai", "coco", "tape", "guarana", "terere", "bag_treino"],
 	"rio": ["acai", "coco", "tape", "guarana", "terere", "pao_queijo", "bag_treino"],
-	"socal": ["acai", "coco", "tape", "guarana", "bag_treino", "bag_kimono"],
-	"texas": ["acai", "coco", "tape", "guarana", "bag_lona", "bag_treino"],
-	"everglades": ["acai", "coco", "tape", "guarana", "bag_lona", "bag_treino"],
-	"sedona": ["acai", "coco", "tape", "guarana", "bag_treino"],
+	"socal": ["smoothie_bowl", "shake", "tape", "energy_drink", "fish_taco", "bag_treino", "bag_kimono"],
+	"texas": ["pbj", "shake", "tape", "sweet_tea", "energy_drink", "bag_lona", "bag_treino"],
+	"everglades": ["pbj", "shake", "tape", "sweet_tea", "energy_drink", "bag_lona", "bag_treino"],
+	"sedona": ["smoothie_bowl", "shake", "tape", "energy_drink", "sweet_tea", "bag_treino"],
 }
 
 static func item(id: String) -> Dictionary:
@@ -243,8 +260,16 @@ static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator)
 		items.append(["patch", "medal_scrap"][rng.randi() % 2])
 	if rng.randf() < 0.22 + (0.15 if elite else 0.0):
 		var food := ["acai", "coco", "tape", "pao_queijo", "terere", "guarana"]
+		if Data.continent_of(zone) == "america":
+			food = ["smoothie_bowl", "shake", "tape", "pbj", "sweet_tea", "energy_drink"]
 		if zone == "pantanal":
 			food.append("pacu")
+		if zone == "texas" and rng.randf() < 0.3:
+			food.append("brisket")
+		if zone == "everglades":
+			food.append("gator_bites")
+		if zone == "socal":
+			food.append("fish_taco")
 		items.append(food[rng.randi() % food.size()])
 	if rng.randf() < 0.04 + (0.1 if elite else 0.0) or rare:
 		items.append("bag_lona" if rng.randf() < 0.6 and not elite else ("bag_kimono" if not rare else "bag_copa"))

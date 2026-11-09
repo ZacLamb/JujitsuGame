@@ -14,6 +14,9 @@ var email := ""
 var status := ""   # short line for the title screen ("Saved to cloud", errors...)
 var base := ""
 var _push_t := -1.0
+var _war_t := 5.0        # faction war: send pending points / refresh the report
+var _war_busy := false
+signal war_changed
 
 func _ready() -> void:
 	if OS.has_feature("web"):
@@ -43,10 +46,35 @@ func logged_in() -> bool:
 	return token != "" and available()
 
 func _process(delta: float) -> void:
+	_war_t -= delta
+	if _war_t <= 0.0 and available() and not _war_busy:
+		_war_t = 60.0
+		war_sync()
 	if _push_t > 0.0:
 		_push_t -= delta
 		if _push_t <= 0.0:
 			push()
+
+# ------------------------------------------------------------ faction war
+## Logged in with points waiting: send them (the reply carries the report). Otherwise just refresh it.
+func war_sync() -> void:
+	_war_busy = true
+	if logged_in() and Game.war_pending > 0 and Game.style != "":
+		var n := Game.war_pending
+		_req(HTTPClient.METHOD_POST, "/api/war", {"faction": Game.faction(), "points": n, "name": Game.player_name}, func(code: int, d: Dictionary):
+			_war_busy = false
+			if code == 200:
+				Game.war_pending = maxi(0, Game.war_pending - n)
+				Game.war_mine = int(d.get("mine", Game.war_mine))
+				if d.has("war"):
+					Game.war = d.war
+					war_changed.emit())
+		return
+	_req(HTTPClient.METHOD_GET, "/api/war", null, func(code: int, d: Dictionary):
+		_war_busy = false
+		if code == 200:
+			Game.war = d
+			war_changed.emit())
 
 # ------------------------------------------------------------ account
 ## mode: "login" or "register". cb(error_text) ("" = ok).
