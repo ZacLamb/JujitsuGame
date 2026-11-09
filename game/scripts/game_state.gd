@@ -49,6 +49,7 @@ var train := {}            # attribute -> drill successes
 var drills_ready := true   # drills refresh after every roll
 var daily := {}            # {"last_win": date, "last_try": date, "streak": n, "best": n}
 var money := 0           # Reais (R$)
+var honor := 0           # faction war currency: earned with war points, spent at your faction's quartermaster
 var bag: Array = []       # slot -> {"id": item id, "n": count} or null; size = bag_capacity()
 var bags: Array = ["", "", "", ""]   # equipped extra bags (Loot item ids)
 var buffs := {}           # item id -> unix time it wears off
@@ -212,6 +213,7 @@ func reset_state() -> void:
 	quests = {}
 	path = ""
 	stamps = []
+	honor = 0
 	inventory = {}
 	rolled = {}
 	for id in Gear.STARTER:
@@ -238,7 +240,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
@@ -286,6 +288,7 @@ func load_game() -> void:
 	quests = parsed.get("quests", {})
 	path = str(parsed.get("path", ""))
 	stamps = parsed.get("stamps", [])
+	honor = int(parsed.get("honor", 0))
 	rolled = parsed.get("rolled", {})
 	for rid in rolled:
 		Gear.register_rolled(str(rid), rolled[rid])
@@ -1841,6 +1844,7 @@ func add_war(n: int, why := "") -> void:
 		return
 	war_pending += n
 	war_mine += n
+	honor += n
 	if why != "":
 		toast.emit("+%d %s war points  (%s)" % [n, str(Origins.faction(faction()).name), why], Origins.faction(faction()).color.lightened(0.3))
 
@@ -1862,6 +1866,24 @@ func record_rival(result: Dictionary) -> int:
 	save_game()
 	progress_changed.emit()
 	return gained
+
+## Quartermaster: faction gear for Honor (your side only).
+func buy_honor(id: String) -> String:
+	var price := int(Gear.HONOR_PRICES.get(id, 0))
+	if price <= 0 or not Gear.ITEMS.has(id):
+		return "Not for sale."
+	if str(Gear.ITEMS[id].get("faction", "")) != faction():
+		return "That's the other side's colours."
+	if inventory.has(id):
+		return "You already own it."
+	if player_level() < Gear.HONOR_MIN_LEVEL:
+		return "Reach level %d first." % Gear.HONOR_MIN_LEVEL
+	if honor < price:
+		return "Not enough Honor (%d / %d)." % [honor, price]
+	honor -= price
+	give_item(id)
+	unlock("honor_gear")
+	return ""
 
 func war_spoils() -> bool:
 	return str(war.get("last", {}).get("winner", "")) == faction()

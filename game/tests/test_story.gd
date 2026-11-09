@@ -111,6 +111,17 @@ func _ready() -> void:
 	var p0 := Game.war_pending
 	var rx := Game.record_rival({"won": true, "by_sub": true})
 	check(rx > 0 and Game.war_pending == p0 + 15 and Game.unlocked.has("rival_win"), "beating a shadow: XP, war points, achievement")
+	# honor + quartermaster
+	Game.honor = 0
+	Game.add_war(1000)
+	check(Game.honor == 1000, "war points are also Honor")
+	check(Game.buy_honor("old_glory_gi") != "", "can't buy the other faction's gear")
+	Game.set_level(25)
+	check(Game.buy_honor("selecao_gi") == "" and Game.inventory.has("selecao_gi") and Game.honor == 100, "buy faction gear with Honor")
+	check(Game.buy_honor("selecao_rash") != "", "Honor runs out")
+	for sid in ["selecao", "old_glory"]:
+		for pc in Gear.SETS[sid].pieces:
+			check(Gear.ITEMS.has(pc) and Gear.HONOR_PRICES.has(pc) and str(Gear.ITEMS[pc].get("faction", "")) != "", "faction piece %s sellable" % pc)
 	for id in Loot.VENDOR:
 		for it in Loot.VENDOR[id]:
 			check(not Loot.item(it).is_empty(), "vendor %s sells known item %s" % [id, it])

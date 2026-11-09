@@ -614,6 +614,13 @@ func _use_spot(spot: Dictionary) -> void:
 		"travel_menu":
 			player.input_enabled = false
 			hud.open_travel()
+		"quartermaster":
+			var parts := str(spot.arg).split("|")
+			if parts[0] != Game.faction():
+				player.input_enabled = false
+				hud.open_dialogue(parts[1], "%s colours? Not at my table. Go earn your Honor with your own side." % Origins.faction(Game.faction()).long, "", "Fair enough")
+				return
+			hud.open_quartermaster(parts[1], parts[0])
 		"daily":
 			_start_daily()
 		"comp":
@@ -638,6 +645,9 @@ func _use_spot(spot: Dictionary) -> void:
 		"raid":
 			_raid_prompt = true
 			player.input_enabled = false
+			if Raid.kind_for_zone(world.zone) == "compound":
+				hud.open_dialogue("The Gold Compound", "Gunnar Sterling, the man behind Gold League USA, built a compound in the swamp where his franchise coaches train. Five fighters walk in: you and four friends from the road who fill the roles you don't (Lacey holds him, Coach Mae keeps you in it, finishers).\n\nHis Golden Kesa flattens whoever he's fighting. When he starts his Takedown Wave, SPRAWL (Q) or the whole party goes down. At 60%% and 30%% his franchise coaches come for Coach Mae.\n\nScaled to your level. Tap and the whole party resets.", "Gather the party", "Not now")
+				return
 			hud.open_dialogue("Covil da Sucuri", "Grão-Mestre Sucuri took over the old gym and he's teaching his students to crush everyone in town. Five fighters walk in: you and four academy partners who fill the roles you don't (a tank to hold him, Professor Gil to keep you in it, finishers).\n\nHis Crushing Kesa flattens whoever he's fighting. When he starts his Takedown Wave, SPRAWL (Q) or the whole party goes down. At 60%% and 30%% his students come for your Professor.\n\nScaled to your level. Tap and the whole party resets.", "Gather the party", "Not now")
 		"drill":
 			if not Game.drills_ready:
@@ -1245,10 +1255,12 @@ func _start_raid() -> void:
 func _on_raid_over(won: bool) -> void:
 	await get_tree().create_timer(2.5).timeout
 	player.input_enabled = false
-	if won:
+	if won and Raid.kind_for_zone(world.zone) == "compound":
+		hud.open_dialogue("The Gold Compound", "Gunnar Sterling taps! His franchise coaches are tearing up their contracts.\n\nYour loot is in your bags. Run it again any time: he scales to your level.", "", "Oss")
+	elif won:
 		hud.open_dialogue("Covil da Sucuri", "The Sucuri taps! The old gym is open again, and his students are already asking to train with you.\n\nYour loot is in your bags. Run it again any time: he scales to your level.", "", "Oss")
 	else:
-		hud.open_dialogue("Covil da Sucuri", "Wiped. Watch the cast bar: Sprawl (Q) the Takedown Wave, and help your partners with the students when they come for Gil.", "", "Oss")
+		hud.open_dialogue("Wiped", "Watch the cast bar: Sprawl (Q) the Takedown Wave, and help your partners with the students when they come for your Professor.", "", "Oss")
 	hud.refresh()
 
 # ------------------------------------------------------------ event bouts in real time

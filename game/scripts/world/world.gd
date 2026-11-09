@@ -37,8 +37,26 @@ const VENDOR_SPOTS := {"pantanal": [Vector3(-76, 0, 2), "Shop: Bar do Pantaneiro
 	"everglades": [Vector3(-76, 0, 4), "Shop: Bait & Tackle", "Earline"],
 	"sedona": [Vector3(38, 0, 46), "Shop: Trading Post", "Two Feathers"]}
 
+## Faction quartermasters (Honor gear): two per side, in the starting town and the big city.
+const QUARTERMASTERS := {"caceres": [Vector3(-20, 0, 12), "brasil", "Sargento Moura"], "rio": [Vector3(24, 0, -12), "brasil", "Capitã Ivone"],
+	"texas": [Vector3(15, 0, 3), "usa", "Sergeant Briggs"], "socal": [Vector3(-70, 0, 2), "usa", "Major Okafor"]}
+
+func _quartermaster(p: Vector3, fid: String, who: String) -> void:
+	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
+	var fd := Origins.faction(fid)
+	_cyl(0.07, 0.07, 4.6, b + Vector3(-1.2, 2.3, 0), Color(0.75, 0.75, 0.78), 6)
+	_box(Vector3(1.6, 1.0, 0.05), b + Vector3(-0.4, 4.0, 0), fd.color, false)
+	_box(Vector3(1.6, 0.25, 0.06), b + Vector3(-0.4, 3.65, 0), fd.accent, false)
+	_box(Vector3(2.2, 1.0, 0.9), b + Vector3(0.6, 0.5, 0), Color(0.35, 0.25, 0.16))
+	_box(Vector3(2.3, 0.08, 1.0), b + Vector3(0.6, 1.04, 0), (fd.color as Color).darkened(0.3), false)
+	_label("%s QUARTERMASTER" % str(fd.name).to_upper(), b + Vector3(0, 5.0, 0), 50, (fd.color as Color).lightened(0.35)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_spot(b + Vector3(0, 0, 1.4), 3.0, "Quartermaster: %s (Honor gear)" % who, "quartermaster", fid + "|" + who)
+
 func build(z := "caceres") -> void:
 	_build_zone(z)
+	if QUARTERMASTERS.has(zone):
+		var qm: Array = QUARTERMASTERS[zone]
+		_quartermaster(qm[0], qm[1], qm[2])
 	if zone != "caceres":
 		_build_mobs()
 		if VENDOR_SPOTS.has(zone):
@@ -1852,16 +1870,16 @@ func _job_spot(p: Vector3, j: Dictionary) -> void:
 	_spot(b + Vector3(0, 0, 1.2), 3.0, "Bico: %s (%s)" % [str(j.name), str(j.who)], "job", str(j.id))
 
 ## Covil da Sucuri: the raid entrance (a green-and-black banner on two posts and a mat).
-func _raid_gate(p: Vector3) -> void:
+func _raid_gate(p: Vector3, title := "COVIL DA SUCURI", spot := "Raid: Covil da Sucuri (you + 4 partners)", col := Color(0.6, 1.0, 0.55)) -> void:
 	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
 	_box(Vector3(5.0, 0.1, 4.0), b + Vector3(0, 0.05, 0), Color(0.18, 0.32, 0.2), false)
 	for x in [-2.2, 2.2]:
 		_cyl(0.09, 0.09, 3.2, b + Vector3(x, 1.6, -1.8), Color(0.25, 0.2, 0.15), 8)
 	_box(Vector3(4.6, 1.0, 0.08), b + Vector3(0, 2.7, -1.8), Color(0.08, 0.2, 0.1), false)
-	_label("COVIL DA SUCURI", b + Vector3(0, 2.75, -1.7), 44, Color(0.6, 1.0, 0.55))
+	_label(title, b + Vector3(0, 2.75, -1.7), 44, col)
 	var l := _label("Raid  ·  5 fighters", b + Vector3(0, 2.05, -1.7), 28, Color(1, 0.9, 0.6))
 	l.no_depth_test = false
-	_spot(b + Vector3(0, 0, 0.5), 3.5, "Raid: Covil da Sucuri (you + 4 partners)", "raid")
+	_spot(b + Vector3(0, 0, 0.5), 3.5, spot, "raid")
 
 func _build_caceres_spots() -> void:
 	_spot(Vector3(74, 0, 0), 6.0, "Take the bus", "travel_menu")
@@ -3491,7 +3509,7 @@ func _height_everglades(x: float, z: float) -> float:
 	h = lerpf(h, -0.9, _ss(-0.15, -0.32, n2))   # sloughs everywhere
 	for lg in [[Vector2(42, -54), 14.0], [Vector2(-10, 46), 12.0], [Vector2(70, 0), 10.0]]:
 		h = lerpf(h, -0.9, _ss(lg[1], lg[1] - 5.0, Vector2(x, z).distance_to(lg[0])))
-	for fl in [[GL_PIT, 17.0], [Vector2(-40, 26), 15.0], [Vector2(-18, -48), 10.0], [Vector2(-82, -4), 11.0], [Vector2(10, 20), 10.0], [Vector2(30, -64), 10.0], [Vector2(-52, -36), 10.0], [Vector2(-56, 62), 9.0], [Vector2(36, -34), 6.0]]:
+	for fl in [[GL_PIT, 17.0], [Vector2(-40, 26), 15.0], [Vector2(-18, -48), 10.0], [Vector2(-82, -4), 11.0], [Vector2(10, 20), 10.0], [Vector2(30, -64), 10.0], [Vector2(-52, -36), 10.0], [Vector2(-56, 62), 9.0], [Vector2(36, -34), 6.0], [Vector2(-62, -72), 13.0]]:
 		h = lerpf(h, 0.25, _ss(fl[1], fl[1] - 4.0, Vector2(x, z).distance_to(fl[0])))
 	h = lerpf(h, 0.3, _ss(5.0, 3.0, absf(z + 4.0)))   # Tamiami Trail on its causeway
 	var e := maxf(absf(x), absf(z))
@@ -3522,6 +3540,7 @@ func _build_everglades() -> void:
 		Rect2(-28, -58, 20, 20),   # ranger station
 		Rect2(28, -48, 22, 28),    # dock and its path
 		Rect2(-100, -7, 200, 6),   # the trail
+		Rect2(-74, -86, 24, 26),   # the gold compound
 	]
 	_build_environment()
 	_build_terrain()
@@ -3550,6 +3569,7 @@ func _build_everglades() -> void:
 		fan.rotation.z = PI / 2
 		add_child(fan)
 	_gl_dock()
+	_gl_compound()
 	_gl_fishcamp()
 	_gl_ranger()
 	_gl_hammock()
@@ -3587,6 +3607,17 @@ func _gl_dock() -> void:
 		add_child(ring)
 		_box(Vector3(0.6, 1.0, 0.6), b + Vector3(0, 0.7, 0.6), Color(0.3, 0.3, 0.32), false)
 	_label("AIRBOAT TOURS", c + Vector3(0, 3.0, 1.0), 70, Color(1, 0.9, 0.5)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+## The Gold Compound: Gunnar Sterling's gated training camp in the swamp (raid entrance).
+func _gl_compound() -> void:
+	var c := Vector3(-62, ground_y(-62, -74), -74)
+	_box(Vector3(14, 4.5, 8), c + Vector3(0, 2.25, -4), Color(0.16, 0.16, 0.18))
+	_box(Vector3(14.4, 0.4, 8.4), c + Vector3(0, 4.7, -4), Color(0.86, 0.68, 0.16), false)
+	for k in 9:
+		_box(Vector3(0.12, 2.4, 0.12), c + Vector3(-8 + k * 2.0, 1.2, 4.0), Color(0.5, 0.5, 0.52), false)
+	_box(Vector3(16, 0.08, 0.05), c + Vector3(0, 2.2, 4.0), Color(0.55, 0.55, 0.58), false)
+	_label("STERLING", c + Vector3(0, 5.6, 0.2), 90, Color(1, 0.82, 0.25))
+	_raid_gate(c + Vector3(0, 0, 7.0), "THE GOLD COMPOUND", "Raid: The Gold Compound (you + 4 partners)", Color(1, 0.82, 0.3))
 
 func _gl_fishcamp() -> void:
 	var c := Vector3(-40, ground_y(-40, 26), 26)

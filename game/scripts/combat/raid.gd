@@ -18,6 +18,30 @@ const PARTY := {
 	"dps3": {"name": "Peixe", "title": "Grinder", "gi": Color(0.15, 0.3, 0.75), "body": "male", "skin": Color(0.62, 0.42, 0.28)},
 }
 
+## Every raid shares the mechanics; this is what changes between them.
+const RAIDS := {
+	"sucuri": {"title": "COVIL DA SUCURI", "boss": "Grão-Mestre Sucuri", "boss_gi": Color(0.2, 0.32, 0.18), "boss_skin": Color(0.5, 0.34, 0.22),
+		"party": PARTY, "crush": "Crushing Kesa", "adds": ["Aluno da Sucuri", "Aluna da Sucuri"], "add_gi": Color(0.2, 0.32, 0.18),
+		"ach": "raid_sucuri", "prefix": "Sucuri's", "intro": "Bruna holds him, Gil keeps you up. Sprawl (Q) his Takedown Wave!",
+		"enrage": "THE SUCURI IS ENRAGED", "victory": "Grão-Mestre Sucuri taps. The academy is yours.", "wipe": "The Sucuri holds the academy. Regroup and try again."},
+	"compound": {"title": "THE GOLD COMPOUND", "boss": "Gunnar Sterling", "boss_gi": Color(0.86, 0.68, 0.16), "boss_skin": Color(0.92, 0.76, 0.62),
+		"party": {
+			"tank": {"name": "Lacey", "title": "Anchor", "gi": Color(0.95, 0.95, 0.95), "body": "female", "skin": Color(0.88, 0.7, 0.55)},
+			"heal": {"name": "Coach Mae", "title": "Professor", "gi": Color(0.1, 0.1, 0.12), "body": "female", "skin": Color(0.62, 0.45, 0.32)},
+			"dps": {"name": "Travis", "title": "Finisher", "gi": Color(0.15, 0.3, 0.75), "body": "male", "skin": Color(0.55, 0.38, 0.26)},
+			"dps2": {"name": "Jolene", "title": "Scrambler", "gi": Color(0.95, 0.95, 0.95), "body": "female", "skin": Color(0.86, 0.66, 0.5)},
+			"dps3": {"name": "Duke", "title": "Grinder", "gi": Color(0.8, 0.15, 0.15), "body": "male", "skin": Color(0.78, 0.57, 0.4)}},
+		"crush": "Golden Kesa", "adds": ["Gold League Member", "Franchise Coach"], "add_gi": Color(0.86, 0.68, 0.16),
+		"ach": "raid_gold", "prefix": "Sterling's", "intro": "Lacey holds him, Coach Mae keeps you up. Sprawl (Q) his Takedown Wave!",
+		"enrage": "STERLING IS ENRAGED", "victory": "Gunnar Sterling taps. The swamp gyms are free.", "wipe": "The Sterlings hold the compound. Regroup and try again."},
+}
+
+## Team USA's raid lives on their continent; Brasil's in the Pantanal.
+static func kind_for_zone(z: String) -> String:
+	return "compound" if Data.continent_of(z) == "america" else "sucuri"
+
+var kind := "sucuri"
+var cfg: Dictionary = RAIDS.sucuri
 var wc   # WorldCombat
 var boss_npc: Npc
 var boss: CombatCore.Unit
@@ -41,13 +65,15 @@ static func party_for(player_role: String) -> Array:
 			return ["tank", "dps", "dps2", "dps3"]
 	return ["tank", "heal", "dps", "dps2"]
 
-func start(world_combat, at: Vector3, lvl: int) -> void:
+func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri") -> void:
+	kind = raid_kind if RAIDS.has(raid_kind) else "sucuri"
+	cfg = RAIDS[kind]
 	wc = world_combat
 	level = lvl
 	center = at
 	var cl: float = 1.0 + (lvl - 1) * 0.55 / 2.0
-	var bd := {"name": "Grão-Mestre Sucuri", "title": "Raid Boss", "level": cl + 0.4, "rank": Game.rank, "style": "pressure",
-		"gi": Color(0.2, 0.32, 0.18), "skin": Color(0.5, 0.34, 0.22), "body": "male", "raid": true, "boss": true,
+	var bd := {"name": str(cfg.boss), "title": "Raid Boss", "level": cl + 0.4, "rank": Game.rank, "style": "pressure",
+		"gi": cfg.boss_gi, "skin": cfg.boss_skin, "body": "male", "raid": true, "boss": true,
 		"win": "The Sucuri always wins.", "lose": "Oss... the academy is yours."}
 	boss_npc = _spawn(bd, at + Vector3(0, 0, -5))
 	boss_npc.rig.bulk = 1.3
@@ -58,7 +84,7 @@ func start(world_combat, at: Vector3, lvl: int) -> void:
 	var role := Team.player_role()
 	var i := 0
 	for r in party_for(role):
-		var d: Dictionary = PARTY[r].duplicate()
+		var d: Dictionary = (cfg.party as Dictionary)[r].duplicate()
 		d["ally"] = true
 		d["role"] = "dps" if r.begins_with("dps") else r
 		d["level"] = cl
@@ -68,7 +94,7 @@ func start(world_combat, at: Vector3, lvl: int) -> void:
 		ally_npcs.append(n)
 		wc.unit_for(n)
 		i += 1
-	warning.emit("COVIL DA SUCURI", "Bruna holds him, Gil keeps you up. Sprawl (Q) his Takedown Wave!")
+	warning.emit(str(cfg.title), str(cfg.intro))
 
 func _spawn(d: Dictionary, pos: Vector3) -> Npc:
 	var m := d.duplicate()
@@ -121,8 +147,8 @@ func _process(delta: float) -> void:
 	if crush_t <= 0.0 and boss.target and not boss.target.dead and boss.cast.is_empty():
 		crush_t = 12.0
 		var tg: CombatCore.Unit = boss.target
-		wc.core._damage(boss, tg, boss.dmg * 3.2, false, {"id": "crush", "type": "pass", "name": "Crushing Kesa"})
-		wc._float_on(tg, "Crushing Kesa!", Color(1, 0.4, 0.3))
+		wc.core._damage(boss, tg, boss.dmg * 3.2, false, {"id": "crush", "type": "pass", "name": str(cfg.crush)})
+		wc._float_on(tg, str(cfg.crush) + "!", Color(1, 0.4, 0.3))
 	# Takedown Wave: a long cast at you; only your Sprawl (Q) stops it, or the whole party goes down
 	if wave_t <= 0.0 and boss.cast.is_empty() and not boss.down():
 		wave_t = 24.0
@@ -138,7 +164,7 @@ func _process(delta: float) -> void:
 	if t >= 240.0 and not _enraged:
 		_enraged = true
 		boss.dmg *= 2.0
-		warning.emit("THE SUCURI IS ENRAGED", "Finish it now!")
+		warning.emit(str(cfg.enrage), "Finish it now!")
 
 func on_use(u: CombatCore.Unit, ab: Dictionary) -> void:
 	if u != boss or str(ab.get("id", "")) != "wave":
@@ -160,8 +186,8 @@ func _call_students() -> void:
 			healer = u
 	var cl: float = 1.0 + (level - 1) * 0.55 / 2.0
 	for k in 2:
-		var d := {"name": ["Aluno da Sucuri", "Aluna da Sucuri"][k], "title": "Student", "level": cl - 0.3, "rank": Game.rank,
-			"style": "balanced", "gi": Color(0.2, 0.32, 0.18), "skin": Color(0.7, 0.5, 0.35), "body": ["male", "female"][k]}
+		var d := {"name": cfg.adds[k], "title": "Student", "level": cl - 0.3, "rank": Game.rank,
+			"style": "balanced", "gi": cfg.add_gi, "skin": Color(0.7, 0.5, 0.35), "body": ["male", "female"][k]}
 		var n := _spawn(d, center + Vector3(-6 + 12 * k, 0, -7))
 		add_npcs.append(n)
 		var u = wc.unit_for(n, "mob")
@@ -185,7 +211,8 @@ func end(won: bool) -> void:
 		var xp := 120 + 25 * level
 		Game.add_xp(xp)
 		Game.money += 60 + 6 * level
-		Game.unlock("raid_sucuri")
+		Game.unlock(str(cfg.ach))
+		Game.add_war(30, "raid")
 		Game.toast.emit("Raid cleared! +%d XP, R$ %d" % [xp, 60 + 6 * level], Color(1, 0.85, 0.35))
 		Game.toast.emit("Looted: %s" % str(Gear.ITEMS[gear_id].name), Gear.rarity_color(gear_id))
 		Game.save_game()
@@ -207,7 +234,7 @@ func _epic_roll() -> Dictionary:
 	rng.randomize()
 	var d := Gear.roll(level + 2, rng, true, true)
 	d["rarity"] = "epic"
-	d["name"] = "Sucuri's " + str(d.name).split(" ", false, 1)[1]
+	d["name"] = str(cfg.prefix) + " " + str(d.name).split(" ", false, 1)[1]
 	d["ilvl"] = level + 3
 	var pts := 5 + level / 12
 	var pair: Array = ["strength", "grip"]

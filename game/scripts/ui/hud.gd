@@ -547,6 +547,74 @@ func _passport_box() -> Control:
 		ph.add_child(rb)
 	return pc
 
+# ------------------------------------------------------------ quartermaster (Honor gear)
+var qm_panel: PanelContainer = null
+var _qm := {}
+
+func _qm_fill() -> void:
+	var list: VBoxContainer = _qm.list
+	(_qm.bal as Label).text = "Your Honor: %s   ·   earned with every war point   ·   needs Lv %d" % [_thousands(Game.honor), Gear.HONOR_MIN_LEVEL]
+	for c in list.get_children():
+		c.queue_free()
+	for id in Gear.SETS[_qm.set].pieces:
+		var it: Dictionary = Gear.ITEMS[id]
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 8)
+		list.add_child(h)
+		var nm := Wow.label("%s\n%s" % [it.name, Gear.stat_text(id)], 14, Gear.rarity_color(id))
+		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(nm)
+		var owned := Game.inventory.has(id)
+		var b := Wow.button("Owned" if owned else "%s Honor" % _thousands(int(Gear.HONOR_PRICES[id])), Vector2(130, 40))
+		b.disabled = owned
+		b.add_theme_font_size_override("font_size", 14)
+		b.pressed.connect(func():
+			var why := Game.buy_honor(id)
+			(_qm.msg as Label).text = why if why != "" else "Bought %s." % it.name
+			Sfx.play("click" if why == "" else "miss", -6.0)
+			_qm_fill.call_deferred())
+		h.add_child(b)
+
+func open_quartermaster(who: String, fid: String) -> void:
+	if qm_panel and is_instance_valid(qm_panel):
+		qm_panel.queue_free()
+	var fd := Origins.faction(fid)
+	qm_panel = PanelContainer.new()
+	qm_panel.theme = Wow.theme()
+	qm_panel.anchor_top = 0.5
+	qm_panel.anchor_bottom = 0.5
+	qm_panel.offset_left = 24
+	qm_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	qm_panel.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, fd.color, 6, 12, 2))
+	root.add_child(qm_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.custom_minimum_size = Vector2(420, 0)
+	qm_panel.add_child(v)
+	v.add_child(Wow.title("%s  ·  %s Quartermaster" % [who, fd.long], 17, (fd.color as Color).lightened(0.35)))
+	var bal := Wow.label("", 15, Color(1, 0.85, 0.35))
+	v.add_child(bal)
+	var msg := Wow.label("", 14, UiKit.MUTED)
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var set_id := "selecao" if fid == "brasil" else "old_glory"
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 4)
+	v.add_child(list)
+	_qm = {"list": list, "bal": bal, "msg": msg, "set": set_id}
+	_qm_fill()
+	var bonus: Dictionary = Gear.SETS[set_id].bonus
+	var bl := Wow.label("Set: 2 pieces: +1 %s.  4 pieces: %s" % [Rpg.ATTRS[bonus[2].attrs.keys()[0]].name, bonus[4].text], 13, Color(0.6, 0.9, 1.0))
+	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(bl)
+	v.add_child(msg)
+	var close := Wow.button("Done", Vector2(120, 40))
+	close.pressed.connect(func():
+		if is_instance_valid(qm_panel):
+			qm_panel.queue_free()
+		qm_panel = null)
+	v.add_child(close)
+
 ## Faction War: this week's score, Brasil vs USA, the top fighters on each side and your share.
 func _war_box() -> Control:
 	var pc := PanelContainer.new()
@@ -588,6 +656,7 @@ func _war_box() -> Control:
 	if not w.has("week"):
 		lines.append("The war report loads from the server (web version, online).")
 	lines.append("You fight for %s. Every win adds points: rolls 5, bosses 25, street rollers 1-10, medals 5-20, territories 15, daily 10, rival shadows 15." % mine.long)
+	lines.append("Honor: %s. Every war point is also Honor, spent on faction gear at your quartermaster (%s)." % [_thousands(Game.honor), "Cáceres and Rio" if Game.faction() == "brasil" else "Dry Creek and San Diego"])
 	if Cloud.logged_in():
 		lines.append("Your points this week: %s%s" % [_thousands(Game.war_mine), ("  (%d waiting to send)" % Game.war_pending) if Game.war_pending > 0 else ""])
 	else:

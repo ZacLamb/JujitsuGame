@@ -765,7 +765,7 @@ func start_raid(at: Vector3) -> void:
 	raid.finished.connect(func(won):
 		raid_over.emit(won)
 		raid = null)
-	raid.start(self, at, Game.player_level())
+	raid.start(self, at, Game.player_level(), Raid.kind_for_zone(world.zone))
 	target = raid.boss
 
 ## Somebody in the raid tapped: a partner sits out, a student is done, the boss means victory.
@@ -782,7 +782,7 @@ func _raid_tap(npc: Npc, victim: CombatCore.Unit) -> void:
 		return
 	if raid and victim == raid.boss:
 		Sfx.play("win", -2.0)
-		raid.warning.emit("VICTORY!", "Grão-Mestre Sucuri taps. The academy is yours.")
+		raid.warning.emit("VICTORY!", str(raid.cfg.victory))
 		raid.end(true)
 		target = null
 		core.leave_combat(me)
@@ -864,7 +864,7 @@ func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit :=
 func _player_tapped(by_name: String, winner: Npc = null) -> void:
 	if raid != null and is_instance_valid(raid) and not raid.over:
 		# a wipe: the whole party resets, nobody loses anything but pride
-		raid.warning.emit("WIPE", "The Sucuri holds the academy. Regroup and try again.")
+		raid.warning.emit("WIPE", str(raid.cfg.wipe))
 		raid.end(false)
 		core.leave_combat(me)
 		me.auras.clear()
