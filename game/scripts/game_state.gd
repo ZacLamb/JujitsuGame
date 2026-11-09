@@ -300,6 +300,10 @@ func load_game() -> void:
 # ------------------------------------------------------------ rank / xp
 	money = int(parsed.get("money", 0))
 	spec = str(parsed.get("spec", ""))
+	# specs a class can no longer take (Professor is Guard / Judoka only): free re-pick
+	if spec == "professor" and not style in Specs.COACH_CLASSES:
+		spec = ""
+		flags["spec_reset"] = true
 	bags = parsed.get("bags", ["", "", "", ""])
 	while bags.size() < Loot.BAG_SLOTS:
 		bags.append("")

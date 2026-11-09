@@ -800,15 +800,18 @@ func open_travel() -> void:
 	v.add_child(UiKit.label("BUS  ·  Where to?", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	for z in Data.ZONES:
 		var zd: Dictionary = Data.ZONES[z]
-		var locked := Game.rank < int(zd.rank)
+		# open world: every zone is a bus ride away; it just tells you if it's above your level
+		var lo := int(zd.levels[0])
 		var here: bool = z == Game.zone
 		var txt := "%s  ·  %s" % [zd.name, Data.zone_levels(z)]
 		if here:
 			txt += "   (you are here)"
-		elif locked:
-			txt += "   (needs %s)" % Data.rank_name(int(zd.rank))
+		elif Game.player_level() < lo - 2:
+			txt += "   (dangerous: you're level %d)" % Game.player_level()
 		var b := UiKit.button(txt, Vector2(0, 58))
-		b.disabled = locked or here
+		b.disabled = here
+		if not here and Game.player_level() < lo - 2:
+			b.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
 		b.pressed.connect(func():
 			_close_travel()
 			travel_chosen.emit(z))

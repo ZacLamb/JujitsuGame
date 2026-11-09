@@ -25,10 +25,10 @@ const SPECS := {
 			"mods": {"stamina_max": 15.0, "defense_vs": {"pass": 1.3}}},
 	],
 	"wrestler": [
-		{"id": "chain_wrestler", "name": "Chain Wrestler", "role": "grinder", "move": "blast_double",
-			"desc": "Shot after shot after shot. Somebody's going down and it isn't you.",
-			"passive": "Takedowns land 10% more often and cost 10% less stamina.",
-			"mods": {"zone": {"takedown": 0.1}, "cost": 0.9}},
+		{"id": "chain_wrestler", "name": "Chain Wrestler", "role": "anchor", "move": "blast_double",
+			"desc": "Shot after shot after shot, and impossible to move. Somebody's going down and it isn't you.",
+			"passive": "Takedowns land 10% more often and cost 10% less stamina; take 6% less damage.",
+			"mods": {"zone": {"takedown": 0.1}, "cost": 0.9, "dr": 0.06}},
 		{"id": "rider", "name": "Rider", "role": "finisher", "move": "tilt_back",
 			"desc": "Once you're on top, you stay there until they tap.",
 			"passive": "Back takes land 12% more often; back chokes start 10% deeper.",
@@ -61,16 +61,16 @@ const SPECS := {
 			"desc": "Invert, spin, take the back. Nobody knows where you'll come up.",
 			"passive": "Back takes land 12% more often.",
 			"mods": {"zone": {"back": 0.12}}},
-		{"id": "gas_tank", "name": "Gas Tank", "role": "anchor", "move": "tech_standup",
-			"desc": "You can't be broken. Win the last minute every time.",
-			"passive": "+20 max stamina; stamina recovers 20% faster.",
-			"mods": {"stamina_max": 20.0, "regen": 0.2}},
+		{"id": "gas_tank", "name": "Pace Pusher", "role": "grinder", "move": "tech_standup",
+			"desc": "Push the pace until they break. Win the last minute every time.",
+			"passive": "Stamina recovers 20% faster; every technique hits 5% harder.",
+			"mods": {"regen": 0.2, "dmg_all": 0.05}},
 	],
 	"passer": [
-		{"id": "smash", "name": "Smash Passer", "role": "grinder", "move": "over_under",
+		{"id": "smash", "name": "Smash Passer", "role": "anchor", "move": "over_under",
 			"desc": "Slow, heavy, unstoppable. Every inch is theirs to pay for.",
-			"passive": "Passes land 10% more often; their sweeps take 20% longer to cast.",
-			"mods": {"zone": {"pass": 0.1}, "defense_vs": {"sweep": 1.2}}},
+			"passive": "Passes land 10% more often; their sweeps take 20% longer to cast; +15 max stamina.",
+			"mods": {"zone": {"pass": 0.1}, "defense_vs": {"sweep": 1.2}, "stamina_max": 15.0}},
 		{"id": "speed", "name": "Speed Passer", "role": "scrambler", "move": "x_pass",
 			"desc": "Torreando, leg drags, gone. Around the guard before they grip.",
 			"passive": "Your techniques cast 8% faster; passes land 6% more often.",
@@ -82,7 +82,12 @@ const SPECS := {
 	],
 }
 
-## The Professor: a support spec every class can take (the game's "healer"). Its signature is
+## Like WoW, not every class can heal: only these can take the Professor (coach) spec.
+## Guard Player and Judoka fill every role; Wrestler and Passer tank or deal damage; the Athlete
+## is the pure damage class.
+const COACH_CLASSES := ["guard", "judoka"]
+
+## The Professor: the support spec ("healer") for Guard Players and Judokas. Its signature is
 ## Corner Advice (heal + Game Plan buff) instead of a technique, and teammates you coach from the
 ## corner in team matches fight sharper.
 const PROFESSOR := {"id": "professor", "name": "Professor", "role": "coach", "move": "",
@@ -93,7 +98,7 @@ const ADVICE_NAME := "Corner Advice"
 
 static func list(style: String) -> Array:
 	var out: Array = SPECS.get(style, []).duplicate()
-	if not out.is_empty():
+	if not out.is_empty() and style in COACH_CLASSES:
 		out.append(PROFESSOR)
 	return out
 

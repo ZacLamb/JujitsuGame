@@ -282,6 +282,10 @@ func open_barber() -> void:
 
 func _begin_play() -> void:
 	player.input_enabled = true
+	if Game.flags.get("spec_reset", false):
+		Game.flags.erase("spec_reset")
+		Game.save_game()
+		hud.open_dialogue("Professor Gil", "Coaching is a Guard Player and Judoka thing now: those are the only classes that can take the Professor spec. Your spec has been reset, so pick a new one from the Talents window (N). No charge.", "", "Oss")
 	if Game.xp == 0 and not Game.flags.get("intro_seen", false):
 		Game.flags["intro_seen"] = true
 		Game.save_game()
@@ -464,10 +468,10 @@ func _make_world(z: String) -> void:
 		Net.enter(z)
 
 func _travel(z: String) -> void:
-	var need := int(Data.ZONES[z].rank)
-	if Game.rank < need:
-		hud.open_dialogue("Bus driver", "Not yet, amigo. That road is for %s and up." % Data.rank_name(need), "", "Okay")
-		return
+	# open world: nobody stops you, but the driver will tell you what you're in for
+	var lo := int(Data.ZONES[z].levels[0])
+	if Game.player_level() < lo - 2:
+		Game.toast.emit("Careful: %s is a level %s zone and you're level %d. Locals there hit hard." % [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()], Color(1.0, 0.5, 0.35))
 	Game.zone = z
 	Game.save_game()
 	_make_world(z)

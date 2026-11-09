@@ -1065,14 +1065,14 @@ func _build_gate() -> void:
 	for i in 5:
 		_box(Vector3(0.3, 0.3, 17), Vector3(x, gy + 0.6 + i * 0.9, 0), Color(0.55, 0.38, 0.22), false)
 	_box(Vector3(1.0, 6, 17), Vector3(x, gy + 3, 0), Color(0, 0, 0), true).visible = false
-	var sign_text := "PANTANAL\nBlue belts only" if Game.rank < 5 else "PANTANAL\nBus leaves here"
+	var sign_text := "PANTANAL  ·  Lv 11-20\nBus leaves here"
 	var l := _label(sign_text, Vector3(x - 0.6, gy + 7.2, 0), 110, Color(1, 0.9, 0.6), -PI / 2)
 	l.name = "GateSign"
 
 func refresh_gate() -> void:
 	var l := get_node_or_null("GateSign") as Label3D
 	if l:
-		l.text = "PANTANAL\nBlue belts only" if Game.rank < 5 else "PANTANAL\nBus leaves here"
+		l.text = "PANTANAL  ·  Lv 11-20\nBus leaves here"
 
 func _build_pier() -> void:
 	var z := 30.0
