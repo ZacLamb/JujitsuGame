@@ -94,6 +94,10 @@ func _open_panel() -> void:
 	pw.secret = true
 	pw.custom_minimum_size = Vector2(0, 42)
 	v.add_child(pw)
+	var opt := CheckBox.new()
+	opt.text = "Email me jiu-jitsu tips and community news (new accounts)"
+	opt.add_theme_font_size_override("font_size", 14)
+	v.add_child(opt)
 	var err := UiKit.label("", 15, UiKit.RED, HORIZONTAL_ALIGNMENT_CENTER)
 	err.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	err.custom_minimum_size = Vector2(420, 0)
@@ -110,7 +114,7 @@ func _open_panel() -> void:
 				_close_panel()
 			else:
 				err.text = e
-				err.add_theme_color_override("font_color", UiKit.RED))
+				err.add_theme_color_override("font_color", UiKit.RED), opt.button_pressed)
 	var li := UiKit.button("Log in", Vector2(130, 46))
 	li.pressed.connect(func(): go.call("login"))
 	row.add_child(li)

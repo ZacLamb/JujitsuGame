@@ -910,9 +910,9 @@ func _fill_journal() -> void:
 	for s in Game.side_objectives():
 		q.add_child(UiKit.label("•  " + s, 20))
 	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Game.stripe_cost(Game.rank), "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""], 18, UiKit.MUTED))
-	if Data.COMMUNITY_URL != "":
-		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(260, 52))
-		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
+	if Cloud.community_url != "":
+		var cb := UiKit.button(Cloud.community_label, Vector2(260, 52))
+		cb.pressed.connect(func(): UiKit.open_url(Cloud.community_url))
 		q.add_child(cb)
 	var reset := UiKit.button("Reset progress", Vector2(200, 44))
 	reset.add_theme_font_size_override("font_size", 16)
@@ -1083,7 +1083,7 @@ func _build_title() -> void:
 	title.add_child(v)
 	v.add_child(UiKit.label("TATAME", 84, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(UiKit.label("OPEN MAT BRASIL", 34, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
-	v.add_child(UiKit.label("An open-world jiu-jitsu adventure  ·  Zone 1: Cáceres, Mato Grosso", 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	v.add_child(UiKit.label("An open-world jiu-jitsu adventure  ·  Time Brasil vs Team USA", 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 4)
 	v.add_child(spacer)
@@ -1093,11 +1093,16 @@ func _build_title() -> void:
 		"Fights: 1-0 your moves · Tab target · Q / R / T counter their cast · F breathe · G origin racial",
 		16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(how)
-	if Data.COMMUNITY_URL != "":
-		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(280, 52))
-		cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
-		v.add_child(cb)
+	# the community button: the server sets the link (COMMUNITY_URL), so it can appear late
+	var cb := UiKit.button(Cloud.community_label, Vector2(280, 52))
+	cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cb.pressed.connect(func(): UiKit.open_url(Cloud.community_url))
+	cb.visible = Cloud.community_url != ""
+	v.add_child(cb)
+	Cloud.config_loaded.connect(func():
+		if is_instance_valid(cb):
+			cb.text = Cloud.community_label
+			cb.visible = Cloud.community_url != "")
 
 func _process(_d: float) -> void:
 	# no action bar / combat frames behind the title screen

@@ -41,8 +41,8 @@ static func build_text(daily: Dictionary, res: Dictionary, log: Array, pts: Vect
 	var url := game_url()
 	if url != "":
 		lines.append(url)
-	if Data.COMMUNITY_URL != "":
-		lines.append(Data.COMMUNITY_URL)
+	if Cloud.community_url != "":
+		lines.append(Cloud.community_url)
 	return "\n".join(lines)
 
 ## In-game preview row of squares.

@@ -34,7 +34,7 @@ const VENDOR_SPOTS := {"pantanal": [Vector3(-76, 0, 2), "Shop: Bar do Pantaneiro
 	"rio": [Vector3(6, 0, 40), "Shop: Quiosque da Orla", "Tio Beto"],
 	"socal": [Vector3(-16, 0, 30), "Shop: Surf & Smoothie", "Becky"],
 	"texas": [Vector3(36, 0, -14), "Shop: Feed & Tack", "Miss Dolly"],
-	"everglades": [Vector3(-76, 0, 4), "Shop: Bait & Tackle", "Earline"],
+	"everglades": [Vector3(-78, 0, 6), "Shop: Bait & Tackle", "Earline"],
 	"sedona": [Vector3(38, 0, 46), "Shop: Trading Post", "Two Feathers"]}
 
 ## Faction quartermasters (Honor gear): two per side, in the starting town and the big city.

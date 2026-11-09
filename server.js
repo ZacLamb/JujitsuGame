@@ -45,6 +45,7 @@ async function migrate() {
     );
     ALTER TABLE players ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player';
     ALTER TABLE players ADD COLUMN IF NOT EXISTS muted_until TIMESTAMPTZ;
+    ALTER TABLE players ADD COLUMN IF NOT EXISTS marketing_optin BOOLEAN NOT NULL DEFAULT false;
     CREATE TABLE IF NOT EXISTS war (
       week TEXT NOT NULL,
       player_id INT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
@@ -104,6 +105,35 @@ async function auth(req, res, next) {
   next();
 }
 
+// ------------------------------------------------------------------ lead magnet plumbing
+// Railway variables (all optional):
+//   COMMUNITY_URL / COMMUNITY_LABEL  the in-game "join the community" button (title screen, quest log)
+//   SIGNUP_WEBHOOK_URL               every new account is POSTed here as JSON (e.g. a GHL inbound
+//                                    webhook trigger): {email, optin, source, event, created_at}
+function signupHook(body) {
+  const url = process.env.SIGNUP_WEBHOOK_URL;
+  if (!url) return;
+  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .catch((e) => console.error('signup webhook failed', e.message));
+}
+app.get('/api/config', (_req, res) => res.json({
+  community_url: process.env.COMMUNITY_URL || '',
+  community_label: process.env.COMMUNITY_LABEL || 'Join the community',
+}));
+// Game Master: how the lead magnet is doing
+app.get('/api/stats', needDb, auth, async (req, res) => {
+  if (req.player.role !== 'gm') return res.status(403).json({ error: 'Game Masters only.' });
+  const q = async (sql) => (await pool.query(sql)).rows[0];
+  res.json({
+    players: (await q('SELECT count(*)::int AS n FROM players')).n,
+    optin: (await q('SELECT count(*)::int AS n FROM players WHERE marketing_optin')).n,
+    last7: (await q("SELECT count(*)::int AS n FROM players WHERE created_at > now() - interval '7 days'")).n,
+    last24: (await q("SELECT count(*)::int AS n FROM players WHERE created_at > now() - interval '1 day'")).n,
+    saves: (await q('SELECT count(*)::int AS n FROM saves')).n,
+    online: live ? live.online() : 0,
+  });
+});
+
 // ------------------------------------------------------------------ account
 app.post('/api/register', needDb, async (req, res) => {
   try {
@@ -114,7 +144,9 @@ app.post('/api/register', needDb, async (req, res) => {
     if (limited(`${req.ip}|reg`)) return res.status(429).json({ error: 'Too many tries. Wait a few minutes.' });
     const exists = await pool.query('SELECT 1 FROM players WHERE email = $1', [email]);
     if (exists.rows.length) return res.status(409).json({ error: 'That email already has an account. Log in instead.' });
-    const r = await pool.query('INSERT INTO players (email, pw_hash, role) VALUES ($1, $2, $3) RETURNING id', [email, await hashPw(pw), isGmEmail(email) ? 'gm' : 'player']);
+    const optin = req.body.optin === true;
+    const r = await pool.query('INSERT INTO players (email, pw_hash, role, marketing_optin) VALUES ($1, $2, $3, $4) RETURNING id', [email, await hashPw(pw), isGmEmail(email) ? 'gm' : 'player', optin]);
+    signupHook({ email, optin, source: 'tatame-game', event: 'signup', created_at: new Date().toISOString() });
     const token = newToken();
     await pool.query('INSERT INTO sessions (token, player_id) VALUES ($1, $2)', [token, r.rows[0].id]);
     res.json({ token, email });

@@ -40,6 +40,7 @@ func _init() -> void:
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(_tabs)
 	_build_live()
+	_build_growth()
 	_build_reports()
 	_build_tools()
 	Net.gm_data.connect(_on_gm_data)
@@ -66,6 +67,29 @@ func _btn(parent: Control, text: String, cb: Callable, w := 0.0) -> Button:
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
+
+# ------------------------------------------------------------ growth (the lead magnet)
+var _growth: Label
+
+func _build_growth() -> void:
+	var v := _scroll("Growth")
+	_btn(_row(v), "Refresh", _load_growth)
+	_growth = Wow.label("Press Refresh.", 16, Wow.WHITE)
+	_growth.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_growth)
+	var help := Wow.label("Railway variables: COMMUNITY_URL / COMMUNITY_LABEL (the in-game community button) and SIGNUP_WEBHOOK_URL (every new account is sent there, e.g. a GHL inbound webhook).", 13, Wow.GREY)
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(help)
+
+func _load_growth() -> void:
+	_growth.text = "Loading..."
+	Cloud._req(HTTPClient.METHOD_GET, "/api/stats", null, func(code: int, d: Dictionary):
+		if code != 200:
+			_growth.text = str(d.get("error", "Couldn't load (%d)." % code))
+			return
+		var opt := 0 if int(d.players) == 0 else int(round(100.0 * int(d.optin) / int(d.players)))
+		_growth.text = "Accounts: %d   (last 24h: %d · last 7 days: %d)\nOpted in to emails: %d  (%d%%)\nAccounts with characters saved: %d\nOnline now: %d\nCommunity button: %s" % [
+			int(d.players), int(d.last24), int(d.last7), int(d.optin), opt, int(d.saves), int(d.online), Cloud.community_url if Cloud.community_url != "" else "not set (COMMUNITY_URL)"])
 
 # ------------------------------------------------------------ live world
 func _build_live() -> void:

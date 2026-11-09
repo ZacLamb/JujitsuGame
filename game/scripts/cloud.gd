@@ -14,6 +14,10 @@ var email := ""
 var status := ""   # short line for the title screen ("Saved to cloud", errors...)
 var base := ""
 var _push_t := -1.0
+## The community button (set on the server: COMMUNITY_URL / COMMUNITY_LABEL); falls back to Data.
+var community_url := Data.COMMUNITY_URL
+var community_label := Data.COMMUNITY_LABEL
+signal config_loaded
 var _war_t := 5.0        # faction war: send pending points / refresh the report
 var _war_busy := false
 signal war_changed
@@ -25,6 +29,14 @@ func _ready() -> void:
 	elif OS.get_environment("TATAME_API") != "":
 		base = OS.get_environment("TATAME_API")
 	_load_auth()
+	if available():
+		_req(HTTPClient.METHOD_GET, "/api/config", null, func(code: int, d: Dictionary):
+			if code == 200:
+				if str(d.get("community_url", "")) != "":
+					community_url = str(d.community_url)
+				if str(d.get("community_label", "")) != "":
+					community_label = str(d.community_label)
+				config_loaded.emit())
 	Game.saved.connect(func():
 		if logged_in():
 			_push_t = 4.0)
@@ -78,8 +90,8 @@ func war_sync() -> void:
 
 # ------------------------------------------------------------ account
 ## mode: "login" or "register". cb(error_text) ("" = ok).
-func authenticate(mode: String, e: String, pw: String, cb: Callable) -> void:
-	_req(HTTPClient.METHOD_POST, "/api/" + mode, {"email": e, "password": pw}, func(code: int, d: Dictionary):
+func authenticate(mode: String, e: String, pw: String, cb: Callable, optin := false) -> void:
+	_req(HTTPClient.METHOD_POST, "/api/" + mode, {"email": e, "password": pw, "optin": optin}, func(code: int, d: Dictionary):
 		if code != 200:
 			cb.call(str(d.get("error", "Couldn't reach the server (%d)." % code)))
 			return

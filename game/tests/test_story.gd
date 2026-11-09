@@ -26,9 +26,32 @@ func _ready() -> void:
 			if o.type == "quests":
 				for qid in o.ids:
 					check(Data.QUESTS.has(qid), "%s counts known quest %s" % [id, qid])
+			if o.type == "landmarks":
+				for lid in o.ids:
+					check(Data.LANDMARKS.has(lid), "%s visits known landmark %s" % [id, lid])
+			if o.type == "medal":
+				check(Data.COMPS.has(str(o.comp)), "%s needs known comp %s" % [id, o.comp])
+			if o.type == "collect":
+				check(Data.COLLECTIBLES.has(str(o.zone)) and int(o.n) <= Data.COLLECTIBLES[o.zone].size(), "%s collect count fits" % id)
+			if o.type == "count_landmarks":
+				check(int(o.n) <= Data.landmarks_in(str(o.zone)).size(), "%s landmark count fits" % id)
 			if o.type == "achievement":
 				for aid in o.ids:
 					check(not Data.achievement(aid).is_empty(), "%s needs known achievement %s" % [id, aid])
+	# every story chapter is a straight line inside its own faction, and ends in its stamp
+	for ch in Data.CHAPTERS:
+		var stamp_q := ""
+		for qid in Data.QUESTS:
+			var q: Dictionary = Data.QUESTS[qid]
+			if str(q.get("chapter", "")) != ch.id:
+				continue
+			if str(q.get("stamp", "")) == str(ch.stamp):
+				stamp_q = qid
+			for r in q.get("requires", []):
+				check(str(Data.QUESTS[r].get("chapter", "")) == ch.id, "%s requires %s from its own chapter" % [qid, r])
+				check(int(Data.QUESTS[r].min_level) <= int(q.min_level), "%s comes after %s by level" % [qid, r])
+			check(Data.QUEST_GIVERS[q.giver].zone == ch.zone, "%s given in its chapter's zone" % qid)
+		check(stamp_q != "", "chapter %s has a stamp quest" % ch.id)
 	for p in Data.PATHS:
 		for mid in Data.PATHS[p].moves:
 			check(Data.MOVES.has(mid), "path move %s exists" % mid)
@@ -125,5 +148,28 @@ func _ready() -> void:
 	for id in Loot.VENDOR:
 		for it in Loot.VENDOR[id]:
 			check(not Loot.item(it).is_empty(), "vendor %s sells known item %s" % [id, it])
+	# walk each faction's whole story: every quest opens in order, nothing is blocked
+	for f in [["carioca", "brasil"], ["texan", "usa"]]:
+		Game.reset()
+		Game.set_identity(f[0], "male", 0.3)
+		Game.choose_style("guard", "Walker", 0)
+		var steps := 0
+		for ch in Data.chapters_for(f[1]):
+			var ids: Array = []
+			for qid in Data.QUESTS:
+				if str(Data.QUESTS[qid].get("chapter", "")) == ch.id:
+					ids.append(qid)
+			ids.sort_custom(func(a, b): return int(Data.QUESTS[a].min_level) < int(Data.QUESTS[b].min_level))
+			for qid in ids:
+				for r in Data.QUESTS[qid].get("requires", []):
+					if Game.quest_state(r) != "done":
+						Game.quests[r] = {"state": "done", "count": {}}
+				Game.set_level(maxi(Game.player_level(), int(Data.QUESTS[qid].min_level)))
+				check(Game.quest_available(qid), "%s walk: %s opens" % [f[1], qid])
+				Game.quests[qid] = {"state": "done", "count": {}}
+				if Data.QUESTS[qid].has("stamp"):
+					Game.stamps.append(str(Data.QUESTS[qid].stamp))
+				steps += 1
+		check(Game.story_next()[0].is_empty(), "%s walk: story finished after %d quests" % [f[1], steps])
 	print("PASS (0 failures)" if fails == 0 else "FAILED: %d" % fails)
 	get_tree().quit()
