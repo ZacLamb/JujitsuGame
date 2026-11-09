@@ -4,6 +4,7 @@ extends Node
 signal achievement_unlocked(id: String)
 signal toast(text: String, color: Color)
 signal progress_changed
+signal saved   # a save hit disk (Cloud syncs it when you're logged in)
 
 const LEGACY_SAVE := "user://tatame_save.json"   # single-character saves from before character slots
 const INDEX_PATH := "user://tatame_chars.json"    # {active: id, chars: [{id, name, style, rank, level, zone, gi, created}]}
@@ -70,6 +71,7 @@ func _index() -> Dictionary:
 func _write_index(d: Dictionary) -> void:
 	if test_mode:
 		return
+	d["_at"] = Time.get_unix_time_from_system()
 	var f := FileAccess.open(INDEX_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(d))
@@ -151,6 +153,7 @@ func delete_character(id: String) -> void:
 		d.active = ""
 		char_id = ""
 	_write_index(d)
+	saved.emit()
 
 ## Keep the select screen's summary of the active character current (called on every save).
 func _sync_index() -> void:
@@ -237,6 +240,7 @@ func save_game() -> void:
 		f.store_string(JSON.stringify(data))
 		f = null
 	_sync_index()
+	saved.emit()
 
 func load_game() -> void:
 	if not has_save():

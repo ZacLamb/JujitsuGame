@@ -4,7 +4,15 @@
   "private": true,
   "description": "Tatame: Open Mat Brasil, an open-world jiu-jitsu game (Godot web build) plus a tiny static server for Railway",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" },
-  "dependencies": { "compression": "^1.7.4", "express": "^4.21.0" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "compression": "^1.7.4",
+    "express": "^4.21.0",
+    "pg": "^8.13.0"
+  }
 }

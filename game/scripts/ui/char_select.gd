@@ -12,10 +12,13 @@ func _init() -> void:
 
 func _ready() -> void:
 	_build()
+	Cloud.changed.connect(_build)
 
 func _build() -> void:
 	for c in get_children():
-		c.queue_free()
+		if c != _panel:
+			c.queue_free()
+	_account_row()
 	var chars := Game.characters()
 	chars.sort_custom(func(a, b): return int(a.get("played", 0)) > int(b.get("played", 0)))
 	if not chars.is_empty():
@@ -41,6 +44,96 @@ func _build() -> void:
 	else:
 		row.add_child(UiKit.label("Character slots full (%d). Delete one to start fresh." % Game.MAX_CHARS, 15, UiKit.MUTED))
 	add_child(UiKit.label("Every fighter starts at white belt. Earn every stripe.", 15, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+
+# ------------------------------------------------------------ account
+var _panel: PanelContainer = null
+
+func _account_row() -> void:
+	if not Cloud.available():
+		return
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	add_child(row)
+	var nowrap := func(l: Label) -> Label:
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		return l
+	if Cloud.logged_in():
+		row.add_child(nowrap.call(UiKit.label("Signed in as %s" % Cloud.email, 16, Color(0.6, 1.0, 0.65))))
+		if Cloud.status != "" and not Cloud.status.begins_with("Logged in"):
+			row.add_child(nowrap.call(UiKit.label("·  " + Cloud.status, 14, UiKit.MUTED)))
+		var lo := UiKit.button("Log out", Vector2(110, 36))
+		lo.pressed.connect(Cloud.logout)
+		row.add_child(lo)
+	else:
+		var b := UiKit.button("Log in / Create account", Vector2(270, 40))
+		b.pressed.connect(_open_panel)
+		row.add_child(b)
+		row.add_child(nowrap.call(UiKit.label(Cloud.status if Cloud.status != "" else "Save your fighters to your account and play on any device.", 14, UiKit.MUTED)))
+
+func _open_panel() -> void:
+	if _panel != null and is_instance_valid(_panel):
+		return
+	_panel = PanelContainer.new()
+	_panel.top_level = true
+	_panel.add_theme_stylebox_override("panel", Wow.sb(Color(0.04, 0.035, 0.03, 0.97), Wow.FRAME, 6, 20, 2))
+	add_child(_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	v.custom_minimum_size = Vector2(420, 0)
+	_panel.add_child(v)
+	for l in [UiKit.label("Your Tatame account", 26, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER), UiKit.label("Your fighters follow you to any device.", 15, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)]:
+		l.custom_minimum_size = Vector2(420, 0)
+		v.add_child(l)
+	var em := LineEdit.new()
+	em.placeholder_text = "Email"
+	em.custom_minimum_size = Vector2(0, 42)
+	v.add_child(em)
+	var pw := LineEdit.new()
+	pw.placeholder_text = "Password (8+ characters)"
+	pw.secret = true
+	pw.custom_minimum_size = Vector2(0, 42)
+	v.add_child(pw)
+	var err := UiKit.label("", 15, UiKit.RED, HORIZONTAL_ALIGNMENT_CENTER)
+	err.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	err.custom_minimum_size = Vector2(420, 0)
+	v.add_child(err)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	var go := func(mode: String):
+		err.text = "One moment..."
+		err.add_theme_color_override("font_color", UiKit.MUTED)
+		Cloud.authenticate(mode, em.text.strip_edges(), pw.text, func(e: String):
+			if e == "":
+				_close_panel()
+			else:
+				err.text = e
+				err.add_theme_color_override("font_color", UiKit.RED))
+	var li := UiKit.button("Log in", Vector2(130, 46))
+	li.pressed.connect(func(): go.call("login"))
+	row.add_child(li)
+	var rg := UiKit.button("Create account", Vector2(170, 46))
+	rg.pressed.connect(func(): go.call("register"))
+	row.add_child(rg)
+	var cx := UiKit.button("Cancel", Vector2(100, 46))
+	cx.pressed.connect(_close_panel)
+	row.add_child(cx)
+	pw.text_submitted.connect(func(_t): go.call("login"))
+	_place_panel.call_deferred()
+	em.grab_focus()
+
+func _place_panel() -> void:
+	if _panel == null or not is_instance_valid(_panel):
+		return
+	_panel.size = _panel.get_combined_minimum_size()
+	_panel.position = (get_viewport_rect().size - _panel.size) / 2.0
+
+func _close_panel() -> void:
+	if _panel and is_instance_valid(_panel):
+		_panel.queue_free()
+	_panel = null
 
 func _card(c: Dictionary) -> Control:
 	var rank := int(c.get("rank", 0))
