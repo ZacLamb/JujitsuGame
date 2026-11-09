@@ -568,7 +568,7 @@ func _on_event(e: Dictionary) -> void:
 		"aura":
 			if str(e.aura) == "down":
 				var r := _rig_of(u)
-				if r and not _grounded(u):
+				if r and not _grounded(u) and not r.action_clip("KnockDown", true):
 					r.action(CombatAnim.fall(r.rotation.y), true)
 				var n := _node_of(u)
 				if n and bool(e.fresh):

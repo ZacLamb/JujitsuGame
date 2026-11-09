@@ -45,8 +45,15 @@ func _ready() -> void:
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s.png" % [kit, body])
 	# grappling: rig 4 takes an in-world attack pose (pose system -> retarget onto the Mixamo bones)
 	rigs[4].action(CombatAnim.attack("sub", rigs[4].rotation.y), true)
-	rigs[0].action(CombatAnim.fall(rigs[0].rotation.y), true)
-	for f in 60: await get_tree().process_frame
+	print("knockdown clip: ", rigs[0].action_clip("KnockDown", true))
+	await get_tree().create_timer(2.3).timeout
+	print("kd anim=", rigs[0].anim.current_animation, " pos=", rigs[0].anim.current_animation_position, " playing=", rigs[0].anim.is_playing(), " mode=", rigs[0]._anim_mode, " lod=", rigs[0]._lod)
+	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s_pose.png" % [kit, body])
+	# get up: pose frames take over from the lying clip with a crossfade
+	rigs[0].release(CombatAnim.getup(rigs[0].rotation.y))
+	for f in 8: await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s_xfade.png" % [kit, body])
+	for f in 50: await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/native_%s_%s_pose.png" % [kit, body])
 	cam.fov = 16
 	cam.position = Vector3(-1.25, 1.35, 5.0)
@@ -59,6 +66,9 @@ func _process(d: float) -> void:
 	t += d
 	if rigs.size() < 5:
 		return
+	rigs[1].combat_ready = true
 	rigs[1].animate_locomotion(d, 0.35, false)
-	rigs[2].animate_locomotion(d, 1.0, false)
+	rigs[2].move_back = true
+	rigs[2].animate_locomotion(d, 0.3, false)
+	rigs[3].combat_ready = true
 	rigs[3].animate_locomotion(d, 0.0, false)

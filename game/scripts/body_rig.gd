@@ -93,6 +93,51 @@ const NATIVE_CLIPS := {"Idle": "Idle_02", "Walk": "Walking", "Run": "Running", "
 	"Backward": "Walk_Backward", "KnockDown": "Knock_Down", "FallDown": "Fall_Down",
 	"Tapped": "Strangled_and_Fall_Forward", "Takedown": "Jumping_Head_Scissor_Takedown"}
 var native := false
+var move_back := false      # backpedalling (WoW S key): the walk-backward clips
+## Crossfade between recorded clips and the grappling pose system (native rigs): the skeleton's
+## last pose is captured on every switch and faded out over XF_TIME.
+const XF_TIME := 0.28
+var _xf := 0.0
+var _xf_from := []           # [[bone, pos, rot], ...]
+var _clip_key := ""
+var _far_t := 0.0
+
+func _capture_xf() -> void:
+	if not native or skel == null:
+		return
+	_xf_from.clear()
+	for b in skel.get_bone_count():
+		_xf_from.append([b, skel.get_bone_pose_position(b), skel.get_bone_pose_rotation(b)])
+	_xf = 1.0
+
+func _apply_xf(delta: float) -> void:
+	if _xf <= 0.0 or _xf_from.is_empty():
+		return
+	var w := _xf * _xf * (3.0 - 2.0 * _xf)   # smooth
+	for e in _xf_from:
+		var b: int = e[0]
+		skel.set_bone_pose_rotation(b, skel.get_bone_pose_rotation(b).slerp(e[2], w))
+		if b == _bones.get("Hips", -1):
+			skel.set_bone_pose_position(b, skel.get_bone_pose_position(b).lerp(e[1], w))
+	_xf = maxf(0.0, _xf - delta / XF_TIME)
+
+## Plays one of Meshy's recorded clips as a combat action (knockdowns etc.); returns false when this
+## rig has no such clip, so callers can fall back to a pose sequence.
+func action_clip(key: String, hold := false) -> bool:
+	if not native or anim == null or not _anim_names.has(key):
+		return false
+	var full: String = _anim_names[key]
+	if not _anim_mode:
+		_capture_xf()
+	_anim_mode = true
+	_in_stance = false
+	_clip_key = key
+	var a := anim.get_animation(full)
+	a.loop_mode = Animation.LOOP_NONE
+	anim.play(full, 0.15)
+	anim.speed_scale = 1.0
+	_action_until = INF if hold else Time.get_ticks_msec() * 0.001 + a.length
+	return true
 
 func _native_path() -> String:
 	if not use_meshy:
@@ -382,6 +427,17 @@ func animate_locomotion(delta: float, speed01: float, airborne := false) -> void
 	if skel:
 		if in_action():
 			return
+		# native rigs: recorded fight stance / fight footwork / backpedal clips
+		if native and not airborne:
+			var key := ""
+			if combat_ready:
+				key = "Stance" if speed01 < 0.05 else ("FightBack" if move_back else "FightForward")
+			elif move_back and speed01 >= 0.05:
+				key = "Backward"
+			if key != "" and _anim_names.has(key):
+				_in_stance = false
+				_play_clip_loop(key, speed01)
+				return
 		# in a fight and standing still: hold a grappling stance instead of the idle clip
 		if combat_ready and speed01 < 0.05 and not airborne:
 			if _anim_mode or not _in_stance:
@@ -526,6 +582,7 @@ func _build_skinned() -> void:
 				if short == loop_name:
 					anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	if native and anim:
+		anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 		for k in NATIVE_CLIPS:
 			for a in anim.get_animation_list():
 				if str(a) == NATIVE_CLIPS[k] or str(a).ends_with("|" + str(NATIVE_CLIPS[k])):
@@ -1067,9 +1124,22 @@ func _update_gi_parts() -> void:
 		var gs := global_transform.basis.get_scale()
 		_torso_parts.global_transform = Transform3D(b.scaled(gs), ab + b.y * 0.05 * gs.y)
 
+func _play_clip_loop(key: String, speed01: float) -> void:
+	var full: String = _anim_names[key]
+	if not _anim_mode:
+		_capture_xf()
+	_anim_mode = true
+	_clip_key = key
+	if anim.current_animation != full or not anim.is_playing():
+		anim.get_animation(full).loop_mode = Animation.LOOP_LINEAR
+		anim.play(full, 0.25)
+	anim.speed_scale = 1.0 if key == "Stance" else lerpf(0.8, 1.3, clampf(speed01 / 0.6, 0.0, 1.0))
+
 func _play_locomotion(speed01: float, airborne: bool) -> void:
 	if not anim:
 		return
+	if not _anim_mode:
+		_capture_xf()
 	_anim_mode = true
 	var want := "Idle"
 	# hysteresis so the clip doesn't flicker when speed hovers at a threshold
@@ -1097,6 +1167,7 @@ func _play_locomotion(speed01: float, airborne: bool) -> void:
 
 func _enter_pose_mode() -> void:
 	if skel and _anim_mode:
+		_capture_xf()
 		_anim_mode = false
 		if anim:
 			anim.stop()
@@ -1249,7 +1320,15 @@ func _process(_delta: float) -> void:
 		if _lod >= 2:
 			if not _anim_mode:
 				_retarget()
+			elif native and anim and _lod == 2:
+				# far away: keep the clip moving at ~10 updates a second
+				_far_t += _delta
+				if _far_t > 0.1:
+					anim.advance(_far_t)
+					_far_t = 0.0
 			return
+	if native and anim and _anim_mode:
+		anim.advance(_delta)
 	var layered := not _anim_mode and not layer.is_empty()
 	if layered:
 		_layer_apply(1.0)
@@ -1260,6 +1339,8 @@ func _process(_delta: float) -> void:
 	_update_hair()
 	_update_crest()
 	_hero_proportions()
+	if native:
+		_apply_xf(_delta)
 	if layered:
 		_layer_apply(-1.0)
 

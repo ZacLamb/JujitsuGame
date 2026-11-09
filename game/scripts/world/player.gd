@@ -183,7 +183,11 @@ func _physics_process(delta: float) -> void:
 		move = move.normalized()
 	var wl: float = (get_parent() as World).water_level() if get_parent() is World else -INF
 	swimming = global_position.y < wl - 0.8
+	# WoW backpedal: S alone walks backwards, still facing forward
+	var back := dir2.y > 0.4 and absf(dir2.x) < 0.6 and walk_target == null and not swimming
 	var speed := (RUN if sprint else WALK) * speed_mult
+	if back:
+		speed = WALK * 0.65 * speed_mult
 	if swimming:
 		speed = WALK * 0.6
 	var target_v := move * speed
@@ -214,8 +218,8 @@ func _physics_process(delta: float) -> void:
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if hspeed > 0.2:
 		var face := atan2(-velocity.x, -velocity.z)
-		if _rmb and input_enabled:
-			face = cam_yaw  # right mouse held: the character faces where the camera looks
+		if (_rmb or back) and input_enabled:
+			face = cam_yaw  # right mouse held / backpedalling: the character faces where the camera looks
 		if not rig.in_action():
 			rig.rotation.y = lerp_angle(rig.rotation.y, face, clampf(delta * 12.0, 0, 1))
 		# follow camera: swing in behind the runner unless the player is steering the camera
@@ -224,6 +228,9 @@ func _physics_process(delta: float) -> void:
 			if absf(off) < 2.3:
 				var rate := FOLLOW_TOUCH if touch_move.length() > 0.05 or autorun else FOLLOW_KEYS
 				cam_yaw += off * clampf(delta * rate * clampf(hspeed / RUN, 0.3, 1.0), 0.0, 1.0)
+	# moving against the way the body faces (backpedal, or strafing back with the mouse held)
+	var fwd := Vector3(-sin(rig.rotation.y), 0, -cos(rig.rotation.y))
+	rig.move_back = hspeed > 0.2 and Vector3(velocity.x, 0, velocity.z).normalized().dot(fwd) < -0.3
 	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor() and not swimming)
 	# footsteps
 	if is_on_floor() and hspeed > 1.0:

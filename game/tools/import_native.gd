@@ -75,6 +75,14 @@ func _init():
 		for l in LOOPS:
 			if short == l or short.begins_with(l + "_") or (l == "Idle" and short.begins_with("Idle")):
 				ap.get_animation(an).loop_mode = Animation.LOOP_LINEAR
+		# in-place: the game moves the character, so drop the hips' horizontal travel (keep the bob/fall)
+		var anm := ap.get_animation(an)
+		for t in anm.get_track_count():
+			if anm.track_get_type(t) == Animation.TYPE_POSITION_3D and str(anm.track_get_path(t)).ends_with("Hips"):
+				var k0: Vector3 = anm.track_get_key_value(t, 0)
+				for k in anm.track_get_key_count(t):
+					var v: Vector3 = anm.track_get_key_value(t, k)
+					anm.track_set_key_value(t, k, Vector3(k0.x, v.y, k0.z))
 	ap.stop()
 	# own everything, then save
 	root.get_parent().remove_child(root)
