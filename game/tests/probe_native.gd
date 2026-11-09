@@ -21,7 +21,7 @@ func _ready() -> void:
 	sun.rotation = Vector3(-0.7, 0.5, 0)
 	sun.shadow_enabled = true
 	add_child(sun)
-	var gis := [Color(0.96, 0.96, 0.94), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12), Color(0.96, 0.96, 0.94), Color(0.96, 0.96, 0.94)]
+	var gis := [Color(0.96, 0.96, 0.94), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12), Color(0.8, 0.15, 0.15), Color(0.2, 0.6, 0.3)]
 	var belts := [0, 2, 4, 3, 1]
 	for i in 5:
 		var holder := Node3D.new()

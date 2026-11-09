@@ -29,6 +29,8 @@ var kit := "gi"       # "gi" / "nogi": which outfit is worn (and whose slots cou
 var team := {}        # 5v5 lineup: {order: [5 fighter ids incl "you"], coach: id}
 var territories := {} # territory id -> {owner: "you", attack_at: unix secs}  (absent = held by its rival)
 var quests := {}  # id -> {"state": "active"/"done", "count": {objective_index: n}}
+var path := ""     # gi / nogi specialisation (chosen at blue belt in the main story)
+var stamps := []   # Passaporte do Tatame: academies that accepted you
 var medals := {}  # "<comp>_<belt>" -> "gold" / "silver" / "bronze" (best result)
 var player_name := "Gringo"
 var style := ""            # Rpg.STYLES key; "" until chosen
@@ -206,6 +208,8 @@ func reset_state() -> void:
 	daily = {}
 	medals = {}
 	quests = {}
+	path = ""
+	stamps = []
 	inventory = {}
 	rolled = {}
 	for id in Gear.STARTER:
@@ -232,7 +236,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
@@ -278,6 +282,8 @@ func load_game() -> void:
 	daily = parsed.get("daily", {})
 	medals = parsed.get("medals", {})
 	quests = parsed.get("quests", {})
+	path = str(parsed.get("path", ""))
+	stamps = parsed.get("stamps", [])
 	rolled = parsed.get("rolled", {})
 	for rid in rolled:
 		Gear.register_rolled(str(rid), rolled[rid])
@@ -385,6 +391,12 @@ func _announce_new_moves(r: int) -> void:
 func knows(move_id: String) -> bool:
 	if Data.MOVES[move_id].has("spec"):
 		return str(Data.MOVES[move_id].spec) == spec
+	if not kit_allows(move_id):
+		return false
+	var mp := path_of(move_id)
+	if mp != "" and path != "" and mp != path and int(Data.MOVES[move_id].rank) < 99:
+		# the other path's signatures come ~10 levels later
+		return int(Data.MOVES[move_id].rank) + Data.PATH_LATE_RANKS <= rank and (style == "" or Data.class_ok(move_id, style))
 	if int(Data.MOVES[move_id].rank) <= rank:
 		return style == "" or Data.class_ok(move_id, style)
 	if style != "" and move_id in Rpg.STYLES[style].signature:
@@ -999,6 +1011,8 @@ func mods() -> Dictionary:
 		pw += Gear.power_pct(id)
 	m["hp_flat"] = float(m.get("hp_flat", 0.0)) + hp_flat
 	m["dmg_all"] = float(m.get("dmg_all", 0.0)) + pw / 100.0
+	if path != "" and path == kit:
+		m["dmg_all"] = float(m.get("dmg_all", 0.0)) + Data.PATH_MASTERY
 	_buff_mods(m)
 	return m
 
@@ -1319,6 +1333,20 @@ func objective_progress(id: String, i: int) -> Array:
 			return [0, 1]
 		"reach":
 			return [mini(cnt, 1), 1]
+		"quests":
+			var nq := 0
+			for qid in o.ids:
+				if quest_state(qid) == "done":
+					nq += 1
+			return [mini(nq, int(o.n)), int(o.n)]
+		"achievement":
+			var na := 0
+			for aid in o.ids:
+				if unlocked.has(aid):
+					na += 1
+			return [na, o.ids.size()]
+		"path":
+			return [1 if path != "" else 0, 1]
 		_:
 			return [mini(cnt, int(o.n)), int(o.n)]
 
@@ -1365,7 +1393,60 @@ func complete_quest(id: String) -> int:
 	bump("quests_all")
 	add_xp(int(q.xp))
 	give_item(Gear.QUEST_LOOT.get(id, ""))
+	if q.has("stamp") and not stamps.has(str(q.stamp)):
+		stamps.append(str(q.stamp))
+		toast.emit("Passport stamped: %s  (%d/4)" % [str(q.stamp), stamps.size()], Color(1, 0.8, 0.25))
+		save_game()
 	return int(q.xp)
+
+## Where the main story is: [chapter dict, text of the next step]. Empty chapter = finished.
+func story_next() -> Array:
+	for ch in Data.CHAPTERS:
+		for id in Data.QUESTS:
+			var q: Dictionary = Data.QUESTS[id]
+			if str(q.get("chapter", "")) != ch.id or quest_state(id) == "done":
+				continue
+			var g: Dictionary = Data.QUEST_GIVERS[q.giver]
+			var where := "%s in %s" % [g.name, Data.ZONES[g.zone].name]
+			if quest_ready(id):
+				return [ch, "%s: return to %s." % [q.title, where]]
+			if quest_state(id) == "active":
+				for i in q.obj.size():
+					var pr := objective_progress(id, i)
+					if int(pr[0]) < int(pr[1]):
+						return [ch, "%s: %s (%d/%d)." % [q.title, q.obj[i].text, pr[0], pr[1]]]
+			if quest_available(id):
+				return [ch, "%s: talk to %s." % [q.title, where]]
+			if quest_locked_by_level(id):
+				return [ch, "%s: reach level %d, then see %s." % [q.title, int(q.min_level), where]]
+	return [{}, "Your passport is full. A Pan-American trip north is coming..."]
+
+## Gi / No-Gi specialisation. Free the first time; retraining with a master costs R$.
+func set_path(p: String) -> bool:
+	if not Data.PATHS.has(p) or p == path:
+		return false
+	if path != "":
+		if money < Data.PATH_RETRAIN_COST:
+			toast.emit("Retraining your path costs R$ %d." % Data.PATH_RETRAIN_COST, Color(1, 0.5, 0.4))
+			return false
+		money -= Data.PATH_RETRAIN_COST
+	path = p
+	toast.emit("Path chosen: %s. Its techniques come first and hit %d%% harder in its kit." % [Data.PATHS[p].name, int(Data.PATH_MASTERY * 100)], Color(1, 0.85, 0.3))
+	quest_event("path")
+	save_game()
+	progress_changed.emit()
+	return true
+
+## Which path a technique belongs to ("" = shared).
+static func path_of(move_id: String) -> String:
+	for p in Data.PATHS:
+		if move_id in Data.PATHS[p].moves:
+			return p
+	return ""
+
+## Can you use this technique in what you're wearing right now? (collar chokes need a collar)
+func kit_allows(move_id: String) -> bool:
+	return kit == "gi" or not move_id in Data.GI_ONLY
 
 func active_quests(z := "") -> Array:
 	var out: Array = []

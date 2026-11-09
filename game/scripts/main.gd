@@ -586,6 +586,11 @@ func _open_quest(giver: String) -> void:
 	var g: Dictionary = Data.QUEST_GIVERS[giver]
 	var ids := Data.quests_of(giver)
 	player.input_enabled = false
+	# the blue-belt choice: Gi or No-Gi
+	for id in ids:
+		if Game.quest_state(id) == "active" and Data.QUESTS[id].get("path_choice", false) and Game.path == "":
+			_open_path_choice(g.name, id, "gi")
+			return
 	for id in ids:
 		if Game.quest_ready(id):
 			var q: Dictionary = Data.QUESTS[id]
@@ -618,6 +623,19 @@ func _open_quest(giver: String) -> void:
 			return
 	_quest_prompt = "info"
 	hud.open_dialogue(g.name, "Obrigado for everything, gringo. Oss!", "", "Oss")
+
+func _open_path_choice(speaker: String, qid: String, which: String) -> void:
+	var p: Dictionary = Data.PATHS[which]
+	var names: Array[String] = []
+	for mid in p.moves:
+		names.append(str(Data.MOVES[mid].name))
+	_quest_prompt = "path_%s:%s" % [which, qid]
+	var body := "%s PATH  ·  %s\n\n%s\n\nSignature techniques (learned first, +%d%% damage in your path's kit):\n%s" % [
+		str(p.name).to_upper(), p.lineage, p.desc, int(Data.PATH_MASTERY * 100), ", ".join(names)]
+	if which == "gi":
+		hud.open_dialogue(speaker, body + "\n\nYou'll still train No-Gi; its signatures come about 10 levels later.", "Choose the Gi path", "Show me No-Gi")
+	else:
+		hud.open_dialogue(speaker, body + "\n\nYou'll still train in the gi; its signatures come about 10 levels later.", "Choose the No-Gi path", "Not yet")
 
 # ------------------------------------------------------------ competitions
 var comp_run: Dictionary = {}   # the bracket in progress (see Data.comp_bracket)
@@ -931,8 +949,22 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		var qp := _quest_prompt
 		_quest_prompt = ""
 		var parts := qp.split(":")
+		if parts[0] == "path_gi" or parts[0] == "path_nogi":
+			var giver_id: String = Data.QUESTS[parts[1]].giver
+			if accepted:
+				Game.set_path("gi" if parts[0] == "path_gi" else "nogi")
+				_open_quest(giver_id)
+				return
+			if parts[0] == "path_gi":
+				_open_path_choice(Data.QUEST_GIVERS[giver_id].name, parts[1], "nogi")
+				return
+			player.input_enabled = true
+			return
 		if accepted and parts[0] == "offer":
 			Game.accept_quest(parts[1])
+			if Data.QUESTS[parts[1]].get("path_choice", false) and Game.path == "":
+				_open_quest(Data.QUESTS[parts[1]].giver)
+				return
 		elif accepted and parts[0] == "turnin":
 			Game.complete_quest(parts[1])
 			# another quest from the same giver? offer it right away

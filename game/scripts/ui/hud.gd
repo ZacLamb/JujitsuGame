@@ -291,8 +291,15 @@ func refresh() -> void:
 	objective.text = Game.current_objective()
 	for c in _tracker.get_children():
 		c.queue_free()
+	# main story always on top (orange), like WoW's campaign tracker
+	var sn := Game.story_next()
+	if not (sn[0] as Dictionary).is_empty():
+		_tracker.add_child(Wow.label(str(sn[0].name), 14, Color(1.0, 0.6, 0.2)))
+		_tracker.add_child(Wow.label("  - " + str(sn[1]), 13, Wow.WHITE, true))
 	for id in Game.active_quests(Game.zone).slice(0, 4):
 		var q: Dictionary = Data.QUESTS[id]
+		if q.get("story", false):
+			continue
 		_tracker.add_child(Wow.label(str(q.title), 14, Wow.GOLD))
 		if Game.quest_ready(id):
 			_tracker.add_child(Wow.label("  - Return to %s" % Data.QUEST_GIVERS[q.giver].name, 13, Wow.GREEN))
@@ -482,6 +489,64 @@ func _close_dialogue(accepted: bool) -> void:
 func dialogue_open() -> bool:
 	return dialogue.visible
 
+# ------------------------------------------------------------ passport (main story)
+func _passport_box() -> Control:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", Wow.sb(Color(0.12, 0.08, 0.04, 0.85), Color(0.75, 0.55, 0.2), 6, 10, 2))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	pc.add_child(v)
+	v.add_child(UiKit.label("PASSAPORTE DO TATAME", 24, Color(1.0, 0.8, 0.35)))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	for ch in Data.CHAPTERS:
+		var got: bool = Game.stamps.has(str(ch.stamp))
+		var st := PanelContainer.new()
+		st.custom_minimum_size = Vector2(150, 74)
+		var c: Color = ch.color
+		st.add_theme_stylebox_override("panel", Wow.sb(c.darkened(0.55) if got else Color(0.08, 0.07, 0.06, 0.9), c if got else Color(0.35, 0.3, 0.25), 37, 6, 3 if got else 1))
+		var sv := VBoxContainer.new()
+		sv.alignment = BoxContainer.ALIGNMENT_CENTER
+		st.add_child(sv)
+		var l1 := UiKit.label(str(ch.stamp) if got else "?", 16, c.lightened(0.3) if got else Color(0.45, 0.42, 0.38))
+		l1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sv.add_child(l1)
+		var l2 := UiKit.label(Data.ZONES[ch.zone].name, 12, Color(0.75, 0.7, 0.6) if got else Color(0.4, 0.37, 0.33))
+		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sv.add_child(l2)
+		row.add_child(st)
+	var nx := Game.story_next()
+	var chd: Dictionary = nx[0]
+	if not chd.is_empty():
+		v.add_child(UiKit.label(str(chd.name), 18, chd.color))
+	var nl := UiKit.label(str(nx[1]), 17, UiKit.TEXT)
+	nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(nl)
+	# path
+	if Game.path == "":
+		v.add_child(UiKit.label("Path: not chosen yet (Professora Tati offers the choice at blue belt)", 16, UiKit.MUTED))
+	else:
+		var pd: Dictionary = Data.PATHS[Game.path]
+		var pl := UiKit.label("Path: %s  ·  +%d%% technique damage in your %s kit%s" % [pd.name, int(Data.PATH_MASTERY * 100), pd.name,
+			"" if Game.kit == Game.path else "  (you're in the other kit now)"], 16, Color(0.6, 0.9, 1.0))
+		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(pl)
+		var ph := HBoxContainer.new()
+		v.add_child(ph)
+		var other := "nogi" if Game.path == "gi" else "gi"
+		var rb := UiKit.button("Retrain to %s (R$ %d)" % [Data.PATHS[other].name, Data.PATH_RETRAIN_COST], Vector2(260, 34))
+		rb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		rb.add_theme_font_size_override("font_size", 14)
+		rb.pressed.connect(func():
+			if rb.text.begins_with("Sure?"):
+				if Game.set_path(other):
+					_fill_journal()
+			else:
+				rb.text = "Sure? Tap again")
+		ph.add_child(rb)
+	return pc
+
 # ------------------------------------------------------------ journal
 func _build_journal() -> void:
 	journal = Wow.Frame.new()
@@ -660,8 +725,9 @@ func _fill_journal() -> void:
 	_fill_specs()
 	# Quests
 	var q := _scroll_tab("Quests")
+	q.add_child(_passport_box())
 	q.add_child(_daily_box())
-	q.add_child(UiKit.label("Main: " + Game.current_objective(), 22, UiKit.ACCENT))
+	q.add_child(UiKit.label("Next belt: " + Game.current_objective(), 20, UiKit.ACCENT))
 	var held := 0
 	var hot: Array = []
 	for tid in Data.TERRITORIES:
@@ -680,7 +746,9 @@ func _fill_journal() -> void:
 			var qd: Dictionary = Data.QUESTS[id]
 			var gz: String = Data.QUEST_GIVERS[qd.giver].zone
 			var head := "%s  (%s, %s)" % [qd.title, Data.QUEST_GIVERS[qd.giver].name, Data.ZONES[gz].name]
-			q.add_child(UiKit.label(head, 20, Color(1, 0.85, 0.3) if Game.quest_ready(id) else UiKit.TEXT))
+			if qd.get("story", false):
+				head = "[Main Story] " + head
+			q.add_child(UiKit.label(head, 20, Color(1, 0.85, 0.3) if Game.quest_ready(id) else (Color(1.0, 0.65, 0.25) if qd.get("story", false) else UiKit.TEXT)))
 			for i in qd.obj.size():
 				var pr := Game.objective_progress(id, i)
 				q.add_child(UiKit.label("     %s: %d/%d%s" % [qd.obj[i].text, pr[0], pr[1], "  (done)" if pr[0] >= pr[1] else ""], 17, UiKit.MUTED))

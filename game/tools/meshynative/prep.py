@@ -106,7 +106,12 @@ mx = A.max(2); mn = A.min(2)
 sat = (mx - mn) / np.maximum(mx, 1e-3)
 dark = np.clip((0.3 - lum) / 0.1, 0, 1) * np.clip((0.4 - sat) / 0.15, 0, 1)
 belt = reg_r * (1 - reg_g) * dark
-mask = Image.fromarray((np.stack([belt, reg_g, np.zeros_like(belt)], 2) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+# no-gi: the dark rashguard / shorts (B channel) get tinted to the gear colour by brightness
+dark_cloth = np.zeros_like(belt)
+if kit == "nogi":
+    dark_cloth = np.clip((0.32 - lum) / 0.12, 0, 1) * np.clip((0.45 - sat) / 0.2, 0, 1) * (1 - reg_g)
+    dark_cloth = np.asarray(Image.fromarray((dark_cloth * 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5))).astype(np.float32) / 255
+mask = Image.fromarray((np.stack([belt, reg_g, dark_cloth], 2) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
 mask.save(os.path.join(OUT, f"{name}_mask.png"))
 
 # reference colours: the painted skin and the painted cloth

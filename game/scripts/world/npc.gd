@@ -176,15 +176,19 @@ func setup_quest_giver(id: String, w) -> Npc:
 	rig = BodyRig.new()
 	add_child(rig)
 	var shirt: Color = g.shirt
-	rig.setup(shirt, shirt.darkened(0.4), UiKit.skin_tone(float(g.skin)), Color(0.15, 0.09, 0.05), -1, "female" if id in FEMALE_GIVERS else "", true)
+	var story: bool = g.get("story", false)
+	var fem: bool = id in FEMALE_GIVERS or str(g.get("body", "")) == "female"
+	# story coaches wear the gi (with a black belt); everyone else is in street clothes
+	var coach := story and id in ["tati", "bia"]
+	rig.setup(shirt, Color(0.08, 0.08, 0.08) if coach else shirt.darkened(0.4), UiKit.skin_tone(float(g.skin)), Color(0.15, 0.09, 0.05), -1, "female" if fem else "", not coach)
 	tag = Label3D.new()
 	tag.font = Wow.title_font()
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	tag.no_depth_test = true
 	_plate(tag)
 	tag.position = Vector3(0, 2.2, 0)
-	tag.text = g.name
-	tag.modulate = Color(0.85, 1.0, 0.85)
+	tag.text = ("<Main Story>\n" if story else "") + g.name
+	tag.modulate = Color(1.0, 0.82, 0.35) if story else Color(0.85, 1.0, 0.85)
 	add_child(tag)
 	marker = Label3D.new()
 	marker.font = Wow.title_font()
@@ -207,7 +211,10 @@ func refresh_marker() -> void:
 		return
 	var m := Game.giver_marker(giver_id)
 	marker.text = "?" if m == "…" else m
-	marker.modulate = Color(0.6, 0.6, 0.6) if m == "…" else Color(1.0, 0.85, 0.15)
+	# main story givers: a bigger, orange-gold marker (like WoW's campaign quests)
+	var story: bool = Data.QUEST_GIVERS[giver_id].get("story", false)
+	marker.modulate = Color(0.6, 0.6, 0.6) if m == "…" else (Color(1.0, 0.55, 0.1) if story else Color(1.0, 0.85, 0.15))
+	marker.font_size = 104 if story else 80
 	marker.visible = m != ""
 
 func refresh_tag() -> void:

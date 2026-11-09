@@ -105,7 +105,8 @@ void fragment() {
 	vec3 bp = bpw.xyz * pscale;
 %PATBODY%
 	vec3 c = texture(albedo_tex, UV).rgb;
-	vec2 mk = texture(mask_tex, UV).rg;
+	vec3 mk3 = texture(mask_tex, UV).rgb;
+	vec2 mk = mk3.rg;
 	vec3 cs = pow(c, vec3(1.0 / 2.2));
 	float mx = max(cs.r, max(cs.g, cs.b));
 	float mn = min(cs.r, min(cs.g, cs.b));
@@ -124,6 +125,10 @@ void fragment() {
 	float sk = dot(c, W) / max(dot(skin_ref.rgb, W), 0.01);
 	o = mix(o, skin.rgb * clamp(sk, 0.0, 1.0) * 0.88, sm);
 	o = mix(o, belt.rgb * clamp(0.6 + lum * 1.6, 0.0, 1.1), bm);
+	// no-gi bodies: dark painted cloth takes the gear colour; folds come from its brightness
+	float dk = mk3.b * (1.0 - sm);
+	vec3 tint = cloth * (0.35 + lum * 2.4);
+	o = mix(o, mix(tint, c, step(dot(cloth, W), 0.06)), dk);
 	ALBEDO = clamp(o, 0.0, 1.0);
 	ROUGHNESS = 0.85;
 	RIM = rim_amount;

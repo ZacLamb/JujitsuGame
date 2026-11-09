@@ -408,6 +408,27 @@ const OPPONENTS := {
 		"intro": "Onça, Jacaré, Cachoeira... I gave them their black belts. Now show me yours is earned. Oss.",
 		"win": "Kneel, gringo. You came to Brazil a tourist. You leave a black belt. Oss.",
 		"lose": "The black belt is just a white belt who never quit. Come back tomorrow."},
+	# ---------------- Liga Ouro (main story): gold gis, bought belts
+	"valdir": {"name": "Valdir", "title": "Liga Ouro recruiter", "rank": 6, "level": 3.3, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.8, 0.6, 0.45),
+		"pos": Vector3(-12, 0, 14), "style": "pressure", "extra": ["snap_down", "americana"], "liga": true,
+		"intro": "Nice gi. Shame about the academy. In a month it's a Liga Ouro franchise, and you'll pay R$ 900 a stripe. Want a discount? Tap now.",
+		"win": "...the Patrão is not going to like this.",
+		"lose": "See? Gold beats cotton. Sign up at the plaza, gringo."},
+	"brutus": {"name": "Brutus", "title": "Liga Ouro enforcer", "rank": 11, "level": 6.4, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.6, 0.42, 0.3),
+		"pos": Vector3(-28, 0, 14), "style": "pressure", "extra": ["darce", "leg_drag", "snap_down"], "liga": true, "zone": "pantanal",
+		"intro": "These ranch boys signed with the Liga. Contracts are contracts. You want to tear one up? Go through me.",
+		"win": "Fine. Keep your cowboys. The Sucuri has more of us.",
+		"lose": "Pressure is a business model, gringo."},
+	"rico": {"name": "Rico Dourado", "title": "Liga Ouro 'black belt'", "rank": 18, "level": 9.3, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.85, 0.66, 0.5),
+		"pos": Vector3(24, 0, 36), "style": "submission", "extra": ["darce", "omoplata", "kneebar", "bow_arrow"], "liga": true, "zone": "chapada",
+		"intro": "Black belt, paid in full. The resort opens next month and the waterfall comes with it. Roll for it?",
+		"win": "Okay. Maybe the belt was... a little expensive for what I got.",
+		"lose": "Money can't buy skill? I just bought both."},
+	"dourado": {"name": "O Campeão Dourado", "title": "Liga Ouro champion", "rank": 23, "level": 12.6, "gi": Color(0.86, 0.68, 0.16), "skin": Color(0.55, 0.38, 0.26),
+		"pos": Vector3(-6, 0, -30), "style": "balanced", "extra": ["darce", "berimbolo", "bow_arrow", "flying_armbar", "leg_drag", "kneebar"], "liga": true, "zone": "rio",
+		"intro": "The Patrão paid for every medal I own. I still earned the ones he didn't. Let's see what a passport is worth.",
+		"win": "Four stamps... I never had one. Tell Leão I want to start over. White belt.",
+		"lose": "Gold always wins in the end, gringo."},
 }
 
 const ZONES := {
@@ -714,7 +735,34 @@ const QUEST_GIVERS := {
 	"dandara": {"name": "Dandara", "zone": "rio", "pos": Vector3(31, 0, -37), "shirt": Color(0.95, 0.95, 0.95), "skin": 0.9},
 	"mike": {"name": "Mike from Ohio", "zone": "rio", "pos": Vector3(-62, 0, -18), "shirt": Color(0.95, 0.45, 0.6), "skin": 0.05},
 	"rafinha": {"name": "Rafinha", "zone": "rio", "pos": Vector3(-58, 0, 38), "shirt": Color(0.15, 0.3, 0.75), "skin": 0.45},
+	# main story (gold markers)
+	"tati": {"name": "Professora Tati", "zone": "caceres", "pos": Vector3(-7, 0, -39), "shirt": Color(0.1, 0.1, 0.12), "skin": 0.6, "story": true, "body": "female"},
+	"iracema": {"name": "Dona Iracema", "zone": "pantanal", "pos": Vector3(70, 0, 53), "shirt": Color(0.6, 0.35, 0.2), "skin": 0.65, "story": true, "body": "female"},
+	"iara": {"name": "Iara", "zone": "chapada", "pos": Vector3(34, 0, 46), "shirt": Color(0.3, 0.55, 0.75), "skin": 0.55, "story": true, "body": "female"},
+	"bia": {"name": "Professora Bia", "zone": "rio", "pos": Vector3(4, 0, -16), "shirt": Color(0.95, 0.95, 0.95), "skin": 0.8, "story": true, "body": "female"},
 }
+
+## The main story: four chapters, one passport stamp each. The Liga Ouro buys academies, sells belts
+## and rigs tournaments; every master on the road is next on its list.
+const CHAPTERS := [
+	{"id": "ch1", "zone": "caceres", "name": "Chapter 1: The Gringo Arrives", "stamp": "Academia Onça", "master": "onca", "color": Color(0.95, 0.65, 0.15)},
+	{"id": "ch2", "zone": "pantanal", "name": "Chapter 2: Swamp Law", "stamp": "Fazenda Jacaré", "master": "jacare", "color": Color(0.35, 0.65, 0.3)},
+	{"id": "ch3", "zone": "chapada", "name": "Chapter 3: The Waterfall Deal", "stamp": "Cachoeira Team", "master": "cachoeira", "color": Color(0.85, 0.35, 0.25)},
+	{"id": "ch4", "zone": "rio", "name": "Chapter 4: Grande Final", "stamp": "Leão Jiu-Jitsu", "master": "leao", "color": Color(0.3, 0.55, 0.95)},
+]
+const STORY_QUEST_OF_STAMP := {"Academia Onça": "s1_onca", "Fazenda Jacaré": "s2_jacare", "Cachoeira Team": "s3_cachoeira", "Leão Jiu-Jitsu": "s4_leao"}
+
+## Gi / No-Gi paths: everyone trains both, you specialise in one at blue belt.
+const PATHS := {
+	"gi": {"name": "Gi", "lineage": "Leão's lineage", "desc": "Grips, lapels and collar chokes. Slower, heavier, more control.",
+		"moves": ["cross_collar", "bow_arrow", "ezekiel", "lasso_sweep", "paper_cutter"]},
+	"nogi": {"name": "No-Gi", "lineage": "the Arpoador beach crew", "desc": "Scrambles, front headlocks and leg locks. Faster, slipperier, more risk.",
+		"moves": ["darce", "toe_hold", "kneebar", "high_crotch", "body_lock_td"]},
+}
+const GI_ONLY := ["cross_collar", "bow_arrow", "ezekiel", "lasso_sweep", "paper_cutter"]   # need a collar to grab
+const PATH_LATE_RANKS := 5        # the other path's signatures come ~10 levels later
+const PATH_MASTERY := 0.10        # +10% technique damage in your path's kit
+const PATH_RETRAIN_COST := 500
 
 const QUESTS := {
 	# ---------------- Cáceres
@@ -809,6 +857,91 @@ const QUESTS := {
 		"offer": "Every surfer here trains every day. Win two Daily Challenges, then come drink another coco.",
 		"done": "Consistency, campeão. That's the whole secret, on the mat and in the waves.",
 		"obj": [{"type": "daily_wins", "n": 2, "text": "Daily Challenges won"}]},
+	# ================= MAIN STORY: Passaporte do Tatame
+	# ---- Chapter 1: Cáceres
+	"s1_passport": {"giver": "tati", "story": true, "chapter": "ch1", "title": "A Blank Passport", "min_level": 1, "xp": 80,
+		"offer": "So you're the gringo with the blank Passaporte do Tatame. Every academy that accepts you stamps it. Mestre Onça won't even look at you until this town vouches for you. Go help people. They talk.",
+		"done": "Dona Lurdes hasn't stopped talking about you. Good. Here, that's the first page of your passport. Mestre Onça noticed, he just won't say it.",
+		"obj": [{"type": "quests", "ids": ["terere_run", "know_town", "lost_faixa"], "n": 2, "text": "Help the town (Tereré Run, Know the Town, The Lost Faixa)"}]},
+	"s1_liga": {"giver": "tati", "story": true, "chapter": "ch1", "title": "Men in Gold", "min_level": 3, "xp": 120, "requires": ["s1_passport"],
+		"offer": "There's a guy in a gold gi handing out flyers at the plaza. Liga Ouro. They've been buying gyms all over Mato Grosso. Go see what he wants, and if he wants a roll, give him one.",
+		"done": "Valdir talked? The Liga bought the building. Our rent doubles next month, and they're running the Copa Cáceres to show the town who's boss.",
+		"obj": [{"type": "reach", "pos": Vector3(-12, 0, 14), "radius": 6.0, "text": "Find the Liga recruiter at the plaza"}, {"type": "beat", "ids": ["valdir"], "text": "Beat Valdir"}]},
+	"s1_training": {"giver": "tati", "story": true, "chapter": "ch1", "title": "Two-a-Days", "min_level": 4, "xp": 150, "requires": ["s1_liga"],
+		"offer": "The Copa prize pays the rent. You're our only chance and you still roll like a tourist. Drills, then beat Cida and Tiago. They'll make you sweat.",
+		"done": "That's the hip I wanted to see. You're ready for the Copa.",
+		"obj": [{"type": "drill", "n": 3, "text": "Drills completed"}, {"type": "beat", "ids": ["cida", "tiago"], "text": "Beat Cida and Tiago"}]},
+	"s1_copa": {"giver": "tati", "story": true, "chapter": "ch1", "title": "Prize Money", "min_level": 6, "xp": 200, "requires": ["s1_training"],
+		"offer": "The Copa Cáceres board is up by the academia. The Liga is sponsoring it so everyone sees their logo. Take their prize money and pay our rent with it.",
+		"done": "You did it! Rent's paid for a year. Valdir looked like he swallowed a lemon. Now go knock on Mestre Onça's mat.",
+		"obj": [{"type": "medal", "comp": "copa_caceres", "text": "Win a medal at the Copa Cáceres"}]},
+	"s1_onca": {"giver": "tati", "story": true, "chapter": "ch1", "title": "The First Stamp", "min_level": 9, "xp": 300, "requires": ["s1_copa"], "stamp": "Academia Onça",
+		"offer": "He'll roll with you now. If you survive, he stamps your passport. That's how it's always been done. Win your rolls around town first, he respects that.",
+		"done": "He stamped it. In thirty years I've seen him do that four times. Mestre Jacaré in the Pantanal is next on the Liga's list. Take the bus down the Transpantaneira. And gringo... at blue belt you have to choose who you are on the mat.",
+		"obj": [{"type": "beat", "ids": ["onca"], "text": "Earn Mestre Onça's stamp"}]},
+	"s1_path": {"giver": "tati", "story": true, "chapter": "ch1", "title": "Gi or No-Gi", "min_level": 10, "xp": 150, "requires": ["s1_onca"], "path_choice": true,
+		"offer": "Everyone trains both. But you specialise in one. The Gi is Leão's old lineage: grips, lapels, collar chokes. No-Gi is the beach crew in Rio: scrambles, front headlocks, leg locks. Your path's techniques come first and hit harder in its kit. The other comes later. Choose.",
+		"done": "Good choice. Now go. The Pantanal won't wait.",
+		"obj": [{"type": "path", "n": 1, "text": "Choose your path"}]},
+	# ---- Chapter 2: Pantanal
+	"s2_fazenda": {"giver": "iracema", "story": true, "chapter": "ch2", "title": "Swamp Law", "min_level": 11, "xp": 220,
+		"offer": "Tati called. You're the gringo with the passport? Our ranch hands have been signing Liga contracts for a few reais. My husband won't ask for help, so I will. Start at the ranch. Bruna still trains with us. Roll with her.",
+		"done": "Bruna says you're real. That's enough for me.",
+		"obj": [{"type": "landmarks", "ids": ["p_ranch", "p_fazenda"], "text": "Visit the ranch and the fazenda"}, {"type": "beat", "ids": ["bruna"], "text": "Roll with Bruna"}]},
+	"s2_contracts": {"giver": "iracema", "story": true, "chapter": "ch2", "title": "Torn Contracts", "min_level": 12, "xp": 260, "requires": ["s2_fazenda"],
+		"offer": "The Liga's enforcer, Brutus, collects the signatures. Beat him in front of the boys and those contracts are just paper.",
+		"done": "Brutus ran back to the Covil da Sucuri. That's where they keep everyone they 'hire'.",
+		"obj": [{"type": "beat", "ids": ["brutus"], "text": "Beat Brutus"}]},
+	"s2_covil": {"giver": "iracema", "story": true, "chapter": "ch2", "title": "The Sucuri's Den", "min_level": 14, "xp": 360, "requires": ["s2_contracts"],
+		"offer": "The Covil da Sucuri. Old academy, gone bad, Liga money now. You can't go in alone. Bring your academy party.",
+		"done": "The Sucuri tapped? The boys are coming home. I'm cooking. Don't argue.",
+		"obj": [{"type": "achievement", "ids": ["raid_sucuri"], "text": "Clear the Covil da Sucuri with your party"}]},
+	"s2_open": {"giver": "iracema", "story": true, "chapter": "ch2", "title": "Open in the Barn", "min_level": 15, "xp": 300, "requires": ["s2_covil"],
+		"offer": "The Pantanal Open is in our barn this month. The Liga wanted to sponsor it. We said no. Bring a medal home so it stays ours.",
+		"done": "That medal goes over the door. Now he'll see you.",
+		"obj": [{"type": "medal", "comp": "pantanal_open", "text": "Win a medal at the Pantanal Open"}]},
+	"s2_jacare": {"giver": "iracema", "story": true, "chapter": "ch2", "title": "The Second Stamp", "min_level": 17, "xp": 420, "requires": ["s2_open"], "stamp": "Fazenda Jacaré",
+		"offer": "My husband is waiting on the mat. He's stubborn, he's slow to smile and he bites. Win your rolls around the swamp first.",
+		"done": "Two stamps. The Liga already bought land up in the Chapada, near the waterfall. Iara will find you there.",
+		"obj": [{"type": "beat", "ids": ["jacare"], "text": "Earn Mestre Jacaré's stamp"}]},
+	# ---- Chapter 3: Chapada
+	"s3_resort": {"giver": "iara", "story": true, "chapter": "ch3", "title": "The Waterfall Deal", "min_level": 21, "xp": 320,
+		"offer": "A Liga Ouro 'resort' wants the land around Véu de Noiva, and Mestre Cachoeira's academy sits right on it. Walk the plateau with me. See what they want to sell.",
+		"done": "You saw the survey stakes. They're everywhere.",
+		"obj": [{"type": "count_landmarks", "zone": "chapada", "n": 4, "text": "Landmarks discovered in the Chapada"}]},
+	"s3_rico": {"giver": "iara", "story": true, "chapter": "ch3", "title": "Paid in Full", "min_level": 23, "xp": 380, "requires": ["s3_resort"],
+		"offer": "Rico Dourado runs the resort. He bought his black belt. Literally. Show the village what a bought belt is worth.",
+		"done": "He dropped a folder when he left. Look: brackets for the Chapada Classic, with the winners already written in.",
+		"obj": [{"type": "beat", "ids": ["rico"], "text": "Beat Rico Dourado"}]},
+	"s3_brackets": {"giver": "iara", "story": true, "chapter": "ch3", "title": "Rigged Brackets", "min_level": 24, "xp": 380, "requires": ["s3_rico"],
+		"offer": "If the brackets are rigged, the only answer is to win anyway. Finish people. No decisions for their referees. Three wins by submission.",
+		"done": "Three taps. Nobody can rig that. The whole plateau is talking.",
+		"obj": [{"type": "sub_wins", "n": 3, "text": "Submission wins"}]},
+	"s3_veil": {"giver": "iara", "story": true, "chapter": "ch3", "title": "Behind the Waterfall", "min_level": 25, "xp": 340, "requires": ["s3_brackets"],
+		"offer": "Mestre Cachoeira meditates behind the falls. Old tradition: stand where he stands before you ask for a roll.",
+		"done": "You heard it, didn't you? Your own heartbeat. He's ready for you.",
+		"obj": [{"type": "reach", "pos": Vector3(20, 0, -6.2), "radius": 2.5, "text": "Stand behind the waterfall"}]},
+	"s3_cachoeira": {"giver": "iara", "story": true, "chapter": "ch3", "title": "The Third Stamp", "min_level": 27, "xp": 520, "requires": ["s3_veil"], "stamp": "Cachoeira Team",
+		"offer": "Win your rolls in the Chapada, then roll with the Mestre. Water always finds a way.",
+		"done": "Three stamps. The Liga is betting everything on Rio: their champion against Grão-Mestre Leão's academy at the Grande Final. Professora Bia is waiting at Leão's gym.",
+		"obj": [{"type": "beat", "ids": ["cachoeira"], "text": "Earn Mestre Cachoeira's stamp"}]},
+	# ---- Chapter 4: Rio
+	"s4_lineage": {"giver": "bia", "story": true, "chapter": "ch4", "title": "Where It All Began", "min_level": 31, "xp": 450,
+		"offer": "Three stamps from Mato Grosso. Leão will want to see that. But first, see Rio: the beach, the morro, the cable car. This is where jiu-jitsu grew up.",
+		"done": "Now you know why we fight for this place.",
+		"obj": [{"type": "count_landmarks", "zone": "rio", "n": 4, "text": "Landmarks discovered in Rio"}]},
+	"s4_open": {"giver": "bia", "story": true, "chapter": "ch4", "title": "Qualifier", "min_level": 33, "xp": 550, "requires": ["s4_lineage"],
+		"offer": "The Grande Final takes the Rio Open medallists. The Liga paid off half the referees. You'll have to be clearly better.",
+		"done": "You're in. So is their champion.",
+		"obj": [{"type": "medal", "comp": "rio_open", "text": "Win a medal at the Rio Open"}]},
+	"s4_dourado": {"giver": "bia", "story": true, "chapter": "ch4", "title": "Grande Final", "min_level": 36, "xp": 700, "requires": ["s4_open"],
+		"offer": "O Campeão Dourado. Every medal he owns, the Patrão paid for, but he's dangerous anyway. If you win, the Liga loses Leão's academy and the bet that pays for everything else.",
+		"done": "The Patrão left the arena before the medals. The Liga's sponsors are already calling their lawyers. One thing left.",
+		"obj": [{"type": "beat", "ids": ["dourado"], "text": "Beat O Campeão Dourado"}]},
+	"s4_leao": {"giver": "bia", "story": true, "chapter": "ch4", "title": "The Last Stamp", "min_level": 40, "xp": 1000, "requires": ["s4_dourado"], "stamp": "Leão Jiu-Jitsu",
+		"offer": "Grão-Mestre Leão stamps the passport himself. Nobody has filled one in twenty years. Win your rolls around Rio and go see him.",
+		"done": "Four stamps. Your passport is full, and you're part of the lineage now, gringo. Word is a Pan-American team is putting together a trip north. America. You'll want to be on that bus.",
+		"obj": [{"type": "beat", "ids": ["leao"], "text": "Earn Grão-Mestre Leão's stamp"}]},
 }
 
 static func quests_of(giver: String) -> Array:
