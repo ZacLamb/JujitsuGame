@@ -61,7 +61,7 @@ func _ready() -> void:
 	title.offset_top = 14
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(title)
-	var sub := Wow.label(("Seu Zé cuts, you choose. Name, body, skin and gi are free. A new origin costs R$ %d. Your class stays: your talents are built on it." % ORIGIN_COST) if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
+	var sub := Wow.label("Seu Zé changes your look, not who you are: name, body, skin tone and gi colour. Origin and class stay (a new one means a new character)." if barber else "Origin is where you're from. Class is how you fight. At level 10 you pick a Specialization, and talents shape the rest.", 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER)
 	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	sub.offset_left = -480
 	sub.offset_right = 480
@@ -74,6 +74,8 @@ func _ready() -> void:
 		var o: Dictionary = Origins.ORIGINS[id]
 		var b := _choice_btn("%s   ·   %s" % [o.name, o.tag])
 		b.pressed.connect(func(): _pick_origin(id))
+		if barber and id != _origin:
+			b.disabled = true   # origin is who you are: a new origin is a new character
 		left.add_child(b)
 		_origin_btns[id] = b
 	_origin_info = VBoxContainer.new()
@@ -358,12 +360,7 @@ func _preview_input(e: InputEvent) -> void:
 
 func _begin() -> void:
 	if barber:
-		if _origin != Game.origin:
-			if Game.money < ORIGIN_COST:
-				_err.text = "A new origin costs R$ %d. You have R$ %d." % [ORIGIN_COST, Game.money]
-				return
-			Game.money -= ORIGIN_COST
-		Game.set_identity(_origin, _body, _skin)
+		Game.set_identity(Game.origin, _body, _skin)
 		Game.player_name = _name_edit.text.strip_edges().left(16) if _name_edit.text.strip_edges() != "" else Game.player_name
 		Game.gi_index = clampi(_gi, 0, Rpg.GI_COLORS.size() - 1)
 		Game.save_game()

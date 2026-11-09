@@ -308,7 +308,7 @@ static func _doll_panel(hud) -> Control:
 	elif Game.level_capped():
 		xt = "Belt cap: beat the zone boss"
 	else:
-		xt = "%d XP to %d" % [Game.XP_PER_LEVEL - int(Game.level_progress() * Game.XP_PER_LEVEL), lv + 1]
+		xt = "%d XP to %d" % [Game.xp_level_need() - Game.xp_into_level(), lv + 1]
 	xr.add_child(_small(xt, 14, UiKit.MUTED))
 	# passive + signature
 	var pp := _panel(Color(0.97, 0.77, 0.28, 0.08), Color(0.97, 0.77, 0.28, 0.35), 10, 10)
@@ -1205,7 +1205,7 @@ static func build_character_wow(hud) -> Control:
 	xb.step = 0.0
 	xb.value = 1.0 if Game.level_capped() else Game.level_progress()
 	left.add_child(xb)
-	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else "%d XP to level %d" % [Game.XP_PER_LEVEL - int(Game.level_progress() * Game.XP_PER_LEVEL), lv + 1])
+	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else "%d XP to level %d" % [Game.xp_level_need() - Game.xp_into_level(), lv + 1])
 	left.add_child(Wow.label(xt, 12, Wow.GREY, false, HORIZONTAL_ALIGNMENT_CENTER))
 	# stats column
 	var sc := ScrollContainer.new()

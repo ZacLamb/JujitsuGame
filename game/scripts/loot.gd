@@ -150,7 +150,23 @@ static func make_mob(camp: Dictionary, rng: RandomNumberGenerator, rare := false
 		"body": "female" if rng.randf() < 0.25 else "male", "style": st, "extra": [], "zone": "",
 		"intro": "Oss.", "win": ["Next!", "Too easy.", "Come back when you've trained.", "That's my spot, gringo."][rng.randi() % 4],
 		"lose": ["Good roll.", "Ah, you got me.", "Again tomorrow?", "Oss. Respect."][rng.randi() % 4],
-		"mob": true, "elite": elite, "rare": rare, "camp": camp.id, "aggro": camp.get("aggro", false)}
+		"mob": true, "elite": elite, "rare": rare, "camp": camp.id, "aggro": camp.get("aggro", false),
+		"trait": "" if rare else _trait(rng)}
+
+## Mob personalities (WoW-style variety): runners flee for help, callers shout for a campmate,
+## turtles shell up until you pass or take the back, hunters live for the submission.
+const TRAITS := {"runner": "Runner", "caller": "Caller", "turtle": "Turtle", "hunter": "Sub Hunter"}
+static func _trait(rng: RandomNumberGenerator) -> String:
+	var r := rng.randf()
+	if r < 0.5:
+		return ""
+	if r < 0.64:
+		return "runner"
+	if r < 0.78:
+		return "caller"
+	if r < 0.89:
+		return "turtle"
+	return "hunter"
 
 ## What a beaten mob drops: {money, items: [id...]}.
 static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator) -> Dictionary:

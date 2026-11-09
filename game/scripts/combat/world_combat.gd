@@ -224,7 +224,11 @@ func _process(delta: float) -> void:
 		if u.ally and not u.dead:
 			_drive_ally(npc, u, delta)
 		elif u.in_combat and not u.dead:
-			_drive_npc(npc, u, delta)
+			_traits(npc, u)
+			if npc.has_meta("flee_to"):
+				_flee(npc, u, delta)
+			else:
+				_drive_npc(npc, u, delta)
 	# a ground fight only lasts while you're tangled up with that one opponent
 	var g := _ground_unit()
 	if g and (g != target or g.dead or core.dist(me, g) > 3.2 or not g.in_combat):
@@ -241,6 +245,59 @@ func _process(delta: float) -> void:
 			player.rig.rotation.y = lerp_angle(player.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 10.0, 0, 1))
 	player.rig.combat_ready = me.in_combat
 	player.rooted = me.down() or _finishing or _ground_unit() != null
+
+## Mob personalities in a fight: runners bolt for help at 20%, callers shout for a campmate at 50%.
+func _traits(npc: Npc, u: CombatCore.Unit) -> void:
+	var tr := str(npc.mob.get("trait", ""))
+	if tr == "hunter" and not npc.has_meta("hunter_grip"):
+		npc.set_meta("hunter_grip", true)
+		u.grip = maxi(u.grip, 2)
+	if tr == "caller" and u.pct() < 0.5 and not npc.has_meta("called"):
+		npc.set_meta("called", true)
+		var f := _campmate(npc, 20.0)
+		if f:
+			_float(npc, "Ô, %s! Help!" % str(f.mob.name).split(" ")[0], Color(1, 0.6, 0.3), 0.8)
+			engage_npc(f)
+	if tr == "runner" and u.pct() < 0.2 and not npc.has_meta("ran") and u.gpos == "standing":
+		var f := _campmate(npc, 30.0)
+		npc.set_meta("ran", true)
+		if f:
+			npc.set_meta("flee_to", f)
+			npc.set_meta("flee_t", 4.0)
+			u.cast = {}
+			_float(npc, "Runs for help!", Color(1, 0.75, 0.3), 0.8)
+
+func _campmate(npc: Npc, radius: float) -> Npc:
+	var best: Npc = null
+	var bd := radius
+	for e in world.mobs:
+		var o: Npc = e.npc
+		if o == null or o == npc or not is_instance_valid(o) or o.in_combat or not o.visible:
+			continue
+		if str(o.mob.get("camp", "")) != str(npc.mob.get("camp", "")):
+			continue
+		var d := o.global_position.distance_to(npc.global_position)
+		if d < bd:
+			bd = d
+			best = o
+	return best
+
+func _flee(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
+	var f: Npc = npc.get_meta("flee_to")
+	var left := float(npc.get_meta("flee_t")) - delta
+	npc.set_meta("flee_t", left)
+	u.ai_t = 0.5
+	if f == null or not is_instance_valid(f) or left <= 0.0 or f.global_position.distance_to(npc.global_position) < 2.5:
+		npc.remove_meta("flee_to")
+		if f and is_instance_valid(f):
+			engage_npc(f)
+		return
+	var to := f.global_position - npc.global_position
+	to.y = 0
+	npc.global_position += to.normalized() * CHASE_SPEED * 1.15 * delta
+	npc.global_position.y = world.ground_y(npc.global_position.x, npc.global_position.z)
+	npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 9.0, 0, 1))
+	npc.rig.animate_locomotion(delta, 1.0)
 
 ## A raid partner: stand around your target (spread out), or follow you between pulls.
 func _drive_ally(npc: Npc, u: CombatCore.Unit, delta: float) -> void:

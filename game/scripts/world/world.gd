@@ -1595,6 +1595,36 @@ func _barbershop(p: Vector3) -> void:
 	_label("BARBEARIA", b + Vector3(0, 3.3, -1.4), 48, Color(1, 0.95, 0.8))
 	_spot(b + Vector3(-0.6, 0, 1.2), 3.5, "Barber: Seu Zé (change your look)", "barber")
 
+## A mat with two locals rolling on it (ambience).
+func _ambient_mat(p: Vector3, yaw: float) -> void:
+	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
+	var mat := _box(Vector3(3.2, 0.08, 3.2), b + Vector3(0, 0.04, 0), Color(0.15, 0.35, 0.6), false)
+	mat.rotation.y = yaw
+	var gis := [Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)]
+	var belts := [Color(0.95, 0.95, 0.95), Color(0.15, 0.35, 0.85), Color(0.45, 0.2, 0.65)]
+	var r := AmbientRoll.new()
+	add_child(r)
+	r.position = b + Vector3(0, 0.08, 0)
+	r.rotation.y = yaw
+	r.setup(gis[_rng.randi() % 3], gis[_rng.randi() % 3], _rng.randf(), _rng.randf(), belts[_rng.randi() % 3], belts[_rng.randi() % 3])
+
+## A bico: the person who needs a hand, with a "?" over them while the job is open today.
+func _job_spot(p: Vector3, j: Dictionary) -> void:
+	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
+	var who := BodyRig.new()
+	add_child(who)
+	var fem: bool = str(j.who).begins_with("Dona")
+	who.setup(Color(0.85, 0.75, 0.55) if not fem else Color(0.9, 0.5, 0.6), Color(0.3, 0.25, 0.2), UiKit.skin_tone(_rng.randf_range(0.3, 0.8)), Color(0.15, 0.1, 0.06), -1, "female" if fem else "", true)
+	who.position = b
+	who.rotation.y = _rng.randf() * TAU
+	var l := _label("%s\n<Needs a hand>" % str(j.who), b + Vector3(0, 2.3, 0), 30, Color(1, 0.9, 0.55))
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.fixed_size = true
+	l.pixel_size = 0.0007
+	l.no_depth_test = true
+	l.visibility_range_end = 26.0
+	_spot(b + Vector3(0, 0, 1.2), 3.0, "Bico: %s (%s)" % [str(j.name), str(j.who)], "job", str(j.id))
+
 ## Covil da Sucuri: the raid entrance (a green-and-black banner on two posts and a mat).
 func _raid_gate(p: Vector3) -> void:
 	var b := Vector3(p.x, ground_y(p.x, p.z), p.z)
@@ -2611,6 +2641,11 @@ func _build_vila_nova() -> void:
 	_label("MERCADINHO DO SEU JORGE", shop + Vector3(0, 4.0, 1.2), 56, Color(1, 0.95, 0.75))
 	_spot(shop + Vector3(0, 0, 3.0), 4.0, "Shop: Mercadinho do Seu Jorge", "vendor", "Seu Jorge")
 	_barbershop(sq + Vector3(11.5, 0, -2.0))
+	for j in Data.JOBS.get("caceres", []):
+		_job_spot(sq + (j.at as Vector3), j)
+	# locals rolling on mats around town
+	_ambient_mat(sq + Vector3(-4.0, 0, 9.0), 0.4)
+	_ambient_mat(sq + Vector3(-20.0, 0, -4.0), 1.9)
 	_raid_gate(sq + Vector3(-12.0, 0, 6.0))
 	# a gi on a stand by the counter: what's for sale
 	if _place_model("gi_mannequin", shop + Vector3(3.6, 0, 1.5), 1.0, -0.35, Vector3(0.9, 1.7, 0.6)):

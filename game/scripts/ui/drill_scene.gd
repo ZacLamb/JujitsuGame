@@ -27,9 +27,17 @@ var _rounds := 3
 var _dir := ""
 var _arrow_holder: HBoxContainer
 
-func start(attr_id: String) -> void:
+## An odd job around town reuses a drill's minigame: {id, name, attr, kind, tip, done, fail}.
+var job := {}
+
+func start(attr_id: String, job_d: Dictionary = {}) -> void:
 	attr = attr_id
-	var d: Dictionary = Rpg.DRILLS[attr]
+	job = job_d
+	var d: Dictionary = Rpg.DRILLS[attr].duplicate()
+	if not job.is_empty():
+		d["name"] = job.name
+		d["tip"] = job.tip
+		d["kind"] = job.get("kind", d.kind)
 	kind = d.kind
 	layer = 6
 	_root = Control.new()
@@ -50,7 +58,7 @@ func start(attr_id: String) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	panel.add_child(v)
-	_title = UiKit.label("%s  ·  %s" % [d.name, Rpg.ATTRS[attr].name], 32, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	_title = UiKit.label(("%s  ·  uses your %s" % [d.name, Rpg.ATTRS[attr].name]) if not job.is_empty() else ("%s  ·  %s" % [d.name, Rpg.ATTRS[attr].name]), 32, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(_title)
 	_info = UiKit.label(d.tip, 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(_info)
@@ -199,7 +207,10 @@ func _finish(success: bool) -> void:
 		c.queue_free()
 	_title.text = "Good session!" if success else "Rough session."
 	_info.text = "Keep drilling. Every 3 good sessions = +1 %s (max +%d)." % [Rpg.ATTRS[attr].name, Game.TRAIN_CAP] if success else "No progress this time. Roll with someone, then try again."
+	if not job.is_empty():
+		_title.text = "Job done!" if success else "Not this time."
+		_info.text = str(job.done) if success else str(job.fail)
 	var b := UiKit.button("Back", Vector2(220, 60))
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	b.pressed.connect(func(): finished.emit(attr, success))
+	b.pressed.connect(func(): finished.emit(str(job.id) if not job.is_empty() else attr, success))
 	_body.add_child(b)

@@ -657,6 +657,9 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		amount *= 0.6
 	if src.has("pinned"):
 		amount *= 0.75
+	# turtles shell up: hard to hurt until you've passed (side / mount / back on top)
+	if str(t.data.get("trait", "")) == "turtle" and friendly(src) and not (t.gpos in ["side", "mount", "back"] and t.ptop):
+		amount *= 0.5
 	if t.player:
 		amount *= 1.0 - clampf(float(t.mods.get("dr", 0.0)), 0.0, 0.6)
 		amount /= float(t.mods.get("defense", 1.0))
@@ -897,6 +900,8 @@ func _ai_move(u: Unit, t: Unit) -> String:
 		match tp:
 			"sub":
 				w = 0.0 if u.grip < 1 else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
+				if str(u.data.get("trait", "")) == "hunter":
+					w = 0.0 if u.grip < 1 else w * 3.0
 			"escape", "sweep":
 				w = 3.0 if not top else 1.0
 			"pass", "advance", "back":

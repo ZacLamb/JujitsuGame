@@ -468,6 +468,8 @@ func _use_spot(spot: Dictionary) -> void:
 			hud.open_shop(str(spot.arg))
 		"barber":
 			open_barber()
+		"job":
+			_open_job(str(spot.arg))
 		"raid":
 			_raid_prompt = true
 			player.input_enabled = false
@@ -803,6 +805,14 @@ func _interact(target: Npc = null) -> void:
 	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _job_prompt != "":
+		var jid := _job_prompt
+		_job_prompt = ""
+		if accepted:
+			_start_job(jid)
+		else:
+			player.input_enabled = true
+		return
 	if _raid_prompt:
 		_raid_prompt = false
 		if accepted:
@@ -943,6 +953,51 @@ func _on_player_tapped(info: Dictionary) -> void:
 	hud.open_dialogue("You tapped to %s%s" % [str(info.by), how],
 		"No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure)." % str(info.lesson),
 		"Shake it off", "Back to the academy")
+
+# ------------------------------------------------------------ bicos (odd jobs around town)
+var _job_prompt := ""
+
+func _job(id: String) -> Dictionary:
+	for z in Data.JOBS:
+		for j in Data.JOBS[z]:
+			if str(j.id) == id:
+				return j
+	return {}
+
+func _open_job(id: String) -> void:
+	var j := _job(id)
+	if j.is_empty():
+		return
+	player.input_enabled = false
+	if str(Game.flags.get("job_" + id, "")) == Game.today():
+		hud.open_dialogue(str(j.who), "Obrigado again for today! Come back tomorrow, there's always something.", "", "Oss")
+		return
+	_job_prompt = id
+	hud.open_dialogue("%s  ·  %s" % [str(j.who), str(j.name)], str(j.ask), "Help out", "Not now")
+
+func _start_job(id: String) -> void:
+	var j := _job(id)
+	player.input_enabled = false
+	hud.set_exploring(false)
+	_drill = DrillScene.new()
+	add_child(_drill)
+	_drill.finished.connect(func(jid: String, ok: bool):
+		_drill.queue_free()
+		_drill = null
+		hud.set_exploring(true)
+		player.input_enabled = true
+		Game.flags["job_" + jid] = Game.today()
+		if ok:
+			Game.add_xp(int(j.xp))
+			Game.money += int(j.money)
+			Game.toast.emit("%s: +%d XP, R$ %d" % [str(j.name), int(j.xp), int(j.money)], Color(1, 0.85, 0.35))
+			if str(j.get("item", "")) != "":
+				Game.add_item(str(j.item))
+				Game.toast.emit("Received: %s" % str(Loot.item(str(j.item)).get("name", j.item)), Color(0.95, 0.9, 0.7))
+			Game.bump("jobs_done")
+		Game.save_game()
+		hud.refresh())
+	_drill.start(str(j.attr), j)
 
 # ------------------------------------------------------------ raids
 var _raid_prompt := false

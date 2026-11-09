@@ -132,7 +132,14 @@ func _press(i: int) -> void:
 		combat.press(str(a.id))
 
 func _process(delta: float) -> void:
-	visible = combat != null and combat.me != null
+	var in_title := false
+	var n: Node = get_parent()
+	while n != null:
+		if "_in_title" in n:
+			in_title = bool(n._in_title)
+			break
+		n = n.get_parent()
+	visible = combat != null and combat.me != null and not in_title
 	if not visible:
 		return
 	_err.text = combat.error_text if combat.error_t > 0.0 else ""

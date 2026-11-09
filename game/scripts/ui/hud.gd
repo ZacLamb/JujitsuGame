@@ -280,7 +280,7 @@ func refresh() -> void:
 	elif capped:
 		_xp_text.text = "Max level"
 	else:
-		_xp_text.text = "Level %d  ·  %d / %d XP" % [lv, int(Game.level_progress() * Game.XP_PER_LEVEL), Game.XP_PER_LEVEL]
+		_xp_text.text = "Level %d  ·  %d / %d XP" % [lv, Game.xp_into_level(), Game.xp_level_need()]
 	var parts: Array = []
 	if Game.attr_points() > 0:
 		parts.append("%d attribute point%s [C]" % [Game.attr_points(), "" if Game.attr_points() == 1 else "s"])
@@ -380,6 +380,7 @@ func set_combat(c: WorldCombat) -> void:
 	if combat_hud == null:
 		combat_hud = CombatHud.new()
 		root.add_child(combat_hud)
+		combat_hud.visible = title == null or not title.visible   # no action bar on the title screen
 		# just above the player frame (its bars sit inside the frame plate), below windows / dialogue
 		root.move_child(combat_hud, status_panels[0].get_index() + 1 if not status_panels.is_empty() else 0)
 	combat_hud.combat = c
@@ -690,7 +691,7 @@ func _fill_journal() -> void:
 	q.add_child(UiKit.label("Quests completed: %d / %d" % [ndone, Data.QUESTS.size()], 18, UiKit.MUTED))
 	for s in Game.side_objectives():
 		q.add_child(UiKit.label("•  " + s, 20))
-	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Data.XP_PER_STRIPE, "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""], 18, UiKit.MUTED))
+	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Game.stripe_cost(Game.rank), "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""], 18, UiKit.MUTED))
 	if Data.COMMUNITY_URL != "":
 		var cb := UiKit.button(Data.COMMUNITY_LABEL, Vector2(260, 52))
 		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
@@ -858,8 +859,8 @@ func _build_title() -> void:
 	v.add_child(spacer)
 	v.add_child(CharSelect.new())
 	var how := UiKit.label(
-		"Explore with WASD / joystick · drag to look · wheel to zoom · Space to jump · E to roll\n" +
-		"Fights: 1-8 techniques · Q / E / R counters · F breathe · WASD circle · mash Space to finish or escape",
+		"Explore with WASD / joystick · drag to look · wheel to zoom · Space to jump · E to talk or fight\n" +
+		"Fights: 1-0 your moves · Tab target · Q / R / T counter their cast · F breathe · G origin racial",
 		16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(how)
 	if Data.COMMUNITY_URL != "":
@@ -868,10 +869,20 @@ func _build_title() -> void:
 		cb.pressed.connect(func(): UiKit.open_url(Data.COMMUNITY_URL))
 		v.add_child(cb)
 
+func _process(_d: float) -> void:
+	# no action bar / combat frames behind the title screen
+	if combat_hud:
+		var host := get_parent()
+		var want: bool = not (title != null and title.visible) and not (host != null and "_in_title" in host and host._in_title)
+		if combat_hud.visible != want:
+			combat_hud.visible = want
+
 func hide_title() -> void:
 	title.visible = false
 	for p in status_panels:
 		p.visible = true
+	if combat_hud:
+		combat_hud.visible = true
 	touch.visible = _touch_allowed()
 
 func set_exploring(on: bool) -> void:

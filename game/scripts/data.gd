@@ -51,6 +51,26 @@ const QA_KEY := "oss-tatame-qa"   # #qa=<key>&roll=... enables the dev URL short
 # rank: minimum rank index needed (0 = white belt no stripes, 4 = 4 stripes, 5 = blue).
 ## Belt-gated techniques that only some classes learn (everything else in the belt curriculum is
 ## shared: the fundamentals every jiu-jitsu player knows). Class tree techniques: TalentTrees.
+## Bicos: odd jobs around town where your jiu-jitsu helps somebody out. Once a day each; the
+## minigame is a drill's (mash / timing / arrows) and your attribute makes it easier.
+## at: position relative to the zone's job anchor (Vila Nova square in Cáceres).
+const JOBS := {
+	"caceres": [
+		{"id": "net", "name": "Pull In the Net", "who": "Seu Dito, fisherman", "attr": "grip", "kind": "timing", "at": Vector3(-30, 0, 6),
+			"ask": "The river's full of pacu today and my hands are shot. Grip that net and pull on my count, three times.",
+			"tip": "Grip on his count. Three pulls.", "done": "Seu Dito throws you a pacu and a thumbs up.", "fail": "The net slips. Seu Dito sighs and pulls it alone.", "xp": 45, "money": 12, "item": "pacu"},
+		{"id": "cooler", "name": "Carry the Cooler", "who": "Dona Lurdes", "attr": "strength", "kind": "mash", "at": Vector3(-8, 0, -12),
+			"ask": "Querido, the tereré cooler weighs more than me. Fireman's carry it to the stand?",
+			"tip": "Tap fast. Lift with the legs, not the back.", "done": "Dona Lurdes pours you a tereré on the house.", "fail": "You set it down halfway. Dona Lurdes laughs and calls her nephew.", "xp": 40, "money": 10, "item": "terere"},
+		{"id": "goat", "name": "Catch the Runaway Goat", "who": "Seu Tonho", "attr": "iq", "kind": "arrows", "at": Vector3(14, 0, 16),
+			"ask": "My goat Fofinha escaped again! She jukes left, she jukes right. Read her and shoot the single leg!",
+			"tip": "Read where she cuts. Answer it.", "done": "Single leg, clean finish. Fofinha is home and Seu Tonho owes you one.", "fail": "Fofinha sprawls. Fofinha wins. Fofinha is a better wrestler than you.", "xp": 50, "money": 14, "item": ""},
+		{"id": "tent", "name": "Hold the Market Tent", "who": "Seu Jorge", "attr": "flexibility", "kind": "timing", "at": Vector3(6, 0, -10),
+			"ask": "Wind's taking my awning! Base out and hold the poles when the gusts hit.",
+			"tip": "Base out on every gust. Three of them.", "done": "The tent stays up. Seu Jorge gives you pão de queijo for the road.", "fail": "The awning flies off. At least nobody got hurt.", "xp": 40, "money": 10, "item": "pao_queijo"},
+	],
+}
+
 const CLASS_MOVES := {
 	"osoto_gari": ["judoka"], "o_goshi": ["judoka"], "harai_goshi": ["judoka"], "back_armbar": ["judoka", "guard"],
 	"guillotine": ["wrestler", "passer"], "ankle_pick": ["wrestler"], "body_lock_td": ["wrestler", "passer"],
@@ -518,6 +538,7 @@ const ACHIEVEMENTS := [
 	{"id": "first_roll", "name": "First Roll", "desc": "Finish your first roll."},
 	{"id": "first_tap", "name": "First Tap", "desc": "Win a roll by submission."},
 	{"id": "raid_sucuri", "name": "Shed Your Skin", "desc": "Clear Covil da Sucuri with your academy party."},
+	{"id": "jobs_done", "name": "Good Neighbor", "desc": "Help out around town 10 times.", "goal": 10},
 	{"id": "tapped", "name": "Tap Early, Tap Often", "desc": "Get submitted. It happens to everyone."},
 	{"id": "points_win", "name": "Points Fighter", "desc": "Win a roll on points."},
 	{"id": "triangle_win", "name": "Triangle Club", "desc": "Finish someone with a triangle choke."},

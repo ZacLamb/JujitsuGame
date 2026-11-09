@@ -117,6 +117,9 @@ func refresh_mob_tag() -> void:
 		kind = "  Elite"
 	if mob.get("revenge", false):
 		kind += "  ⚔ Revenge"
+	var tr := str(mob.get("trait", ""))
+	if tr != "":
+		kind += "  <%s>" % str(Loot.TRAITS.get(tr, tr))
 	tag.text = "%s\nLv %d%s" % [mob.name, lv, kind]
 	tag.modulate = Data.con_color(lv, Game.player_level())
 	if mob.get("rare", false):

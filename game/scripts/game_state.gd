@@ -322,14 +322,14 @@ func add_xp(amount: int) -> void:
 	var before := player_level()
 	xp += amount
 	stripe_xp += amount
-	while stripe_xp >= Data.XP_PER_STRIPE and not at_stripe_cap() and rank < 24:
-		stripe_xp -= Data.XP_PER_STRIPE
+	while stripe_xp >= stripe_cost(rank) and not at_stripe_cap() and rank < 24:
+		stripe_xp -= stripe_cost(rank)
 		rank += 1
 		toast.emit("New stripe! %s" % Data.rank_name(rank), Data.BELTS[belt_index()].color)
 		unlock("first_stripe")
 		_announce_new_moves(rank)
 	if at_stripe_cap():
-		stripe_xp = mini(stripe_xp, Data.XP_PER_STRIPE - 1)
+		stripe_xp = mini(stripe_xp, stripe_cost(rank) - 1)
 	_announce_level(before)
 	save_game()
 	progress_changed.emit()
@@ -770,28 +770,49 @@ func _backfill_gear() -> void:
 			give_item(Gear.PROMOTION_LOOT[b], true)
 
 ## WoW-style level tied to the belt: white 1-10, blue 11-20, purple 21-30, brown 31-40, black 41-50.
-## Every 50 XP is a level and every 2 levels a stripe; at 4 stripes the level is capped until the
-## zone boss promotes you.
-const XP_PER_LEVEL := 50
+## Every 2 levels is a stripe; at 4 stripes the level is capped until the zone boss promotes you.
+## Each level takes longer than the last (see xp_to_next): ~6 same-level fights at level 1, ~14 at
+## 10, ~23 at 30, ~31 at 49 (quests, jobs, dailies and raids speed it up).
 const MAX_LEVEL := 50
+const XP_PER_LEVEL := 250   # kept for older references: the level-1 cost
+
+## XP from level L to L+1.
+static func xp_to_next(lvl: int) -> int:
+	var k := lvl - 1
+	return 250 + 100 * k + 4 * k * k
+
+## XP for a whole stripe (two levels) starting at rank r.
+static func stripe_cost(r: int) -> int:
+	return xp_to_next(2 * r + 1) + xp_to_next(2 * r + 2)
 
 func player_level() -> int:
-	return mini(MAX_LEVEL, 1 + (rank * Data.XP_PER_STRIPE + stripe_xp) / XP_PER_LEVEL)
+	var l := 1 + 2 * rank
+	if stripe_xp >= xp_to_next(l):
+		l += 1
+	return mini(MAX_LEVEL, l)
 
 func level_capped() -> bool:
-	return player_level() >= MAX_LEVEL or (at_stripe_cap() and player_level() >= (belt_index() + 1) * 10)
+	return player_level() >= MAX_LEVEL or (at_stripe_cap() and player_level() >= (belt_index() + 1) * 10 and xp_into_level() >= xp_level_need() - 1)
+
+## XP into the current level, and what the level needs.
+func xp_into_level() -> int:
+	var l := 1 + 2 * rank
+	return stripe_xp if player_level() == l else stripe_xp - xp_to_next(l)
+
+func xp_level_need() -> int:
+	return xp_to_next(player_level())
 
 ## 0..1 progress through the current level.
 func level_progress() -> float:
-	if level_capped():
+	if player_level() >= MAX_LEVEL:
 		return 1.0
-	return float((rank * Data.XP_PER_STRIPE + stripe_xp) % XP_PER_LEVEL) / XP_PER_LEVEL
+	return clampf(float(xp_into_level()) / float(xp_level_need()), 0.0, 1.0)
 
 ## Jump to a level (tests and QA links).
 func set_level(lvl: int) -> void:
 	lvl = clampi(lvl, 1, MAX_LEVEL)
 	rank = mini(24, (lvl - 1) / 2)
-	stripe_xp = ((lvl - 1) % 2) * XP_PER_LEVEL
+	stripe_xp = ((lvl - 1) % 2) * xp_to_next(1 + 2 * rank)
 
 const DRILLS_PER_POINT := 3
 const TRAIN_CAP := 5
