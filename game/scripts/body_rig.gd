@@ -13,6 +13,9 @@ var hair_color := Color(0.12, 0.08, 0.05)
 var hips: Node3D
 var lapel_override := Color(0, 0, 0, 0)  # alpha 0 = derive from the gi
 var rash_color := Color(0, 0, 0, 0)      # alpha 0 = no rashguard showing
+var build := Vector2.ONE                 # class build: (width, height) multipliers
+var crest := ""                          # class id: its crest is painted on the back
+var _crest_node: Node3D
 var joints := {}
 var _walk_t := 0.0
 var _tween: Tween
@@ -390,6 +393,68 @@ func _blend_to(pose: Dictionary, t: float) -> void:
 
 
 # ================================================================ skinned model support
+## Class crest on the back (WoW tabard-style): the painted class icon in a ring of class colour.
+const CREST_CODE := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, shadows_disabled;
+uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform vec4 ring : source_color = vec4(1.0);
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float r = length(p);
+	if (r > 1.0) discard;
+	vec3 c = texture(tex, (p / 0.8) * 0.5 + 0.5).rgb;
+	float edge = smoothstep(0.78, 0.82, r);
+	c = mix(c, ring.rgb, edge);
+	c = mix(c, ring.rgb * 0.35, smoothstep(0.93, 0.97, r));
+	ALBEDO = c * 0.92;
+}
+"""
+static var _crest_shader: Shader
+
+func _build_crest() -> void:
+	if _crest_node and is_instance_valid(_crest_node):
+		_crest_node.queue_free()
+	_crest_node = null
+	if crest == "" or casual or not skel:
+		return
+	var tx := IconArt.tex("class_" + crest)
+	if tx == null:
+		return
+	if _crest_shader == null:
+		_crest_shader = Shader.new()
+		_crest_shader.code = CREST_CODE
+	_crest_node = Node3D.new()
+	_crest_node.name = "Crest"
+	add_child(_crest_node)
+	var q := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.3, 0.3)
+	q.mesh = qm
+	var m := ShaderMaterial.new()
+	m.shader = _crest_shader
+	m.set_shader_parameter("tex", tx)
+	m.set_shader_parameter("ring", Rpg.class_color(crest))
+	q.material_override = m
+	q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_crest_node.add_child(q)
+
+func _update_crest() -> void:
+	if not _crest_node or _bones.get("Abdomen", -1) < 0 or _bones.get("Neck", -1) < 0:
+		return
+	var sx := skel.global_transform
+	var ab := (sx * skel.get_bone_global_pose(_bones["Abdomen"])).origin
+	var nk := (sx * skel.get_bone_global_pose(_bones["Neck"])).origin
+	var right := global_transform.basis.x
+	if _bones["UpperArm.L"] >= 0 and _bones["UpperArm.R"] >= 0:
+		right = (sx * skel.get_bone_global_pose(_bones["UpperArm.R"])).origin - (sx * skel.get_bone_global_pose(_bones["UpperArm.L"])).origin
+	var b := _frame(right, nk - ab)
+	var gs := global_transform.basis.get_scale()
+	_crest_node.global_transform = Transform3D(b.scaled(gs * build.x), ab.lerp(nk, CREST_UP) + b.z * (CREST_BACK if _meshy else 0.26) * gs.x * build.x)
+
+const CREST_UP := 0.8
+const CREST_BACK := 0.215
+
 func _build_skinned() -> void:
 	for n in [_torso_parts, _hair_node]:
 		if n and is_instance_valid(n):
@@ -463,6 +528,8 @@ func _build_skinned() -> void:
 		if w <= 0.0:
 			w = 0.92 + float(absi(hash(gi_color.to_html() + skin_color.to_html() + belt_color.to_html())) % 1000) / 1000.0 * 0.18
 		skinned.scale *= Vector3(w, 1.0, w)
+	skinned.scale *= Vector3(build.x, build.y, build.x)
+	_build_crest()
 	_play_locomotion(0.0, false)
 	_collect_lod()
 
@@ -1083,6 +1150,7 @@ func _process(_delta: float) -> void:
 	if not casual:
 		_update_gi_parts()
 	_update_hair()
+	_update_crest()
 	if layered:
 		_layer_apply(-1.0)
 

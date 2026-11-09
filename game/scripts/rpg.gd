@@ -55,6 +55,26 @@ const STYLES := {
 }
 const STYLE_ORDER := ["guard", "wrestler", "judoka", "athlete", "passer"]
 
+## Class identity, WoW-style: a class colour (nameplates, chat names, crest ring, lapels), a body
+## build (width, height multipliers), the crest painted on the back of the gi / rashguard, and the
+## kit the class starts in (wrestlers and athletes live in no-gi).
+const CLASS_LOOK := {
+	"guard": {"color": Color(0.33, 0.8, 0.5), "build": Vector2(0.96, 1.01), "kit": "gi"},
+	"wrestler": {"color": Color(0.88, 0.24, 0.22), "build": Vector2(1.09, 0.98), "kit": "nogi"},
+	"judoka": {"color": Color(0.3, 0.55, 1.0), "build": Vector2(1.02, 1.03), "kit": "gi"},
+	"athlete": {"color": Color(1.0, 0.62, 0.16), "build": Vector2(0.93, 1.02), "kit": "nogi"},
+	"passer": {"color": Color(0.66, 0.44, 0.95), "build": Vector2(1.14, 0.99), "kit": "gi"},
+}
+
+static func class_color(st: String) -> Color:
+	return CLASS_LOOK.get(st, {}).get("color", Color(0.85, 0.85, 0.85))
+
+static func class_build(st: String) -> Vector2:
+	return CLASS_LOOK.get(st, {}).get("build", Vector2.ONE)
+
+static func class_name_of(st: String) -> String:
+	return str(STYLES.get(st, {}).get("name", ""))
+
 const GI_COLORS := [Color(0.95, 0.95, 0.93), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)]
 const GI_NAMES := ["White", "Blue", "Black"]
 

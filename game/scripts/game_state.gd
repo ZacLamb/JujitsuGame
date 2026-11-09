@@ -442,9 +442,11 @@ func skin_color() -> Color:
 	return UiKit.skin_tone(skin_t)
 
 func choose_style(id: String, name_: String, gi: int) -> void:
+	var fresh := style == ""
 	style = id
 	player_name = name_.strip_edges().left(16) if name_.strip_edges() != "" else "Gringo"
 	gi_index = clampi(gi, 0, Rpg.GI_COLORS.size() - 1)
+	give_class_kit(fresh)
 	unlock("chose_style")
 	save_game()
 	progress_changed.emit()
@@ -457,7 +459,10 @@ func gi_color() -> Color:
 
 ## Lapel accent of the equipped jacket (alpha 0 = derive from the gi color).
 func lapel_color() -> Color:
-	return Gear.look(str(equipped.get("jacket", ""))).get("trim", Color(0, 0, 0, 0))
+	var jid := str(equipped.get("jacket", ""))
+	if (jid == "" or jid == "standard_gi") and style != "":
+		return Rpg.class_color(style).darkened(0.1)   # class-coloured lapels on the plain gi
+	return Gear.look(jid).get("trim", Color(0, 0, 0, 0))
 
 func rash_color() -> Color:
 	return Gear.look(str(equipped.get("rash", ""))).get("color", Color(0, 0, 0, 0))
@@ -472,6 +477,8 @@ func look() -> Dictionary:
 		var l: Dictionary = Gear.look(id).duplicate()
 		if id == "standard_gi" or id == "standard_gi_pants":
 			l["color"] = Rpg.GI_COLORS[gi_index]
+			if id == "standard_gi" and style != "":
+				l["trim"] = lapel_color()
 		lk[slot] = l
 		if slot == "head":
 			lk["head_piece"] = Gear.ITEMS[id].get("piece", "Headband")
@@ -482,6 +489,8 @@ func dress(rig: BodyRig) -> void:
 	rig.lapel_override = lapel_color()
 	rig.rash_color = rash_color()
 	rig.look = look()
+	rig.build = Rpg.class_build(style)
+	rig.crest = style
 
 ## Graphics quality: 0 low (phones), 1 high, 2 ultra (desktop default; steps down if slow).
 const GFX_NAMES := ["low", "high", "ultra"]
@@ -506,7 +515,7 @@ func graphics_low() -> bool:
 	return graphics_level() == 0
 
 func look_key() -> String:
-	return "%s|%s|%s|%s|%s" % [gi_color().to_html(), kit, str(equipped), body, str(skin_t)]
+	return "%s|%s|%s|%s|%s|%s" % [gi_color().to_html(), kit, str(equipped), body, str(skin_t), style]
 
 # ------------------------------------------------------------ gear
 ## Item ids that count right now (the active kit's slots).
@@ -598,7 +607,7 @@ func boss_drop(set_id: String) -> String:
 	return pick
 
 func equip(id: String) -> bool:
-	if not inventory.has(id):
+	if not inventory.has(id) or not Gear.class_ok(id, style):
 		return false
 	equipped[Gear.ITEMS[id].slot] = id
 	save_game()
@@ -758,6 +767,10 @@ func _backfill_gear() -> void:
 			inventory[id + "_pants"] = true
 	for id in Gear.STARTER:
 		inventory[id] = true
+	give_class_kit(false)
+	for slot in equipped.keys():
+		if not Gear.class_ok(str(equipped[slot]), style):
+			equipped.erase(slot)
 	for slot_def in [["jacket", "standard_gi"], ["pants", "standard_gi_pants"], ["rash", "rash_white"], ["spats", "spats_black"]]:
 		if not equipped.has(slot_def[0]):
 			equipped[slot_def[0]] = slot_def[1]
@@ -958,6 +971,8 @@ func mods() -> Dictionary:
 	for b in set_bonuses():
 		if b.has("effect"):
 			m[b.effect] = true
+		if b.has("mods"):
+			_add_mods(m, b.mods)
 	Specs.apply(m, spec)
 	TalentTrees.apply(m, talents, spec)
 	Origins.apply(m, origin)
@@ -971,6 +986,42 @@ func mods() -> Dictionary:
 	m["dmg_all"] = float(m.get("dmg_all", 0.0)) + pw / 100.0
 	_buff_mods(m)
 	return m
+
+## Adds mod values (numbers add, dicts merge-add) — tier-set bonuses.
+static func _add_mods(m: Dictionary, add: Dictionary) -> void:
+	for k in add:
+		var v = add[k]
+		if v is Dictionary:
+			var d: Dictionary = (m.get(k, {}) as Dictionary).duplicate()
+			for kk in v:
+				d[kk] = float(d.get(kk, 0.0)) + float(v[kk])
+			m[k] = d
+		else:
+			m[k] = float(m.get(k, 0.0)) + float(v)
+
+## Gives the class starter kit (and, for the no-gi classes, switches to no-gi the first time).
+func give_class_kit(first := false) -> void:
+	if style == "":
+		return
+	for id in Gear.CLASS_KIT.get(style, []):
+		if not inventory.has(id):
+			inventory[id] = true
+			var slot := str(Gear.ITEMS[id].slot)
+			var cur := str(equipped.get(slot, ""))
+			if cur == "" or cur in Gear.STARTER or first:
+				equipped[slot] = id
+	if first and Rpg.CLASS_LOOK.has(style):
+		kit = str(Rpg.CLASS_LOOK[style].kit)
+
+## A tier piece of your class you don't own yet ("" = you have the full set).
+func missing_tier_piece() -> String:
+	var st := str(Gear.CLASS_SET.get(style, ""))
+	if st == "":
+		return ""
+	for pid in Gear.SETS[st].pieces:
+		if not inventory.has(pid):
+			return pid
+	return ""
 
 # ------------------------------------------------------------ achievements
 func unlock(id: String) -> void:

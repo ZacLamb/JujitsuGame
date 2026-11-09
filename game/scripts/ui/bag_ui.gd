@@ -79,6 +79,8 @@ static func tooltip(id: String, n := 1, price_mode := "") -> PanelContainer:
 	if kind == "gear":
 		var gid := str(it.gear)
 		v.add_child(MoveInfo._line(Gear.ilvl_text(gid), 13, Color(1, 0.85, 0.35), true))
+		if Gear.class_of(gid) != "":
+			v.add_child(MoveInfo._line("Classes: " + Rpg.class_name_of(Gear.class_of(gid)), 13, Rpg.class_color(Gear.class_of(gid)) if Gear.class_ok(gid, Game.style) else UiKit.RED, true))
 		v.add_child(MoveInfo._line(Gear.stat_text(gid), 14, Color(0.45, 1.0, 0.55), true))
 		if Game.has_item(gid):
 			v.add_child(MoveInfo._line("Already in your wardrobe", 13, UiKit.RED))

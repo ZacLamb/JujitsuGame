@@ -196,7 +196,7 @@ static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator)
 		var pool: Array = []
 		for gid in Gear.ITEMS:
 			var g: Dictionary = Gear.ITEMS[gid]
-			if g.has("set") or gid in Gear.STARTER:
+			if g.has("set") or g.has("class") or gid in Gear.STARTER:
 				continue   # set pieces come from masters; starter kit everyone already has
 			var rq := str(g.get("rarity", ""))
 			# item level near the mob's level (WoW-style): no level-2 tape off a level-25 mob
@@ -210,4 +210,9 @@ static func roll_loot(mob: Dictionary, zone: String, rng: RandomNumberGenerator)
 			items.append("gear:" + Game.make_rolled(Gear.roll(Data.display_level(lv), rng, elite, rare)))
 		else:
 			items.append("gear:" + str(pool[rng.randi() % pool.size()]))
+	# elite bosses at the top of the world sometimes drop a piece of your class tier set
+	if elite and Data.display_level(lv) >= 25 and rng.randf() < 0.07:
+		var tp := Game.missing_tier_piece()
+		if tp != "":
+			items.append("gear:" + tp)
 	return {"money": money, "items": items}

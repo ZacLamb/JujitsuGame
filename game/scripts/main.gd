@@ -54,6 +54,7 @@ func _ready() -> void:
 	# web: hint to the browser that loading finished
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("window.__tatameReady = true;")
+	_hook_net()
 	if OS.get_cmdline_user_args().has("--autoplay") or Game.boot_into:
 		Game.boot_into = false
 		_start_game.call_deferred()
@@ -134,7 +135,7 @@ func _register_inputs() -> void:
 		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"look_left": [], "look_right": [], "look_up": [KEY_PAGEUP], "look_down": [KEY_PAGEDOWN],
-		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E, KEY_ENTER],
+		"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "autorun": [KEY_X, KEY_NUMLOCK], "map": [KEY_M], "interact": [KEY_E],
 		"journal": [KEY_J, KEY_L], "target_next": [KEY_TAB],
 		"ab_0": [KEY_1], "ab_1": [KEY_2], "ab_2": [KEY_3], "ab_3": [KEY_4], "ab_4": [KEY_5], "ab_5": [KEY_6],
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
@@ -182,6 +183,49 @@ func _process(delta: float) -> void:
 		hud.set_combat(combat)
 	if not _in_title and roll == null:
 		_adapt_quality(delta)
+	if not _in_title and is_instance_valid(player) and player.get_parent() == world:
+		var hs := Vector2(player.velocity.x, player.velocity.z).length()
+		Net.update(player.global_position, player.rig.rotation.y, clampf(hs / Player.RUN, 0.0, 1.0), not player.is_on_floor(),
+			combat != null and combat.me != null and combat.me.in_combat, delta)
+
+# ------------------------------------------------------------ live world: other players + chat
+var remotes := {}   # net id -> RemotePlayer
+
+func _hook_net() -> void:
+	Net.leave_world()
+	Net.joined.connect(func(id: int, d: Dictionary):
+		if not is_instance_valid(world) or str(d.get("zone", Net.zone)) != world.zone:
+			return
+		if remotes.has(id) and is_instance_valid(remotes[id]):
+			remotes[id].queue_free()
+		var rp := RemotePlayer.new().setup(id, d)
+		world.add_child(rp)
+		remotes[id] = rp)
+	Net.left.connect(func(id: int):
+		if remotes.has(id):
+			if is_instance_valid(remotes[id]):
+				remotes[id].queue_free()
+			remotes.erase(id))
+	Net.moved.connect(func(rows: Array):
+		for r in rows:
+			var rp = remotes.get(int(r[0]))
+			if rp and is_instance_valid(rp):
+				rp.net_state(float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]), bool(r[6]), bool(r[7])))
+	Net.char_changed.connect(func(id: int, ch: Dictionary):
+		var rp = remotes.get(id)
+		if rp and is_instance_valid(rp):
+			rp.set_char(ch))
+	Net.chat.connect(func(m: Dictionary):
+		if str(m.get("ch", "")) == "say" and remotes.has(int(m.get("fid", 0))):
+			var rp = remotes[int(m.fid)]
+			if is_instance_valid(rp):
+				rp.say(str(m.get("text", ""))))
+
+func _clear_remotes() -> void:
+	for id in remotes:
+		if is_instance_valid(remotes[id]):
+			remotes[id].queue_free()
+	remotes.clear()
 
 func _start_game() -> void:
 	Sfx.music("explore")
@@ -189,6 +233,7 @@ func _start_game() -> void:
 	hud.hide_title()
 	world.game_started = true
 	player.make_current()
+	Net.enter(world.zone)
 	if Game.style == "":
 		_show_style_select()
 		return
@@ -331,6 +376,13 @@ func _on_world_click(screen: Vector2) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _in_title or roll != null or Game.style == "":
 		return
+	# Enter (or /) opens chat, like WoW
+	if event is InputEventKey and event.pressed and not event.echo and hud.combat_log and not hud.dialogue_open():
+		var k: int = (event as InputEventKey).keycode
+		if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SLASH:
+			hud.combat_log.open_input("/" if k == KEY_SLASH else "")
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed("journal") and not hud.dialogue_open():
 		hud.open_window("journal")
 	elif event.is_action_pressed("talents") and not hud.dialogue_open():
@@ -407,6 +459,9 @@ func _make_world(z: String) -> void:
 		hud.set_combat(combat)
 	if is_instance_valid(_title_cam):
 		world.add_child(_title_cam)
+	_clear_remotes()
+	if not _in_title:
+		Net.enter(z)
 
 func _travel(z: String) -> void:
 	var need := int(Data.ZONES[z].rank)

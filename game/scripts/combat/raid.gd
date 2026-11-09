@@ -177,7 +177,10 @@ func end(won: bool) -> void:
 		return
 	over = true
 	if won:
-		var gear_id := Game.make_rolled(_epic_roll())
+		# your class's tier set first (one missing piece per clear), then rolled epics
+		var gear_id := Game.missing_tier_piece()
+		if gear_id == "":
+			gear_id = Game.make_rolled(_epic_roll())
 		Game.add_item("gear:" + gear_id)
 		var xp := 120 + 25 * level
 		Game.add_xp(xp)

@@ -595,8 +595,8 @@ func _fill_gear() -> void:
 		var cur := str(Game.equipped.get(slot, ""))
 		for id in Gear.ITEMS:
 			var it: Dictionary = Gear.ITEMS[id]
-			if it.slot != slot:
-				continue
+			if it.slot != slot or not Gear.class_ok(str(id), Game.style):
+				continue   # other classes' kits and tier sets aren't shown (like WoW's appearance tab)
 			row.add_child(_wardrobe_item(str(id), slot, cur == id))
 
 func _wardrobe_item(id: String, slot: String, worn: bool) -> Control:

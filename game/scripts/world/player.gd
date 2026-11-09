@@ -146,7 +146,8 @@ func zoom(amount: float) -> void:
 func _physics_process(delta: float) -> void:
 	var dir2 := Vector2.ZERO
 	var sprint := false
-	if input_enabled:
+	var keys_ok := input_enabled and not CombatLog.typing
+	if keys_ok:
 		dir2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if touch_move.length() > 0.05:
 			dir2 = touch_move
@@ -186,7 +187,7 @@ func _physics_process(delta: float) -> void:
 	velocity.z = move_toward(velocity.z, target_v.z, delta * accel)
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
-	elif input_enabled and Input.is_action_just_pressed("jump"):
+	elif keys_ok and Input.is_action_just_pressed("jump"):
 		do_jump()
 	var hvel := Vector3(velocity.x, 0, velocity.z)
 	move_and_slide()

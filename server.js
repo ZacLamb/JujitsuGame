@@ -5,6 +5,7 @@ const compression = require('compression');
 const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const world = require('./world');
 
 const app = express();
 app.use(compression({ filter: (req, res) => /\.(wasm|pck|js|html)$/.test(req.path) || compression.filter(req, res) }));
@@ -31,6 +32,15 @@ async function migrate() {
       player_id INT PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
       data JSONB NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS reports (
+      id SERIAL PRIMARY KEY,
+      reporter_id INT REFERENCES players(id) ON DELETE SET NULL,
+      target_id INT REFERENCES players(id) ON DELETE SET NULL,
+      target_name TEXT,
+      reason TEXT,
+      context TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
     );`);
   ready = true;
   console.log('db ready');
@@ -143,6 +153,8 @@ app.use(express.static(path.join(__dirname, 'web'), {
     else res.setHeader('Cache-Control', 'no-cache');
   },
 }));
-app.get('/health', (_req, res) => res.send(pool ? (ready ? 'ok db' : 'ok db-starting') : 'ok no-db'));
+let live = null;
+app.get('/health', (_req, res) => res.send((pool ? (ready ? 'ok db' : 'ok db-starting') : 'ok no-db') + (live ? ` online ${live.online()}` : '')));
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Tatame running on :${port}`));
+const server = app.listen(port, () => console.log(`Tatame running on :${port}`));
+live = world.attach(server, pool, () => ready);

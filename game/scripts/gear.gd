@@ -58,6 +58,16 @@ const GIS := {
 	"mundial_gi": {"name": "Campeão Mundial Gi", "rarity": "legendary", "set": "mundial", "attrs": {"strength": 2, "grip": 2, "cardio": 2, "flexibility": 2, "iq": 2}, "pants_attrs": {"cardio": 1, "grip": 1},
 		"look": {"color": Color(0.97, 0.97, 0.95), "trim": Color(0.95, 0.72, 0.2)},
 		"source": "Gold at the Campeonato Mundial", "desc": "White and gold. Only world champions wear this one."},
+	# ---------------- class tier sets (WoW "tier"): class-locked, from the raid and elite bosses
+	"polvo_gi": {"name": "Polvo Gi", "rarity": "epic", "set": "polvo", "class": "guard", "attrs": {"flexibility": 2, "iq": 2}, "pants_attrs": {"flexibility": 2},
+		"look": {"color": Color(0.1, 0.36, 0.34), "trim": Color(0.33, 0.8, 0.5), "pattern": "waves", "accent": Color(0.2, 0.62, 0.5)},
+		"source": "Guard Player tier · Covil da Sucuri, elite bosses", "desc": "Eight arms, no exits. Woven to cling."},
+	"garca_gi": {"name": "Garça Real Judogi", "rarity": "epic", "set": "garca", "class": "judoka", "attrs": {"grip": 2, "strength": 2}, "pants_attrs": {"grip": 2},
+		"look": {"color": Color(0.94, 0.95, 0.97), "trim": Color(0.12, 0.25, 0.6), "pattern": "feathers", "accent": Color(0.62, 0.74, 0.95), "pscale": 0.8},
+		"source": "Judoka tier · Covil da Sucuri, elite bosses", "desc": "Double weave, heron-white. The collar alone weighs a kilo."},
+	"tatu_gi": {"name": "Tatu Couraça Gi", "rarity": "epic", "set": "tatu", "class": "passer", "attrs": {"strength": 2, "grip": 2}, "pants_attrs": {"strength": 2},
+		"look": {"color": Color(0.16, 0.14, 0.2), "trim": Color(0.66, 0.44, 0.95), "pattern": "scales", "accent": Color(0.3, 0.22, 0.42)},
+		"source": "Pressure Passer tier · Covil da Sucuri, elite bosses", "desc": "Armadillo plates. You don't pass a guard in this, you flatten it."},
 }
 
 ## Everything that isn't a gi. look as above.
@@ -126,6 +136,54 @@ const OTHER := {
 		"look": {"color": Color(0.12, 0.09, 0.07)}, "source": "Mestre Onça", "desc": "Black tape. Grips like claws."},
 	"leao_tape": {"slot": "tape", "name": "Lion's Paw Tape", "rarity": "legendary", "set": "leao", "attrs": {"grip": 3},
 		"look": {"color": Color(0.95, 0.72, 0.2)}, "source": "Grão-Mestre Leão", "desc": "Gold tape. You will be seen."},
+	# ---------------- class starter kits (class-locked; given when you pick your class)
+	"singlet_red": {"slot": "rash", "name": "Wrestling Singlet Top", "rarity": "common", "class": "wrestler", "attrs": {},
+		"look": {"color": Color(0.78, 0.16, 0.16)}, "source": "Wrestler starter kit", "desc": "Your high school colours. Still fits. Mostly."},
+	"singlet_spats": {"slot": "spats", "name": "Wrestling Singlet Shorts", "rarity": "common", "class": "wrestler", "attrs": {},
+		"look": {"color": Color(0.78, 0.16, 0.16)}, "source": "Wrestler starter kit", "desc": "One-piece, technically."},
+	"wrestling_ears": {"slot": "head", "name": "Wrestling Headgear", "rarity": "common", "class": "wrestler", "attrs": {}, "piece": "EarGuards",
+		"look": {"color": Color(0.12, 0.12, 0.14)}, "source": "Wrestler starter kit", "desc": "Too late for your left ear."},
+	"athlete_rash": {"slot": "rash", "name": "Comp Team Rashguard", "rarity": "common", "class": "athlete", "attrs": {},
+		"look": {"color": Color(1.0, 0.55, 0.12)}, "source": "Athlete starter kit", "desc": "Sponsored by an açaí stand."},
+	"athlete_spats": {"slot": "spats", "name": "Sprint Spats", "rarity": "common", "class": "athlete", "attrs": {},
+		"look": {"color": Color(0.1, 0.1, 0.12), "pattern": "stripes", "accent": Color(1.0, 0.55, 0.12), "pscale": 1.6}, "source": "Athlete starter kit", "desc": "Compression for the 6am run."},
+	"athlete_band": {"slot": "head", "name": "Sweatband", "rarity": "common", "class": "athlete", "attrs": {}, "piece": "Headband",
+		"look": {"color": Color(1.0, 0.62, 0.16)}, "source": "Athlete starter kit", "desc": "Soaked by round two."},
+	"guard_knees": {"slot": "knees", "name": "Guard Player's Knee Pads", "rarity": "common", "class": "guard", "attrs": {},
+		"look": {"color": Color(0.2, 0.5, 0.32)}, "source": "Guard Player starter kit", "desc": "For pulling guard on concrete. Don't."},
+	"judo_tape": {"slot": "tape", "name": "Judo Finger Tape", "rarity": "common", "class": "judoka", "attrs": {},
+		"look": {"color": Color(0.96, 0.96, 0.92)}, "source": "Judoka starter kit", "desc": "Taped for the collar war."},
+	"passer_knees": {"slot": "knees", "name": "Heavy Knee Sleeves", "rarity": "common", "class": "passer", "attrs": {},
+		"look": {"color": Color(0.22, 0.16, 0.3)}, "source": "Pressure Passer starter kit", "desc": "Knee-cut insurance."},
+	# ---------------- class tier set pieces (no-gi classes + gi extras)
+	"polvo_knees": {"slot": "knees", "name": "Polvo Knee Sleeves", "rarity": "epic", "set": "polvo", "class": "guard", "attrs": {"flexibility": 2, "cardio": 1},
+		"look": {"color": Color(0.1, 0.36, 0.34), "pattern": "waves", "accent": Color(0.2, 0.62, 0.5)}, "source": "Guard Player tier · Covil da Sucuri, elite bosses", "desc": "Suction-cup grip on every hook."},
+	"polvo_tape": {"slot": "tape", "name": "Polvo Ink Tape", "rarity": "epic", "set": "polvo", "class": "guard", "attrs": {"grip": 2, "iq": 1},
+		"look": {"color": Color(0.08, 0.12, 0.14)}, "source": "Guard Player tier · Covil da Sucuri, elite bosses", "desc": "Ink-black. Every finger a tentacle."},
+	"garca_band": {"slot": "head", "name": "Garça Hachimaki", "rarity": "epic", "set": "garca", "class": "judoka", "attrs": {"iq": 2, "grip": 1}, "piece": "Headband",
+		"look": {"color": Color(0.94, 0.95, 0.97), "pattern": "feathers", "accent": Color(0.12, 0.25, 0.6)}, "source": "Judoka tier · Covil da Sucuri, elite bosses", "desc": "One stance, one breath, one throw."},
+	"garca_tape": {"slot": "tape", "name": "Garça Collar Tape", "rarity": "epic", "set": "garca", "class": "judoka", "attrs": {"grip": 3},
+		"look": {"color": Color(0.12, 0.25, 0.6)}, "source": "Judoka tier · Covil da Sucuri, elite bosses", "desc": "The heron's beak. Lapels fear it."},
+	"tatu_rash": {"slot": "rash", "name": "Tatu Plated Rashguard", "rarity": "epic", "set": "tatu", "class": "passer", "attrs": {"strength": 2, "cardio": 1},
+		"look": {"color": Color(0.16, 0.14, 0.2), "pattern": "scales", "accent": Color(0.42, 0.3, 0.6)}, "source": "Pressure Passer tier · Covil da Sucuri, elite bosses", "desc": "Under the gi, more armour."},
+	"tatu_knees": {"slot": "knees", "name": "Tatu Knee Plates", "rarity": "epic", "set": "tatu", "class": "passer", "attrs": {"strength": 1, "flexibility": 2},
+		"look": {"color": Color(0.3, 0.22, 0.42), "pattern": "scales", "accent": Color(0.16, 0.14, 0.2)}, "source": "Pressure Passer tier · Covil da Sucuri, elite bosses", "desc": "Rolls up into a ball. So will they."},
+	"touro_rash": {"slot": "rash", "name": "Touro Singlet Top", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 2, "cardio": 2},
+		"look": {"color": Color(0.6, 0.07, 0.08)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Red rag. Bull inside."},
+	"touro_spats": {"slot": "spats", "name": "Touro Singlet Shorts", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 2, "cardio": 1},
+		"look": {"color": Color(0.62, 0.08, 0.08), "pattern": "stripes", "accent": Color(0.95, 0.75, 0.25), "pscale": 1.4}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Low centre of gravity, high output."},
+	"touro_ears": {"slot": "head", "name": "Touro Horned Headgear", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"iq": 1, "strength": 1}, "piece": "EarGuards",
+		"look": {"color": Color(0.95, 0.75, 0.25), "pattern": "stripes", "accent": Color(0.62, 0.08, 0.08)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "Gold straps. Head down, drive through."},
+	"touro_knees": {"slot": "knees", "name": "Touro Shot Pads", "rarity": "epic", "set": "touro", "class": "wrestler", "attrs": {"strength": 1, "flexibility": 1},
+		"look": {"color": Color(0.12, 0.1, 0.1)}, "source": "Wrestler tier · Covil da Sucuri, elite bosses", "desc": "For a thousand double legs."},
+	"lobo_rash": {"slot": "rash", "name": "Lobo-Guará Rashguard", "rarity": "epic", "set": "lobo", "class": "athlete", "attrs": {"cardio": 2, "flexibility": 2},
+		"look": {"color": Color(0.85, 0.4, 0.12), "pattern": "mane", "accent": Color(0.1, 0.08, 0.06)}, "source": "Athlete tier · Covil da Sucuri, elite bosses", "desc": "Red coat, black mane, long legs. Runs all night."},
+	"lobo_spats": {"slot": "spats", "name": "Lobo-Guará Spats", "rarity": "epic", "set": "lobo", "class": "athlete", "attrs": {"cardio": 2, "strength": 1},
+		"look": {"color": Color(0.1, 0.08, 0.06), "pattern": "stripes", "accent": Color(0.85, 0.4, 0.12), "pscale": 1.6}, "source": "Athlete tier · Covil da Sucuri, elite bosses", "desc": "Black stockings, like the wolf's."},
+	"lobo_band": {"slot": "head", "name": "Lobo-Guará Headband", "rarity": "epic", "set": "lobo", "class": "athlete", "attrs": {"iq": 1, "cardio": 1}, "piece": "Headband",
+		"look": {"color": Color(0.85, 0.4, 0.12)}, "source": "Athlete tier · Covil da Sucuri, elite bosses", "desc": "Big ears, sharper reads."},
+	"lobo_tape": {"slot": "tape", "name": "Lobo-Guará Tape", "rarity": "epic", "set": "lobo", "class": "athlete", "attrs": {"grip": 2, "cardio": 1},
+		"look": {"color": Color(0.1, 0.08, 0.06)}, "source": "Athlete tier · Covil da Sucuri, elite bosses", "desc": "Light grip, fast hands."},
 }
 
 ## Item sets. Bonuses unlock at 2 and 4 equipped pieces (in the active kit). An effect id hooks
@@ -143,6 +201,17 @@ const SETS := {
 		"bonus": {2: {"attrs": {"cardio": 1}}, 4: {"effect": "second_breath", "text": "Second Breath: Breathe restores 30 stamina instead of 20."}}},
 	"mundial": {"name": "Campeão Mundial", "pieces": ["mundial_gi", "mundial_gi_pants"],
 		"bonus": {2: {"effect": "champion", "text": "Champion: your techniques are 4% more likely to land."}}},
+	# class tier sets: 4-piece bonuses feed the real-time combat mods (Game.mods)
+	"polvo": {"name": "Polvo (Guard Player tier)", "class": "guard", "pieces": ["polvo_gi", "polvo_gi_pants", "polvo_knees", "polvo_tape"],
+		"bonus": {2: {"attrs": {"flexibility": 2}}, 4: {"mods": {"zone": {"sweep": 0.12, "sub": 0.06}}, "text": "Eight Arms: sweeps hit 12% harder, submissions 6% harder."}}},
+	"garca": {"name": "Garça Real (Judoka tier)", "class": "judoka", "pieces": ["garca_gi", "garca_gi_pants", "garca_band", "garca_tape"],
+		"bonus": {2: {"attrs": {"grip": 2}}, 4: {"mods": {"grip_start": 1.0, "zone": {"takedown": 0.1}}, "text": "Heron's Beak: start every fight with 1 Grip; throws and takedowns hit 10% harder."}}},
+	"tatu": {"name": "Tatu Couraça (Passer tier)", "class": "passer", "pieces": ["tatu_gi", "tatu_gi_pants", "tatu_rash", "tatu_knees"],
+		"bonus": {2: {"attrs": {"strength": 2}}, 4: {"mods": {"zone": {"pass": 0.12, "advance": 0.08}, "dr": 0.04}, "text": "Armour Plates: passes hit 12% harder, advances 8%; take 4% less damage."}}},
+	"touro": {"name": "Touro (Wrestler tier)", "class": "wrestler", "pieces": ["touro_rash", "touro_spats", "touro_ears", "touro_knees"],
+		"bonus": {2: {"attrs": {"strength": 2}}, 4: {"mods": {"zone": {"takedown": 0.14}, "dr": 0.05}, "text": "Bull Rush: takedowns hit 14% harder; take 5% less damage."}}},
+	"lobo": {"name": "Lobo-Guará (Athlete tier)", "class": "athlete", "pieces": ["lobo_rash", "lobo_spats", "lobo_band", "lobo_tape"],
+		"bonus": {2: {"attrs": {"cardio": 2}}, 4: {"mods": {"regen": 0.25, "zone": {"escape": 0.12}}, "text": "Long Legs: +25% Gas regeneration; escapes hit 12% harder."}}},
 }
 
 ## Bosses drop pieces of their set (one you don't own each win, the jacket first).
@@ -162,7 +231,21 @@ const RARITY_MULT := {"common": 0.6, "uncommon": 0.8, "rare": 1.0, "epic": 1.25,
 const SLOT_WEIGHT := {"jacket": 1.0, "pants": 0.8, "rash": 0.7, "spats": 0.6, "knees": 0.5, "head": 0.5, "tape": 0.5}
 const RARITY_ILVL := {"common": 2, "uncommon": 6, "rare": 12, "epic": 20, "legendary": 30}
 const ILVL := {"standard_gi": 1, "rash_white": 1, "spats_black": 1,
-	"familia": 16, "rash_circuito": 28, "tape_pro": 22, "mundial_gi": 48}
+	"familia": 16, "rash_circuito": 28, "tape_pro": 22, "mundial_gi": 48,
+	"polvo": 34, "garca": 34, "tatu": 34, "touro": 34, "lobo": 34}
+
+## Class starter kits (given when the class is picked; the no-gi classes start in no-gi).
+const CLASS_KIT := {"guard": ["guard_knees"], "wrestler": ["singlet_red", "singlet_spats", "wrestling_ears"],
+	"judoka": ["judo_tape"], "athlete": ["athlete_rash", "athlete_spats", "athlete_band"], "passer": ["passer_knees"]}
+const CLASS_SET := {"guard": "polvo", "judoka": "garca", "passer": "tatu", "wrestler": "touro", "athlete": "lobo"}
+
+## Class-locked pieces (starter kits, tier sets) only go on that class, like WoW armour types.
+static func class_ok(id: String, st: String) -> bool:
+	var c := str(ITEMS.get(id, {}).get("class", ""))
+	return c == "" or c == st
+
+static func class_of(id: String) -> String:
+	return str(ITEMS.get(id, {}).get("class", ""))
 const PROMOTION_ILVL := {1: 10, 2: 20, 3: 30, 4: 42}
 
 static func _static_init() -> void:
@@ -171,6 +254,8 @@ static func _static_init() -> void:
 		var base := {"rarity": g.rarity, "look": g.look, "source": g.source}
 		if g.has("set"):
 			base["set"] = g.set
+		if g.has("class"):
+			base["class"] = g["class"]
 		var j := base.duplicate()
 		j.merge({"slot": "jacket", "name": g.name + " Jacket", "attrs": g.attrs, "desc": g.desc, "gi": id})
 		ITEMS[id] = j
@@ -304,6 +389,9 @@ static func set_lines(set_id: String) -> Array:
 ## The full look of a boss in their own set (so Onça wears the rosettes when you fight him).
 static func set_look(set_id: String) -> Dictionary:
 	var lk := {"kit": "gi"}
+	for pid in SETS[set_id].pieces:
+		if str(ITEMS[pid].slot) == "spats":
+			lk.kit = "nogi"
 	for pid in SETS[set_id].pieces:
 		var it: Dictionary = ITEMS[pid]
 		lk[it.slot] = it.look
