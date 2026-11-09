@@ -56,8 +56,9 @@ var day_night: DayNight
 var wildlife: Wildlife
 var map_footprints: Array = []   # [Rect2 (x, z), Color] buildings and walls for the minimap
 
+var _kit_footprints: Array = []   # kit buildings (TownKit) for the minimap
 func _batch_static() -> void:
-	map_footprints.clear()
+	map_footprints = _kit_footprints.duplicate()
 	for c in get_children():
 		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh and c.visible:
 			var mi := c as MeshInstance3D
@@ -534,12 +535,52 @@ func _build_water() -> void:
 	mi.position = Vector3(-72, WATER_Y, 0)
 	add_child(mi)
 
+## Paving: painted tiling textures in world space (so long streets stay seamless).
+static var _pave_cache := {}
+func _pave_mat(tex: String, scale: float) -> StandardMaterial3D:
+	var key := tex + str(scale)
+	if _pave_cache.has(key):
+		return _pave_cache[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = EnvShaders.env_tex(tex)
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * scale
+	m.roughness = 0.95
+	_pave_cache[key] = m
+	return m
+
+## A paved strip laid on the terrain in short segments (follows the ground).
+func _street(a: Vector3, b: Vector3, width: float, tex := "cobble", scale := 0.32) -> void:
+	var d := b - a
+	d.y = 0
+	var n := maxi(1, int(ceil(d.length() / 3.0)))
+	var yaw := atan2(d.x, d.z)
+	for i in n:
+		var p0 := a + d * (float(i) / n)
+		var p1 := a + d * (float(i + 1) / n)
+		var mid := (p0 + p1) * 0.5
+		var gy := maxf(ground_y(p0.x, p0.z), ground_y(p1.x, p1.z))
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(width, 0.16, d.length() / n + 0.35)
+		mi.mesh = bm
+		mi.material_override = _pave_mat(tex, scale)
+		mi.position = Vector3(mid.x, gy + 0.02, mid.z)
+		mi.rotation.y = yaw
+		mi.set_meta("no_batch", true)
+		add_child(mi)
+
 func _build_roads_and_plaza() -> void:
 	var gy := ground_y(0, 8)
-	_box(Vector3(30, 0.3, 20), Vector3(0, gy, 8), Color(0.66, 0.56, 0.45), true)
-	# checkered calçada stripes (Portuguese pavement nod)
-	for i in 6:
-		_box(Vector3(30, 0.02, 1.2), Vector3(0, gy + 0.16, -0.5 + i * 3.4), Color(0.36, 0.3, 0.26), false)
+	var plaza := _box(Vector3(30, 0.3, 20), Vector3(0, gy, 8), Color(0.66, 0.56, 0.45), true)
+	# calçada portuguesa: black-and-white wave mosaic
+	plaza.material_override = _pave_mat("calcada", 0.16)
+	plaza.set_meta("no_batch", true)
+	# cobbled main streets through the old centre
+	_street(Vector3(-56, 0, -4), Vector3(80, 0, -4), 6.0)
+	_street(Vector3(9, 0, -52), Vector3(9, 0, -6), 5.0)
+	_street(Vector3(20, 0, 22), Vector3(20, 0, 30), 4.0)
 	_cyl(2.6, 2.8, 0.7, Vector3(0, gy + 0.4, 8), Color(0.75, 0.72, 0.65), 16, true)
 	var water := _cyl(2.3, 2.3, 0.1, Vector3(0, gy + 0.75, 8), Color(0.3, 0.6, 0.8), 16)
 	water.material_override = _mat(Color(0.3, 0.6, 0.85), 0.1)
@@ -552,17 +593,19 @@ func _build_roads_and_plaza() -> void:
 
 func _build_cathedral() -> void:
 	var c := Vector3(0, ground_y(0, -24), -24)
-	var cream := Color(0.95, 0.92, 0.84)
-	_box(Vector3(10, 9, 15), c + Vector3(0, 4.5, 0), cream)
-	_box(Vector3(10.6, 0.6, 15.6), c + Vector3(0, 9.2, 0), Color(0.6, 0.35, 0.25), false)
-	for sx in [-1, 1]:
-		_box(Vector3(3.2, 17, 3.2), c + Vector3(4.2 * sx, 8.5, 7), cream)
-		var spire := _cyl(0.0, 2.2, 4.0, c + Vector3(4.2 * sx, 19.0, 7), Color(0.35, 0.5, 0.55), 4)
-		spire.rotation.y = PI / 4
-		_box(Vector3(1.2, 1.6, 0.2), c + Vector3(4.2 * sx, 13.5, 8.65), Color(0.15, 0.15, 0.2), false)
-	_box(Vector3(3, 5, 0.3), c + Vector3(0, 2.5, 7.6), Color(0.35, 0.22, 0.12), false)
-	var cross_v := _box(Vector3(0.3, 2.2, 0.3), c + Vector3(0, 11.0, 7.4), Color(0.9, 0.8, 0.4), false)
-	_box(Vector3(1.4, 0.3, 0.3), c + Vector3(0, 11.4, 7.4), Color(0.9, 0.8, 0.4), false)
+	# twin-tower colonial church (tools/townbuild/houses.py igreja), façade toward the plaza
+	var items: Array = [{"kind": "igreja", "xform": Transform3D(Basis.IDENTITY, c + Vector3(0, -0.05, 0.6)),
+		"wall": Color(0.97, 0.95, 0.9), "wood": Color(0.32, 0.2, 0.12)}]
+	TownKit.build(self, items)
+	# collision: nave + towers
+	for sh in [[Vector3(10, 12, 15), Vector3(0, 6, 0.6)], [Vector3(3.4, 20, 3.4), Vector3(-6.3, 10, 7.1)], [Vector3(3.4, 20, 3.4), Vector3(6.3, 10, 7.1)]]:
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = sh[0]
+		cs.shape = bs
+		cs.position = c + sh[1]
+		_static.add_child(cs)
+	_kit_footprints.append([Rect2(c.x - 8, c.z - 7, 16, 16), Color(0.97, 0.95, 0.9)])
 
 func _build_academia() -> void:
 	var c := Vector3(0, ground_y(0, -54), -54)
@@ -622,7 +665,9 @@ func _build_market() -> void:
 	_label("FEIRA", Vector3(30, ground_y(30, -22) + 4.5, -22), 90, Color(1, 0.9, 0.6))
 
 func _build_houses() -> void:
-	var palette := [Color(0.97, 0.85, 0.35), Color(0.45, 0.7, 0.9), Color(0.95, 0.55, 0.6), Color(0.55, 0.8, 0.5), Color(0.98, 0.95, 0.88), Color(0.95, 0.6, 0.3)]
+	# pastel colonial palette (walls) and shutter / door colours
+	var palette := [Color(0.97, 0.85, 0.42), Color(0.55, 0.75, 0.92), Color(0.95, 0.6, 0.62), Color(0.6, 0.82, 0.55),
+		Color(0.98, 0.95, 0.88), Color(0.96, 0.65, 0.38), Color(0.78, 0.62, 0.86), Color(0.45, 0.72, 0.7)]
 	var spots: Array = []   # [position, front direction toward the street]
 	for x in range(-52, 66, 10):
 		spots.append([Vector3(x, 0, -14), Vector3(0, 0, 1)])
@@ -630,6 +675,7 @@ func _build_houses() -> void:
 	for z in range(-46, 0, 10):
 		spots.append([Vector3(19, 0, z), Vector3(-1, 0, 0)])
 		spots.append([Vector3(-1, 0, z), Vector3(1, 0, 0)])
+	var items: Array = []
 	for sp in spots:
 		var p: Vector3 = sp[0]
 		var front: Vector3 = sp[1]
@@ -637,25 +683,36 @@ func _build_houses() -> void:
 			continue
 		if absf(p.x - river_x(p.z)) < 20.0:
 			continue
-		var w := _rng.randf_range(5, 7)
-		var d := _rng.randf_range(5, 6.5)
-		var hgt := _rng.randf_range(3.2, 4.2)
-		var gy := ground_y(p.x, p.z)
-		var col: Color = palette[_rng.randi() % palette.size()]
-		var size := Vector3(w, hgt, d) if front.z != 0.0 else Vector3(d, hgt, w)
-		_box(size, Vector3(p.x, gy + hgt / 2.0, p.z), col)
-		var roof := MeshInstance3D.new()
-		var pm := PrismMesh.new()
-		pm.size = Vector3(size.x + 0.6, 1.6, size.z + 0.6)
-		roof.mesh = pm
-		roof.material_override = _mat(Color(0.72, 0.33, 0.2))
-		roof.position = Vector3(p.x, gy + hgt + 0.8, p.z)
-		if front.x != 0.0:
-			roof.rotation.y = PI / 2
-			pm.size = Vector3(size.z + 0.6, 1.6, size.x + 0.6)
-		add_child(roof)
-		_facade(Vector3(p.x, gy, p.z), size, front, col)
-		_blocked.append(Rect2(p.x - size.x / 2 - 1, p.z - size.z / 2 - 1, size.x + 2, size.z + 2))
+		_town_building(items, p, front, palette)
+	TownKit.build(self, items)
+
+## Places one kit building (two-storey ones near the plaza and main streets) with collision and a
+## minimap footprint. front: direction the façade faces.
+func _town_building(items: Array, p: Vector3, front: Vector3, palette: Array, kind := "") -> void:
+	if kind == "":
+		var near_centre := Vector2(p.x, p.z).length() < 32.0
+		var pool: Array = ["sobrado_a", "sobrado_loja", "casa_b", "casa_d"] if near_centre else ["casa_a", "casa_b", "casa_c", "casa_d", "casa_varanda", "casa_a"]
+		kind = pool[_rng.randi() % pool.size()]
+	var sz := TownKit.size(kind)
+	var sc := minf(1.0, 8.6 / maxf(sz.x, sz.z))
+	var gy := ground_y(p.x, p.z)
+	var yaw := atan2(front.x, front.z)
+	var b := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * sc)
+	var col: Color = palette[_rng.randi() % palette.size()]
+	var wood: Color = SHUTTERS[_rng.randi() % SHUTTERS.size()]
+	items.append({"kind": kind, "xform": Transform3D(b, Vector3(p.x, gy - 0.05, p.z)), "wall": col, "wood": wood})
+	# collision + footprint (walls only; the roof overhang stays walkable-under)
+	var fx := sz.x * sc - 0.8
+	var fz := sz.z * sc - 0.8
+	var foot := Vector3(fx, 7.0, fz) if front.z != 0.0 else Vector3(fz, 7.0, fx)
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = foot
+	cs.shape = sh
+	cs.position = Vector3(p.x, gy + 3.5, p.z)
+	_static.add_child(cs)
+	_kit_footprints.append([Rect2(p.x - foot.x / 2, p.z - foot.z / 2, foot.x, foot.z), col])
+	_blocked.append(Rect2(p.x - foot.x / 2 - 1, p.z - foot.z / 2 - 1, foot.x + 2, foot.z + 2))
 
 ## Colonial facade details on a box house: painted base band (barrado), door with frame,
 ## windows with shutters and sills, white eave trim. All static boxes, so they batch.

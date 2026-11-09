@@ -91,7 +91,22 @@ vec3 to_linear(vec3 c) {
 }
 
 uniform float strata = 0.3;
+uniform sampler2D grass_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D dirt_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D dry_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform vec3 grass_avg = vec3(0.2, 0.45, 0.05);
+uniform vec3 dirt_avg = vec3(0.6, 0.22, 0.06);
+uniform vec3 dry_avg = vec3(0.5, 0.3, 0.12);
+uniform float detail = 1.0;
 varying vec3 wnorm;
+
+// two scales + a rotation so the tiling doesn't show
+vec3 tri_sample(sampler2D t, vec2 p) {
+	vec3 a = texture(t, p * 0.21).rgb;
+	vec2 q = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * p;
+	vec3 b = texture(t, q * 0.067 + 0.37).rgb;
+	return mix(a, b, 0.4);
+}
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -107,7 +122,25 @@ void fragment() {
 	n = mix(n, band * 0.75 + fine * 0.25, steep * strata);
 	vec3 c = pow(COLOR.rgb, vec3(1.2));
 	float contrast = mix(0.4, 0.95, steep * strata);
-	ALBEDO = c * (1.0 - contrast * 0.5 + contrast * n);
+	vec3 base = c * (1.0 - contrast * 0.5 + contrast * n);
+	// painted ground detail: grass where the ground is green, red earth / dry cerrado elsewhere.
+	// Each texture is normalised by its average colour so the zone palette (COLOR) still rules.
+	float g = smoothstep(0.0, 0.08, COLOR.g - max(COLOR.r, COLOR.b) * 0.92);
+	float dry = smoothstep(0.35, 0.6, vnoise(wpos.xz * 0.05));
+	vec3 L = vec3(0.299, 0.587, 0.114);
+	vec3 sg = tri_sample(grass_tex, wpos.xz);
+	vec3 sd = mix(tri_sample(dirt_tex, wpos.xz), tri_sample(dry_tex, wpos.xz), dry);
+	// each texture's average = its 1x1 mip, in whatever colour space the samples arrive in
+	vec3 ag = textureLod(grass_tex, vec2(0.5), 12.0).rgb;
+	vec3 ad = mix(textureLod(dirt_tex, vec2(0.5), 12.0).rgb, textureLod(dry_tex, vec2(0.5), 12.0).rgb, dry);
+	vec3 savg = mix(ad, ag, g);
+	vec3 s = mix(sd, sg, g);
+	// brightness pattern from the painting, hue from the zone palette, plus a touch of the
+	// painting's own colour variation (relative to its average)
+	float lum = dot(s, L) / max(dot(savg, L), 0.02);
+	vec3 painted = c * clamp(lum, 0.35, 1.8);
+	float k = detail * (1.0 - steep * strata);
+	ALBEDO = mix(base, painted * (0.85 + 0.3 * n), k);
 	ROUGHNESS = 1.0;
 }
 """
@@ -149,7 +182,36 @@ static func terrain(strata := 0.3) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = _terrain_shader
 	m.set_shader_parameter("strata", strata)
+	if OS.get_environment("NODETAIL") != "":
+		m.set_shader_parameter("detail", 0.0)
+	for k in [["grass", "grass"], ["dirt", "dirt"], ["dry", "cerrado"]]:
+		var tx := env_tex(k[1])
+		m.set_shader_parameter(k[0] + "_tex", tx)
+		m.set_shader_parameter(k[0] + "_avg", tex_avg(k[1]))
 	return m
+
+## Painted tiling textures (assets/textures/env), and their average colour (linear) for shaders
+## that use them as detail on top of a palette colour.
+static var _tex_cache := {}
+static var _avg_cache := {}
+static func env_tex(n: String) -> Texture2D:
+	if not _tex_cache.has(n):
+		_tex_cache[n] = load("res://assets/textures/env/%s.jpg" % n)
+	return _tex_cache[n]
+
+static func tex_avg(n: String) -> Vector3:
+	if not _avg_cache.has(n):
+		var img := (env_tex(n) as Texture2D).get_image()
+		if img.is_compressed():
+			img.decompress()
+		img.resize(8, 8)
+		var acc := Vector3.ZERO
+		for y in 8:
+			for x in 8:
+				var c := img.get_pixel(x, y).srgb_to_linear()
+				acc += Vector3(c.r, c.g, c.b)
+		_avg_cache[n] = acc / 64.0
+	return _avg_cache[n]
 
 const FOLIAGE_CODE := """
 shader_type spatial;
