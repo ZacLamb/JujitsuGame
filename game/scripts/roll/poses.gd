@@ -151,7 +151,9 @@ const SUB_FAMILY := {"chain_sub": "triangle", "kesa_armlock": "armbar", "heel_ho
 	"cross_collar": "collar", "ezekiel": "collar", "americana": "keylock", "top_kimura": "keylock",
 	"half_kimura": "keylock", "darce": "headlock", "guillotine": "headlock", "kimura_guard": "keylock",
 	"back_armbar": "armbar", "straight_ankle": "leglock", "kneebar": "leglock", "north_south": "headlock",
-	"mounted_triangle": "collar"}
+	"mounted_triangle": "collar", "gogoplata": "triangle", "triangle_armbar": "triangle", "toe_hold": "leglock",
+	"imanari_roll": "leglock", "paper_cutter": "collar", "baseball_choke": "collar", "twister": "back_choke",
+	"crucifix": "headlock"}
 
 ## Finishing positions: {"atk": [pose, xf], "def": [pose, xf]}. pos/atk_top give the
 ## position the submission comes from, used by the families that stay in place.

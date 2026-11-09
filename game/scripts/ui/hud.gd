@@ -370,6 +370,9 @@ func _build_toasts() -> void:
 	toasts.add_theme_constant_override("separation", 8)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(toasts)
+	combat_log = CombatLog.new()
+	root.add_child(combat_log)
+	status_panels.append(combat_log)
 
 var combat_hud: CombatHud
 
@@ -387,14 +390,29 @@ func flash_message(head: String, sub: String) -> void:
 	if combat_hud:
 		combat_hud.flash(head, sub)
 
+## Only the big moments get a banner in the middle of the screen; everything else (XP, loot,
+## quest progress, fight chatter) goes to the combat log, bottom-left.
+const BANNER_PREFIX := ["LEVEL", "PROMOTED", "New stripe", "Achievement", "Quest complete", "Discovered", "Specializations unlocked"]
+var combat_log: CombatLog
+
+func _is_banner(text: String) -> bool:
+	for p in BANNER_PREFIX:
+		if text.begins_with(p):
+			return true
+	return text.contains("  ·  ") or text.contains(" is yours!")
+
 func show_toast(text: String, color := Color.WHITE) -> void:
+	if combat_log:
+		combat_log.add(text, color)
+	if not _is_banner(text):
+		return
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", UiKit.box(Color(0, 0, 0, 0.7), 12, color * Color(1, 1, 1, 0.8)))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := UiKit.label(text, 21, color, HORIZONTAL_ALIGNMENT_CENTER)
+	var l := UiKit.label(text, 19, color, HORIZONTAL_ALIGNMENT_CENTER)
 	p.add_child(l)
 	toasts.add_child(p)
-	if toasts.get_child_count() > 4:
+	if toasts.get_child_count() > 2:
 		toasts.get_child(0).queue_free()
 	var tw := p.create_tween()
 	p.modulate.a = 0.0
@@ -1030,6 +1048,19 @@ func close_shop() -> void:
 	shop_closed.emit()
 
 # ------------------------------------------------------------ specs tab
+## Is this rank-99 technique taught by your class's talent tree (or its signature)?
+func _class_teaches(id: String) -> bool:
+	if Rpg.STYLES.has(Game.style) and id in Rpg.STYLES[Game.style].signature:
+		return true
+	for n in TalentTrees.class_tree():
+		var fx: Dictionary = n.get("fx", {})
+		if str(fx.get("move", "")) == id or id in fx.get("moves", []):
+			return true
+		for ch in n.get("choice", []):
+			if str(ch.get("fx", {}).get("move", "")) == id:
+				return true
+	return false
+
 func _fill_specs() -> void:
 	var sc := ScrollContainer.new()
 	sc.name = "Specs"
@@ -1245,6 +1276,9 @@ func _fill_spellbook() -> void:
 			if m.pos != pos:
 				continue
 			if m.has("spec") and Specs.style_of(str(m.spec)) != Game.style:
+				continue
+			# other classes' techniques aren't in your book (not every class learns every move)
+			if not Data.class_ok(id, Game.style) or (int(m.rank) == 99 and not m.has("spec") and not Game.knows(id) and not _class_teaches(id)):
 				continue
 			ids.append(id)
 		ids.sort_custom(func(a, b):

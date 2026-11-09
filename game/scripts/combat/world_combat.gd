@@ -303,7 +303,7 @@ func _grounded(u: CombatCore.Unit) -> bool:
 	return u.gpos != "standing"
 
 ## Both bodies go to the position's pair pose, where they are (or stand back up).
-func _show_position(e: CombatCore.Unit) -> void:
+func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) -> void:
 	var npc := npc_of(e)
 	if npc == null:
 		return
@@ -320,12 +320,51 @@ func _show_position(e: CombatCore.Unit) -> void:
 	var anchor := Transform3D(Basis(Vector3.UP, yaw), Vector3(mid.x, world.ground_y(mid.x, mid.z), mid.z))
 	var top_rig := pr if e.ptop else nr
 	var bot_rig := nr if e.ptop else pr
+	# the move's arc: a takedown dives and lands, a sweep rolls the top player over, a pass steps
+	# around, a back take slides behind (same flavors the roll scene used)
+	var tp := str(Data.MOVES.get(mv, {}).get("type", ""))
+	var fl := RollPoses.flavor(tp) if tp != "" else {}
+	var actor_rig: BodyRig = _rig_of(by) if by else null
 	for pair_side in [["top", top_rig], ["bottom", bot_rig]]:
 		var rig: BodyRig = pair_side[1]
 		var pose: Dictionary = pair[pair_side[0]][0]
 		var xf: Transform3D = pair[pair_side[0]][1]
-		var local: Transform3D = (rig.get_parent() as Node3D).global_transform.affine_inverse() * anchor * xf
-		rig.action([[pose, local, 0.45]], true)
+		var parent := rig.get_parent() as Node3D
+		var local: Transform3D = parent.global_transform.affine_inverse() * anchor * xf
+		if fl.is_empty() or actor_rig == null:
+			rig.action([[pose, local, 0.45]], true)
+			continue
+		var partner: BodyRig = bot_rig if rig == top_rig else top_rig
+		var toward: Vector3 = parent.global_transform.basis.inverse() * (partner.global_position - rig.global_position)
+		var mid_p := BodyRig.lerp_pose(rig.current_pose(), pose, 0.5)
+		var mid_r: Transform3D = rig.current_root().interpolate_with(local, 0.5)
+		var res := RollPoses.apply_flavor(mid_p, mid_r, fl.actor if rig == actor_rig else fl.other, toward)
+		rig.action([[res[0], res[1], 0.34], [pose, local, 0.46]], true)
+	if tp in ["takedown", "sweep"]:
+		get_tree().create_timer(0.62).timeout.connect(func():
+			player.add_shake(0.75)
+			Sfx.play("hit", -1.0, 0.6)
+			UiKit.buzz(45))
+
+## A submission being set up: both bodies move part of the way into the finish, so you see the
+## armbar / triangle / choke coming (and know to Defend it).
+func _show_sub_setup(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void:
+	var ar := _rig_of(u)
+	var dr := _rig_of(t)
+	if ar == null or dr == null or not Data.MOVES.has(mv):
+		return
+	var e := t if u.player else u
+	var pr := RollPoses.sub_pair(mv, e.gpos, true)
+	var yaw := _yaw_to(u, t)
+	var anchor := Transform3D(Basis(Vector3.UP, yaw + PI), t.pos)
+	for side in [[ar, pr.atk], [dr, pr.def]]:
+		var rig: BodyRig = side[0]
+		var fin: Array = side[1]
+		var parent := rig.get_parent() as Node3D
+		var local: Transform3D = parent.global_transform.affine_inverse() * anchor * fin[1]
+		var p := BodyRig.lerp_pose(rig.current_pose(), fin[0], 0.65)
+		var r: Transform3D = rig.current_root().interpolate_with(local, 0.65)
+		rig.action([[p, r, 0.5]], true)
 
 func _rig_of(u: CombatCore.Unit) -> BodyRig:
 	if u == null:
@@ -351,7 +390,7 @@ func _on_event(e: Dictionary) -> void:
 	var u: CombatCore.Unit = e.get("u")
 	match str(e.t):
 		"position":
-			_show_position(e.e)
+			_show_position(e.e, str(e.get("move", "")), e.get("by"))
 			var mover := _node_of(e.by)
 			if int(e.pts) > 0 and mover:
 				_float(mover, "+%d  %s" % [int(e.pts), Data.POSITION_NAMES.get(str(e.pos), "")], Color(0.5, 1.0, 0.6), 0.9)
@@ -372,12 +411,20 @@ func _on_event(e: Dictionary) -> void:
 				Sfx.play("click", -14.0)
 		"cast":
 			var r := _rig_of(u)
-			if r and not _grounded(u):
+			var ca: Dictionary = e.get("ab", {})
+			var tg: CombatCore.Unit = e.get("target")
+			if str(ca.get("type", "")) == "sub" and tg and (_grounded(u) or _grounded(tg) or str(Data.MOVES.get(str(ca.get("_mv", "")), {}).get("pos", "")) == "standing"):
+				_show_sub_setup(u, tg, str(ca.get("_mv", "")))
+				Sfx.play("squeeze", -8.0)
+			elif r and not _grounded(u):
 				r.action(CombatAnim.squeeze(_yaw_to(u, e.get("target"))), true)
 				Sfx.play("squeeze", -10.0)
 		"cast_stop":
 			var r := _rig_of(u)
-			if r and not u.down() and not u.dead and not _grounded(u):
+			var eu: CombatCore.Unit = u if not u.player else u.target
+			if eu and not eu.player and eu.gpos != "standing" and not u.dead:
+				_show_position(eu)   # the submission was defended: back to the position
+			elif r and not u.down() and not u.dead and not _grounded(u):
 				r.release(CombatAnim.attack("handfight", r.rotation.y))
 		"dmg":
 			var t: CombatCore.Unit = e.target
@@ -392,6 +439,9 @@ func _on_event(e: Dictionary) -> void:
 			var txt := str(int(e.amount)) + ("!" if bool(e.crit) else "")
 			if n:
 				_float(n, txt, col, 1.35 if bool(e.crit) else 1.0)
+			if bool(e.crit) and (u.player or t.player):
+				player.add_shake(0.45)
+				Sfx.play("hit", -3.0, 1.15)
 			var tr := _rig_of(t)
 			if tr and not tr.in_action() and not t.down() and not t.dead and not _grounded(t):
 				tr.action(CombatAnim.recoil(tr.rotation.y))

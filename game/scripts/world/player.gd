@@ -75,6 +75,10 @@ func _ready() -> void:
 	last_safe = global_position
 
 var _look_key := ""
+var shake := 0.0   # camera shake (landings, crits, taps); decays
+
+func add_shake(amount: float) -> void:
+	shake = maxf(shake, amount)
 
 func refresh_look() -> void:
 	var key := Game.look_key()
@@ -222,6 +226,14 @@ func _physics_process(delta: float) -> void:
 	yaw_node.rotation.y = cam_yaw
 	pitch_node.rotation.x = cam_pitch
 	arm.spring_length = lerpf(arm.spring_length, cam_dist, clampf(delta * 6.0, 0, 1))
+	if shake > 0.0:
+		shake = maxf(0.0, shake - delta * 2.2)
+		var k := shake * shake * 0.18
+		cam.h_offset = randf_range(-k, k)
+		cam.v_offset = randf_range(-k, k)
+	elif cam.h_offset != 0.0 or cam.v_offset != 0.0:
+		cam.h_offset = 0.0
+		cam.v_offset = 0.0
 
 func do_jump() -> void:
 	if is_on_floor():

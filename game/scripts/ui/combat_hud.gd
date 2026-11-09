@@ -68,12 +68,17 @@ func _ready() -> void:
 		b.draw.connect(func(): _draw_slot(b, idx))
 		bar.add_child(b)
 		_slots.append(b)
+	# "New technique" cards: bottom-right, above the bags, out of the way of the fight
 	_card_root = VBoxContainer.new()
-	_card_root.anchor_left = 0.5
-	_card_root.anchor_right = 0.5
-	_card_root.offset_left = -230
-	_card_root.offset_right = 230
-	_card_root.offset_top = 150
+	_card_root.anchor_left = 1.0
+	_card_root.anchor_right = 1.0
+	_card_root.anchor_top = 1.0
+	_card_root.anchor_bottom = 1.0
+	_card_root.offset_left = -372
+	_card_root.offset_right = -14
+	_card_root.offset_bottom = -104
+	_card_root.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_card_root.alignment = BoxContainer.ALIGNMENT_END
 	_card_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card_root)
 	_err = Wow.title("", 22, Color(1, 0.2, 0.15))
@@ -207,13 +212,13 @@ func _draw() -> void:
 		var hint := "%s it!  [%s]" % [CombatCore.KIND_VERB[kind].to_upper(), CombatCore.KIND_KEY[kind]]
 		draw_string_outline(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
 		draw_string(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
-	_auras(t, tp + Vector2(150, 54))
+	_auras(t, tp + Vector2(280, 30))
 
 func _auras(u: CombatCore.Unit, at: Vector2) -> void:
 	var names := {"down": ["DOWN", Color(1, 0.55, 0.2)], "pinned": ["PIN", Color(0.95, 0.8, 0.3)], "exposed": ["EXP", Color(0.75, 0.55, 1.0)],
 		"base": ["BASE", Color(0.98, 0.6, 0.2)], "guarded": ["GRD", Color(0.55, 0.7, 0.95)], "framed": ["FRM", Color(0.4, 0.75, 1.0)],
 		"rattled": ["RTL", Color(0.75, 0.3, 0.8)], "lucky": ["LCK", Color(0.4, 1.0, 0.5)], "mate": ["MATE", Color(0.4, 0.85, 0.4)],
-		"ginga": ["GNG", Color(0.4, 0.9, 1.0)], "rush": ["RUSH", Color(1.0, 0.45, 0.3)], "game_plan": ["PLAN", Color(0.35, 0.9, 0.8)]}
+		"ginga": ["GNG", Color(0.4, 0.9, 1.0)], "rush": ["RUSH", Color(1.0, 0.45, 0.3)], "game_plan": ["PLAN", Color(0.35, 0.9, 0.8)], "chain": ["CHAIN", Color(1.0, 0.4, 0.55)]}
 	var x := 0.0
 	for k in u.auras:
 		if not names.has(k):
@@ -240,6 +245,10 @@ func _draw_slot(b: Button, i: int) -> void:
 	var col: Color = st[1]
 	var inner := r.grow(-4)
 	IconArt.draw(b, r, str(st[0]), col, Color(0, 0, 0, 0), false, IconArt.ability_key(a))
+	if me.has("chain") and str(a.get("type", "")) == "sub":
+		# live submission chain: this button is the next link
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
+		b.draw_rect(r.grow(-1.0), Color(1.0, 0.4, 0.55, 0.6 + 0.4 * pulse), false, 3.0)
 	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
 	var cd := float(me.cds.get(a.id, 0.0))
 	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
@@ -332,30 +341,34 @@ func _next_card() -> void:
 	h.add_theme_constant_override("separation", 12)
 	p.add_child(h)
 	var icon := Control.new()
-	icon.custom_minimum_size = Vector2(52, 52)
-	var t := str(a.get("type", "handfight"))
+	icon.custom_minimum_size = Vector2(48, 48)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var st: Array = icon_of(a)
+	var ikey := IconArt.ability_key(a)
 	icon.draw.connect(func():
-		var col: Color = TYPE_COL.get(t, Color(0.8, 0.8, 0.8))
-		icon.draw_rect(Rect2(Vector2.ZERO, icon.size), col.darkened(0.6))
-		icon.draw_rect(Rect2(Vector2.ZERO, icon.size), Wow.GOLD, false, 2.0)
-		CharSheet.draw_glyph(icon, TYPE_GLYPH.get(t, "star"), icon.size / 2.0, 26, col.lightened(0.3)))
+		IconArt.draw(icon, Rect2(Vector2.ZERO, icon.size), str(st[0]), st[1], Wow.GOLD, false, ikey))
 	h.add_child(icon)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
+	v.add_theme_constant_override("separation", 1)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
-	v.add_child(Wow.title("NEW TECHNIQUE", 13, Wow.GREEN))
+	v.add_child(Wow.title("NEW TECHNIQUE", 11, Wow.GREEN))
 	var slot := Game.bar_layout.find(str(a.id))
 	var key: String = Abilities.KEYS[slot] if slot >= 0 else str(Abilities.UTILITY_KEYS.get(str(a.id), ""))
-	v.add_child(Wow.title("%s%s" % [str(a.name), ("   [%s]" % key) if key != "" else "   (in your Moves book, P)"], 17, Wow.WHITE))
-	var body := Wow.label(str(Abilities.TUTORIAL.get(str(a.id), a.get("text", ""))), 13, Wow.PALE, true)
-	body.custom_minimum_size = Vector2(360, 0)
+	var nm := Wow.title("%s%s" % [str(a.name), ("  [%s]" % key) if key != "" else "  (Moves book, P)"], 15, Wow.WHITE)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.custom_minimum_size = Vector2(250, 0)
+	v.add_child(nm)
+	var body := Wow.label(str(Abilities.TUTORIAL.get(str(a.id), a.get("text", ""))), 12, Wow.PALE, true)
+	body.custom_minimum_size = Vector2(250, 0)
 	v.add_child(body)
-	var ok := Wow.button("Got it", Vector2(90, 26))
+	var ok := Wow.button("Got it", Vector2(70, 22))
+	ok.add_theme_font_size_override("font_size", 12)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_END
 	ok.pressed.connect(func():
 		p.queue_free()
 		_next_card.call_deferred())
-	h.add_child(ok)
+	v.add_child(ok)
 	_card_root.add_child(p)
 	Sfx.play("levelup", -10.0)
 	var tw := p.create_tween()

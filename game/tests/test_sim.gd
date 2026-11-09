@@ -59,7 +59,7 @@ func _ready() -> void:
 	rt.start_live()
 	var bar0 := rt.player_bar()
 	check(bar0.size() >= 4 and bar0.size() <= 8 and bar0[0].kind == "grip" and bar0[1].kind == "wear", "standing bar: grip, wear + techniques (%d slots)" % bar0.size())
-	var tdslot: Dictionary = bar0.filter(func(sl): return sl.id == "double_leg")[0]
+	var tdslot: Dictionary = bar0.filter(func(sl): return Data.MOVES.has(str(sl.id)) and str(Data.MOVES[str(sl.id)].type) == "takedown")[0]
 	check(rt.block_reason(tdslot) == "control", "techniques need grips first")
 	rt.ai_t = 99.0
 	check(rt.use("grip") == "", "grip ability starts a cast")

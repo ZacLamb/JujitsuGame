@@ -376,7 +376,7 @@ func knows(move_id: String) -> bool:
 	if Data.MOVES[move_id].has("spec"):
 		return str(Data.MOVES[move_id].spec) == spec
 	if int(Data.MOVES[move_id].rank) <= rank:
-		return true
+		return style == "" or Data.class_ok(move_id, style)
 	if style != "" and move_id in Rpg.STYLES[style].signature:
 		return true
 	if move_id in TalentTrees.taught_moves(talents, spec):

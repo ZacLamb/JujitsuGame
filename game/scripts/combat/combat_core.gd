@@ -250,6 +250,11 @@ func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
 		return not m.is_empty() and str(m.pos) == pos and (str(m.role) == "any" or str(m.role) == role or pos == "standing")
 	if str(a.get("id", "")) == "spec":
 		return str(a.move) if ok.call(str(a.move)) else ""
+	# a live submission chain: the next link is already there
+	if u.has("chain"):
+		var nx := str(u.auras.chain.get("next", ""))
+		if nx in u.known and str(Data.MOVES[nx].type) == tp and ok.call(nx):
+			return nx
 	for mv in u.known:
 		if str(Data.MOVES[mv].type) == tp and ok.call(mv):
 			return mv
@@ -312,10 +317,21 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		elif mv != "":
 			a = a.duplicate()
 			a["_mv"] = mv
+	var chained := false
+	if u.has("chain") and str(a.get("_mv", "")) != "" and str(a.get("_mv", "")) == str(u.auras.chain.get("next", "")):
+		chained = true
+		a = a.duplicate()
+		a["dmg"] = float(a.get("dmg", 0.0)) * 1.25
+		a["name"] = "%s (chain)" % str(a.get("name", ""))
+		u.auras.erase("chain")
+		emit({"t": "aura_off", "u": u, "aura": "chain"})
+		emit({"t": "proc", "u": u, "text": "Chain! %s" % str(Data.MOVES[str(a._mv)].name)})
 	u.gas -= cost_of(u, a)
 	if bool(a.get("gcd", true)):
 		u.gcd = GCD / haste(u)
 	var ct := float(a.get("cast", 0.0)) / haste(u)
+	if chained:
+		ct *= 0.5
 	if u.player and bool(a.get("finisher", false)):
 		if u.mods.get("instant_sub", false):
 			ct = 0.0
@@ -438,6 +454,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		_damage(u, t, amount, crit, a)
 	if t.dead:
 		return
+	_start_chain(u, a)
 	var g := int(a.get("grip", 0))
 	if u.player:
 		g += int(u.mods.get("grip_bonus", {}).get(str(a.get("id", "")), 0.0))
@@ -477,9 +494,53 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 		_aura(t, "framed", 1.5, u)
 		u.grip = mini(u.max_grip, u.grip + 1)
 		emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "text": "%s!" % KIND_VERB[kind]})
+		emit({"t": "cast_stop", "u": t})
+		# counter-to-counter: elites and bosses read your counter and flow into the next attack
+		if not t.player and (t.elite or t.boss) and rng.randf() < (0.45 if t.boss else 0.3):
+			var re := _recounter_move(t, str(ab.get("_mv", "")))
+			if re != "":
+				t.auras.erase("framed")
+				var ra := move_ability(re)
+				ra["cast"] = float(ra.cast) * 0.7
+				ra["name"] = "%s (re-counter)" % str(ra.name)
+				t.cast = {"ab": ra, "t": 0.0, "dur": float(ra.cast), "target": u}
+				emit({"t": "proc", "u": t, "text": "Re-counter!"})
+				emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
 	elif kind == "frame":
 		t.cast.dur = float(t.cast.dur) + 0.7
 		emit({"t": "miss", "u": u, "target": t, "text": "Wrong counter: %s it! [%s]" % [KIND_VERB[counter_kind(ab)], KIND_KEY[counter_kind(ab)]]})
+
+## A submission that didn't end it opens the next link of its chain for a few seconds.
+func _start_chain(u: Unit, a: Dictionary) -> void:
+	var mv := str(a.get("_mv", ""))
+	if not u.player or str(a.get("type", "")) != "sub" or not Data.CHAINS.has(mv):
+		return
+	var nx: String = Data.CHAINS[mv]
+	if not nx in u.known:
+		return
+	_aura(u, "chain", 6.0, u)
+	u.auras.chain["next"] = nx
+	emit({"t": "proc", "u": u, "text": "%s → %s" % [str(Data.MOVES[mv].name), str(Data.MOVES[nx].name)]})
+
+## An elite's answer to your counter: the classic follow-up (sprawl -> front headlock, frame -> back
+## take, defended choke -> the chain's next sub), or any other technique from here.
+func _recounter_move(t: Unit, countered: String) -> String:
+	if Data.CHAINS.has(countered):
+		var nx: String = Data.CHAINS[countered]
+		if Data.MOVES.has(nx) and str(Data.MOVES[nx].pos) == t.gpos:
+			return nx
+	var ty := str(Data.MOVES.get(countered, {}).get("type", ""))
+	var opts: Array = []
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		if m.has("spec") or int(m.get("rank", 0)) > t.rank + 3 or str(m.pos) != t.gpos or str(m.type) == ty:
+			continue
+		if not str(m.type) in POSITIONAL or str(m.type) == "escape":
+			continue
+		if t.gpos != "standing" and str(m.role) != "any" and str(m.role) != ("bottom" if t.ptop else "top"):
+			continue
+		opts.append(mv)
+	return "" if opts.is_empty() else str(opts[rng.randi() % opts.size()])
 
 const POINTS := {"guard": 2, "half": 2, "side": 3, "mount": 4, "back": 4}
 

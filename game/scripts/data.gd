@@ -49,6 +49,28 @@ const QA_KEY := "oss-tatame-qa"   # #qa=<key>&roll=... enables the dev URL short
 # pts: IBJJF-style points (takedown 2, sweep 2, pass 3, mount 4, back 4).
 # diff: 0 easy .. 3 hard (shrinks the timing window).
 # rank: minimum rank index needed (0 = white belt no stripes, 4 = 4 stripes, 5 = blue).
+## Belt-gated techniques that only some classes learn (everything else in the belt curriculum is
+## shared: the fundamentals every jiu-jitsu player knows). Class tree techniques: TalentTrees.
+const CLASS_MOVES := {
+	"osoto_gari": ["judoka"], "o_goshi": ["judoka"], "harai_goshi": ["judoka"], "back_armbar": ["judoka", "guard"],
+	"guillotine": ["wrestler", "passer"], "ankle_pick": ["wrestler"], "body_lock_td": ["wrestler", "passer"],
+	"flower_sweep": ["guard"], "arm_drag_back": ["guard", "athlete"], "deep_half": ["guard", "athlete"], "lasso_sweep": ["guard"],
+	"straight_ankle": ["athlete", "judoka"], "kneebar": ["athlete"], "toe_hold": ["athlete"],
+	"north_south": ["passer", "wrestler"], "stack_pass": ["passer"], "smash_pass": ["passer", "wrestler"], "paper_cutter": ["passer"],
+	"mounted_triangle": ["guard", "passer"]}
+
+## Submission chains: when one doesn't finish (or gets defended), the next is already there.
+const CHAINS := {"guard_armbar": "triangle", "triangle": "omoplata", "omoplata": "guard_armbar", "triangle_armbar": "omoplata",
+	"gogoplata": "triangle", "kimura_guard": "guard_armbar", "rnc": "bow_arrow", "bow_arrow": "back_armbar", "back_armbar": "rnc",
+	"twister": "rnc", "cross_collar": "mount_armbar", "mount_armbar": "mounted_triangle", "ezekiel": "mount_armbar",
+	"mounted_triangle": "mount_armbar", "americana": "top_kimura", "top_kimura": "americana", "paper_cutter": "baseball_choke",
+	"baseball_choke": "north_south", "north_south": "paper_cutter", "half_kimura": "toe_hold", "toe_hold": "half_kimura",
+	"straight_ankle": "kneebar", "kneebar": "straight_ankle", "guillotine": "darce", "darce": "guillotine"}
+
+## Can a class learn this technique at all?
+static func class_ok(move_id: String, style: String) -> bool:
+	return not CLASS_MOVES.has(move_id) or style in CLASS_MOVES[move_id]
+
 const MOVES := {
 	# --- standing
 	"double_leg": {"name": "Double-Leg Takedown", "pos": "standing", "role": "any", "result": ["guard", true], "pts": 2, "diff": 1, "cost": 14, "type": "takedown", "rank": 0},
@@ -109,6 +131,25 @@ const MOVES := {
 	"leg_drag": {"name": "Leg Drag Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 13, "type": "pass", "rank": 99},
 	"darce": {"name": "D'Arce Choke", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 99},
 	"ezekiel": {"name": "Ezekiel Choke", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 13, "type": "sub", "rank": 99},
+	# --- class techniques (belt-gated, only the listed classes learn them; see CLASS_MOVES)
+	"ankle_pick": {"name": "Ankle Pick", "pos": "standing", "role": "any", "result": ["half", true], "pts": 2, "diff": 1, "cost": 12, "type": "takedown", "rank": 2},
+	"o_goshi": {"name": "O Goshi (Hip Throw)", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 1, "cost": 13, "type": "takedown", "rank": 2},
+	"stack_pass": {"name": "Stack Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 13, "type": "pass", "rank": 3},
+	"toe_hold": {"name": "Toe Hold", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 4},
+	"body_lock_td": {"name": "Body Lock Takedown", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 5},
+	"harai_goshi": {"name": "Harai Goshi", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 5},
+	"lasso_sweep": {"name": "Lasso Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 2, "cost": 13, "type": "sweep", "rank": 6},
+	"smash_pass": {"name": "Smash Pass", "pos": "half", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 14, "type": "pass", "rank": 6},
+	"paper_cutter": {"name": "Paper Cutter Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 9},
+	# --- class talent techniques (rank 99: taught by your class tree; see TalentTrees.CLASS_TEACH)
+	"high_crotch": {"name": "High Crotch", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 99},
+	"sumi_gaeshi": {"name": "Sumi Gaeshi", "pos": "standing", "role": "any", "result": ["mount", true], "pts": 2, "diff": 2, "cost": 15, "type": "takedown", "rank": 99},
+	"gogoplata": {"name": "Gogoplata", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
+	"imanari_roll": {"name": "Imanari Roll", "pos": "standing", "role": "any", "result": "sub", "pts": 0, "diff": 3, "cost": 20, "type": "sub", "rank": 99},
+	"baseball_choke": {"name": "Baseball Bat Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99},
+	"twister": {"name": "Twister", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
+	"crucifix": {"name": "Crucifix Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
+	"triangle_armbar": {"name": "Triangle Armbar", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99},
 	# --- spec-exclusive techniques (rank 99: only your spec knows them; see Specs)
 	"chain_sub": {"name": "Armbar-Triangle Chain", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 18, "type": "sub", "rank": 99, "spec": "sub_hunter"},
 	"lumberjack": {"name": "Lumberjack Sweep", "pos": "guard", "role": "bottom", "result": ["mount", true], "pts": 2, "diff": 1, "cost": 13, "type": "sweep", "rank": 99, "spec": "sweeper"},

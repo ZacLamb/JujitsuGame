@@ -27,6 +27,11 @@ func _ready() -> void:
 			if str(e.pos) != "standing" and not ground_shot.has(str(e.pos)):
 				ground_shot[str(e.pos)] = true
 				_later_shot("g_" + str(e.pos))
+		elif str(e.t) == "cast" and str(e.ab.get("type", "")) == "sub" and not ground_shot.has("sub"):
+			ground_shot["sub"] = true
+			_later_shot("s_sub_" + str(e.ab.get("_mv", "")))
+		elif str(e.t) == "proc":
+			log_lines.append("PROC %s: %s" % [e.u.name, str(e.text)])
 		elif str(e.t) in ["tap", "interrupt"]:
 			log_lines.append("%s %s %s" % [e.t, e.u.name, str(e.get("text", ""))]))
 	var mob: Npc = null

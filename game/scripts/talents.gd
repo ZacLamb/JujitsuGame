@@ -168,11 +168,58 @@ static func spec_tree(spec_id: String) -> Array:
 	_spec_cache[spec_id] = out
 	return out
 
+## Each class's tree teaches its own techniques: the six technique nodes (in tree order) and the
+## capstone's first choice. Not every class learns every move.
+const TEACH_NODES := ["c_snap_down", "c_omoplata", "c_uchi_mata", "c_leg_drag", "c_berimbolo", "c_chokes"]
+const CLASS_TEACH := {
+	"guard": {"nodes": [["sumi_gaeshi"], ["omoplata"], ["triangle_armbar"], ["berimbolo"], ["gogoplata"], ["darce", "ezekiel"]], "cap": "flying_armbar"},
+	"wrestler": {"nodes": [["snap_down"], ["high_crotch"], ["uchi_mata"], ["leg_drag"], ["darce"], ["ezekiel", "baseball_choke"]], "cap": "crucifix"},
+	"judoka": {"nodes": [["uchi_mata"], ["sumi_gaeshi"], ["snap_down"], ["omoplata"], ["ezekiel"], ["darce", "baseball_choke"]], "cap": "flying_armbar"},
+	"athlete": {"nodes": [["imanari_roll"], ["berimbolo"], ["snap_down"], ["omoplata"], ["twister"], ["darce", "triangle_armbar"]], "cap": "flying_armbar"},
+	"passer": {"nodes": [["leg_drag"], ["baseball_choke"], ["high_crotch"], ["darce"], ["crucifix"], ["ezekiel", "twister"]], "cap": "twister"},
+}
+static var _class_cache := {}
+
+## The class tree for a style: the shared layout with that class's techniques.
+static func class_tree(style: String = "") -> Array:
+	if style == "":
+		style = Game.style
+	if not CLASS_TEACH.has(style):
+		return CLASS
+	if _class_cache.has(style):
+		return _class_cache[style]
+	var ct: Dictionary = CLASS_TEACH[style]
+	var out: Array = []
+	for n0 in CLASS:
+		var n: Dictionary = n0.duplicate(true)
+		var k := TEACH_NODES.find(str(n.id))
+		if k >= 0:
+			var mvs: Array = ct.nodes[k]
+			var names: Array = []
+			for m in mvs:
+				names.append(str(Data.MOVES[m].name))
+			n["name"] = str(names[0]) if mvs.size() == 1 else "%s & %s" % [names[0], names[1]]
+			if mvs.size() == 1:
+				var tp := str(Data.MOVES[mvs[0]].type)
+				n["fx"] = {"move": mvs[0]}
+				n["desc"] = "Learn %s: a stronger %s from %s." % [names[0], MoveInfo.TYPE_NAMES.get(tp, tp), str(Data.MOVES[mvs[0]].pos)]
+			else:
+				n["fx"] = {"moves": mvs}
+				n["desc"] = "Learn %s and %s." % [names[0], names[1]]
+		elif str(n.id) == "c_capstone":
+			var cap := str(ct.cap)
+			n.choice[0]["name"] = str(Data.MOVES[cap].name)
+			n.choice[0]["desc"] = "Learn the %s, and your Submissions have no cast time." % str(Data.MOVES[cap].name)
+			n.choice[0]["fx"] = {"move": cap, "instant_sub": true}
+		out.append(n)
+	_class_cache[style] = out
+	return out
+
 static func tree(tree_id: String, spec_id := "") -> Array:
-	return CLASS if tree_id == "class" else spec_tree(spec_id)
+	return class_tree() if tree_id == "class" else spec_tree(spec_id)
 
 static func node(id: String, spec_id := "") -> Dictionary:
-	for n in CLASS:
+	for n in class_tree():
 		if n.id == id:
 			return n
 	if id.begins_with("s_"):
