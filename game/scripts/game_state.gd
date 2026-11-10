@@ -48,6 +48,7 @@ var zone := "caceres"
 var train := {}            # attribute -> drill successes
 var drills_ready := true   # drills refresh after every roll
 var daily := {}            # {"last_win": date, "last_try": date, "streak": n, "best": n}
+var login := {}            # Mat Days: {"last": date, "streak": n, "best": n}
 var money := 0           # Reais (R$)
 var honor := 0           # faction war currency: earned with war points, spent at your faction's quartermaster
 var bag: Array = []       # slot -> {"id": item id, "n": count} or null; size = bag_capacity()
@@ -209,6 +210,7 @@ func reset_state() -> void:
 	train = {}
 	drills_ready = true
 	daily = {}
+	login = {}
 	medals = {}
 	quests = {}
 	path = ""
@@ -241,7 +243,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "login": login, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
@@ -285,6 +287,7 @@ func load_game() -> void:
 	train = parsed.get("train", {})
 	drills_ready = bool(parsed.get("drills_ready", true))
 	daily = parsed.get("daily", {})
+	login = parsed.get("login", {})
 	medals = parsed.get("medals", {})
 	quests = parsed.get("quests", {})
 	path = str(parsed.get("path", ""))
@@ -1591,6 +1594,82 @@ func award_medal(comp_id: String, belt: int, medal: String) -> int:
 	save_game()
 	progress_changed.emit()
 	return xp_gain
+
+# ------------------------------------------------------------ Mat Days (daily login streak)
+## Seven-day reward track. Your first login each day claims the next day; miss a day and it starts
+## over at Day 1. Rewards scale with your level; food matches your side of the map.
+func mat_day_rewards() -> Array:
+	var lv := player_level()
+	var usa := faction() == "usa"
+	return [
+		{"money": 20 + lv * 2},
+		{"item": "pbj" if usa else "pao_queijo", "n": 3},
+		{"money": 30 + lv * 3, "item": "energy_drink" if usa else "guarana", "n": 2},
+		{"xp_frac": 0.25},
+		{"item": "brisket" if usa else "pacu", "n": 2},
+		{"honor": 40 + lv * 2},
+		{"money": 100 + lv * 6, "item": "bag_treino", "n": 1, "xp_frac": 0.35},
+	]
+
+static func mat_day_text(r: Dictionary) -> String:
+	var parts: Array = []
+	if r.has("money"):
+		parts.append("R$ %d" % int(r.money))
+	if r.has("item"):
+		var it := Loot.item(str(r.item))
+		var nm := Tx.s(str(it.get("name", r.item)))
+		parts.append(("%d× %s" % [int(r.n), nm]) if int(r.get("n", 1)) > 1 else nm)
+	if r.has("xp_frac"):
+		parts.append(Tx.f("%d%% of a level", int(round(float(r.xp_frac) * 100.0))))
+	if r.has("honor"):
+		parts.append(Tx.f("%d Honor", int(r.honor)))
+	return "\n".join(parts)
+
+## Claims today's Mat Day if it hasn't been claimed. Returns {} when there's nothing new, else
+## {"day": 0..6, "streak": n, "reset": bool, "rewards": Array, "lines": Array of what you got}.
+func mat_day_claim(date_str := "") -> Dictionary:
+	if date_str == "":
+		date_str = today()
+	var last := str(login.get("last", ""))
+	if last == date_str:
+		return {}
+	var streak := int(login.get("streak", 0)) + 1 if last == yesterday_of(date_str) else 1
+	var reset := last != "" and streak == 1 and int(login.get("streak", 0)) > 1
+	login["last"] = date_str
+	login["streak"] = streak
+	login["best"] = maxi(int(login.get("best", 0)), streak)
+	var day := (streak - 1) % 7
+	var rewards := mat_day_rewards()
+	var r: Dictionary = rewards[day]
+	var lines: Array = []
+	if r.has("money"):
+		add_money(int(r.money))
+		lines.append("R$ %d" % int(r.money))
+	if r.has("item"):
+		var it := Loot.item(str(r.item))
+		var left := add_item(str(r.item), int(r.get("n", 1)))
+		if left > 0:
+			# bags full: the academy pays you what it's worth instead
+			var cash := left * maxi(5, int(it.get("sell", 5)) * 3)
+			add_money(cash)
+			lines.append(Tx.f("R$ %d (bags full)", cash))
+		if left < int(r.get("n", 1)):
+			lines.append(mat_day_text({"item": r.item, "n": int(r.get("n", 1)) - left}))
+	if r.has("xp_frac"):
+		var amt := maxi(10, int(xp_to_next(player_level()) * float(r.xp_frac)))
+		add_xp(amt)
+		lines.append(Tx.f("%d XP", amt))
+	if r.has("honor"):
+		honor += int(r.honor)
+		lines.append(Tx.f("%d Honor", int(r.honor)))
+	counters["mat_days_7"] = streak
+	counters["mat_days_30"] = streak
+	if streak >= 7:
+		unlock("mat_days_7")
+	if streak >= 30:
+		unlock("mat_days_30")
+	save_game()
+	return {"day": day, "streak": streak, "reset": reset, "rewards": rewards, "lines": lines}
 
 # ------------------------------------------------------------ daily challenge
 static func today() -> String:

@@ -182,6 +182,14 @@ func _build_tools() -> void:
 			for id in main.world.chests.chests:
 				main.world.chests.refresh(id)
 		_done("Chests and daily reset"))
+	_btn(r2, "Next Mat Day", func():
+		# pretend you last logged in yesterday, then claim
+		Game.login["last"] = Game.yesterday_of(Game.today())
+		var md := Game.mat_day_claim()
+		if main and main.hud:
+			main.hud.show_mat_days(md)
+			main.hud.refresh()
+		_done("Mat Day %d claimed" % (int(md.get("day", 0)) + 1)))
 	var r3 := _row(v)
 	var god := CheckButton.new()
 	god.text = "God mode (no damage)"

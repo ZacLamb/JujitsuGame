@@ -835,6 +835,8 @@ const ACHIEVEMENTS := [
 	{"id": "daily_1", "name": "Desafio do Dia", "desc": "Win a Daily Challenge."},
 	{"id": "daily_3", "name": "On a Roll", "desc": "Win Daily Challenges 3 days in a row.", "goal": 3},
 	{"id": "daily_7", "name": "Every Day Is Leg Day", "desc": "Win Daily Challenges 7 days in a row.", "goal": 7},
+	{"id": "mat_days_7", "name": "Mat Rat", "desc": "Log in 7 days in a row.", "goal": 7},
+	{"id": "mat_days_30", "name": "Lives at the Academy", "desc": "Log in 30 days in a row.", "goal": 30},
 	{"id": "terere", "name": "Tereré Time", "desc": "Find all 6 tereré cups.", "goal": 6},
 	{"id": "nest", "name": "Tuiuiú Spotter", "desc": "Find the tuiuiú nest high above the river."},
 	{"id": "first_stripe", "name": "First Stripe", "desc": "Earn your first stripe."},

@@ -591,6 +591,20 @@ func _begin_play() -> void:
 		hud.open_dialogue("Cáceres, Mato Grosso",
 			"You just moved to town with a white belt and a dream. Follow the golden light: there's a guy in the plaza who rolls every afternoon. Win rolls, earn stripes, and find the academia.",
 			"", "Let's go")
+	# Mat Days: the first login of the day claims the next reward (not on a brand-new character)
+	if Game.xp > 0:
+		var md := Game.mat_day_claim()
+		if not md.is_empty():
+			_show_mat_days_when_free(md)
+
+func _show_mat_days_when_free(md: Dictionary, tries := 0) -> void:
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if hud.dialogue_open() or hud.journal.visible or roll != null:
+			if tries < 60:
+				_show_mat_days_when_free(md, tries + 1)
+			return
+		hud.show_mat_days(md)
+		hud.refresh())
 
 # ------------------------------------------------------------ mouse: hover + click to interact
 var _hover: Npc = null

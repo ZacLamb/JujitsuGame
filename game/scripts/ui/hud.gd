@@ -603,6 +603,7 @@ func set_combat(c: WorldCombat) -> void:
 		combat_hud.visible = title == null or not title.visible   # no action bar on the title screen
 		# just above the player frame (its bars sit inside the frame plate), below windows / dialogue
 		root.move_child(combat_hud, status_panels[0].get_index() + 1 if not status_panels.is_empty() else 0)
+		apply_layout.call_deferred()   # the bar exists now: size and place it
 	combat_hud.combat = c
 	if not c.ability_learned.is_connected(combat_hud.learned):
 		c.ability_learned.connect(combat_hud.learned)
@@ -1436,6 +1437,7 @@ func _process(_d: float) -> void:
 
 func hide_title() -> void:
 	title.visible = false
+	apply_layout.call_deferred()
 	for p in status_panels:
 		p.visible = true
 	if combat_hud:
@@ -1495,6 +1497,79 @@ func _zone_banner_tick(delta: float) -> void:
 	_zb.modulate.a = a
 	if _zb_t <= 0.0:
 		_zb.visible = false
+
+# ------------------------------------------------------------ Mat Days (daily login rewards)
+var mat_days_panel: PanelContainer
+
+## The 7-day track with today's reward highlighted. info comes from Game.mat_day_claim().
+func show_mat_days(info: Dictionary) -> void:
+	if info.is_empty():
+		return
+	if mat_days_panel and is_instance_valid(mat_days_panel):
+		mat_days_panel.queue_free()
+	var vs := root.size if root.size.x > 0 else Vector2(1280, 720)
+	var narrow := vs.x < 760.0
+	var p := PanelContainer.new()
+	mat_days_panel = p
+	p.anchor_left = 0.5
+	p.anchor_right = 0.5
+	p.anchor_top = 0.5
+	p.anchor_bottom = 0.5
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	p.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 16, 3))
+	root.add_child(p)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	p.add_child(v)
+	var t := Wow.title("MAT DAYS", 30, Wow.GOLD)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	var streak := int(info.streak)
+	var sub := Tx.f("Day %d in a row. Log in every day: miss one and the week starts over.", streak)
+	if bool(info.get("reset", false)):
+		sub = Tx.s("You missed a day, so the week starts over. Show up tomorrow!")
+	v.add_child(Wow.label(sub, 15, Wow.PALE, true, HORIZONTAL_ALIGNMENT_CENTER))
+	var grid := GridContainer.new()
+	grid.columns = 4 if narrow else 7
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	v.add_child(grid)
+	var today := int(info.day)
+	var rewards: Array = info.rewards
+	for i in rewards.size():
+		var done := i < today
+		var now := i == today
+		var cell := PanelContainer.new()
+		var edge := Wow.GOLD if now else (Wow.FRAME if not done else Color(0.25, 0.6, 0.25))
+		var bg := Color(0.18, 0.13, 0.04, 0.95) if now else Wow.INSET
+		cell.add_theme_stylebox_override("panel", Wow.sb(bg, edge, 4, 6, 3 if now else 1))
+		cell.custom_minimum_size = Vector2(112 if narrow else 118, 112)
+		var cv := VBoxContainer.new()
+		cv.add_theme_constant_override("separation", 3)
+		cell.add_child(cv)
+		var head := Wow.label(Tx.f("Day %d", i + 1) + ("  ✓" if done else ""), 15, Wow.GOLD if now else (Wow.GREEN if done else Wow.GREY), false, HORIZONTAL_ALIGNMENT_CENTER)
+		cv.add_child(head)
+		var body := Wow.label(Game.mat_day_text(rewards[i]), 13, Wow.WHITE if (now or not done) else Wow.GREY, true, HORIZONTAL_ALIGNMENT_CENTER)
+		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cv.add_child(body)
+		if now:
+			cv.add_child(Wow.label("TODAY", 12, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER))
+		if i == 6:
+			cell.tooltip_text = Tx.s("Day 7 is the big one, and then the week begins again.")
+		grid.add_child(cell)
+	var got := Tx.s("You got: ") + ", ".join(PackedStringArray(info.lines))
+	v.add_child(Wow.label(got, 16, Wow.GREEN, true, HORIZONTAL_ALIGNMENT_CENTER))
+	var best := int(Game.login.get("best", streak))
+	v.add_child(Wow.label(Tx.f("Best streak: %d days", best), 13, Wow.GREY, false, HORIZONTAL_ALIGNMENT_CENTER))
+	var ok := Wow.button("Oss!", Vector2(160, 40))
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(func():
+		p.queue_free()
+		mat_days_panel = null)
+	v.add_child(ok)
+	p.custom_minimum_size.x = minf(vs.x - 32.0, 900.0)
+	Sfx.play("collect")
 
 # ------------------------------------------------------------ settings (Esc)
 signal quit_to_title

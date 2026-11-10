@@ -386,6 +386,20 @@ func _ready() -> void:
 	check(game.unlocked.has("drills"), "Drill Sergeant achievement")
 	game.zone = "pantanal"
 	check(game.current_objective().contains("Pantanal"), "pantanal objective: " + game.current_objective())
+	# ---------------- Mat Days (login streak)
+	game.reset()
+	var m0: int = game.money
+	var md1: Dictionary = game.mat_day_claim("2026-11-01")
+	check(md1.day == 0 and md1.streak == 1 and game.money > m0, "Mat Day 1 pays money")
+	check(game.mat_day_claim("2026-11-01").is_empty(), "Mat Day claims once per day")
+	for dd in range(2, 8):
+		game.mat_day_claim("2026-11-%02d" % dd)
+	check(int(game.login.streak) == 7 and game.unlocked.has("mat_days_7"), "7 days in a row = Mat Rat")
+	var md8: Dictionary = game.mat_day_claim("2026-11-08")
+	check(md8.day == 0 and md8.streak == 8, "the week loops after Day 7")
+	var md_gap: Dictionary = game.mat_day_claim("2026-11-10")
+	check(md_gap.streak == 1 and md_gap.reset, "missing a day starts over")
+	check(game.mat_day_claim("2026-12-31").streak == 1 and game.mat_day_claim("2027-01-01").streak == 2, "streak crosses the new year")
 	# ---------------- chapada + daily
 	game.reset()
 	game.promote_belt(2)

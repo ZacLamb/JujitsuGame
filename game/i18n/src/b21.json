@@ -408,5 +408,90 @@
 "Exit full screen",
 "Sair da tela cheia",
 "Salir de pantalla completa"
+],
+[
+"MAT DAYS",
+"DIAS DE TATAME",
+"DÍAS DE TATAMI"
+],
+[
+"Day %d in a row. Log in every day: miss one and the week starts over.",
+"%dº dia seguido. Entre todo dia: perdeu um, a semana recomeça.",
+"Día %d seguido. Entra cada día: si faltas uno, la semana vuelve a empezar."
+],
+[
+"You missed a day, so the week starts over. Show up tomorrow!",
+"Você perdeu um dia, então a semana recomeçou. Aparece amanhã!",
+"Faltaste un día, así que la semana vuelve a empezar. ¡Vuelve mañana!"
+],
+[
+"Day %d",
+"Dia %d",
+"Día %d"
+],
+[
+"TODAY",
+"HOJE",
+"HOY"
+],
+[
+"Day 7 is the big one, and then the week begins again.",
+"O dia 7 é o grande, e depois a semana começa de novo.",
+"El día 7 es el grande, y luego la semana empieza otra vez."
+],
+[
+"You got: ",
+"Você ganhou: ",
+"Recibiste: "
+],
+[
+"Best streak: %d days",
+"Melhor sequência: %d dias",
+"Mejor racha: %d días"
+],
+[
+"Oss!",
+"Oss!",
+"¡Oss!"
+],
+[
+"%d%% of a level",
+"%d%% de um nível",
+"%d%% de un nivel"
+],
+[
+"%d Honor",
+"%d de Honra",
+"%d de Honor"
+],
+[
+"%d XP",
+"%d XP",
+"%d XP"
+],
+[
+"R$ %d (bags full)",
+"R$ %d (bolsas cheias)",
+"R$ %d (bolsas llenas)"
+],
+[
+"Mat Rat",
+"Rato de Tatame",
+"Rata de Tatami"
+],
+[
+"Log in 7 days in a row.",
+"Entre 7 dias seguidos.",
+"Entra 7 días seguidos."
+],
+[
+"Lives at the Academy",
+"Mora na Academia",
+"Vive en la Academia"
+],
+[
+"Log in 30 days in a row.",
+"Entre 30 dias seguidos.",
+"Entra 30 días seguidos."
 ]
 ]
