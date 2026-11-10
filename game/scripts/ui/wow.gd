@@ -26,12 +26,12 @@ static var _theme: Theme
 
 static func body() -> Font:
 	if _body == null and ResourceLoader.exists("res://assets/fonts/marcellus.woff2"):
-		_body = load("res://assets/fonts/marcellus.woff2")
+		_body = UiKit.with_symbols(load("res://assets/fonts/marcellus.woff2"))
 	return _body
 
 static func title_font() -> Font:
 	if _title == null and ResourceLoader.exists("res://assets/fonts/cinzel_bold.woff2"):
-		_title = load("res://assets/fonts/cinzel_bold.woff2")
+		_title = UiKit.with_symbols(load("res://assets/fonts/cinzel_bold.woff2"))
 	return _title
 
 ## Theme for everything inside a WoW window: serif text, small sizes, bronze buttons.

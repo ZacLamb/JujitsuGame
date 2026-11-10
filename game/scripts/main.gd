@@ -14,6 +14,7 @@ var _drill: DrillScene
 var _pending_spot: Dictionary = {}
 
 func _ready() -> void:
+	UiKit.with_symbols(ThemeDB.fallback_font)
 	_register_inputs()
 	get_tree().root.size_changed.connect(_fit_screen)
 	_fit_screen()

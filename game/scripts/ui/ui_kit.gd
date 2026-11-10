@@ -14,14 +14,28 @@ static var _theme: Theme
 static var _body_font: Font
 static var _head_font: Font
 
+## The web build has no system fonts to fall back on, so symbols the text fonts lack (✕ ✓ ★ → ▶)
+## would draw as boxes: every font gets a tiny DejaVu subset as its fallback.
+static var _symbols: Font
+static func with_symbols(f: Font) -> Font:
+	if f == null:
+		return f
+	if _symbols == null and ResourceLoader.exists("res://assets/fonts/symbols.ttf"):
+		_symbols = load("res://assets/fonts/symbols.ttf")
+	if _symbols and f is FontFile and not (f as FontFile).fallbacks.has(_symbols):
+		var fb := (f as FontFile).fallbacks
+		fb.append(_symbols)
+		(f as FontFile).fallbacks = fb
+	return f
+
 static func body_font() -> Font:
 	if _body_font == null and ResourceLoader.exists("res://assets/fonts/Nunito-Bold.woff2"):
-		_body_font = load("res://assets/fonts/Nunito-Bold.woff2")
+		_body_font = with_symbols(load("res://assets/fonts/Nunito-Bold.woff2"))
 	return _body_font
 
 static func head_font() -> Font:
 	if _head_font == null and ResourceLoader.exists("res://assets/fonts/BebasNeue.woff2"):
-		_head_font = load("res://assets/fonts/BebasNeue.woff2")
+		_head_font = with_symbols(load("res://assets/fonts/BebasNeue.woff2"))
 	return _head_font
 
 static func theme() -> Theme:

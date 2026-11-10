@@ -601,6 +601,7 @@ class TalentNode extends Control:
 	var title := ""
 	var show_name := true
 	var wow := false
+	var name_w := 0.0   # room for the name (the column width), can be wider than the node
 	var _hover := false
 	var S := 64.0
 	func _init() -> void:
@@ -825,17 +826,19 @@ class TalentNode extends Control:
 			draw_style_box(ps, pr)
 			draw_string(font, pr.position + Vector2(0, 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 12, Wow.GOLD if maxed else (Color(0.4, 1, 0.45) if can_learn and rank < max_rank else Wow.WHITE))
 		if show_name:
-			var fs := 12
-			while fs > 9 and font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
+			var aw := maxf(size.x, name_w)
+			var x0 := (size.x - aw) / 2.0
+			var fs := 13
+			while fs > 9 and font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > aw - 2:
 				fs -= 1
 			var y := 4 + S + 16
-			var tw := font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var tw := minf(font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x, aw)
 			var plate := StyleBoxFlat.new()
 			plate.bg_color = Color(0.02, 0.025, 0.04, 0.92)
 			plate.set_corner_radius_all(6)
 			draw_style_box(plate, Rect2(Vector2((size.x - tw) / 2.0 - 5, y - fs - 1), Vector2(tw + 10, fs + 6)))
-			draw_string_outline(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 3, Color(0, 0, 0, 0.9))
-			draw_string(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
+			draw_string_outline(font, Vector2(x0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, aw, fs, 3, Color(0, 0, 0, 0.9))
+			draw_string(font, Vector2(x0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, aw, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
 
 ## Simple vector glyphs (no icon art needed).
 static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: Color) -> void:
@@ -1315,23 +1318,8 @@ static func build_talents_wow(hud) -> Control:
 	body.add_child(_tree2(hud, "class", Tx.f("%s", Tx.s(str(cls.get("name", "Class"))).to_upper()), Color(0.95, 0.7, 0.3), page))
 	var sp := Specs.get_spec(Game.spec)
 	body.add_child(_tree2(hud, "spec", Tx.s(str(sp.get("name", "Specialization"))).to_upper(), Color(0.7, 0.5, 1.0), page))
-	# bottom bar
-	var bar := PanelContainer.new()
-	bar.add_theme_stylebox_override("panel", Wow.sb(Color(0.05, 0.04, 0.04, 0.95), Wow.FRAME, 3, 10))
-	page.add_child(bar)
-	var bh := HBoxContainer.new()
-	bh.add_theme_constant_override("separation", 14)
-	bar.add_child(bh)
-	var lt := Wow.label(Tx.f("Click a glowing node to learn it  ·  octagons: pick one of two  ·  squares teach a technique  ·  next class point at level %d", _next_tp_level()), 12, Wow.PALE)
-	lt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bh.add_child(lt)
-	var rs := Wow.button("Reset Talents", Vector2(120, 26))
-	rs.disabled = Game.talents.is_empty()
-	rs.pressed.connect(func():
-		hud._sel_talent = ""
-		Game.reset_talents())
-	bh.add_child(rs)
+	# no footer bar (it cost the trees a row of height): Reset sits in the class tree's header,
+	# the how-to line goes in the tooltip of that header
 	return page
 
 ## One tree: header with points left / spent, then the node graph.
@@ -1351,6 +1339,17 @@ static func _tree2(hud, tree: String, title: String, col: Color, holder: Control
 	var left := Game.points_left(tree)
 	h.add_child(Wow.title("%d" % left, 20, Wow.GREEN if left > 0 else Wow.GREY))
 	h.add_child(Wow.label(Tx.f("points  ·  %d spent", Game.tree_points(tree)), 12, Wow.PALE))
+	if tree == "class":
+		var rs := Wow.button("Reset", Vector2(64, 22))
+		rs.add_theme_font_size_override("font_size", 11)
+		rs.disabled = Game.talents.is_empty()
+		rs.tooltip_text = Tx.s("Reset Talents")
+		rs.pressed.connect(func():
+			hud._sel_talent = ""
+			Game.reset_talents())
+		h.add_child(rs)
+		h.tooltip_text = Tx.f("Click a glowing node to learn it  ·  octagons: pick one of two  ·  squares teach a technique  ·  next class point at level %d", _next_tp_level())
+		h.mouse_filter = Control.MOUSE_FILTER_PASS
 	if tree == "spec" and Game.spec == "":
 		var msg := Wow.label(Tx.f("Pick a Specialization at level %d (Specialization tab) to open its tree.", Specs.UNLOCK_LEVEL), 14, Wow.GREY, true, HORIZONTAL_ALIGNMENT_CENTER)
 		msg.custom_minimum_size = Vector2(300, 200)
@@ -1431,20 +1430,38 @@ class TalentGraph extends Control:
 		if not resized.is_connected(_place):
 			resized.connect(_place)
 		_place()
+	var row_y := {}   # row -> y in rows (a row straight under a same-column node gets extra room)
 	func _place() -> void:
 		cw = clampf((size.x - 56.0) / TalentTrees.COLS, CW, 150.0) if size.x > 0 else CW   # the right edge keeps room for the gate notes
-		rh = clampf((size.y - 10.0) / rows, 44.0, 80.0) if size.y > 0 else RH
+		# rows normally alternate columns, so a name can tuck between the icons of the next row;
+		# where a node sits right under another (the capstone), that row is pushed down a bit
+		var cols_in := {}
+		for id in nodes:
+			var nd := TalentTrees.node(id, Game.spec)
+			if not cols_in.has(int(nd.row)):
+				cols_in[int(nd.row)] = []
+			cols_in[int(nd.row)].append(int(nd.col))
+		var acc := 0.0
+		for r in rows:
+			if r > 0 and cols_in.has(r) and cols_in.has(r - 1):
+				for c in cols_in[r]:
+					if c in cols_in[r - 1]:
+						acc += 0.55
+						break
+			row_y[r] = r + acc
+		var span := float(row_y.get(rows - 1, rows - 1)) + 1.25   # last row plus its icon and name
+		rh = clampf((size.y - 6.0) / span, 40.0, 80.0) if size.y > 0 else RH
 		var left := maxf(0.0, (size.x - 56.0 - cw * TalentTrees.COLS) * 0.5)
-		top = maxf(0.0, (size.y - 10.0 - rh * rows) * 0.5)
-		# icon size follows the row height so a name never runs into the icon below it
-		var s := clampf(rh - 24.0, 22.0, 46.0)
+		top = maxf(0.0, (size.y - 6.0 - rh * span) * 0.5)
+		var s := clampf(rh * 1.25 - 24.0, 24.0, 46.0)
 		for id in nodes:
 			var nd := TalentTrees.node(id, Game.spec)
 			var n: Control = nodes[id]
 			n.S = s * (1.12 if nd.get("capstone", false) else 1.0)
 			n.custom_minimum_size = Vector2(maxf(n.S + 30, 92), n.S + 26)
 			n.size = n.custom_minimum_size
-			n.position = Vector2(left + int(nd.col) * cw + (cw - n.size.x) / 2.0, top + int(nd.row) * rh)
+			n.name_w = cw * 1.25
+			n.position = Vector2(left + int(nd.col) * cw + (cw - n.size.x) / 2.0, top + float(row_y.get(int(nd.row), nd.row)) * rh)
 			n.queue_redraw()
 		queue_redraw()
 	func _draw() -> void:
@@ -1463,7 +1480,7 @@ class TalentGraph extends Control:
 				draw_line(p0, p1, Color(0, 0, 0, 0.8), 6.0, true)
 				draw_line(p0, p1, c, 2.5, true)
 		for g in TalentTrees.GATES[tree]:
-			var y := top + float(g[0]) * rh - 4
+			var y := top + float(row_y.get(int(g[0]), g[0])) * rh - 4
 			var need := int(g[1])
 			var open := Game.tree_points(tree) >= need
 			var lc := Color(0.55, 0.85, 0.45, 0.35) if open else Color(0.8, 0.3, 0.25, 0.5)
