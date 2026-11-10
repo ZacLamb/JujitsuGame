@@ -191,6 +191,7 @@ func _build_status() -> void:
 	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
 			["lock", "Bags (B)", toggle_bag], ["link", "Quest Log (L)", func(): open_window("journal")],
 			["triangle", "Group Finder: dungeons (K)", func(): toggle_finder(get_parent())],
+			["bolt", "Ranked Arena (H)", func(): toggle_arena()],
 			["wave", "World Map (M)", func(): minimap.toggle_big()], ["loop", "Game Menu (Esc)", toggle_settings]]:
 		var mb := MicroButton.new()
 		mb.glyph = e[0]
@@ -386,6 +387,17 @@ var combat_hud: CombatHud
 
 var party: Party = null
 var trade_panel: TradePanel = null
+var arena_panel: ArenaPanel = null
+signal arena_requested   # "Find a ranked match"
+
+func toggle_arena() -> void:
+	if arena_panel and is_instance_valid(arena_panel):
+		arena_panel.queue_free()
+		arena_panel = null
+		return
+	arena_panel = ArenaPanel.new()
+	root.add_child(arena_panel)
+	arena_panel.find_match.connect(func(): arena_requested.emit())
 
 func set_party(p: Party) -> void:
 	party = p

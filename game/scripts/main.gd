@@ -145,7 +145,7 @@ func _register_inputs() -> void:
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
 		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_defend": [KEY_T], "ab_breathe": [KEY_F], "ab_racial": [KEY_G], "character": [KEY_C], "talents": [KEY_N], "spellbook": [KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
-		"pause": [KEY_ESCAPE], "finder": [KEY_K],
+		"pause": [KEY_ESCAPE], "finder": [KEY_K], "arena": [KEY_H],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -279,6 +279,79 @@ var party: Party = null      # your party (see Party)
 var coop: Coop = null        # party dungeons and raids (see Coop)
 var trade: Trade = null      # player-to-player trades (see Trade)
 
+# ------------------------------------------------------------ ranked arena (see ArenaPanel, server.js)
+var _arena_busy := false
+var _arena_opp := {}
+
+func start_arena() -> void:
+	if not Cloud.logged_in():
+		Game.toast.emit("Log in (title screen) to play ranked.", Color(1, 0.6, 0.4))
+		return
+	if _arena_busy or combat.me.in_combat or (combat.raid != null and is_instance_valid(combat.raid)) or (pvp and pvp.busy()) or (coop and coop.busy()):
+		Game.toast.emit("Finish what you're doing first.", Color(1, 0.5, 0.4))
+		return
+	_arena_busy = true
+	Game.toast.emit("Finding a ranked opponent...", Color(1, 0.85, 0.4))
+	Cloud.arena_match(func(code: int, d: Dictionary):
+		_arena_busy = false
+		if code != 200 or not d.has("opp"):
+			Game.toast.emit(str(d.get("error", "The arena is closed right now.")), Color(1, 0.6, 0.4))
+			return
+		var o: Dictionary = d.opp
+		_arena_opp = o
+		var ch: Dictionary = o.get("char") if o.get("char") is Dictionary else {}
+		if ch.is_empty():   # a house fighter
+			ch = {"name": str(o.name), "level": int(o.get("level", 1)), "faction": str(o.get("faction", "brasil")), "belt": clampi(int(o.get("level", 1)) / 12, 0, 4),
+				"skin": randf(), "body": "male" if randf() < 0.7 else "female", "gi": ["f2f2ee", "1f3c99", "141416"][randi() % 3]}
+		ch = ch.duplicate()
+		ch["level"] = int(o.get("level", ch.get("level", 1)))   # the ladder's record of their level
+		var od := rival_opponent(ch)
+		od["name"] = str(o.name)
+		od["title"] = Tx.f("Ranked · %d", int(o.get("rating", 1000)))
+		od["intro"] = "Ranked. Oss."
+		od["win"] = "The ladder's a long climb."
+		od["lose"] = "Oss. See you on the ladder."
+		# their rating sharpens the shadow: a 1300 plays tighter than a 900
+		od["level"] = float(od.level) + clampf((float(o.get("rating", 1000)) - 1000.0) / 400.0, -0.4, 0.6)
+		Game.toast.emit(Tx.f("Ranked: %s (%d)", [str(o.name), int(o.get("rating", 1000))]), Wow.GOLD)
+		_bout(od, "arena", true))
+
+func _arena_after(won: bool) -> void:
+	Cloud.arena_result(won, func(code: int, d: Dictionary):
+		if code != 200:
+			Game.toast.emit(str(d.get("error", "Couldn't record the result.")), Color(1, 0.6, 0.4))
+			return
+		var delta := int(d.get("delta", 0))
+		var me = d.get("board", {}).get("me")
+		var r := int(me.rating) if me is Dictionary else 0
+		Game.toast.emit(Tx.f("Rating %s%d  →  %d", ["+" if delta >= 0 else "", delta, r]), Color(0.6, 1.0, 0.6) if delta >= 0 else Color(1, 0.6, 0.5))
+		if won:
+			Game.unlock("arena_win")
+			Game.add_xp(25 + 6 * Game.player_level())
+			Game.add_war(10, "ranked win")
+			if r >= 1200:
+				Game.unlock("arena_1200")
+		Game.save_game()
+		hud.refresh())
+
+var _arena_claimed := false
+
+## Last week's payout (once per account; the server remembers).
+func _arena_claim() -> void:
+	if _arena_claimed or not Cloud.logged_in():
+		return
+	_arena_claimed = true
+	Cloud.arena_claim(func(code: int, d: Dictionary):
+		if code != 200 or not d.get("reward") is Dictionary:
+			return
+		var rw: Dictionary = d.reward
+		var honor: int = {"champion": 1500, "podium": 1000, "top10": 600}.get(str(rw.tier), 250)
+		Game.honor += honor
+		if str(rw.tier) == "champion":
+			Game.unlock("arena_champion")
+		Game.save_game()
+		hud.open_dialogue("Ranked Arena", Tx.f("Last week (%s) you finished #%d at %d rating.\n\n+%d Honor. Spend it at your quartermaster.", [str(rw.week), int(rw.place), int(rw.rating), honor]), "", "Oss"))
+
 func ask_trade(who: String) -> void:
 	_party_ask = "trade"
 	player.input_enabled = false
@@ -395,6 +468,9 @@ func _start_game() -> void:
 	world.game_started = true
 	player.make_current()
 	Net.enter(world.zone)
+	if not hud.arena_requested.is_connected(start_arena):
+		hud.arena_requested.connect(start_arena)
+	get_tree().create_timer(8.0).timeout.connect(func(): if Game.style != "": _arena_claim())
 	if Game.style == "":
 		_show_style_select()
 		return
@@ -572,6 +648,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.open_window("talents", Hud.TAB_SPELLBOOK)
 	elif event.is_action_pressed("finder") and not hud.dialogue_open():
 		hud.toggle_finder(self)
+	elif event.is_action_pressed("arena") and not hud.dialogue_open():
+		hud.toggle_arena()
 	elif event.is_action_pressed("character") and not hud.dialogue_open():
 		hud.open_window("character")
 	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:
@@ -1478,6 +1556,9 @@ func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
 			circuit_board.visible = true
 			res["me_stam"] = float(info.get("gas", 1.0))
 			_circuit_after(res)
+		"arena":
+			await get_tree().create_timer(1.6).timeout
+			_arena_after(won)
 		"rival":
 			var rx := Game.record_rival(res)
 			await get_tree().create_timer(1.6).timeout

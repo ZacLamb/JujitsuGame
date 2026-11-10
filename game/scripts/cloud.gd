@@ -88,6 +88,33 @@ func war_sync() -> void:
 			Game.war = d
 			war_changed.emit())
 
+# ------------------------------------------------------------ ranked arena (see server.js)
+var arena := {}   # the last board: {week, top, me, last, pay_min}
+signal arena_changed
+
+func arena_board(cb := Callable()) -> void:
+	_req(HTTPClient.METHOD_GET, "/api/arena", null, func(code: int, d: Dictionary):
+		if code == 200:
+			arena = d
+			arena_changed.emit()
+		if cb.is_valid():
+			cb.call(code, d))
+
+## You enter the week's ladder with your current build; cb(code, {opp, me}).
+func arena_match(cb: Callable) -> void:
+	var body := {"name": Game.player_name, "faction": Game.faction(), "style": Game.style, "level": Game.player_level(), "char": Net.my_char()}
+	_req(HTTPClient.METHOD_POST, "/api/arena/match", body, cb)
+
+func arena_result(won: bool, cb: Callable) -> void:
+	_req(HTTPClient.METHOD_POST, "/api/arena/result", {"won": won}, func(code: int, d: Dictionary):
+		if code == 200 and d.has("board"):
+			arena = d.board
+			arena_changed.emit()
+		cb.call(code, d))
+
+func arena_claim(cb: Callable) -> void:
+	_req(HTTPClient.METHOD_POST, "/api/arena/claim", {}, cb)
+
 # ------------------------------------------------------------ account
 ## mode: "login" or "register". cb(error_text) ("" = ok).
 func authenticate(mode: String, e: String, pw: String, cb: Callable, optin := false) -> void:

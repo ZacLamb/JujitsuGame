@@ -54,6 +54,16 @@ async function migrate() {
       points INT NOT NULL DEFAULT 0,
       PRIMARY KEY (week, player_id, faction)
     );
+    CREATE TABLE IF NOT EXISTS arena (
+      week TEXT NOT NULL,
+      player_id INT NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+      name TEXT, faction TEXT, style TEXT, level INT NOT NULL DEFAULT 1,
+      rating INT NOT NULL DEFAULT 1000,
+      wins INT NOT NULL DEFAULT 0, losses INT NOT NULL DEFAULT 0,
+      char JSONB, claimed BOOLEAN NOT NULL DEFAULT false,
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (week, player_id)
+    );
     CREATE TABLE IF NOT EXISTS gm_log (
       id SERIAL PRIMARY KEY,
       gm_id INT REFERENCES players(id) ON DELETE SET NULL,
@@ -266,6 +276,123 @@ app.post('/api/war', needDb, auth, async (req, res) => {
     console.error(e);
     res.status(500).json({ error: 'Something went wrong.' });
   }
+});
+
+// ------------------------------------------------------------------ ranked arena
+// Weekly ladder of shadow fights: the server picks an opponent near your rating (another
+// player's saved build, or a house fighter when the ladder is thin), hands out a one-use match
+// ticket, and moves both ratings (Elo) when the result comes back. Ratings reset every week;
+// last week's standings pay out once (see /api/arena/claim).
+const ARENA_START = 1000;
+const ARENA_K = 32;
+const ARENA_MIN_GAP_MS = 20000;
+const ARENA_TICKET_MS = 15 * 60000;
+const ARENA_PAY_MIN = 5;   // matches to qualify for the weekly payout
+const HOUSE = ['Rato de Tatame', 'Faixa Coral Fantasma', 'Old School Ronin', 'Garage Legend', 'Sombra do Arpoador', 'Swamp Phantom', 'Vortex Monk', 'Iron Mike B.'];
+const arenaTickets = new Map();   // player id -> {opp, oppRating, house, at}
+const arenaLast = new Map();
+const cleanChar = (c) => (c && typeof c === 'object' ? JSON.parse(JSON.stringify(c).slice(0, 6000)) : {});
+async function arenaRow(pid, week) {
+  const r = await pool.query('SELECT * FROM arena WHERE week = $1 AND player_id = $2', [week, pid]);
+  return r.rows[0] || null;
+}
+async function arenaUpsert(pid, week, b) {
+  const lvl = Math.max(1, Math.min(60, Math.floor(Number(b.level) || 1)));
+  await pool.query(
+    `INSERT INTO arena (week, player_id, name, faction, style, level, char) VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (week, player_id) DO UPDATE SET name = EXCLUDED.name, faction = EXCLUDED.faction, style = EXCLUDED.style,
+       level = EXCLUDED.level, char = EXCLUDED.char, updated_at = now()`,
+    [week, pid, String(b.name || '?').slice(0, 16), FACTIONS.includes(b.faction) ? b.faction : 'brasil', String(b.style || '').slice(0, 16), lvl, cleanChar(b.char)]);
+}
+async function arenaBoard(pid) {
+  const week = isoWeek();
+  const top = await pool.query('SELECT name, faction, style, level, rating, wins, losses FROM arena WHERE week = $1 AND wins + losses > 0 ORDER BY rating DESC, wins DESC LIMIT 20', [week]);
+  let me = null;
+  if (pid) {
+    const r = await arenaRow(pid, week);
+    if (r) {
+      const rank = await pool.query('SELECT COUNT(*)::int AS n FROM arena WHERE week = $1 AND wins + losses > 0 AND rating > $2', [week, r.rating]);
+      me = { rating: r.rating, wins: r.wins, losses: r.losses, rank: r.wins + r.losses > 0 ? rank.rows[0].n + 1 : 0 };
+    }
+  }
+  const prev = await pool.query('SELECT name, faction, rating FROM arena WHERE week = $1 AND wins + losses >= $2 ORDER BY rating DESC LIMIT 3', [lastWeek(), ARENA_PAY_MIN]);
+  return { week, top: top.rows, me, last: { week: lastWeek(), top: prev.rows }, pay_min: ARENA_PAY_MIN };
+}
+app.get('/api/arena', needDb, async (req, res) => {
+  try {
+    let pid = 0;
+    const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+    if (token) {
+      const r = await pool.query('SELECT player_id FROM sessions WHERE token = $1', [token]);
+      if (r.rows.length) pid = r.rows[0].player_id;
+    }
+    res.json(await arenaBoard(pid));
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Arena unavailable.' }); }
+});
+// Find a match: you enter this week's ladder with your current build, and get an opponent.
+app.post('/api/arena/match', needDb, auth, async (req, res) => {
+  try {
+    const week = isoWeek();
+    const pid = req.player.id;
+    await arenaUpsert(pid, week, req.body || {});
+    const me = await arenaRow(pid, week);
+    const lvl = me.level;
+    // closest rating among other players this week or last (any faction), similar level first
+    const cand = await pool.query(
+      `SELECT DISTINCT ON (player_id) player_id, name, faction, style, level, char,
+         COALESCE((SELECT rating FROM arena a2 WHERE a2.week = $1 AND a2.player_id = arena.player_id), $3) AS rating
+       FROM arena WHERE week = ANY($2) AND player_id <> $4 AND char IS NOT NULL
+       ORDER BY player_id, week DESC`, [week, [week, lastWeek()], ARENA_START, pid]);
+    const pool2 = cand.rows.filter((r) => Math.abs(r.level - lvl) <= 12);
+    pool2.sort((a, b) => Math.abs(a.rating - me.rating) - Math.abs(b.rating - me.rating));
+    const pick = pool2.slice(0, 4)[Math.floor(Math.random() * Math.min(4, pool2.length))];
+    let opp;
+    if (pick) {
+      opp = { name: pick.name, faction: pick.faction, style: pick.style, level: pick.level, rating: pick.rating, char: pick.char, house: false };
+      arenaTickets.set(pid, { opp: pick.player_id, oppRating: pick.rating, house: false, at: Date.now() });
+    } else {
+      const r = me.rating + Math.round((Math.random() - 0.5) * 120);
+      opp = { name: HOUSE[Math.floor(Math.random() * HOUSE.length)], faction: Math.random() < 0.5 ? 'brasil' : 'usa', style: '', level: lvl, rating: r, char: null, house: true };
+      arenaTickets.set(pid, { opp: 0, oppRating: r, house: true, at: Date.now() });
+    }
+    res.json({ ok: true, opp, me: { rating: me.rating } });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Something went wrong.' }); }
+});
+app.post('/api/arena/result', needDb, auth, async (req, res) => {
+  try {
+    const pid = req.player.id;
+    const t = arenaTickets.get(pid);
+    if (!t || Date.now() - t.at > ARENA_TICKET_MS) return res.status(400).json({ error: 'No ranked match in progress.' });
+    if (Date.now() - (arenaLast.get(pid) || 0) < ARENA_MIN_GAP_MS) return res.status(429).json({ error: 'Slow down.' });
+    arenaTickets.delete(pid);
+    arenaLast.set(pid, Date.now());
+    const won = !!req.body.won;
+    const week = isoWeek();
+    const me = await arenaRow(pid, week);
+    if (!me) return res.status(400).json({ error: 'No ranked match in progress.' });
+    const exp = 1 / (1 + 10 ** ((t.oppRating - me.rating) / 400));
+    const delta = Math.round(ARENA_K * ((won ? 1 : 0) - exp));
+    await pool.query(`UPDATE arena SET rating = GREATEST(0, rating + $3), wins = wins + $4, losses = losses + $5, updated_at = now()
+      WHERE week = $1 AND player_id = $2`, [week, pid, delta, won ? 1 : 0, won ? 0 : 1]);
+    // the defender's shadow fought too: half the swing (they don't get a match counted)
+    if (!t.house && t.opp) {
+      await pool.query('UPDATE arena SET rating = GREATEST(0, rating - $3) WHERE week = $1 AND player_id = $2', [week, t.opp, Math.round(delta / 2)]);
+    }
+    res.json({ ok: true, delta, board: await arenaBoard(pid) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Something went wrong.' }); }
+});
+// Last week's payout, once: rank 1 / top 3 / top 10 / everyone who played enough.
+app.post('/api/arena/claim', needDb, auth, async (req, res) => {
+  try {
+    const w = lastWeek();
+    const r = await arenaRow(req.player.id, w);
+    if (!r || r.claimed || r.wins + r.losses < ARENA_PAY_MIN) return res.json({ ok: true, reward: null });
+    const rank = await pool.query('SELECT COUNT(*)::int AS n FROM arena WHERE week = $1 AND wins + losses >= $2 AND rating > $3', [w, ARENA_PAY_MIN, r.rating]);
+    const place = rank.rows[0].n + 1;
+    await pool.query('UPDATE arena SET claimed = true WHERE week = $1 AND player_id = $2', [w, req.player.id]);
+    const tier = place === 1 ? 'champion' : place <= 3 ? 'podium' : place <= 10 ? 'top10' : 'ranked';
+    res.json({ ok: true, reward: { week: w, place, rating: r.rating, tier } });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Something went wrong.' }); }
 });
 
 // ------------------------------------------------------------------ the game
