@@ -425,6 +425,12 @@ func ensure_bar(pool: Array) -> Array:
 	while bar_layout.size() < 10:
 		bar_layout.append("")
 	var first := not flags.has("abilities_known")
+	if not flags.has("bar_v2"):
+		# the bar was re-ordered (grip, takedown, submit...): lay it out fresh once
+		flags["bar_v2"] = true
+		for i in bar_layout.size():
+			bar_layout[i] = ""
+		first = true
 	var known: Array = flags.get("abilities_known", [])
 	var fresh: Array = []
 	var have := pool.map(func(a): return str(a.id))

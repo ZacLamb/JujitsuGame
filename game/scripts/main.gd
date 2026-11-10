@@ -1345,6 +1345,11 @@ func _interact(target: Npc = null) -> void:
 			hud.open_dialogue(str(o.name), gate[npc.opp_id] % [Data.BOSS_REQUIRED_WINS, Game.town_wins(zid)], "", "Oss")
 			return
 	var intro: String = o.intro
+	if bool(o.get("tutor", false)) and not Game.beaten(npc.opp_id):
+		# the first roll teaches the whole loop in four lines
+		intro += "\n\n" + Tx.f("[%s] fights for grips.  [%s] takes me down.  [%s] is your submission.", [Keys.label("ab_0"), Keys.label("ab_1"), Keys.label("ab_2")]) \
+			+ "\n" + Tx.f("When I shoot for your legs, SPRAWL! flashes up: hit [%s] in time.", Keys.label("ab_base")) \
+			+ "\n" + Tx.s("Wear me down until my bar is empty, then submit me. Only a submission makes someone tap.")
 	if Game.beaten(npc.opp_id):
 		intro = "Rematch? I've been drilling. (Reduced XP for rematches.)"
 	hud.open_dialogue(Tx.f("%s  ·  %s", [o.name, Data.rank_name(int(o.rank))]), intro)

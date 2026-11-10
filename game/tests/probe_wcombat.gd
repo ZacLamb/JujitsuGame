@@ -59,10 +59,16 @@ func _ready() -> void:
 			break
 		var why := []
 		var tg = c.target
+		if tg and not tg.cast.is_empty() and float(tg.cast.t) > 0.25 and not ground_shot.has("read"):
+			ground_shot["read"] = true
+			_shot("r_read")
+		if tg and tg.has("worn") and not ground_shot.has("worn"):
+			ground_shot["worn"] = true
+			_shot("r_worn")
 		if tg and not tg.cast.is_empty() and float(tg.cast.t) > 0.5:
 			c.core.use(c.me, {"base": "base", "frame": "frame", "defend": "defend"}[CombatCore.counter_kind(tg.cast.ab)])
 		for id in ["sub", "advance", "back", "takedown", "pass", "sweep", "handfight"]:
-			if id == "sub" and c.me.grip < 4:
+			if id == "sub" and c.me.grip < 4 and not tg.has("worn"):
 				continue
 			var r := c.core.use(c.me, id, c.target)
 			why.append(r)

@@ -75,7 +75,7 @@ const CLASS_MOVES := {
 	"osoto_gari": ["judoka"], "o_goshi": ["judoka"], "harai_goshi": ["judoka"], "back_armbar": ["judoka", "guard"],
 	"guillotine": ["wrestler", "passer"], "ankle_pick": ["wrestler"], "body_lock_td": ["wrestler", "passer"],
 	"flower_sweep": ["guard"], "arm_drag_back": ["guard", "athlete"], "deep_half": ["guard", "athlete"], "lasso_sweep": ["guard"],
-	"straight_ankle": ["athlete", "judoka"], "kneebar": ["athlete"], "toe_hold": ["athlete"],
+	"kneebar": ["athlete"], "toe_hold": ["athlete"],
 	"north_south": ["passer", "wrestler"], "stack_pass": ["passer"], "smash_pass": ["passer", "wrestler"], "paper_cutter": ["passer"],
 	"mounted_triangle": ["guard", "passer"]}
 
@@ -109,10 +109,10 @@ const MOVES := {
 	# --- half guard, bottom
 	"old_school": {"name": "Old School Sweep", "pos": "half", "role": "bottom", "result": ["half", true], "pts": 2, "diff": 1, "cost": 12, "type": "sweep", "rank": 0},
 	"recover_guard": {"name": "Recover Closed Guard", "pos": "half", "role": "bottom", "result": ["guard", false], "pts": 0, "diff": 0, "cost": 8, "type": "escape", "rank": 0},
-	"half_kimura": {"name": "Kimura from Half", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 1},
+	"half_kimura": {"name": "Kimura from Half", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 0},
 	# --- half guard, top
 	"knee_slice": {"name": "Knee Slice Pass", "pos": "half", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 12, "type": "pass", "rank": 0},
-	"top_kimura": {"name": "Kimura from Top", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 1},
+	"top_kimura": {"name": "Kimura from Top", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 0},
 	# --- side control, top
 	"mount_up": {"name": "Knee Slide to Mount", "pos": "side", "role": "top", "result": ["mount", true], "pts": 4, "diff": 1, "cost": 12, "type": "advance", "rank": 0},
 	"americana": {"name": "Americana", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 14, "type": "sub", "rank": 0},
@@ -138,7 +138,7 @@ const MOVES := {
 	"kimura_guard": {"name": "Kimura from Guard", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 7},
 	"deep_half": {"name": "Deep Half Sweep", "pos": "half", "role": "bottom", "result": ["side", true], "pts": 2, "diff": 2, "cost": 14, "type": "sweep", "rank": 9},
 	"back_armbar": {"name": "Armbar from the Back", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 10},
-	"straight_ankle": {"name": "Straight Ankle Lock", "pos": "guard", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 11},
+	"straight_ankle": {"name": "Straight Ankle Lock", "pos": "guard", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 0},
 	"north_south": {"name": "North-South Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 12},
 	"mounted_triangle": {"name": "Mounted Triangle", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 16, "type": "sub", "rank": 13},
 	"kneebar": {"name": "Kneebar", "pos": "half", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 16, "type": "sub", "rank": 15},
@@ -293,7 +293,7 @@ const XP_PER_STRIPE := 100
 # ---------------------------------------------------------------- opponents (zone 1)
 # level drives AI speed, reaction windows and move choice.
 const OPPONENTS := {
-	"rafa": {"name": "Rafa", "title": "Plaza regular", "rank": 0, "level": 1.3, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.57, 0.4),
+	"rafa": {"name": "Rafa", "title": "Plaza regular", "rank": 0, "level": 1.3, "tutor": true, "pace": 1.35, "gi": Color(0.95, 0.95, 0.95), "skin": Color(0.78, 0.57, 0.4),
 		"pos": Vector3(6, 0, 4), "style": "balanced",
 		"intro": "Ei, gringo! Bora treinar? (Let's train?) I just started too, go easy.",
 		"win": "Boa! You caught me. Go find the academia by the cathedral.",

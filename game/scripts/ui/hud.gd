@@ -1439,6 +1439,9 @@ func _build_title() -> void:
 
 func _process(_d: float) -> void:
 	_zone_banner_tick(_d)
+	# the "[E] Attack ..." prompt has no business on screen mid-fight
+	if prompt and combat_hud and combat_hud.combat and combat_hud.combat.me:
+		prompt.visible = not combat_hud.combat.me.in_combat
 	# no action bar / combat frames behind the title screen
 	if combat_hud:
 		var host := get_parent()

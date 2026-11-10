@@ -25,30 +25,33 @@ const TEMPLATES := {
 	"guard": {"label": "Pull Guard", "cost": 15.0, "cd": 20.0, "harm": false, "effect": "guard", "dur": 6.0,
 		"text": "Pull guard and tie them up: you take 40% less damage for %ss."},
 }
-const ORDER := ["handfight", "takedown", "sweep", "pass", "advance", "back", "sub", "spec", "escape", "guard"]
+## Bar order reads like a game plan: grip, take them down, submit, then the tools you earn.
+const ORDER := ["handfight", "takedown", "sub", "pass", "escape", "sweep", "back", "guard", "advance", "spec"]
 const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 ## Level each ability unlocks at (WoW: you learn spells as you level). The bar fills itself as
 ## they unlock and the player can rearrange it from the spellbook.
-const UNLOCK := {"handfight": 1, "takedown": 1, "racial": 1, "sub": 2, "defend": 2, "breathe": 2, "pass": 3, "base": 3,
-	"escape": 4, "frame": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10}
+## Easy to learn: level 1 is the whole game in miniature (grip, takedown, submit, sprawl); every
+## level after adds one idea.
+const UNLOCK := {"handfight": 1, "takedown": 1, "sub": 1, "base": 1, "defend": 2, "breathe": 2, "pass": 3, "frame": 4,
+	"racial": 4, "escape": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10}
 const UTILITY := ["base", "frame", "defend", "breathe", "racial"]
 const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G"}
 ## How each ability teaches itself the first time you get it.
 const TUTORIAL := {
-	"handfight": "Target someone (Tab or click) and press 1. Hand fighting chips at their Composure and builds Grip (the red dots under your bars). Every fight has a POSITION (shown on their frame): your buttons change to the techniques that work from where you are.",
-	"takedown": "Takes the fight to the ground with you on top. From there, pass, climb to mount and take the back: better positions hit harder.",
-	"sub": "Your finisher. It spends ALL your Grip: build 3-5 Grip first, then cast it. When their Composure hits zero, they tap.",
-	"pass": "Pins them: Pinned enemies hit 25% softer. Pinned or Down targets also open up Advance.",
-	"breathe": "Press F to recover Gas. Out of combat it also restores Composure.",
-	"base": "Q: Sprawl / base. Counters takedowns and sweeps (their cast bar says SPRAWL), and halves damage for 5 seconds.",
-	"defend": "T: Defend. Counters submissions (their cast bar says DEFEND): hide the arm, fight the hands.",
-	"escape": "Stuck underneath? Escape works its way back: side control to guard, mount to half guard, or scramble back up to your feet.",
-	"frame": "R: Frame. Counters passes and positional moves (their cast bar says FRAME). Each enemy technique has ONE right counter: Q, R or T.",
-	"sweep": "Another way to put them Down, from the bottom.",
-	"back": "Takes the back: +2 Grip and they're Exposed (you crit them more).",
-	"guard": "Pull guard to take 40% less damage for a while.",
-	"advance": "Climb to a better position (side control to mount). Big damage and +2 Grip.",
+	"handfight": "Target someone (Tab or click) and press 1 to fight for grips. It wears them down and builds Grip (the red dots under your bars).",
+	"takedown": "2 takes the fight to the ground with you on top. Positions matter: climb guard, half, side, mount, back and you hit harder.",
+	"sub": "3 is how a roll ends. Wear them down until their bar is empty, then submit. Only a submission makes someone tap; more Grip makes it go deeper.",
+	"base": "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment.",
+	"defend": "When they lock a submission, DEFEND! flashes: hit T. Get worn down and they WILL go for the finish, so watch for it.",
+	"breathe": "F recovers Gas. Out of combat it also restores Composure.",
+	"pass": "4 passes their guard: you climb to side control and they're Pinned (they hit 25% softer).",
+	"frame": "When they try to pass or change position, FRAME! flashes: hit R. Now every technique has one right answer: Q, R or T. Read it, don't guess.",
+	"escape": "5 gets you out from underneath: side control to guard, mount to half guard, or back to your feet.",
+	"sweep": "6 reverses them from the bottom: you end up on top.",
+	"back": "7 takes the back: +2 Grip and they're Exposed (you crit them more). The best place to finish from.",
+	"guard": "8 pulls guard: you take 40% less damage for a while.",
+	"advance": "9 climbs to a better position (side control to mount). Big damage and +2 Grip.",
 	"spec": "Your specialization's signature technique.",
 	"racial": "Your origin's special ability, on G.",
 }
@@ -77,12 +80,12 @@ static func _all_kit() -> Array:
 			a = _make(t, best[t], Game.style)
 		if not a.is_empty():
 			out.append(a)
-	out.append({"id": "base", "name": "Sprawl / Base", "type": "defend", "key": "Q", "cost": 0.0, "cd": 20.0, "harm": false, "gcd": false,
-		"effect": "base", "dur": 5.0, "text": "Counters a takedown or sweep being cast, and you take 50% less damage for 5s."})
-	out.append({"id": "frame", "name": "Frame", "type": "defend", "key": "R", "cost": 10.0, "cd": 10.0, "gcd": false,
-		"effect": "interrupt", "text": "Counters a pass or positional move being cast. Wrong counter: it only slows them down."})
-	out.append({"id": "defend", "name": "Defend", "type": "defend", "key": "T", "cost": 5.0, "cd": 8.0, "harm": false, "gcd": false,
-		"effect": "defend", "text": "Hide the arm, fight the hands: counters a submission being cast, and you take 20% less damage for 3s."})
+	out.append({"id": "base", "name": "Sprawl / Base", "type": "defend", "key": "Q", "cost": 0.0, "cd": 0.0, "harm": false, "gcd": false,
+		"effect": "base", "text": "Read it: when they shoot a TAKEDOWN or SWEEP, Sprawl. They're stopped and off-balance, you get Grip and Gas. Guess wrong and your counters lock for a moment."})
+	out.append({"id": "frame", "name": "Frame", "type": "defend", "key": "R", "cost": 0.0, "cd": 0.0, "harm": false, "gcd": false,
+		"effect": "interrupt", "text": "Read it: when they go for a PASS or a position, Frame. They're stopped and off-balance, you get Grip and Gas. Guess wrong and your counters lock for a moment."})
+	out.append({"id": "defend", "name": "Defend", "type": "defend", "key": "T", "cost": 0.0, "cd": 0.0, "harm": false, "gcd": false,
+		"effect": "defend", "text": "Read it: when they lock a SUBMISSION, Defend. They're stopped and off-balance, you get Grip and Gas. Guess wrong and your counters lock for a moment."})
 	out.append({"id": "breathe", "name": "Breathe", "type": "defend", "key": "F", "cost": 0.0, "cd": 45.0, "harm": false,
 		"effect": "breathe", "text": "Slow your breathing: +45 Gas. Out of combat it also restores half your Composure."})
 	if Game.style != "":

@@ -81,6 +81,7 @@ const HP_GROWTH := 0.05
 const DMG_GROWTH := 0.045
 const HP_CURVE := 0.0009
 const ENEMY_DMG := 1.25
+const MOB_HP := 1.5
 
 static func dmg_scale(level: int) -> float:
 	return 6.0 + 1.5 * float(level)
@@ -112,7 +113,7 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	u.rank = int(d.get("rank", 0))
 	u.elite = bool(d.get("elite", false)) or kind != "mob"
 	u.boss = kind == "boss" or bool(d.get("rare", false))
-	var hm := 1.0
+	var hm := MOB_HP   # normal mobs last long enough for a few reads (see tests/audit_core.gd)
 	var dm := 1.0
 	if bool(d.get("rare", false)):
 		hm = 2.3
@@ -126,16 +127,26 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	elif u.elite:
 		hm = 2.2
 		dm = 1.5
+	# your first roll (Rafa) is a lesson: normal strength, slower, and he only shoots takedowns
+	if bool(d.get("tutor", false)):
+		u.elite = false
+		hm = MOB_HP
+		dm = 0.85
 	# enemies keep pace with a typical character of their level (talents, attributes, gear grow
 	# the player multiplicatively; see tests/test_balance.gd)
 	var lvf := float(u.level - 1)
+	# past the first few levels a player's talents and gear outgrow plain mobs; keep them honest
+	if kind == "mob" and not u.elite:
+		var over := maxf(0.0, float(u.level) - 3.0)
+		hm *= 1.0 + 0.025 * over
+		dm *= 1.0 + 0.035 * over
 	u.max_hp = (110.0 + 26.0 * u.level) * hm * (1.0 + HP_GROWTH * lvf + HP_CURVE * lvf * lvf)
 	u.hp = u.max_hp
 	u.dmg = dmg_scale(u.level) * dm * ENEMY_DMG * (1.0 + DMG_GROWTH * lvf)
 	u.auto_dmg = u.dmg * 0.5
 	u.swing_time = 1.8
 	u.abilities = Abilities.enemy_kit(d, u.elite, u.boss)
-	u.ai_t = rng.randf_range(2.5, 4.5)
+	u.ai_t = rng.randf_range(1.2, 2.4)
 	return _add(u)
 
 func _add(u: Unit) -> Unit:
@@ -259,6 +270,7 @@ func haste(u: Unit) -> float:
 ## top / bottom. Techniques only work from where they belong, move you along the position graph,
 ## and dominant spots hit harder and take less.
 const POSITIONAL := ["takedown", "sweep", "pass", "advance", "back", "sub", "escape", "guard"]
+const DOM_STEP := 0.12   # damage per step of dominance (back on top: +48%)
 const DOM := {"standing": 0, "guard": 1, "half": 1, "side": 2, "mount": 3, "back": 4}
 const KIND_KEY := {"base": "Q", "frame": "R", "defend": "T"}
 const KIND_VERB := {"base": "Sprawl", "frame": "Frame", "defend": "Defend"}
@@ -311,7 +323,8 @@ func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
 	for mv in u.known:
 		if str(Data.MOVES[mv].type) == tp and ok.call(mv):
 			return mv
-	if tp == "escape" and pos != "standing" and (pos in ["guard", "half"] or pi[1]):
+	# scramble back up from underneath (never from on top: that would throw away your position)
+	if tp == "escape" and pos != "standing" and not pi[1]:
 		return "@stand"
 	return ""
 
@@ -406,16 +419,8 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		_heal(t, t.max_hp * float(a.heal), u)
 		return
 	match eff:
-		"base":
-			_aura(u, "base", float(a.get("dur", 5.0)) + _extra(u, "base"), u)
-			if pm(u) and u.mods.get("base_grip", false):
-				u.grip = mini(u.max_grip, u.grip + 2)
-				u.gas = minf(u.max_gas, u.gas + 30.0)
-			_counter(u, u.target, "base")
-			return
-		"defend":
-			_aura(u, "defending", 3.0, u)
-			_counter(u, u.target, "defend")
+		"base", "defend":
+			_read(u, eff)
 			return
 		"guard":
 			_aura(u, "guarded", float(a.get("dur", 6.0)) + _extra(u, "guarded"), u)
@@ -465,10 +470,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 			_transition(u, u.target if u.player else t, str(a.get("_mv", "")), a)
 			return
 		"interrupt":
-			if t and not t.cast.is_empty():
-				_counter(u, t, "frame")
-			else:
-				emit({"t": "miss", "u": u, "target": t, "text": "Nothing to frame"})
+			_read(u, "frame")
 			return
 	if t == null or t.dead:
 		return
@@ -539,33 +541,74 @@ static func counter_kind(a: Dictionary) -> String:
 			return "base"
 	return "frame"
 
-## u answers t's cast with a counter of `kind`. The right counter stops it cold (+1 Grip); the
-## wrong one only buys a little time.
+## Counters are reads. Q Sprawl beats takedowns and sweeps, R Frame beats passes and positional
+## moves, T Defend beats submissions. The right one REVERSES the technique: it's stopped, they're
+## off-balance (Down) for a moment, and you get a Grip and some Gas back. The wrong one (or one
+## pressed with nothing coming) is a WHIFF: all three counters lock for a moment and it costs Gas,
+## so guessing or mashing them is worse than not countering at all.
+const COUNTER_IDS := ["base", "frame", "defend"]
+const COUNTER_CD := 2.5      # each counter after a success
+const WHIFF_LOCK := 3.0      # all counters after a whiff
+const WHIFF_GAS := 20.0
+
+## The enemy (if any) casting a technique at u, the u.target first.
+func _caster_at(u: Unit) -> Unit:
+	if u.target != null and not u.target.dead and not u.target.cast.is_empty():
+		return u.target
+	for o in units:
+		if o.dead or friendly(o) == friendly(u) or o.cast.is_empty():
+			continue
+		if o.cast.get("target") == u:
+			return o
+	return null
+
+func _read(u: Unit, kind: String) -> void:
+	var t := _caster_at(u)
+	if t != null and counter_kind(t.cast.ab) == kind:
+		_counter(u, t, kind)
+		return
+	# whiff: wrong read, or nothing to read
+	for id in COUNTER_IDS:
+		u.cds[id] = maxf(float(u.cds.get(id, 0.0)), WHIFF_LOCK)
+	u.gas = maxf(0.0, u.gas - WHIFF_GAS)
+	var txt := "Whiff!"
+	if t != null:
+		var right := counter_kind(t.cast.ab)
+		txt = Tx.f("Wrong read: %s it! [%s]", [KIND_VERB[right], KIND_KEY[right]])
+		# a wrong guess lets their technique in faster
+		t.cast.t = maxf(float(t.cast.t), float(t.cast.dur) - 0.35)
+	emit({"t": "miss", "u": u, "target": t, "text": txt, "whiff": true})
+
+## u reads t's cast correctly: the reversal.
 func _counter(u: Unit, t: Unit, kind: String) -> void:
 	if t == null or t.cast.is_empty():
 		return
 	var ab: Dictionary = t.cast.ab
-	if counter_kind(ab) == kind:
-		t.cast = {}
-		t.cds[ab.get("id", "")] = maxf(float(t.cds.get(ab.get("id", ""), 0.0)), 4.0)
-		_aura(t, "framed", 1.5, u)
-		u.grip = mini(u.max_grip, u.grip + 1)
-		emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "text": "%s!" % KIND_VERB[kind]})
-		emit({"t": "cast_stop", "u": t})
-		# counter-to-counter: elites and bosses read your counter and flow into the next attack
-		if not t.player and (t.elite or t.boss) and rng.randf() < (0.45 if t.boss else 0.3):
-			var re := _recounter_move(t, str(ab.get("_mv", "")))
-			if re != "":
-				t.auras.erase("framed")
-				var ra := move_ability(re)
-				ra["cast"] = float(ra.cast) * 0.7
-				ra["name"] = Tx.f("%s (re-counter)", str(ra.name))
-				t.cast = {"ab": ra, "t": 0.0, "dur": float(ra.cast), "target": u}
-				emit({"t": "proc", "u": t, "text": "Re-counter!"})
-				emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
-	elif kind == "frame":
-		t.cast.dur = float(t.cast.dur) + 0.7
-		emit({"t": "miss", "u": u, "target": t, "text": Tx.f("Wrong counter: %s it! [%s]", [KIND_VERB[counter_kind(ab)], KIND_KEY[counter_kind(ab)]])})
+	t.cast = {}
+	t.cds[ab.get("id", "")] = maxf(float(t.cds.get(ab.get("id", ""), 0.0)), 4.0)
+	_aura(t, "down", 1.6 + _extra(u, "down"), u)
+	u.grip = mini(u.max_grip, u.grip + 1)
+	u.gas = minf(u.max_gas, u.gas + 12.0)
+	u.cds[kind] = COUNTER_CD
+	if kind == "base":
+		_aura(u, "base", 2.0 + _extra(u, "base"), u)
+		if pm(u) and u.mods.get("base_grip", false):
+			u.grip = mini(u.max_grip, u.grip + 2)
+			u.gas = minf(u.max_gas, u.gas + 30.0)
+	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "text": "%s!" % KIND_VERB[kind]})
+	emit({"t": "cast_stop", "u": t})
+	# counter-to-counter: elites and bosses read your counter and flow into the next attack
+	if not t.player and (t.elite or t.boss) and rng.randf() < (0.35 if t.boss else 0.2):
+		var re := _recounter_move(t, str(ab.get("_mv", "")))
+		if re != "":
+			t.auras.erase("down")
+			emit({"t": "aura_off", "u": t, "aura": "down"})
+			var ra := move_ability(re)
+			ra["cast"] = float(ra.cast) * 0.8
+			ra["name"] = Tx.f("%s (re-counter)", str(ra.name))
+			t.cast = {"ab": ra, "t": 0.0, "dur": float(ra.cast), "target": u}
+			emit({"t": "proc", "u": t, "text": "Re-counter!"})
+			emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
 
 ## A submission that didn't end it opens the next link of its chain for a few seconds.
 func _start_chain(u: Unit, a: Dictionary) -> void:
@@ -656,7 +699,7 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		amount = 0.0
 	var dm := dom(src, t)
 	if dm != 0:
-		amount *= 1.0 + 0.08 * dm if dm > 0 else 1.0 / (1.0 - 0.08 * dm)
+		amount *= 1.0 + DOM_STEP * dm if dm > 0 else 1.0 / (1.0 - DOM_STEP * dm)
 	if t.has("defending"):
 		amount *= 0.8
 	if t.has("base"):
@@ -675,6 +718,19 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		amount /= float(t.mods.get("defense", 1.0))
 		amount /= float(t.mods.get("defense_vs", {}).get(str(a.get("type", "")), 1.0))
 	amount = maxf(1.0, round(amount))
+	# only a submission makes someone tap: anything else wears them down to their last bit of
+	# Composure, and then the next submission finishes it
+	var fin := bool(a.get("finisher", false))
+	var duel := pm(t) or pm(src)   # the rule is about YOUR rolls (raid partners and adds go down normally)
+	if not duel:
+		pass
+	elif fin and t.has("worn"):
+		amount = maxf(amount, t.hp)
+	elif not fin and t.hp - amount < 1.0:
+		amount = maxf(0.0, t.hp - 1.0)
+		if not t.has("worn"):
+			_aura(t, "worn", 9999.0, src)
+			emit({"t": "proc", "u": t, "text": "Worn down!"})
 	t.hp -= amount
 	if not friendly(t) and friendly(src):
 		t.threat[src.id] = float(t.threat.get(src.id, 0.0)) + amount * (3.0 if src.role == "tank" else 1.0)
@@ -707,6 +763,9 @@ func _heal(u: Unit, amount: float, src: Unit) -> void:
 				e.threat[src.id] = float(e.threat.get(src.id, 0.0)) + (u.hp - before) * 0.4
 	if u.hp - before >= 1.0:
 		emit({"t": "heal", "u": src, "target": u, "amount": round(u.hp - before)})
+	if u.has("worn") and u.pct() > 0.08:
+		u.auras.erase("worn")
+		emit({"t": "aura_off", "u": u, "aura": "worn"})
 
 func _aura(u: Unit, name: String, dur: float, src: Unit) -> void:
 	var fresh := not u.auras.has(name)
@@ -858,21 +917,47 @@ func _ai(u: Unit, delta: float) -> void:
 	u.ai_t -= delta
 	if u.ai_t > 0.0 or dist(u, t) > MELEE:
 		return
+	var pace: Vector2 = (AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0))
 	# grappling the player: real techniques from this position
 	if t.player and (t.target == u or u.gpos != "standing"):
 		var mv := _ai_move(u, t)
 		if mv != "":
 			var why := use_ab(u, move_ability(mv), t)
 			if why == "":
-				u.ai_t = rng.randf_range(3.0, 5.5) * (0.75 if u.boss else 1.0)
+				u.ai_t = rng.randf_range(pace.x, pace.y)
 				return
 	# otherwise: the standing kit (hand fighting pressure)
-	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "" and not bool(a.get("finisher", false)))
+	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "" and (not bool(a.get("finisher", false)) or t.has("worn")) and _ai_allowed(u, t, str(a.get("type", ""))))
 	if ready.is_empty():
 		u.ai_t = 0.5
 		return
 	use(u, str(ready[rng.randi() % ready.size()].id), t)
-	u.ai_t = rng.randf_range(3.5, 6.0) * (0.75 if u.boss else 1.0)
+	u.ai_t = rng.randf_range(pace.x, pace.y)
+
+## How often enemies attempt something (seconds between attempts).
+const AI_PACE := Vector2(2.3, 3.3)
+const AI_PACE_ELITE := Vector2(2.2, 3.2)
+const AI_PACE_BOSS := Vector2(1.8, 2.8)
+
+## Easy to learn: a normal enemy only casts techniques the player has the counter for (a level 1
+## player only ever has to Sprawl). Bosses, rares and other players use everything. A worn-down
+## target can always be submitted.
+func _ai_allowed(u: Unit, t: Unit, tp: String) -> bool:
+	if u.boss or bool(u.data.get("rare", false)) or not t.player:
+		return true
+	if tp == "sub" and t.has("worn"):
+		return true
+	var need := ""
+	match tp:
+		"takedown", "sweep":
+			need = "base"
+		"sub":
+			need = "defend"
+		"pass", "advance", "back", "guard", "escape":
+			need = "frame"
+		_:
+			return true
+	return not ability(t, need).is_empty()
 
 const E_CAST := {"takedown": 1.4, "sweep": 1.3, "pass": 1.5, "advance": 1.3, "back": 1.4, "sub": 2.2, "escape": 1.2, "guard": 0.9}
 const E_DMG := {"takedown": 1.4, "sweep": 1.2, "pass": 1.2, "advance": 1.4, "back": 0.9, "sub": 1.3, "escape": 0.4, "guard": 0.3}
@@ -908,10 +993,14 @@ func _ai_move(u: Unit, t: Unit) -> String:
 		var tp := str(m.type)
 		if not tp in POSITIONAL:
 			continue
+		if not _ai_allowed(u, t, tp):
+			continue
 		var w := 1.0
 		match tp:
 			"sub":
-				w = 0.0 if u.grip < 1 else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
+				w = 0.0 if u.grip < 1 and not t.has("worn") else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
+				if t.has("worn"):
+					w = 20.0   # finish it
 				if str(u.data.get("trait", "")) == "hunter":
 					w = 0.0 if u.grip < 1 else w * 3.0
 			"escape", "sweep":

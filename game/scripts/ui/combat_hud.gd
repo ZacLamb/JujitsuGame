@@ -111,6 +111,95 @@ func _ready() -> void:
 	_flash_sub.offset_top = -40
 	_flash_sub.add_theme_constant_override("outline_size", 6)
 	add_child(_flash_sub)
+	_build_read()
+
+## The read: one big, clickable / tappable call in the middle of the screen. When an enemy
+## attempts a technique you can counter it says which key (SPRAWL! [Q]); when your opponent is
+## worn down it says finish it (SUBMIT! [3]). Everything a new player needs, in one place.
+var _read_btn: Button
+var _read_kind := ""
+var _read_frac := 0.0
+var _read_col := Color.WHITE
+var _read_t := 0.0
+const READ_COL := {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35), "sub": Color(0.45, 1.0, 0.5)}
+
+func _build_read() -> void:
+	_read_btn = Button.new()
+	_read_btn.focus_mode = Control.FOCUS_NONE
+	_read_btn.anchor_left = 0.5
+	_read_btn.anchor_right = 0.5
+	_read_btn.anchor_top = 0.5
+	_read_btn.anchor_bottom = 0.5
+	_read_btn.offset_left = -190
+	_read_btn.offset_right = 190
+	_read_btn.offset_top = -235   # upper middle: clear of the two bodies
+	_read_btn.offset_bottom = -165
+	_read_btn.add_theme_font_override("font", Wow.title_font())
+	_read_btn.add_theme_font_size_override("font_size", 34)
+	_read_btn.add_theme_constant_override("outline_size", 8)
+	_read_btn.add_theme_color_override("font_outline_color", Color.BLACK)
+	_read_btn.visible = false
+	_read_btn.pressed.connect(func():
+		if _read_kind != "":
+			combat.press(_read_kind))
+	add_child(_read_btn)
+
+## Key label for an ability id wherever it sits (utility keys, or its slot on the bar).
+func _key_for(id: String) -> String:
+	if id in Abilities.UTILITY:
+		return Keys.label("ab_" + id)
+	var i := Game.bar_layout.find(id)
+	return Keys.label("ab_%d" % i) if i >= 0 else "?"
+
+func _update_read(delta: float) -> void:
+	var me: CombatCore.Unit = combat.me
+	var core: CombatCore = combat.core
+	var kind := ""
+	var text := ""
+	var frac := 0.0
+	if me.in_combat and not me.dead:
+		var c: CombatCore.Unit = core._caster_at(me)
+		var t: CombatCore.Unit = combat.target
+		if c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
+			kind = CombatCore.counter_kind(c.cast.ab)
+			text = "%s!  [%s]" % [Tx.s(CombatCore.KIND_VERB[kind]).to_upper(), _key_for(kind)]
+			frac = 1.0 - float(c.cast.t) / maxf(0.01, float(c.cast.dur))
+		elif t != null and not t.dead and t.has("worn"):
+			kind = "sub"
+			var why := core.block_reason(me, core.ability(me, "sub"), t)
+			if why == "" or why == "gcd" or why == "Busy":
+				text = "%s  [%s]" % [Tx.s("SUBMIT!"), _key_for("sub")]
+			else:
+				text = Tx.s("WORN DOWN: get to a submission!")
+				kind = ""
+			frac = -1.0
+		elif me.has("worn"):
+			text = Tx.s("WORN DOWN: escape or defend the finish!")
+			frac = -1.0
+	_read_t += delta
+	_read_btn.visible = text != ""
+	if text == "":
+		_read_kind = ""
+		return
+	if _read_kind != kind or _read_btn.text != text:
+		_read_kind = kind
+		_read_btn.text = text
+		_read_col = READ_COL.get(kind, Color(1, 0.45, 0.35))
+		var box := Wow.sb(Color(0.04, 0.03, 0.03, 0.88), _read_col, 8, 10, 4)
+		for st in ["normal", "hover", "pressed", "disabled"]:
+			_read_btn.add_theme_stylebox_override(st, box)
+		for st in ["font_color", "font_hover_color", "font_pressed_color"]:
+			_read_btn.add_theme_color_override(st, _read_col)
+		_read_btn.disabled = kind == ""
+		_read_btn.pivot_offset = Vector2(190, 35)
+		_read_btn.scale = Vector2(1.18, 1.18)
+		_read_btn.create_tween().tween_property(_read_btn, "scale", Vector2.ONE, 0.14)
+	_read_frac = frac
+	# worn-down calls pulse
+	if frac < 0.0:
+		_read_btn.modulate.a = 0.75 + 0.25 * sin(_read_t * 8.0)
+	else:
+		_read_btn.modulate.a = 1.0
 
 func flash(head: String, sub: String) -> void:
 	_flash.text = head
@@ -148,6 +237,7 @@ func _process(delta: float) -> void:
 	visible = combat != null and combat.me != null and not in_title
 	if not visible:
 		return
+	_update_read(delta)
 	_err.text = combat.error_text if combat.error_t > 0.0 else ""
 	_err.modulate.a = clampf(combat.error_t, 0.0, 1.0)
 	_flash_t = maxf(0.0, _flash_t - delta)
@@ -187,6 +277,12 @@ func _draw() -> void:
 		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
 	_auras(me, Vector2(x0, 76))
 	_party_frames(Vector2(14, 98))
+	# the read's timer: how long until their technique lands
+	if _read_btn and _read_btn.visible and _read_frac >= 0.0:
+		var rr := Rect2(_read_btn.position + Vector2(10, _read_btn.size.y + 4), Vector2(_read_btn.size.x - 20, 8))
+		draw_rect(rr.grow(1), Color(0, 0, 0, 0.85))
+		draw_rect(Rect2(rr.position, Vector2(rr.size.x * _read_frac, rr.size.y)), _read_col)
+	_draw_ladder()
 	# player cast bar (above the action bar)
 	if not me.cast.is_empty():
 		var w := 300.0
@@ -223,10 +319,40 @@ func _draw() -> void:
 		var kind := CombatCore.counter_kind(t.cast.ab)
 		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind]
 		_bar(tp + Vector2(10, 82), Vector2(250, 16), float(t.cast.t) / float(t.cast.dur), kc, str(t.cast.ab.name))
-		var hint := Tx.f("%s it!  [%s]", [Tx.s(CombatCore.KIND_VERB[kind]).to_upper(), CombatCore.KIND_KEY[kind]])
-		draw_string_outline(Wow.title_font(), tp + Vector2(12, 120), Tx.s(hint), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
-		draw_string(Wow.title_font(), tp + Vector2(12, 120), Tx.s(hint), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
 	_auras(t, tp + Vector2(280, 30))
+
+## The position ladder under the target frame: where the fight is, and who's on top.
+const LADDER := ["standing", "guard", "half", "side", "mount", "back"]
+func _draw_ladder() -> void:
+	var t: CombatCore.Unit = combat.target
+	if t == null or t.dead or not t.in_combat:
+		return
+	var pi: Array = combat.core.pos_info(combat.me, t)
+	var here := str(pi[0])
+	var top := bool(pi[1])
+	var x := 310.0
+	var y := 92.0 if t.cast.is_empty() else 116.0
+	var f := Wow.body()
+	for i in LADDER.size():
+		var pos: String = LADDER[i]
+		var nm := Tx.s("Standing") if pos == "standing" else Tx.s(str(Data.POSITION_NAMES.get(pos, pos)))
+		var w := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x + 10.0
+		var on := pos == here
+		var col := Wow.GREY
+		if on:
+			col = Wow.PALE if pos == "standing" else (Color(0.45, 1.0, 0.55) if top else Color(1.0, 0.45, 0.4))
+		var r := Rect2(Vector2(x, y), Vector2(w, 16))
+		draw_rect(r, Color(0, 0, 0, 0.75 if on else 0.45))
+		if on:
+			draw_rect(r, col, false, 1.5)
+		draw_string(f, Vector2(x + 5, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
+		x += w + 3.0
+		if x > 300.0 + 560.0:
+			break
+	if here != "standing":
+		var who := Tx.s("you on top") if top else Tx.s("you underneath")
+		draw_string_outline(f, Vector2(x + 4, y + 12), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
+		draw_string(f, Vector2(x + 4, y + 12), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.45, 1.0, 0.55) if top else Color(1.0, 0.45, 0.4))
 
 ## Party frames under yours: raid / dungeon partners (AI and real), or your party out in the world.
 func _party_frames(at: Vector2) -> void:

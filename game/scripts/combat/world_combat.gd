@@ -224,6 +224,7 @@ func _process(delta: float) -> void:
 	if me == null or world == null or player == null:
 		return
 	error_t = maxf(0.0, error_t - delta)
+	_frame_camera(delta)
 	me.pos = player.global_position
 	for u in core.units.duplicate():
 		if u.player:
@@ -478,6 +479,7 @@ func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) ->
 		rig.action([[res[0], res[1], 0.34], [pose, local, 0.46]], true)
 	if tp in ["takedown", "sweep"]:
 		get_tree().create_timer(0.62).timeout.connect(func():
+			_hitstop(0.06, 0.15)
 			player.add_shake(0.75)
 			Sfx.play("hit", -1.0, 0.6)
 			UiKit.buzz(45))
@@ -625,6 +627,11 @@ func _on_event(e: Dictionary) -> void:
 				if r and not _grounded(u):
 					r.release(CombatAnim.getup(r.rotation.y))
 		"interrupt":
+			if u.player:
+				_hitstop(0.09)
+				Sfx.play("perfect", -4.0)
+				player.add_shake(0.35)
+				UiKit.buzz(30)
 			var n := _node_of(e.target)
 			_fx_stop(e.target, false)
 			if n:
@@ -634,6 +641,8 @@ func _on_event(e: Dictionary) -> void:
 		"miss":
 			if u.player:
 				_error(str(e.get("text", "Missed")))
+				if e.get("whiff", false):
+					Sfx.play("miss", -6.0, 0.8)
 		"proc":
 			var n := _node_of(u)
 			if n:
@@ -646,6 +655,28 @@ func _on_event(e: Dictionary) -> void:
 					Sfx.music("roll")
 				else:
 					Sfx.music("explore")
+
+# ------------------------------------------------------------ feel
+## A beat of slow motion on the big moments (a correct read, a takedown landing, the tap).
+func _hitstop(dur: float, scale := 0.08) -> void:
+	if Engine.time_scale < 1.0:
+		return
+	Engine.time_scale = scale
+	get_tree().create_timer(dur, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
+
+## On the ground the camera moves in on the pair (and gives the distance back when you stand).
+var _cam_saved := -1.0
+func _frame_camera(delta: float) -> void:
+	var grounded := _ground_unit() != null and me.in_combat
+	if grounded:
+		if _cam_saved < 0.0:
+			_cam_saved = player.cam_dist
+		player.cam_dist = lerpf(player.cam_dist, minf(_cam_saved, 5.4), clampf(delta * 3.0, 0.0, 1.0))
+	elif _cam_saved >= 0.0:
+		player.cam_dist = lerpf(player.cam_dist, _cam_saved, clampf(delta * 2.0, 0.0, 1.0))
+		if absf(player.cam_dist - _cam_saved) < 0.05:
+			player.cam_dist = _cam_saved
+			_cam_saved = -1.0
 
 # ------------------------------------------------------------ cast effects (CastFX)
 var _cast_fx := {}   # unit id -> rune circle node
@@ -689,6 +720,7 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 # ------------------------------------------------------------ taps (WoW: the kill)
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
+	_hitstop(0.22, 0.1)
 	_fx_stop(by, true)
 	var vn := _node_of(victim)
 	if vn:
@@ -1003,7 +1035,7 @@ func _lesson(ab: Dictionary) -> String:
 			return Keys.fill("Coach: \"Pinned means you hit softer. Escape breaks the pin; Base (Q) halves the damage while you work.\"")
 	if core.engaged_enemies().size() > 1:
 		return Keys.fill("Coach: \"Too many at once. Pull one at a time, and press Base (Q) the moment it gets ugly.\"")
-	return Keys.fill("Coach: \"Build Grip before you go for the finish, and don't be afraid of Base (Q) and Breathe (F).\"")
+	return Keys.fill("Coach: \"Wear them down, then FINISH: only a submission makes them tap. And watch the middle of the screen: when SPRAWL, FRAME or DEFEND flashes, that's your read.\"")
 
 ## The player chose how to come back from a tap.
 func resolve_tap(shake_off: bool) -> void:
