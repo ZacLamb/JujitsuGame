@@ -337,7 +337,7 @@ def predio(name="br_predio", Wd=8.0, D=10.0, floors=10):
             side_window(-Wd / 2, z + 1.4, k * D * 0.25, w=1.4, h=1.4)
     box((Wd + 0.3, D + 0.3, 0.4), (0, 0, H + 0.2), "trim")
     box((2.4, 2.0, 1.6), (Wd * 0.2, D * 0.15, H + 1.2), "stucco")                # machine room
-    cyl(0.7, 1.2, (-Wd * 0.25, D * 0.2, H + 1.0), "iron", 12)                    # water tank
+    cyl(0.7, 1.2, (-Wd * 0.25, D * 0.2, H + 1.0), "tank", 12)                    # water tank
     finish(name)
 
 
@@ -361,7 +361,8 @@ def favela(name="br_casa_morro", Wd=3.4, D=3.4, H=2.8, upper=False):
     for x in (-Wd / 2 + 0.2, Wd / 2 - 0.2):
         for y in (-D / 2 + 0.2, D / 2 - 0.2):
             cyl(0.02, 0.7, (x, y, z0 + 0.35), "iron", 4)                          # rebar
-    cyl(0.45, 0.8, (Wd * 0.2, D * 0.15, z0 + 0.4), "tin", 12)                    # caixa d'água
+    cyl(0.45, 0.8, (Wd * 0.2, D * 0.15, z0 + 0.4), "tank", 12)                   # caixa d'água (blue)
+    cyl(0.48, 0.08, (Wd * 0.2, D * 0.15, z0 + 0.84), "tank", 12)
     finish(name)
 
 
@@ -389,7 +390,57 @@ def zebu(name="br_cow"):
     finish(name)
 
 
-ALL = {"galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
+def chalana(name="br_chalana", L=13.0, B=3.6):
+    """Pantanal riverboat (chalana / barco-hotel): a long white hull with a coloured band, two decks
+    with posts and rails, a wheelhouse up front, a sun roof on top."""
+    reset()
+    bm = bmesh.new()
+    prof = [(-L / 2, 0.9), (-L / 2 + 0.6, 0.5), (L / 2 - 2.0, 0.5), (L / 2, 1.3)]   # (y along the boat, keel lift)
+    rings = []
+    for y, lift in prof:
+        w = B / 2 * (0.75 if y > L / 2 - 1 else 1.0)
+        rings.append([bm.verts.new((-w, y, lift - 0.4)), bm.verts.new((w, y, lift - 0.4)), bm.verts.new((w, y, 1.4)), bm.verts.new((-w, y, 1.4))])
+    for i in range(len(rings) - 1):
+        a, b = rings[i], rings[i + 1]
+        for k in range(4):
+            bm.faces.new([a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]])
+    bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
+    me = bpy.data.meshes.new("hull"); bm.normal_update(); bm.to_mesh(me)
+    o = bpy.data.objects.new("hull", me); bpy.context.scene.collection.objects.link(o)
+    o.data.materials.append(W["M"]["stucco"])
+    box((B + 0.06, L - 1.2, 0.3), (0, -0.4, 1.15), "wood")              # coloured band (tinted)
+    box((B - 0.2, L - 0.8, 0.15), (0, -0.2, 1.45), "base")              # deck
+    for z0, hgt in ((1.5, 2.2), (3.8, 2.0)):
+        for y in (-L / 2 + 1.0, -L / 2 + 4.0, -L / 2 + 7.0, L / 2 - 3.5):
+            for x in (-B / 2 + 0.15, B / 2 - 0.15):
+                box((0.12, 0.12, hgt), (x, y, z0 + hgt / 2), "trim")
+        box((B, L - 2.5, 0.15), (0, -1.0, z0 + hgt), "stucco")         # deck above / roof
+        for x in (-B / 2 + 0.1, B / 2 - 0.1):
+            box((0.05, L - 2.6, 0.05), (x, -1.0, z0 + 0.9), "trim")      # rails
+    box((B - 0.6, 3.0, 2.0), (0, -L / 2 + 4.0, 2.5), "stucco")          # cabins
+    for y in (-L / 2 + 3.0, -L / 2 + 5.0):
+        for x in (-(B - 0.6) / 2 - 0.02, (B - 0.6) / 2 + 0.02):
+            box((0.05, 0.8, 0.6), (x, y, 2.8), "glass")
+    box((B - 1.0, 1.8, 1.6), (0, L / 2 - 3.6, 4.6), "stucco")           # wheelhouse
+    box((B - 0.9, 0.05, 0.7), (0, L / 2 - 2.68, 4.8), "glass")
+    box((B + 0.2, 4.0, 0.08), (0, L / 2 - 4.0, 5.9), "wood")             # sun roof (tinted)
+    finish(name)
+
+
+def voadeira(name="br_voadeira"):
+    """Small aluminium fishing boat with an outboard motor."""
+    reset()
+    box((1.5, 4.2, 0.5), (0, 0, 0.25), "trim")
+    o = box((1.3, 0.9, 0.45), (0, -2.4, 0.4), "trim"); o.rotation_euler = (0.5, 0, 0)
+    bpy.context.view_layer.objects.active = o; bpy.ops.object.transform_apply(rotation=True)
+    for y in (-0.8, 0.6):
+        box((1.4, 0.3, 0.08), (0, y, 0.42), "wood")
+    box((0.35, 0.4, 0.7), (0, 2.25, 0.7), "iron")
+    cyl(0.04, 0.8, (0, 2.3, 0.1), "iron", 5)
+    finish(name)
+
+
+ALL = {"chalana": chalana, "voadeira": voadeira, "galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
        "casa_morro": favela, "casa_morro2": lambda: favela("br_casa_morro2", Wd=3.6, D=3.2, upper=True), "cow": zebu, "adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
        "bungalow": bungalow, "spanish": spanish, "spanish_house": lambda: spanish("sd_spanish_house", Wd=9.0, D=8.0, H=3.6, shop=False),
        "lifeguard": lifeguard, "surfshop": surf_shop}

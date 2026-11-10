@@ -1470,9 +1470,21 @@ func _build_pier() -> void:
 	for k in int(length / 3.0):
 		_cyl(0.15, 0.15, 3.0, Vector3(x0 - k * 3.0, WATER_Y - 0.6, z + 1.3), Color(0.35, 0.25, 0.15), 6)
 		_cyl(0.15, 0.15, 3.0, Vector3(x0 - k * 3.0, WATER_Y - 0.6, z - 1.3), Color(0.35, 0.25, 0.15), 6)
-	# a little boat
-	var boat := _box(Vector3(5, 0.6, 1.8), Vector3(x1 - 2.0, WATER_Y + 0.1, z + 3.2), Color(0.2, 0.45, 0.7), false)
-	boat.rotation.y = 0.2
+	# rail posts and a rope along the pier
+	for k in int(length / 2.5) + 1:
+		var px := x0 - k * 2.5
+		for sz in [-1.35, 1.35]:
+			_box(Vector3(0.12, 1.0, 0.12), Vector3(px, maxf(gy, WATER_Y) + 0.95, z + sz), Color(0.4, 0.3, 0.2), false)
+	for sz in [-1.35, 1.35]:
+		_box(Vector3(length, 0.06, 0.06), Vector3((x0 + x1) / 2.0, maxf(gy, WATER_Y) + 1.35, z + sz), Color(0.75, 0.68, 0.5), false)
+	# boats on the Paraguai: two aluminium voadeiras at the pier and a chalana (river-hotel boat)
+	var boats: Array = []
+	boats.append({"kind": "br_voadeira", "xform": Transform3D(Basis(Vector3.UP, PI / 2 + 0.15), Vector3(x1 - 2.0, WATER_Y - 0.25, z + 3.0)), "wall": Color.WHITE, "wood": Color(0.5, 0.35, 0.2)})
+	boats.append({"kind": "br_voadeira", "xform": Transform3D(Basis(Vector3.UP, PI / 2 - 0.1), Vector3(x1 - 5.0, WATER_Y - 0.25, z - 3.0)), "wall": Color.WHITE, "wood": Color(0.5, 0.35, 0.2)})
+	var cz := 8.0
+	boats.append({"kind": "br_chalana", "xform": Transform3D(Basis(Vector3.UP, 0.05), Vector3(river_x(cz) + 1.5, WATER_Y - 0.55, cz)), "wall": Color(0.97, 0.97, 0.95), "wood": Color(0.15, 0.35, 0.7)})
+	TownKit.build(self, boats)
+	_label("BARCO-HOTEL TUIUIÚ", Vector3(river_x(cz) + 1.5, WATER_Y + 6.6, cz), 70, Color(1, 0.95, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _build_nest_tree() -> void:
 	var base := Vector3(-36, ground_y(-36, 52), 52)
@@ -2152,6 +2164,11 @@ func _build_pantanal() -> void:
 	_p_lagoon_bridge()
 	_p_marsh()
 	_p_wildlife()
+	# a comitiva: a cattle drive walking a slow loop on the dry ground north of the Transpantaneira
+	var herd := Herd.new()
+	add_child(herd)
+	herd.setup(self, PackedVector2Array([Vector2(-80, -27), Vector2(-48, -24), Vector2(-24, -28), Vector2(0, -24), Vector2(24, -27), Vector2(40, -26),
+		Vector2(40, -18), Vector2(10, -16), Vector2(-20, -17), Vector2(-50, -18), Vector2(-80, -19)]), 14)
 	_build_cups()
 	_build_landmarks()
 	_build_fighters()

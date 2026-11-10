@@ -70,6 +70,12 @@ static func _mat(kind: String) -> Material:
 			m.set_shader_parameter("tex", EnvShaders.env_tex("thatch")); m.set_shader_parameter("scale", 0.45)
 		"tin":
 			m.set_shader_parameter("tex", EnvShaders.env_tex("tin")); m.set_shader_parameter("scale", 0.5); m.set_shader_parameter("rough", 0.55)
+		"tank":
+			var tk := StandardMaterial3D.new()
+			tk.albedo_color = Color(0.12, 0.3, 0.72)
+			tk.roughness = 0.5
+			_mats[kind] = tk
+			return tk
 		"glass":
 			var g := StandardMaterial3D.new()
 			g.albedo_color = Color(0.13, 0.17, 0.22)
@@ -100,7 +106,7 @@ static func mesh(kind: String) -> ArrayMesh:
 			nm = sm.resource_name
 		if src.get_surface_override_material(i):
 			nm = src.get_surface_override_material(i).resource_name
-		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron", "siding", "brick", "stone", "tin", "stucco", "tile", "thatch"] else "trim"))
+		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron", "siding", "brick", "stone", "tin", "stucco", "tile", "thatch", "tank"] else "trim"))
 	sc.free()
 	_meshes[kind] = m
 	return m

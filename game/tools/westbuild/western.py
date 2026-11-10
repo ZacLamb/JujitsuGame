@@ -10,7 +10,7 @@ import bpy, bmesh, math, os, sys
 from mathutils import Vector
 
 OUT = "/home/claude/tatame/assets/models/town"
-MATS = ["siding", "brick", "stone", "tin", "trim", "wood", "glass", "iron", "base", "stucco", "tile", "thatch"]
+MATS = ["siding", "brick", "stone", "tin", "trim", "wood", "glass", "iron", "base", "stucco", "tile", "thatch", "tank"]
 
 
 def reset():
