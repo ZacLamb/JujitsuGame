@@ -1507,39 +1507,18 @@ func _build_nest_tree() -> void:
 	_box(Vector3(3.2, 0.4, 3.2), base + Vector3(0, top_y, 0), Color(0.45, 0.32, 0.2))
 	# nest + tuiuiú (jabiru stork): white body, black neck, red collar
 	_cyl(1.0, 0.7, 0.4, base + Vector3(0.6, top_y + 0.4, 0), Color(0.5, 0.38, 0.22), 10)
-	var body := MeshInstance3D.new()
-	var bsm := SphereMesh.new()
-	bsm.radius = 0.45
-	bsm.height = 0.7
-	body.mesh = bsm
-	body.material_override = _mat(Color(0.97, 0.97, 0.97))
-	body.position = base + Vector3(0.6, top_y + 1.2, 0)
-	add_child(body)
-	_cyl(0.12, 0.14, 0.8, base + Vector3(0.6, top_y + 1.85, 0.1), Color(0.05, 0.05, 0.05), 6)
-	_cyl(0.16, 0.16, 0.18, base + Vector3(0.6, top_y + 1.55, 0.05), Color(0.85, 0.1, 0.1), 8)
-	var beak := _cyl(0.0, 0.07, 0.6, base + Vector3(0.6, top_y + 2.2, -0.3), Color(0.08, 0.08, 0.08), 6)
-	beak.rotation.x = -1.3
-	_nest_found_area = _area(base + Vector3(0, top_y + 1.0, 0), 2.6)
-	_nest_found_area.body_entered.connect(func(b):
-		if b is Player:
-			if not Game.unlocked.has("nest"):
-				Game.toast.emit("A tuiuiú! The bird of the Pantanal.", Color(1, 1, 1))
-			Game.unlock("nest"))
+	TownKit.build(self, [{"kind": "an_jabiru", "xform": Transform3D(Basis(Vector3.UP, 0.6), base + Vector3(0.6, top_y + 0.55, 0)), "wall": Color.WHITE, "wood": Color.WHITE}])
 
 func _build_capybaras() -> void:
-	for p in [Vector3(-58, 0, 8), Vector3(-60, 0, 12), Vector3(-57, 0, -40)]:
-		var gy := ground_y(p.x, p.z)
-		var body := MeshInstance3D.new()
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.4
-		cm.height = 1.3
-		body.mesh = cm
-		body.material_override = _mat(Color(0.5, 0.35, 0.22))
-		body.rotation.z = PI / 2
-		body.position = Vector3(p.x, gy + 0.45, p.z)
-		add_child(body)
-		_box(Vector3(0.45, 0.45, 0.5), Vector3(p.x + 0.75, gy + 0.62, p.z), Color(0.45, 0.31, 0.2), false)
-		_label("capivara", Vector3(p.x, gy + 1.4, p.z), 36, Color(1, 1, 1, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	var fam: Array = []
+	for c in [Vector3(-58, 0, 10), Vector3(-57, 0, -40)]:
+		for k in 4:
+			var p: Vector3 = c + Vector3(_rng.randf_range(-2.5, 2.5), 0, _rng.randf_range(-2.5, 2.5))
+			var gy := ground_y(p.x, p.z)
+			fam.append({"kind": "an_capybara", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * (1.25 if k == 0 else 0.8)), Vector3(p.x, gy, p.z)),
+				"wall": Color(0.52, 0.38, 0.25), "wood": Color(0.36, 0.26, 0.18)})
+	TownKit.build(self, fam)
+	_label("capivaras", Vector3(-58, ground_y(-58, 10) + 1.6, 10), 36, Color(1, 1, 1, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _area(pos: Vector3, radius: float) -> Area3D:
 	var a := Area3D.new()
@@ -2333,33 +2312,33 @@ func _p_lagoon_bridge() -> void:
 		_cyl(0.12, 0.12, 1.6, Vector3(11.1, -0.5, 4 + k * 3.0), Color(0.35, 0.25, 0.15), 6)
 
 func _p_wildlife() -> void:
-	# jacarés (caimans) sunbathing on the lagoon edges
-	for p in [Vector3(1, 0, 14), Vector3(19, 0, 27), Vector3(4, 0, 30), Vector3(33, 0, -55), Vector3(50, 0, -48)]:
-		var gy := maxf(ground_y(p.x, p.z), -0.4)
-		var body := MeshInstance3D.new()
-		var cm := CapsuleMesh.new()
-		cm.radius = 0.28
-		cm.height = 2.2
-		body.mesh = cm
-		body.material_override = _mat(Color(0.2, 0.25, 0.15))
-		body.rotation = Vector3(PI / 2, _rng.randf() * TAU, 0)
-		body.position = Vector3(p.x, gy + 0.05, p.z)
-		body.scale = Vector3(1, 1, 0.55)
-		add_child(body)
-		var lab := _label("jacaré", Vector3(p.x, gy + 1.0, p.z), 36, Color(1, 1, 1, 0.8))
-		lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	# capybaras near the water
-	for p in [Vector3(-4, 0, 6), Vector3(-2, 0, 8), Vector3(24, 0, 12), Vector3(30, 0, -40)]:
-		var gy2 := ground_y(p.x, p.z)
-		var cap := MeshInstance3D.new()
-		var ccm := CapsuleMesh.new()
-		ccm.radius = 0.4
-		ccm.height = 1.3
-		cap.mesh = ccm
-		cap.material_override = _mat(Color(0.5, 0.35, 0.22))
-		cap.rotation.z = PI / 2
-		cap.position = Vector3(p.x, gy2 + 0.45, p.z)
-		add_child(cap)
+	# jacarés sunbathing on the lagoon edges, capivara families grazing by the water, tuiuiús
+	# wading in the shallows (models from tools/westbuild/coastal.py)
+	var fauna: Array = []
+	for p in [Vector3(1, 0, 14), Vector3(19, 0, 27), Vector3(4, 0, 30), Vector3(33, 0, -55), Vector3(50, 0, -48), Vector3(-66, 0, 16), Vector3(14, 0, 34)]:
+		var gy := maxf(ground_y(p.x, p.z), -0.42)
+		fauna.append({"kind": "an_caiman", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(0.9, 1.25)), Vector3(p.x, gy - 0.05, p.z)),
+			"wall": Color(0.22, 0.26, 0.16), "wood": Color(0.16, 0.18, 0.12)})
+	for c in [Vector3(-4, 0, 6), Vector3(24, 0, 12), Vector3(30, 0, -40), Vector3(-60, 0, 26), Vector3(56, 0, 20)]:
+		for k in _rng.randi_range(3, 5):
+			var p: Vector3 = c + Vector3(_rng.randf_range(-3, 3), 0, _rng.randf_range(-3, 3))
+			var gy := ground_y(p.x, p.z)
+			if gy < -0.25:
+				continue
+			fauna.append({"kind": "an_capybara", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * (1.0 if k > 0 else 1.25) * _rng.randf_range(0.7, 1.0)), Vector3(p.x, gy, p.z)),
+				"wall": Color(0.52, 0.38, 0.25), "wood": Color(0.36, 0.26, 0.18)})
+	var waded := 0
+	var tries := 0
+	while waded < 9 and tries < 400:
+		tries += 1
+		var x := _rng.randf_range(-85, 85)
+		var z := _rng.randf_range(-85, 85)
+		var gy := ground_y(x, z)
+		if gy > -0.36 or gy < -0.7 or _is_blocked(x, z, 1.0):
+			continue   # only in shallow water
+		fauna.append({"kind": "an_jabiru", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU), Vector3(x, gy, z)), "wall": Color.WHITE, "wood": Color.WHITE})
+		waded += 1
+	TownKit.build(self, fauna)
 	# araras (macaws) perched on poles
 	for i in 8:
 		var x := _rng.randf_range(-80, 80)
@@ -2368,8 +2347,14 @@ func _p_wildlife() -> void:
 			continue
 		var gy3 := ground_y(x, z)
 		_cyl(0.08, 0.1, 5.0, Vector3(x, gy3 + 2.5, z), Color(0.4, 0.3, 0.2), 6)
-		var bird := _box(Vector3(0.3, 0.55, 0.3), Vector3(x, gy3 + 5.3, z), [Color(0.9, 0.15, 0.12), Color(0.15, 0.4, 0.9)][i % 2], false)
-		_box(Vector3(0.12, 0.6, 0.08), Vector3(x, gy3 + 4.8, z + 0.15), Color(0.95, 0.8, 0.1), false)
+		_box(Vector3(0.9, 0.08, 0.08), Vector3(x, gy3 + 4.9, z), Color(0.4, 0.3, 0.2), false)
+		# red-and-green or blue-and-yellow araras, a pair on each perch
+		var red := i % 2 == 0
+		var perch: Array = []
+		for k in 2:
+			perch.append({"kind": "an_macaw", "xform": Transform3D(Basis(Vector3.UP, _rng.randf_range(-0.6, 0.6) + PI * k).scaled(Vector3.ONE * 1.3), Vector3(x - 0.3 + k * 0.6, gy3 + 4.9, z)),
+				"wall": Color(0.85, 0.12, 0.1) if red else Color(0.12, 0.38, 0.9), "wood": Color(0.15, 0.6, 0.3) if red else Color(0.95, 0.75, 0.1)})
+		TownKit.build(self, perch)
 	# the onça pintada (jaguar), lounging on a branch
 	var t := Vector3(-64, ground_y(-64, -64), -64)
 	_cyl(0.5, 0.8, 7.0, t + Vector3(0, 3.5, 0), Color(0.42, 0.3, 0.2), 8, true)
@@ -2382,25 +2367,8 @@ func _p_wildlife() -> void:
 	crown.material_override = _mat(Color(0.18, 0.38, 0.16))
 	crown.position = t + Vector3(0, 7.5, 0)
 	add_child(crown)
-	var jag := MeshInstance3D.new()
-	var jm := CapsuleMesh.new()
-	jm.radius = 0.32
-	jm.height = 1.6
-	jag.mesh = jm
-	jag.material_override = _mat(Color(0.88, 0.62, 0.22))
-	jag.rotation.z = PI / 2
-	jag.position = t + Vector3(2.2, 4.75, 0)
-	add_child(jag)
-	for k in 6:
-		var spot := MeshInstance3D.new()
-		var spm := SphereMesh.new()
-		spm.radius = 0.08
-		spm.height = 0.16
-		spot.mesh = spm
-		spot.material_override = _mat(Color(0.1, 0.08, 0.05))
-		spot.position = t + Vector3(1.6 + k * 0.22, 5.0 + (k % 2) * 0.06, (k % 3 - 1) * 0.15)
-		add_child(spot)
-	_box(Vector3(0.4, 0.35, 0.35), t + Vector3(3.1, 4.85, 0), Color(0.88, 0.62, 0.22), false)
+	TownKit.build(self, [{"kind": "an_jaguar", "xform": Transform3D(Basis(Vector3.UP, -PI / 2).scaled(Vector3.ONE * 1.5), t + Vector3(2.1, 4.38, 0)),
+		"wall": Color(0.88, 0.62, 0.24), "wood": Color(0.88, 0.62, 0.24)}])
 	_jaguar_area = _area(t + Vector3(2, 1, 0), 8.0)
 	_jaguar_area.body_entered.connect(func(b):
 		if b is Player and game_started:

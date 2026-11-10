@@ -11,6 +11,7 @@ var _mm: MultiMesh
 var _xf0: Transform3D
 var _state: Array = []   # per cow: [distance along path, side offset, bob phase, scale]
 var speed := 1.1
+var _riders: MultiMesh   # a pantaneiro / cowboy leading the drive and one bringing up the rear
 
 func setup(w: World, pts: PackedVector2Array, count := 12, kind := "br_cow", colors: Array = []) -> void:
 	world = w
@@ -39,6 +40,18 @@ func setup(w: World, pts: PackedVector2Array, count := 12, kind := "br_cow", col
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = _mm
 	add_child(mmi)
+	_riders = MultiMesh.new()
+	_riders.transform_format = MultiMesh.TRANSFORM_3D
+	_riders.use_colors = true
+	_riders.use_custom_data = true
+	_riders.mesh = TownKit.mesh("an_rider")
+	_riders.instance_count = 2
+	for i in 2:
+		_riders.set_instance_color(i, [Color(0.45, 0.3, 0.2), Color(0.9, 0.88, 0.84)][i])        # bay and grey horses
+		_riders.set_instance_custom_data(i, [Color(0.75, 0.25, 0.2), Color(0.25, 0.4, 0.7)][i])  # shirts
+	var rmi := MultiMeshInstance3D.new()
+	rmi.multimesh = _riders
+	add_child(rmi)
 	_update(0.0)
 
 func _at(d: float) -> Array:
@@ -70,3 +83,19 @@ func _update(delta: float) -> void:
 		var yaw := atan2(dir.x, dir.y)   # kit models face +Z
 		var b := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * float(s[3]))
 		_mm.set_instance_transform(i, Transform3D(b, Vector3(q.x, gy + absf(sin(float(s[2]))) * 0.05, q.y)))
+	if _riders == null or _state.is_empty():
+		return
+	var lo := INF
+	var hi := -INF
+	for st in _state:
+		lo = minf(lo, float(st[0]))
+		hi = maxf(hi, float(st[0]))
+	for k in 2:
+		var d := hi + 4.0 if k == 0 else lo - 4.5
+		var pd2: Array = _at(d)
+		var p2: Vector2 = pd2[0]
+		var dir2: Vector2 = pd2[1]
+		var q2 := p2 + Vector2(-dir2.y, dir2.x) * (0.0 if k == 0 else 2.5)
+		var gy2 := maxf(world.ground_y(q2.x, q2.y), world.water_level() - 0.5)
+		var bob := absf(sin(_state[0][2] * 1.3 + k)) * 0.06
+		_riders.set_instance_transform(k, Transform3D(Basis(Vector3.UP, atan2(dir2.x, dir2.y)), Vector3(q2.x, gy2 + bob, q2.y)))

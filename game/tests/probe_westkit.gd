@@ -23,7 +23,7 @@ func _ready() -> void:
 	gm.albedo_color = Color(0.6, 0.55, 0.35)
 	ground.material_override = gm
 	add_child(ground)
-	var kinds := ["tx_longhorn", "br_cow", "br_chalana", "br_voadeira", "br_galpao", "br_casa_morro2", "br_predio_low"]
+	var kinds := ["an_rider", "an_capybara", "an_caiman", "an_jaguar", "an_macaw", "an_jabiru", "tx_longhorn", "br_cow"]
 	var items: Array = []
 	var x := 0.0
 	var walls := [Color(0.85, 0.75, 0.55), Color(0.6, 0.7, 0.75), Color(0.9, 0.9, 0.86), Color(0.7, 0.2, 0.15)]
@@ -38,7 +38,7 @@ func _ready() -> void:
 	var cam := Camera3D.new()
 	add_child(cam)
 	get_window().size = Vector2i(1600, 700)
-	var shots := [[Vector3(4, 2.5, 7), Vector3(4, 0.8, 0)], [Vector3(30, 8, 26), Vector3(30, 3, 0)]]
+	var shots := [[Vector3(6, 2.5, 6), Vector3(6, 1.0, 0)], [Vector3(14, 2.5, 6), Vector3(14, 1.0, 0)]]
 	for i in shots.size():
 		cam.position = shots[i][0]
 		cam.look_at(shots[i][1])

@@ -461,7 +461,123 @@ def voadeira(name="br_voadeira"):
     finish(name)
 
 
-ALL = {"longhorn": longhorn, "chalana": chalana, "voadeira": voadeira, "galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
+# ================================================================== animals (body = stucco, tinted per instance)
+def ellipsoid(c, r, mat, seg=12):
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=c, segments=seg, ring_count=max(6, seg // 2))
+    o = bpy.context.object; o.scale = r; bpy.ops.object.transform_apply(scale=True)
+    o.data.materials.append(W["M"][mat])
+    bpy.ops.object.shade_smooth()
+    return o
+
+
+def capybara(name="an_capybara"):
+    """Capivara: a barrel body, a big blunt square-ish head, tiny ears, short legs."""
+    reset()
+    ellipsoid((0, 0, 0.42), (0.32, 0.55, 0.3), "stucco")
+    ellipsoid((0, -0.58, 0.55), (0.18, 0.26, 0.2), "stucco")
+    box((0.26, 0.18, 0.2), (0, -0.8, 0.5), "wood")
+    for s in (-1, 1):
+        ellipsoid((s * 0.1, -0.5, 0.75), (0.04, 0.03, 0.05), "wood", 6)
+        ellipsoid((s * 0.13, -0.72, 0.62), (0.025, 0.025, 0.025), "black", 6)
+    for x in (-0.18, 0.18):
+        for y in (-0.3, 0.32):
+            cyl(0.06, 0.25, (x, y, 0.13), "wood", 6)
+    finish(name)
+
+
+def caiman(name="an_caiman"):
+    """Jacaré: low and long, a flat snout, a ridged back and a long tail."""
+    reset()
+    ellipsoid((0, 0, 0.16), (0.32, 0.8, 0.15), "stucco")
+    ellipsoid((0, -1.0, 0.14), (0.16, 0.42, 0.09), "stucco")
+    beam((0, 0.7, 0.14), (0.15, 1.9, 0.08), 0.2, "stucco")
+    for k in range(7):
+        box((0.06, 0.1, 0.06), (0, -0.5 + k * 0.25, 0.32), "wood")
+    for s in (-1, 1):
+        ellipsoid((s * 0.09, -0.85, 0.24), (0.04, 0.05, 0.04), "yellow", 6)
+        for y in (-0.4, 0.45):
+            beam((s * 0.25, y, 0.12), (s * 0.45, y + 0.1, 0.02), 0.08, "stucco")
+    finish(name)
+
+
+def jaguar(name="an_jaguar"):
+    """Onça pintada lying on a branch: long body, round head, tail hanging, rosettes as dark dots."""
+    reset()
+    ellipsoid((0, 0, 0.3), (0.26, 0.7, 0.24), "stucco")
+    ellipsoid((0, -0.78, 0.38), (0.2, 0.2, 0.18), "stucco")
+    ellipsoid((0, -0.93, 0.33), (0.1, 0.08, 0.08), "trim", 8)
+    for s in (-1, 1):
+        ellipsoid((s * 0.12, -0.75, 0.55), (0.05, 0.03, 0.05), "stucco", 6)
+        ellipsoid((s * 0.08, -0.95, 0.42), (0.025, 0.02, 0.025), "black", 6)
+        for y in (-0.45, 0.4):
+            beam((s * 0.18, y, 0.2), (s * 0.24, y - 0.05, -0.3), 0.1, "stucco")
+    beam((0, 0.7, 0.3), (0.1, 1.0, -0.4), 0.07, "stucco")
+    import random as _r
+    _r.seed(5)
+    for k in range(28):
+        a = _r.uniform(0, 2 * math.pi)
+        y = _r.uniform(-0.6, 0.6)
+        c = Vector((math.cos(a) * 0.26, y, 0.3 + math.sin(a) * 0.24))
+        if c.z < 0.15:
+            continue
+        ellipsoid(tuple(c), (0.045, 0.045, 0.03), "black", 6)
+    finish(name)
+
+
+def macaw(name="an_macaw"):
+    """Arara perched: a plump body, a big curved beak, long tail; colours from the instance tint."""
+    reset()
+    ellipsoid((0, 0, 0.32), (0.12, 0.13, 0.2), "stucco", 10)
+    ellipsoid((0, -0.04, 0.55), (0.09, 0.1, 0.09), "stucco", 10)
+    ellipsoid((0, -0.13, 0.52), (0.04, 0.06, 0.05), "trim", 6)
+    ellipsoid((0, -0.15, 0.49), (0.03, 0.05, 0.04), "black", 6)
+    beam((0, 0.06, 0.2), (0, 0.18, -0.35), 0.05, "wood")
+    for s in (-1, 1):
+        ellipsoid((s * 0.11, 0.03, 0.33), (0.03, 0.1, 0.15), "wood", 8)
+    finish(name)
+
+
+def jabiru(name="an_jabiru"):
+    """Tuiuiú, the Pantanal's symbol: white body, a bare black neck with a red collar, a huge black bill,
+    long dark legs."""
+    reset()
+    ellipsoid((0, 0, 1.2), (0.25, 0.42, 0.28), "trim")
+    ellipsoid((0, 0.32, 1.25), (0.2, 0.2, 0.18), "black", 8)            # wing tips
+    beam((0, -0.25, 1.35), (0, -0.4, 1.85), 0.12, "black")
+    box((0.14, 0.1, 0.12), (0, -0.3, 1.45), "red")
+    ellipsoid((0, -0.42, 1.92), (0.08, 0.09, 0.08), "black", 8)
+    beam((0, -0.48, 1.93), (0, -0.85, 1.82), 0.06, "black")
+    for x in (-0.08, 0.08):
+        beam((x, 0, 0.95), (x, 0.02, 0.0), 0.04, "black")
+    finish(name)
+
+
+def horse_rider(name="an_rider"):
+    """A pantaneiro / cowboy on horseback (simple, stylised): horse body tinted per instance, rider in
+    a hat and shirt (wood tint), for the cattle drives."""
+    reset()
+    ellipsoid((0, 0, 1.3), (0.32, 0.85, 0.4), "stucco")
+    beam((0, -0.7, 1.5), (0, -1.0, 2.0), 0.28, "stucco")
+    ellipsoid((0, -1.15, 1.95), (0.13, 0.35, 0.14), "stucco")
+    beam((0, -0.6, 1.75), (0, -0.95, 2.2), 0.08, "black")                # mane
+    beam((0, 0.8, 1.4), (0, 1.0, 0.8), 0.1, "black")                     # tail
+    for x in (-0.18, 0.18):
+        for y in (-0.55, 0.6):
+            beam((x, y, 1.1), (x, y, 0.0), 0.11, "stucco")
+            cyl(0.07, 0.1, (x, y, 0.05), "black", 6)
+    box((0.7, 0.6, 0.12), (0, 0.0, 1.72), "base")                          # saddle blanket
+    # rider
+    beam((0, 0.0, 1.8), (0, -0.05, 2.55), 0.32, "wood")                    # torso (shirt)
+    ellipsoid((0, -0.05, 2.75), (0.12, 0.12, 0.14), "skin", 10)            # head
+    cyl(0.32, 0.04, (0, -0.05, 2.86), "base", 14)                           # hat brim
+    cyl(0.13, 0.16, (0, -0.05, 2.95), "base", 12)                           # crown
+    for s in (-1, 1):
+        beam((s * 0.2, 0.0, 1.85), (s * 0.3, -0.1, 1.2), 0.11, "black")      # legs (jeans)
+        beam((s * 0.18, -0.05, 2.45), (s * 0.12, -0.4, 2.1), 0.08, "wood")   # arms on the reins
+    finish(name)
+
+
+ALL = {"capybara": capybara, "caiman": caiman, "jaguar": jaguar, "macaw": macaw, "jabiru": jabiru, "rider": horse_rider, "longhorn": longhorn, "chalana": chalana, "voadeira": voadeira, "galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
        "casa_morro": favela, "casa_morro2": lambda: favela("br_casa_morro2", Wd=3.6, D=3.2, upper=True), "cow": zebu, "adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
        "bungalow": bungalow, "spanish": spanish, "spanish_house": lambda: spanish("sd_spanish_house", Wd=9.0, D=8.0, H=3.6, shop=False),
        "lifeguard": lifeguard, "surfshop": surf_shop}
