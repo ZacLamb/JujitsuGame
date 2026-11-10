@@ -230,8 +230,72 @@ def surf_shop(name="sd_surfshop", Wd=9.0, D=8.0, H=4.0):
         b.rotation_euler = (0, 0.18, 0)
     finish(name)
 
+# ================================================================== Sedona / Arizona
+def adobe(name="az_adobe", Wd=7.0, D=7.0, H=3.6, portal=True):
+    """Pueblo Revival: rounded stucco walls, flat roof behind a soft parapet, protruding vigas,
+    deep-set windows with painted (turquoise) frames, and a wooden portal porch."""
+    reset()
+    walls(Wd, D, H, "stucco")
+    # soft parapet: slightly rounded lumps on top of every wall
+    for sx in (-1, 1):
+        box((0.35, D + 0.1, 0.5), (sx * (Wd / 2 - 0.12), 0, H + 0.2), "stucco")
+    for sy in (-1, 1):
+        box((Wd + 0.1, 0.35, 0.5), (0, sy * (D / 2 - 0.12), H + 0.2), "stucco")
+    box((Wd - 0.6, D - 0.6, 0.1), (0, 0, H - 0.1), "base")
+    for k in range(6):   # vigas through the front and side walls
+        x = -Wd / 2 + 0.6 + k * (Wd - 1.2) / 5
+        cyl(0.11, 0.9, (x, -D / 2 - 0.3, H - 0.45), "wood", 7, rot=(math.pi / 2, 0, 0))
+    fy = -D / 2
+    door(-Wd * 0.22, fy, w=1.0, h=2.2, frame="wood")
+    window(Wd * 0.22, 1.7, fy, w=1.1, h=1.2, frame="wood")
+    for k in (-1, 1):
+        side_window(Wd / 2, 1.7, k * D * 0.2, w=0.8, h=1.0, frame="wood")
+        side_window(-Wd / 2, 1.7, k * D * 0.2, w=0.8, h=1.0, frame="wood")
+    if portal:
+        P = 2.2
+        for k in range(4):
+            x = -Wd / 2 + 0.3 + k * (Wd - 0.6) / 3
+            cyl(0.13, 2.7, (x, fy - P, 1.35), "wood", 8)
+            box((0.6, 0.22, 0.22), (x, fy - P, 2.72), "wood")   # corbel
+        box((Wd, 0.28, 0.28), (0, fy - P, 2.95), "wood")
+        box((Wd + 0.2, P + 0.3, 0.12), (0, fy - P / 2, 3.12), "base")
+        for k in range(10):
+            box((0.08, P + 0.2, 0.08), (-Wd / 2 + 0.2 + k * (Wd - 0.4) / 9, fy - P / 2, 3.03), "wood")
+        box((Wd, P, 0.15), (0, fy - P / 2, 0.07), "stone")
+    finish(name)
 
-ALL = {"shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
+
+def pueblo(name="az_pueblo", Wd=10.0, D=9.0):
+    """Two stepped storeys, like a pueblo: the upper block set back with a roof terrace and a ladder."""
+    reset()
+    H1, H2 = 3.4, 3.0
+    box((Wd, D, H1), (0, 0, H1 / 2), "stucco")
+    box((Wd * 0.55, D * 0.6, H2), (Wd * 0.18, D * 0.15, H1 + H2 / 2), "stucco")
+    for (w, d, z, cx, cy) in ((Wd, D, H1, 0, 0), (Wd * 0.55, D * 0.6, H1 + H2, Wd * 0.18, D * 0.15)):
+        for sx in (-1, 1):
+            box((0.32, d + 0.1, 0.45), (cx + sx * (w / 2 - 0.12), cy, z + 0.18), "stucco")
+        for sy in (-1, 1):
+            box((w + 0.1, 0.32, 0.45), (cx, cy + sy * (d / 2 - 0.12), z + 0.18), "stucco")
+        for k in range(5):
+            x = cx - w / 2 + 0.5 + k * (w - 1.0) / 4
+            cyl(0.1, 0.8, (x, cy - d / 2 - 0.28, z - 0.4), "wood", 7, rot=(math.pi / 2, 0, 0))
+    fy = -D / 2
+    door(-Wd * 0.3, fy, w=1.0, h=2.2, frame="wood")
+    for x in (-Wd * 0.05, Wd * 0.3):
+        window(x, 1.7, fy, w=1.0, h=1.1, frame="wood")
+    window(Wd * 0.18, H1 + 1.6, -D * 0.15, w=1.0, h=1.0, frame="wood")
+    for k in range(2):   # ladder up to the terrace
+        beam((-Wd * 0.25 + k * 0.6, fy - 0.9, 0), (-Wd * 0.25 + k * 0.6, fy + 0.6, H1 + 1.2), 0.08, "wood")
+    for k in range(7):
+        t = (k + 0.5) / 7
+        beam((-Wd * 0.25, fy - 0.9 + 1.5 * t, (H1 + 1.2) * t), (-Wd * 0.25 + 0.6, fy - 0.9 + 1.5 * t, (H1 + 1.2) * t), 0.05, "wood")
+    for k in (-1, 1):
+        side_window(Wd / 2, 1.7, k * D * 0.2, w=0.8, h=1.0, frame="wood")
+        side_window(-Wd / 2, 1.7, k * D * 0.2, w=0.8, h=1.0, frame="wood")
+    finish(name)
+
+
+ALL = {"adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
        "bungalow": bungalow, "spanish": spanish, "spanish_house": lambda: spanish("sd_spanish_house", Wd=9.0, D=8.0, H=3.6, shop=False),
        "lifeguard": lifeguard, "surfshop": surf_shop}
 

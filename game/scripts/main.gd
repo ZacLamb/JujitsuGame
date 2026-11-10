@@ -184,6 +184,7 @@ func _process(delta: float) -> void:
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
 	_mouse_process()
+	_check_zone_line(delta)
 	_rival_process()
 	if hud and combat and hud.combat_hud == null:
 		hud.set_combat(combat)
@@ -787,7 +788,21 @@ func _make_world(z: String) -> void:
 	if not _in_title:
 		Net.enter(z)
 
-func _travel(z: String, free := false) -> void:
+## Walked off the map along a zone road: load the neighbour, arriving on its matching road.
+var _zone_line_cd := 0.0
+func _check_zone_line(delta: float) -> void:
+	_zone_line_cd = maxf(0.0, _zone_line_cd - delta)
+	if _zone_line_cd > 0.0 or _in_title or roll != null or world == null or not player.input_enabled:
+		return
+	if combat and combat.me and combat.me.in_combat:
+		return
+	var hit: Array = world.zone_line_at(player.global_position)
+	if hit.is_empty() or str(hit[0]) == "":
+		return
+	_zone_line_cd = 3.0
+	_travel(str(hit[0]), true, "e" if hit[1] == "w" else "w")
+
+func _travel(z: String, free := false, arrive := "") -> void:
 	# open world: nobody stops you, but the driver will tell you what you're in for
 	var lo := int(Data.ZONES[z].levels[0])
 	# another continent: a flight
@@ -803,6 +818,11 @@ func _travel(z: String, free := false) -> void:
 	Game.zone = z
 	Game.save_game()
 	_make_world(z)
+	if arrive != "" and World.ZONE_ROADS.get(z, {}).has(arrive):
+		var sx := -1.0 if arrive == "w" else 1.0
+		var zc: float = World.ZONE_ROADS[z][arrive]
+		var at := Vector3(sx * 84.0, world.ground_y(sx * 84.0, zc) + 0.5, zc)
+		player.teleport(at, -PI / 2 if sx < 0 else PI / 2)   # facing into the zone
 	player.make_current()
 	player.input_enabled = true
 	hud.set_prompt(null)

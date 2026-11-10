@@ -65,6 +65,7 @@ func build(z := "caceres") -> void:
 			var vp: Vector3 = v[0]
 			_label(str(v[1]).trim_prefix("Shop: ").to_upper(), Vector3(vp.x, ground_y(vp.x, vp.z) + 2.8, vp.z), 56, Color(1, 0.95, 0.75))
 	_build_territories()
+	_build_zone_roads()
 	chests = Chests.new()
 	add_child(chests)
 	chests.build(self)
@@ -229,7 +230,77 @@ func river_x(z: float) -> float:
 func water_level() -> float:
 	return -0.35 if zone in ["pantanal", "everglades"] else (-1.0 if zone == "sedona" else (-2.0 if zone == "texas" else WATER_Y))
 
+## Walkable roads off the map edge to the neighbouring zones on your faction's road (WoW zone
+## lines): side -> the z of the road. Filled from tests/probe_roads.gd (clear of buildings, water).
+const ZONE_ROADS := {
+	"caceres": {"e": 20.0}, "pantanal": {"w": -40.0, "e": -16.0}, "chapada": {"w": 4.0, "e": 8.0}, "rio": {"w": -24.0},
+	"texas": {"e": -24.0}, "everglades": {"w": 42.0, "e": -22.0}, "sedona": {"w": 18.0, "e": -28.0}, "socal": {"w": -16.0},
+}
+
+## The zone a road leads to: "w" goes back along the faction's path, "e" onwards.
+static func road_target(z: String, side: String) -> String:
+	for fid in Origins.FACTIONS:
+		var path: Array = Origins.FACTIONS[fid].path
+		var i := path.find(z)
+		if i >= 0:
+			var j := i - 1 if side == "w" else i + 1
+			return str(path[j]) if j >= 0 and j < path.size() else ""
+	return ""
+
+## Player walked into a zone line? Returns [target zone, side] or [].
+func zone_line_at(p: Vector3) -> Array:
+	if not ZONE_ROADS.has(zone):
+		return []
+	for side in ZONE_ROADS[zone]:
+		var s := -1.0 if side == "w" else 1.0
+		if s * p.x > 91.0 and absf(p.z - float(ZONE_ROADS[zone][side])) < 8.0:
+			return [road_target(zone, side), side]
+	return []
+
+## Road, posts and a signpost for each zone line ("Pantanal Norte · Lv 11-20 →").
+func _build_zone_roads() -> void:
+	if not ZONE_ROADS.has(zone):
+		return
+	for side in ZONE_ROADS[zone]:
+		var s := -1.0 if side == "w" else 1.0
+		var zc: float = ZONE_ROADS[zone][side]
+		var to := road_target(zone, side)
+		if to == "":
+			continue
+		var x := 58.0
+		while x < 97.0:
+			var px := s * (x + 3.0)
+			_box(Vector3(6.2, 0.14, 5.0), Vector3(px, ground_y(px, zc) + 0.05, zc), Color(0.52, 0.46, 0.38), false)
+			x += 6.0
+		var sp := Vector3(s * 66.0, 0, zc - 4.2)
+		var gy := ground_y(sp.x, sp.z)
+		_box(Vector3(0.22, 3.2, 0.22), Vector3(sp.x, gy + 1.6, sp.z), Color(0.4, 0.3, 0.2))
+		var arrow := _box(Vector3(2.8, 0.7, 0.12), Vector3(sp.x + s * 1.2, gy + 2.7, sp.z), Color(0.86, 0.78, 0.6), false)
+		var zd: Dictionary = Data.ZONES[to]
+		var txt := "%s  %s\n%s" % [Tx.s(str(zd.name)).to_upper(), "→" if s > 0 else "←", Data.zone_levels(to)]
+		var l := _label(txt, Vector3(sp.x + s * 1.2, gy + 2.7, sp.z + 0.08), 40, Color(0.2, 0.14, 0.08))
+		l.rotation.y = 0.0
+		var l2 := _label(txt, Vector3(sp.x + s * 1.2, gy + 2.7, sp.z - 0.08), 40, Color(0.2, 0.14, 0.08))
+		l2.rotation.y = PI
+		# a faint glow where the road leaves the map, so the way out reads from afar
+		var glow := _label("· · ·", Vector3(s * 94.0, ground_y(s * 94.0, zc) + 1.6, zc), 90, Color(1, 0.9, 0.6, 0.6))
+		glow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+
+
+## Terrain height, with the zone-line roads carved through the edge hills (see ZONE_ROADS).
 func height(x: float, z: float) -> float:
+	var h := _raw_height(x, z)
+	if not ZONE_ROADS.has(zone):
+		return h
+	for side in ZONE_ROADS[zone]:
+		var s := -1.0 if side == "w" else 1.0
+		var zc: float = ZONE_ROADS[zone][side]
+		var t := _ss(58.0, 68.0, s * x) * _ss(9.0, 5.0, absf(z - zc))
+		if t > 0.0:
+			h = lerpf(h, _raw_height(s * 58.0, zc), t)
+	return h
+
+func _raw_height(x: float, z: float) -> float:
 	if zone == "pantanal":
 		return _height_pantanal(x, z)
 	if zone == "chapada":
@@ -371,6 +442,10 @@ func _label(text: String, pos: Vector3, size := 96, color := Color.WHITE, rot_y 
 	return l
 
 func _is_blocked(x: float, z: float, pad := 0.0) -> bool:
+	if ZONE_ROADS.has(zone) and absf(x) > 56.0 - pad:
+		for side in ZONE_ROADS[zone]:
+			if (x < 0.0) == (side == "w") and absf(z - float(ZONE_ROADS[zone][side])) < 6.0 + pad:
+				return true
 	for r in _blocked:
 		if r.grow(pad).has_point(Vector2(x, z)):
 			return true
@@ -3931,18 +4006,22 @@ func _build_sedona() -> void:
 
 func _sd_uptown() -> void:
 	var c := Vector3(42, ground_y(42, 40), 40)
-	var cols := [Color(0.82, 0.6, 0.45), Color(0.88, 0.72, 0.55), Color(0.75, 0.5, 0.38), Color(0.9, 0.8, 0.66)]
-	var shops := ["CRYSTALS", "PSYCHIC", "TACOS", "GALLERY", "JEEP TOURS", "COFFEE"]
-	for k in 6:
-		var x := c.x - 15.0 + k * 6.0
-		var z := c.z + 12.0
-		var gy := ground_y(x, z)
-		var h := _rng.randf_range(3.4, 4.6)
-		_box(Vector3(5.4, h, 6), Vector3(x, gy + h / 2.0, z), cols[k % cols.size()])
-		for b in 3:   # adobe vigas
-			_cyl(0.12, 0.12, 0.9, Vector3(x - 1.8 + b * 1.8, gy + h - 0.6, z - 3.2), Color(0.42, 0.3, 0.2), 6).rotation.x = PI / 2
-		_box(Vector3(3.6, 1.1, 0.1), Vector3(x, gy + 1.6, z - 3.02), Color(0.2, 0.28, 0.34), false)
-		_label(shops[k], Vector3(x, gy + h + 0.5, z - 3.1), 46, Color(1, 0.92, 0.8), PI)
+	# Pueblo Revival shops (tools/westbuild/coastal.py): soft stucco, vigas, turquoise frames
+	var cols := [Color(0.82, 0.58, 0.44), Color(0.86, 0.68, 0.52), Color(0.76, 0.5, 0.38), Color(0.88, 0.76, 0.62)]
+	var trims := [Color(0.25, 0.6, 0.6), Color(0.3, 0.5, 0.65), Color(0.5, 0.36, 0.24)]
+	var shops := ["CRYSTALS", "GALLERY", "TACOS", "JEEP TOURS", "COFFEE"]
+	var kinds := ["az_adobe", "az_pueblo", "az_adobe", "az_adobe_small", "az_pueblo"]
+	var items: Array = []
+	for k in 5:
+		var kind: String = kinds[k]
+		var ab := TownKit.mesh(kind).get_aabb()
+		var x := c.x - 17.0 + k * 8.5
+		var zc := 47.0 + ab.end.z
+		_town_building(items, Vector3(x, 0, zc), Vector3(0, 0, -1), cols, kind, 0.0, trims)
+		var wall_d: float = {"az_adobe": 3.5, "az_pueblo": 4.5, "az_adobe_small": 2.75}[kind]
+		var hh: float = {"az_adobe": 3.6, "az_pueblo": 3.4, "az_adobe_small": 3.2}[kind]
+		_label(shops[k], Vector3(x, ground_y(x, zc) + hh + 0.25, zc - wall_d - 0.2), 44, Color(1, 0.94, 0.82), PI)
+	TownKit.build(self, items)
 	# turquoise trim shop with crystals out front
 	for k in 5:
 		_place_model("crystal", c + Vector3(-12 + k * 2.4, 0, 6.5), 0.7, _rng.randf() * TAU)
@@ -3970,10 +4049,11 @@ func _sd_mesa() -> void:
 
 func _sd_ghost_town() -> void:
 	var c := Vector3(-64, ground_y(-64, -54), -54)
-	for k in 4:
-		var p := c + Vector3(-6 + k * 4.2, 0, (k % 2) * 5 - 2)
-		var gy := ground_y(p.x, p.z)
-		var shack := _box(Vector3(3.4, 2.8, 3.0), Vector3(p.x, gy + 1.4, p.z), Color(0.48, 0.38, 0.28), true, 0.1 * k)
-		shack.rotation.z = 0.04 * (k - 1.5)
-		_box(Vector3(3.8, 0.12, 3.4), Vector3(p.x, gy + 2.9, p.z), Color(0.38, 0.3, 0.22), false, 0.1 * k)
+	# an old mining camp: bleached, unpainted western storefronts and a cabin
+	var items: Array = []
+	var weathered := [Color(0.62, 0.56, 0.48), Color(0.55, 0.5, 0.44), Color(0.66, 0.6, 0.52)]
+	var spots := [[Vector3(-8, 0, -3), "tx_store_plain", Vector3(0, 0, 1)], [Vector3(0, 0, -3), "tx_store", Vector3(0, 0, 1)], [Vector3(8, 0, 4), "tx_house_small", Vector3(-1, 0, 0)]]
+	for sp in spots:
+		_town_building(items, c + sp[0], sp[2], weathered, sp[1], 0.0, [Color(0.4, 0.34, 0.28)])
+	TownKit.build(self, items)
 	_label("GHOST TOWN", c + Vector3(0, 4.4, 0), 80, Color(1, 0.85, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
