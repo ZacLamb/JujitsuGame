@@ -43,6 +43,8 @@ var _want_tab := -1
 
 func _input(event: InputEvent) -> void:
 	_rebind_input(event)
+	if _rebinding == "" and event.is_action_pressed("fullscreen") and not event.is_echo():
+		toggle_fullscreen()
 	if event is InputEventScreenTouch and not touch_mode:
 		touch_mode = true
 		touch.visible = _touch_allowed()
@@ -1257,6 +1259,12 @@ func _build_title() -> void:
 	v.add_child(spacer)
 	var lr := lang_row()
 	lr.alignment = BoxContainer.ALIGNMENT_CENTER
+	var tfs := UiKit.button("Full screen", Vector2(170, 48))
+	tfs.pressed.connect(func():
+		var going_full := not is_fullscreen()
+		toggle_fullscreen()
+		tfs.text = Tx.s("Exit full screen") if going_full else Tx.s("Full screen"))
+	lr.add_child(tfs)
 	v.add_child(lr)
 	var cs_box := VBoxContainer.new()   # holds the character screen so it can be rebuilt
 	v.add_child(cs_box)
@@ -1371,6 +1379,15 @@ func toggle_settings() -> void:
 	touch.release_all()
 	touch.visible = false
 	journal_toggled.emit(true)
+
+## Full screen: the browser's Fullscreen API on the web (it needs a click or key press, which
+## both the button and the key are), a real full-screen window on desktop builds.
+static func is_fullscreen() -> bool:
+	var m := DisplayServer.window_get_mode()
+	return m == DisplayServer.WINDOW_MODE_FULLSCREEN or m == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+
+static func toggle_fullscreen() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if is_fullscreen() else DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 var _key_btns := {}
 var _rebinding := ""
@@ -1523,6 +1540,13 @@ func _build_settings() -> void:
 	inv.toggled.connect(func(on): Sfx.set_pref("invert_y", on))
 	lc.add_child(inv)
 	rc.add_child(_set_head("Graphics"))
+	var fs := UiKit.button("Exit full screen" if is_fullscreen() else "Full screen", Vector2(0, 34))
+	fs.add_theme_font_size_override("font_size", 15)
+	fs.pressed.connect(func():
+		var going_full := not is_fullscreen()
+		toggle_fullscreen()
+		fs.text = Tx.s("Exit full screen") if going_full else Tx.s("Full screen"))
+	rc.add_child(fs)
 	var gr := HBoxContainer.new()
 	gr.add_theme_constant_override("separation", 6)
 	rc.add_child(gr)

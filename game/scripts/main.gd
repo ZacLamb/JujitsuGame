@@ -146,7 +146,7 @@ func _register_inputs() -> void:
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
 		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_defend": [KEY_T], "ab_breathe": [KEY_F], "ab_racial": [KEY_G], "character": [KEY_C], "talents": [KEY_N], "spellbook": [KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
-		"pause": [KEY_ESCAPE], "finder": [KEY_K], "arena": [KEY_H],
+		"pause": [KEY_ESCAPE], "finder": [KEY_K], "arena": [KEY_H], "fullscreen": [KEY_F11],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
