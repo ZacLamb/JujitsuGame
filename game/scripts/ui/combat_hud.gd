@@ -32,13 +32,19 @@ var _flash_t := 0.0
 var _card_root: VBoxContainer
 var _cards: Array = []
 
+var bar: HFlowContainer
+const BAR_W := 15 * 44 + 15 * 3 + 10   # one row: 10 moves, a gap, 5 counters
+const BAR_W2 := 10 * 44 + 10 * 3 + 10   # two rows: the 10 moves (+gap), then the counters
+
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _ready() -> void:
 	# action bar: 10 numbered + 3 utility buttons, bottom centre
-	var bar := HBoxContainer.new()
+	bar = HFlowContainer.new()   # wraps to two rows on narrow (portrait) screens; Hud.apply_layout sizes it
+	bar.alignment = FlowContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("v_separation", 3)
 	bar.anchor_left = 0.5
 	bar.anchor_right = 0.5
 	bar.anchor_top = 1.0
@@ -46,7 +52,7 @@ func _ready() -> void:
 	bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	bar.offset_bottom = -14
-	bar.add_theme_constant_override("separation", 3)
+	bar.add_theme_constant_override("h_separation", 3)
 	bar.name = "ActionBar"
 	add_child(bar)
 	for i in 15:

@@ -48,6 +48,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and not touch_mode:
 		touch_mode = true
 		touch.visible = _touch_allowed()
+		apply_layout()
 
 func _touch_allowed() -> bool:
 	return (touch_mode or DisplayServer.is_touchscreen_available()) and not title.visible and not dialogue.visible and not journal.visible
@@ -59,6 +60,7 @@ func _ready() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	root.resized.connect(func(): apply_layout.call_deferred())
 	_build_status()
 	_build_prompt()
 	_build_toasts()
@@ -179,7 +181,10 @@ func _build_status() -> void:
 	_tracker.add_theme_constant_override("separation", 1)
 	right.add_child(_tracker)
 	# --- micro menu (bottom-right): character, talents, bags, quest log, map, menu
-	var micro := HBoxContainer.new()
+	var micro := HFlowContainer.new()
+	_micro = micro
+	micro.alignment = FlowContainer.ALIGNMENT_END
+	micro.add_theme_constant_override("v_separation", 2)
 	micro.anchor_left = 1.0
 	micro.anchor_right = 1.0
 	micro.anchor_top = 1.0
@@ -188,7 +193,7 @@ func _build_status() -> void:
 	micro.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	micro.offset_right = -14
 	micro.offset_bottom = -14
-	micro.add_theme_constant_override("separation", 2)
+	micro.add_theme_constant_override("h_separation", 2)
 	root.add_child(micro)
 	status_panels.append(micro)
 	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
@@ -240,25 +245,147 @@ class MicroButton extends Button:
 
 const STYLE_GLYPH := {"guard": "loop", "wrestler": "down", "judoka": "link", "athlete": "bolt", "passer": "chevron"}
 
+var _micro: HFlowContainer
+var _win_bottom := 0.0   # windows stop above the bar/XP/micro menu (set by apply_layout)
+
+## Places every HUD block for the current screen so none of them overlap: desktop (mouse) and touch,
+## landscape and portrait. Called on resize, on rotation and when touch is first used.
+func apply_layout() -> void:
+	if root == null or combat_hud == null or combat_hud.bar == null:
+		return
+	var vs := root.size
+	if vs.x <= 0.0:
+		return
+	var portrait := vs.y > vs.x
+	var is_touch := touch_mode or DisplayServer.is_touchscreen_available()
+	# action bar: one row if it fits, else wraps (10 moves, then the counters)
+	var rows := 1 if vs.x - 20.0 >= CombatHud.BAR_W + 1.0 else 2
+	var bw := CombatHud.BAR_W + 1.0 if rows == 1 else CombatHud.BAR_W2 + 1.0
+	var bar_h := rows * 44.0 + (rows - 1) * 3.0
+	var bar: HFlowContainer = combat_hud.bar
+	bar.offset_left = -bw / 2.0
+	bar.offset_right = bw / 2.0
+	bar.offset_bottom = -14
+	bar.offset_top = -14 - bar_h
+	var bar_top := vs.y - 14.0 - bar_h
+	var bar_l := (vs.x - bw) / 2.0
+	var bar_r := (vs.x + bw) / 2.0
+	# XP bar and the points notice just above it
+	var xw := minf(716.0, bw)
+	xp_bar.offset_left = -xw / 2.0
+	xp_bar.offset_right = xw / 2.0
+	xp_bar.offset_bottom = -(vs.y - bar_top) - 3.0
+	xp_bar.offset_top = xp_bar.offset_bottom - 8.0
+	lvl_label.offset_bottom = xp_bar.offset_top - 3.0
+	lvl_label.offset_top = lvl_label.offset_bottom - 18.0
+	lvl_label.offset_left = -minf(300.0, vs.x * 0.5 - 10.0)
+	lvl_label.offset_right = -lvl_label.offset_left
+	var hud_top := vs.y + lvl_label.offset_top    # everything along the bottom sits below this line
+	_win_bottom = hud_top - 4.0
+	# micro menu + wallet: bottom-right beside the bar when there's room (desktop), otherwise up top
+	var mw := 8 * 29.0 + 7 * 2.0
+	if not is_touch and vs.x - bar_r - 14.0 >= mw + 8.0:
+		_micro.custom_minimum_size = Vector2(mw, 0)
+		_set_corner(_micro, 1.0, 1.0, -14.0 - mw, -50.0, -14.0, -14.0)
+		_set_corner(wallet, 1.0, 1.0, -14.0 - 260.0, -96.0, -16.0, -56.0)
+	elif not is_touch:
+		# narrow desktop window: stack them above the bar's right end
+		_micro.custom_minimum_size = Vector2(mw, 0)
+		var b := -(vs.y - hud_top) - 4.0
+		_set_corner(_micro, 1.0, 1.0, -14.0 - mw, b - 36.0, -14.0, b)
+		_win_bottom = vs.y + b - 84.0
+		_set_corner(wallet, 1.0, 1.0, -14.0 - 260.0, b - 80.0, -16.0, b - 40.0)
+	else:
+		# touch: top centre (landscape) or top-right in two rows (portrait), clear of the thumbs
+		var cols := 8 if not portrait else 4
+		var w2 := cols * 29.0 + (cols - 1) * 2.0
+		_micro.custom_minimum_size = Vector2(w2, 0)
+		if portrait:
+			_set_anchor_box(_micro, Vector2(1, 0), Rect2(-14.0 - w2, 8.0, w2, 74.0))
+			_set_anchor_box(wallet, Vector2(1, 0), Rect2(-14.0 - 200.0, 86.0, 200.0, 36.0))
+		else:
+			var mx := vs.x * 0.5 + 40.0
+			_set_anchor_box(_micro, Vector2(0, 0), Rect2(mx, 8.0, w2, 36.0))
+			_set_anchor_box(wallet, Vector2(0, 0), Rect2(mx, 48.0, w2, 36.0))
+	# chat
+	var cw := 262.0
+	if is_touch and portrait:
+		combat_log.anchor_left = 1.0
+		combat_log.anchor_right = 1.0
+		combat_log.anchor_top = 0.0
+		combat_log.anchor_bottom = 0.0
+		combat_log.offset_left = -14.0 - minf(cw, vs.x * 0.45)
+		combat_log.offset_right = -14.0
+		combat_log.offset_top = 130.0
+		combat_log.offset_bottom = 260.0
+	elif is_touch:
+		# left side, under the party frames and above the joystick
+		combat_log.anchor_left = 0.0
+		combat_log.anchor_right = 0.0
+		combat_log.anchor_top = 0.0
+		combat_log.anchor_bottom = 0.0
+		combat_log.offset_left = 10.0
+		combat_log.offset_right = 10.0 + cw
+		combat_log.offset_top = 300.0
+		combat_log.offset_bottom = maxf(360.0, vs.y - 270.0)
+	else:
+		combat_log.anchor_left = 0.0
+		combat_log.anchor_right = 0.0
+		combat_log.anchor_top = 1.0
+		combat_log.anchor_bottom = 1.0
+		var room := bar_l - 20.0
+		if room >= 220.0:
+			combat_log.offset_left = 10.0
+			combat_log.offset_right = 10.0 + minf(cw, room)
+			combat_log.offset_bottom = -14.0
+			combat_log.offset_top = -214.0
+		else:
+			combat_log.offset_left = 10.0
+			combat_log.offset_right = 10.0 + cw
+			combat_log.offset_bottom = -(vs.y - hud_top) - 4.0
+			combat_log.offset_top = combat_log.offset_bottom - 180.0
+	# objectives: right column (landscape) or left column under the frame (portrait)
+	if portrait:
+		_obj_panel.anchor_left = 0.0
+		_obj_panel.anchor_right = 0.0
+		_obj_panel.offset_left = 14
+		_obj_panel.offset_right = 14 + (vs.x * 0.5 - 24.0 if is_touch else vs.x - 28.0)
+		_obj_panel.offset_top = 96 if is_touch else 130
+		objective.custom_minimum_size = Vector2(0, 0)
+	else:
+		_obj_panel.anchor_left = 1.0
+		_obj_panel.anchor_right = 1.0
+		_obj_panel.offset_left = -330
+		_obj_panel.offset_right = -14
+		_obj_panel.offset_top = 214
+		objective.custom_minimum_size = Vector2(300, 0)
+	# touch buttons and the joystick sit above the bar
+	if is_touch and touch:
+		touch.lift = (vs.y - hud_top) - 60.0 if portrait else 0.0
+	if bag_panel:
+		bag_panel.offset_bottom = -(vs.y - hud_top) - 6.0 if (is_touch or vs.x - bar_r < 480.0) else -60.0
+
+static func _set_corner(c: Control, ax: float, ay: float, l: float, t: float, r: float, b: float) -> void:
+	c.anchor_left = ax
+	c.anchor_right = ax
+	c.anchor_top = ay
+	c.anchor_bottom = ay
+	c.offset_left = l
+	c.offset_top = t
+	c.offset_right = r
+	c.offset_bottom = b
+	c.grow_vertical = Control.GROW_DIRECTION_END if ay == 0.0 else Control.GROW_DIRECTION_BEGIN
+
+static func _set_anchor_box(c: Control, anchor: Vector2, r: Rect2) -> void:
+	_set_corner(c, anchor.x, anchor.y, r.position.x, r.position.y, r.end.x, r.end.y)
+
 func set_portrait(p: bool) -> void:
 	if _obj_panel == null:
 		return
-	if p:
-		_obj_panel.anchor_left = 0.0
-		_obj_panel.offset_left = 14
-		_obj_panel.offset_top = 130
-		objective.custom_minimum_size = Vector2(0, 0)
-		toasts.offset_top = 276
-		toasts.offset_left = -250
-		toasts.offset_right = 250
-	else:
-		_obj_panel.anchor_left = 1.0
-		_obj_panel.offset_left = -330
-		_obj_panel.offset_top = 214
-		objective.custom_minimum_size = Vector2(300, 0)
-		toasts.offset_top = 110
-		toasts.offset_left = -300
-		toasts.offset_right = 300
+	toasts.offset_top = 276 if p else 110
+	toasts.offset_left = -250 if p else -300
+	toasts.offset_right = -toasts.offset_left
+	apply_layout.call_deferred()
 
 func refresh() -> void:
 	rank_label.text = Game.player_name
@@ -917,8 +1044,8 @@ func _layout_window() -> void:
 	var g: Dictionary = WINDOWS[_window]
 	var vs := root.size if root.size.x > 0 else Vector2(1280, 720)
 	# windows live between the player frame and the action bar (never over the bar)
-	var top := 92.0
-	var bottom := vs.y - 72.0
+	var top := 92.0 if vs.x > vs.y else 128.0
+	var bottom := _win_bottom if _win_bottom > top + 200.0 else vs.y - 72.0
 	var sz: Vector2 = g.size
 	sz = Vector2(minf(sz.x, vs.x - 60), minf(sz.y, bottom - top))
 	journal.size = sz
@@ -943,6 +1070,11 @@ func open_character() -> void:
 func toggle_journal() -> void:
 	journal.visible = not journal.visible
 	minimap.visible = not journal.visible
+	# a window takes the screen: the chat and the objective tracker step aside instead of overlapping
+	if combat_log and not title.visible:
+		combat_log.visible = not journal.visible
+	if _obj_panel:
+		_obj_panel.visible = not journal.visible
 	if wallet:
 		wallet.visible = not journal.visible and not bag_panel.visible
 	if journal.visible:
@@ -1337,6 +1469,16 @@ func zone_banner(title_: String, sub: String, friendly: bool) -> void:
 			_zb.add_child(l)
 	var t := _zb.get_child(0) as Label
 	var u := _zb.get_child(1) as Label
+	var portrait := root.size.y > root.size.x
+	# landscape: centred, clear of the objective tracker on the right; portrait: under the minimap
+	var half := root.size.x * 0.5 - 14.0 if portrait else minf(500.0, root.size.x * 0.5 - 350.0)
+	_zb.offset_left = -half
+	_zb.offset_right = half
+	_zb.offset_top = 430.0 if portrait else 222.0
+	t.add_theme_font_size_override("font_size", 38 if portrait or half < 300.0 else 54)
+	u.add_theme_font_size_override("font_size", 18 if portrait or half < 300.0 else 22)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	u.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	t.text = Tx.s(title_).to_upper()
 	u.text = sub
 	t.add_theme_color_override("font_color", Color(1.0, 0.86, 0.35) if friendly else Color(1.0, 0.42, 0.32))
@@ -1356,6 +1498,7 @@ func _zone_banner_tick(delta: float) -> void:
 
 # ------------------------------------------------------------ settings (Esc)
 signal quit_to_title
+signal ui_scale_changed
 var settings_panel: PanelContainer
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1497,11 +1640,12 @@ func _build_settings() -> void:
 	# two columns, scrolling if the screen is short; the buttons stay pinned at the bottom
 	var sc := ScrollContainer.new()
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.custom_minimum_size = Vector2(0, minf(500, vs.y - 230))
+	sc.custom_minimum_size = Vector2(0, minf(500.0 if vs.x >= 760.0 else 760.0, vs.y - 230))
 	v.add_child(sc)
-	var cols := HBoxContainer.new()
+	var cols := BoxContainer.new()
+	cols.vertical = vs.x < 760.0   # one column on narrow (portrait) screens
 	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cols.add_theme_constant_override("separation", 28)
+	cols.add_theme_constant_override("separation", 14 if cols.vertical else 28)
 	sc.add_child(cols)
 	var lc := VBoxContainer.new()
 	lc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1531,6 +1675,9 @@ func _build_settings() -> void:
 		Sfx.set_pref("sfx", x)
 		Sfx.play("click", -6.0))
 	lc.add_child(_set_head("Controls"))
+	_slider_row(lc, "Interface size", float(Sfx.pref("ui_scale", 0.85 if not DisplayServer.is_touchscreen_available() else 1.0)), 0.6, 1.3, func(x):
+		Sfx.set_pref("ui_scale", x)
+		ui_scale_changed.emit())
 	_slider_row(lc, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
 	_slider_row(lc, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
 	var inv := CheckButton.new()
@@ -1605,10 +1752,11 @@ func _build_settings() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
-	var resume := UiKit.button("Resume", Vector2(180, 44))
+	var narrow := vs.x < 760.0
+	var resume := UiKit.button("Resume", Vector2(130 if narrow else 180, 44))
 	resume.pressed.connect(toggle_settings)
 	row.add_child(resume)
-	var barb := UiKit.button("Barber (change look)", Vector2(230, 44))
+	var barb := UiKit.button("Barber (change look)", Vector2(180 if narrow else 230, 44))
 	barb.pressed.connect(func():
 		toggle_settings()
 		barber_requested.emit())
@@ -1618,12 +1766,15 @@ func _build_settings() -> void:
 	(func():
 		if is_instance_valid(sc):
 			sc.custom_minimum_size.y = minf(cols.get_combined_minimum_size().y + 4, cap)).call_deferred()
-	var quit := UiKit.button("Title screen", Vector2(180, 44))
+	var quit := UiKit.button("Title screen", Vector2(130 if narrow else 180, 44))
 	quit.pressed.connect(func():
 		get_tree().paused = false
 		Game.save_game()
 		get_tree().reload_current_scene())
 	row.add_child(quit)
+	if narrow:
+		for b in [resume, barb, quit]:
+			(b as Button).add_theme_font_size_override("font_size", 15)
 	settings_panel.theme = Wow.theme()
 	settings_panel.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 18, 3))
 	Wow.reskin(settings_panel, 0.8)

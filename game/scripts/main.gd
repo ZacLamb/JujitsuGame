@@ -43,6 +43,7 @@ func _ready() -> void:
 	hud.dialogue_choice.connect(_on_dialogue_choice)
 	hud.graphics_changed.connect(func(): if is_instance_valid(world): world.apply_graphics())
 	hud.barber_requested.connect(open_barber)
+	hud.ui_scale_changed.connect(_fit_screen)
 	hud.journal_toggled.connect(func(open): player.input_enabled = not open and not _in_title)
 	Game.progress_changed.connect(func(): if is_instance_valid(world): world.refresh_beacon())
 
@@ -127,7 +128,13 @@ func _fit_screen() -> void:
 	var win := get_tree().root
 	var sz := win.size
 	var portrait := sz.y > sz.x
-	win.content_scale_size = Vector2i(540, 960) if portrait else Vector2i(1280, 720)
+	# Interface size (Esc > Graphics): a smaller UI is a bigger base resolution. Desktops default to
+	# 85%; phones keep 100% so buttons stay thumb-sized.
+	var phone := DisplayServer.is_touchscreen_available() or minf(sz.x, sz.y) < 520
+	var ui := clampf(float(Sfx.pref("ui_scale", 1.0 if phone else 0.85)), 0.6, 1.3)
+	# landscape phones get a shorter base so text stays readable on a ~390px-tall screen
+	var base := Vector2(540, 960) if portrait else (Vector2(1280, 640) if phone else Vector2(1280, 720))
+	win.content_scale_size = Vector2i(base / ui)
 	if hud:
 		hud.set_portrait(portrait)
 	for cam in [_title_cam, player.cam if player else null, roll.cam if roll else null]:

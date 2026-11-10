@@ -23,6 +23,16 @@ var jump_btn: Button
 var sprint_btn: Button
 var autorun_btn: Button
 var autorun := false
+## Raises the thumb buttons and joystick hint (portrait, where the action bar wraps to two rows).
+var lift := 0.0:
+	set(v):
+		var d := v - lift
+		lift = v
+		for b in [jump_btn, interact_btn, sprint_btn, autorun_btn]:
+			if b:
+				b.offset_top -= d
+				b.offset_bottom -= d
+		queue_redraw()
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -149,7 +159,7 @@ func _draw() -> void:
 	var size_v := get_viewport_rect().size
 	if _stick_id == -1:
 		# faint hint where the joystick lives
-		var hint := Vector2(size_v.x * 0.16, size_v.y - 150)
+		var hint := Vector2(size_v.x * 0.16, size_v.y - 150 - lift)
 		draw_circle(hint, stick_radius * 0.8, Color(0, 0, 0, 0.12))
 		draw_arc(hint, stick_radius * 0.8, 0, TAU, 40, Color(1, 1, 1, 0.18), 2.0)
 		draw_circle(hint, 26, Color(1, 1, 1, 0.18))
