@@ -32,13 +32,13 @@ func _init(pair_node: Node3D, player: BodyRig, opponent: BodyRig) -> void:
 ## Reads WASD / arrows-free keys and the left stick. Returns (x = circle, y = step in).
 static func read_input() -> Vector2:
 	var v := Vector2.ZERO
-	if Input.is_physical_key_pressed(KEY_A):
+	if Input.is_physical_key_pressed(Keys.primary("move_left")):
 		v.x -= 1.0
-	if Input.is_physical_key_pressed(KEY_D):
+	if Input.is_physical_key_pressed(Keys.primary("move_right")):
 		v.x += 1.0
-	if Input.is_physical_key_pressed(KEY_W):
+	if Input.is_physical_key_pressed(Keys.primary("move_forward")):
 		v.y += 1.0
-	if Input.is_physical_key_pressed(KEY_S):
+	if Input.is_physical_key_pressed(Keys.primary("move_back")):
 		v.y -= 1.0
 	var jx := Input.get_joy_axis(0, JOY_AXIS_LEFT_X)
 	var jy := -Input.get_joy_axis(0, JOY_AXIS_LEFT_Y)

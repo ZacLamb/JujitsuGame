@@ -865,13 +865,17 @@ func _input(event: InputEvent) -> void:
 				_struggle_tap()
 				get_viewport().set_input_as_handled()
 			return
-		if k >= KEY_1 and k <= KEY_8:
-			_use_index(k - KEY_1)
-		elif k == KEY_Q:
+		var hit := -1
+		for i in 8:
+			if event.is_action_pressed("ab_%d" % i):
+				hit = i
+		if hit >= 0:
+			_use_index(hit)
+		elif event.is_action_pressed("ab_base"):
 			_defend("base")
-		elif k == KEY_E:
+		elif event.is_action_pressed("ab_frame") or k == KEY_E:
 			_defend("frame")
-		elif k == KEY_R:
+		elif event.is_action_pressed("ab_defend"):
 			_defend("defend")
 		elif k == KEY_F:
 			_breathe()
@@ -1061,7 +1065,7 @@ func _build_ui() -> void:
 	for kind in RollSim.DEF_KINDS:
 		var c: Color = CombatUi.KIND_COLORS[kind]
 		var b := Button.new()
-		b.text = "%s\n%s" % [RollSim.DEF_NAMES[kind], DEF_KEYS[kind]]
+		b.text = "%s\n%s" % [RollSim.DEF_NAMES[kind], Keys.label("ab_" + kind)]
 		b.custom_minimum_size = Vector2(74, 74)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", 15)
@@ -1418,7 +1422,7 @@ func _refresh_plates() -> void:
 	if not sim.opp_cast.is_empty():
 		var need := sim.cast_counter(sim.opp_cast)
 		if need != "grip" and DEF_KEYS.has(need):
-			_plate_o_cast.tag = DEF_KEYS[need]
+			_plate_o_cast.tag = Keys.label("ab_" + need)
 		elif need == "grip":
 			_plate_o_cast.tag = "any"
 	_plate_p_cast.visible = showing and cast_p.visible and _place(_plate_p_cast, _plate_anchor(player_rig))

@@ -361,7 +361,7 @@ func _process(delta: float) -> void:
 		var hab := {"id": "second_breath", "name": "Second Breath", "type": "advance", "cast": 3.0, "heal": 0.12, "harm": false, "range": 60.0}
 		boss.cast = {"ab": hab, "t": 0.0, "dur": 3.0, "target": boss}
 		wc.core.emit({"t": "cast", "u": boss, "ab": hab, "target": boss, "dur": 3.0})
-		warning.emit("SECOND BREATH!", "FRAME IT! [R]")
+		warning.emit("SECOND BREATH!", Tx.f("FRAME IT! [%s]", Keys.label("ab_frame")))
 	# a long submission at you: Defend (T) or eat it
 	if "choke" in mechs and choke_t <= 0.0 and boss.cast.is_empty() and not boss.down():
 		choke_t = 23.0
@@ -369,14 +369,14 @@ func _process(delta: float) -> void:
 		var cv := _victim()
 		boss.cast = {"ab": cab, "t": 0.0, "dur": 3.2, "target": cv}
 		wc.core.emit({"t": "cast", "u": boss, "ab": cab, "target": cv, "dur": 3.2})
-		warning.emit("HIDDEN CHOKE!", "DEFEND IT! [T]")
+		warning.emit("HIDDEN CHOKE!", Tx.f("DEFEND IT! [%s]", Keys.label("ab_defend")))
 	if wave_t <= 0.0 and "wave" in mechs and boss.cast.is_empty() and not boss.down():
 		wave_t = 24.0
 		var ab := {"id": "wave", "name": "Takedown Wave", "type": "takedown", "cast": 2.8, "dmg": 0.0, "range": 60.0, "_mv": ""}
 		var wv := _victim()
 		boss.cast = {"ab": ab, "t": 0.0, "dur": 2.8, "target": wv}
 		wc.core.emit({"t": "cast", "u": boss, "ab": ab, "target": wv, "dur": 2.8})
-		warning.emit("TAKEDOWN WAVE!", "SPRAWL IT! [Q]")
+		warning.emit("TAKEDOWN WAVE!", Tx.f("SPRAWL IT! [%s]", Keys.label("ab_base")))
 	# students join the fight
 	for th in [0.6, 0.3]:
 		if "adds" in mechs and boss.pct() <= th and not _adds_called.has(th):

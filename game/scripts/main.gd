@@ -168,6 +168,7 @@ func _register_inputs() -> void:
 		jm.axis = pair[1]
 		jm.axis_value = pair[2]
 		InputMap.action_add_event(pair[0], jm)
+	Keys.load_saved()   # the player's own bindings (Esc > Keys)
 
 var _dbg_t := 0.0
 
@@ -256,7 +257,7 @@ func _rival_process() -> void:
 		else:
 			var nm := str(best.char.get("name", "?"))
 			var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-			hud.prompt.text = Tx.f("[E]  %s  (%s, Lv %d)  ·  duel · party · trade", [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))])
+			hud.prompt.text = Tx.f("[%s]  %s  (%s, Lv %d)  ·  duel · party · trade", [Keys.label("interact"), nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))])
 			hud.touch.interact_btn.visible = true
 			hud.touch.interact_btn.text = "ROLL"
 

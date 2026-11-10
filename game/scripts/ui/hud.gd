@@ -42,6 +42,7 @@ var _sel_talent := ""
 var _want_tab := -1
 
 func _input(event: InputEvent) -> void:
+	_rebind_input(event)
 	if event is InputEventScreenTouch and not touch_mode:
 		touch_mode = true
 		touch.visible = _touch_allowed()
@@ -347,7 +348,7 @@ func set_spot_prompt(spot: Dictionary) -> void:
 	var extra := ""
 	if spot.action == "drill" and not Game.drills_ready:
 		extra = "  (roll first)"
-	prompt.text = "[E]  %s%s" % [spot.label, extra]
+	prompt.text = "[%s]  %s%s" % [Keys.label("interact"), spot.label, extra]
 	touch.interact_btn.visible = true
 	touch.interact_btn.text = "TALK" if spot.action == "quest" else "GO"
 
@@ -357,13 +358,13 @@ func set_prompt(npc: Npc) -> void:
 		touch.interact_btn.visible = false
 		return
 	if not npc.mob.is_empty():
-		prompt.text = Tx.f("[E] / [1]  Attack %s (Lv %d)    [Tab] target", [npc.mob.name, Data.display_level(float(npc.mob.level))])
+		prompt.text = Tx.f("[%s] / [%s]  Attack %s (Lv %d)    [%s] target", [Keys.label("interact"), Keys.label("ab_0"), npc.mob.name, Data.display_level(float(npc.mob.level)), Keys.label("target_next")])
 		touch.interact_btn.visible = true
 		touch.interact_btn.text = "ROLL"
 		return
 	var o: Dictionary = Data.OPPONENTS[npc.opp_id]
 	var verb := "Talk to" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "Challenge"
-	prompt.text = "[E]  %s %s" % [verb, o.name]
+	prompt.text = "[%s]  %s %s" % [Keys.label("interact"), verb, o.name]
 	touch.interact_btn.visible = true
 	touch.interact_btn.text = "TALK" if Data.OPPONENTS[npc.opp_id].get("boss", false) else "ROLL"
 
@@ -1371,6 +1372,45 @@ func toggle_settings() -> void:
 	touch.visible = false
 	journal_toggled.emit(true)
 
+var _key_btns := {}
+var _rebinding := ""
+
+func _start_rebind(act: String) -> void:
+	_rebinding = act
+	for a in _key_btns:
+		(_key_btns[a] as Button).text = Keys.label(a) if a != act else Tx.s("Press a key…")
+
+func _redraw_bar() -> void:
+	if combat_hud:
+		for sl in combat_hud._slots:
+			(sl as Control).queue_redraw()
+
+func _refresh_key_btns() -> void:
+	for a in _key_btns:
+		if is_instance_valid(_key_btns[a]):
+			(_key_btns[a] as Button).text = Keys.label(a)
+
+func _rebind_input(event: InputEvent) -> void:
+	if _rebinding == "" or not settings_open():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		get_viewport().set_input_as_handled()
+		var k: int = (event as InputEventKey).physical_keycode
+		var act := _rebinding
+		_rebinding = ""
+		if k == KEY_ESCAPE:
+			_refresh_key_btns()
+			return
+		if k in Keys.RESERVED:
+			show_toast("That key is reserved (menu and chat).", Color(1, 0.6, 0.4))
+			_refresh_key_btns()
+			return
+		var bumped := Keys.bind(act, k)
+		_refresh_key_btns()
+		if bumped != "":
+			show_toast(Tx.f("%s was on %s: it's unbound now.", [OS.get_keycode_string(k), Tx.s(bumped)]), Color(1, 0.8, 0.4))
+		_redraw_bar()
+
 func _set_head(t: String) -> Label:
 	var l := UiKit.label(t, 20, UiKit.ACCENT)
 	l.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -1504,22 +1544,39 @@ func _build_settings() -> void:
 			if gfx_btn:
 				gfx_btn.text = Tx.s("Gfx: ") + Tx.s(Game.GFX_NAMES[bi])
 			graphics_changed.emit())
-	rc.add_child(_set_head("Keys"))
+	var kh := HBoxContainer.new()
+	kh.add_child(_set_head("Keys"))
+	var ksp := Control.new()
+	ksp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	kh.add_child(ksp)
+	var kreset := UiKit.button("Reset keys", Vector2(0, 28))
+	kreset.add_theme_font_size_override("font_size", 13)
+	kh.add_child(kreset)
+	rc.add_child(kh)
+	rc.add_child(UiKit.label("Click a key, then press the new one (Esc cancels). Mouse: left drag look, right drag turn, both run, wheel zoom.", 13, UiKit.MUTED))
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 2)
 	rc.add_child(grid)
-	for kv in [["WASD / arrows", "Move"], ["Shift  ·  X", "Run  ·  auto-run"], ["Space", "Jump"], ["Left / right drag", "Look / turn"],
-			["Wheel", "Zoom"], ["E or click", "Talk / roll"], ["C  ·  N  ·  P", "Character  ·  talents  ·  moves"], ["B  ·  L  ·  M", "Bags  ·  quest log  ·  map"],
-			["K  ·  H", "Group finder  ·  ranked arena"], ["1 - 0", "Your moves (drag from P)"], ["Tab", "Next target"],
-			["Q / R / T", "Sprawl, Frame, Defend"], ["F  ·  G", "Breathe  ·  origin racial"], ["Enter", "Chat"], ["Esc", "This menu"]]:
-		var k := UiKit.label(kv[0], 15, UiKit.ACCENT)
-		k.autowrap_mode = TextServer.AUTOWRAP_OFF
-		grid.add_child(k)
-		var d := UiKit.label(kv[1], 15, UiKit.MUTED)
+	_key_btns = {}
+	for row_ in Keys.LIST:
+		var act: String = row_[0]
+		var d := UiKit.label(str(row_[1]), 14, UiKit.MUTED)
 		d.autowrap_mode = TextServer.AUTOWRAP_OFF
+		d.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(d)
+		var kb := UiKit.button(Keys.label(act), Vector2(96, 26))
+		kb.add_theme_font_size_override("font_size", 14)
+		kb.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		kb.pressed.connect(func(): _start_rebind(act))
+		grid.add_child(kb)
+		_key_btns[act] = kb
+	kreset.pressed.connect(func():
+		Keys.reset()
+		_refresh_key_btns()
+		_redraw_bar()
+		show_toast("Keys reset to the defaults.", UiKit.ACCENT))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -1869,10 +1926,10 @@ class AbilityEntry extends HBoxContainer:
 		if not have:
 			where = Tx.f("Unlocks at level %d", int(a.get("unlock", 1)))
 		elif str(a.id) in Abilities.UTILITY:
-			where = Tx.f("Always on your bar [%s]", str(Abilities.UTILITY_KEYS[str(a.id)]))
+			where = Tx.f("Always on your bar [%s]", Keys.label("ab_" + str(a.id)))
 		else:
 			var i := Game.bar_layout.find(str(a.id))
-			where = (Tx.f("On your bar [%s]", Abilities.KEYS[i])) if i >= 0 else "Not on your bar: drag it there"
+			where = (Tx.f("On your bar [%s]", Keys.label("ab_%d" % i))) if i >= 0 else "Not on your bar: drag it there"
 		var sl := Wow.label(where, 12, Color(0.4, 0.3, 0.18) if have else Color(0.5, 0.25, 0.2))
 		sl.add_theme_constant_override("outline_size", 0)
 		tv.add_child(sl)

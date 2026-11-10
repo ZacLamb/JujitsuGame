@@ -198,5 +198,205 @@
 "capivaras",
 "capivaras",
 "capibaras"
+],
+[
+"[%s] / [%s]  Attack %s (Lv %d)    [%s] target",
+"[%s] / [%s]  Atacar %s (Nv %d)    [%s] alvo",
+"[%s] / [%s]  Atacar a %s (Nv %d)    [%s] objetivo"
+],
+[
+"[%s]  %s  (%s, Lv %d)  ·  duel · party · trade",
+"[%s]  %s  (%s, Nv %d)  ·  duelo · grupo · troca",
+"[%s]  %s  (%s, Nv %d)  ·  duelo · grupo · intercambio"
+],
+[
+"SPRAWL IT! [%s]",
+"DÊ SPRAWL! [%s]",
+"¡HAZ SPRAWL! [%s]"
+],
+[
+"FRAME IT! [%s]",
+"DÊ FRAME! [%s]",
+"¡HAZ FRAME! [%s]"
+],
+[
+"DEFEND IT! [%s]",
+"DEFENDA! [%s]",
+"¡DEFIENDE! [%s]"
+],
+[
+"Reset keys",
+"Restaurar teclas",
+"Restablecer teclas"
+],
+[
+"Click a key, then press the new one (Esc cancels). Mouse: left drag look, right drag turn, both run, wheel zoom.",
+"Clique numa tecla e aperte a nova (Esc cancela). Mouse: arrastar com o esquerdo olha, com o direito vira, os dois correm, rodinha dá zoom.",
+"Haz clic en una tecla y pulsa la nueva (Esc cancela). Ratón: arrastrar con el izquierdo mira, con el derecho gira, los dos corren, rueda para zoom."
+],
+[
+"Press a key…",
+"Aperte uma tecla…",
+"Pulsa una tecla…"
+],
+[
+"Keys reset to the defaults.",
+"Teclas restauradas para o padrão.",
+"Teclas restablecidas a los valores por defecto."
+],
+[
+"That key is reserved (menu and chat).",
+"Essa tecla é reservada (menu e chat).",
+"Esa tecla está reservada (menú y chat)."
+],
+[
+"%s was on %s: it's unbound now.",
+"%s estava em %s: agora está sem tecla.",
+"%s estaba en %s: ahora no tiene tecla."
+],
+[
+"Move forward",
+"Andar para frente",
+"Avanzar"
+],
+[
+"Move back",
+"Andar para trás",
+"Retroceder"
+],
+[
+"Strafe left",
+"Passo à esquerda",
+"Paso a la izquierda"
+],
+[
+"Strafe right",
+"Passo à direita",
+"Paso a la derecha"
+],
+[
+"Run",
+"Correr",
+"Correr"
+],
+[
+"Auto-run",
+"Correr automático",
+"Correr automático"
+],
+[
+"Talk / roll / use",
+"Conversar / rolar / usar",
+"Hablar / rodar / usar"
+],
+[
+"Move 1",
+"Golpe 1",
+"Técnica 1"
+],
+[
+"Move 2",
+"Golpe 2",
+"Técnica 2"
+],
+[
+"Move 3",
+"Golpe 3",
+"Técnica 3"
+],
+[
+"Move 4",
+"Golpe 4",
+"Técnica 4"
+],
+[
+"Move 5",
+"Golpe 5",
+"Técnica 5"
+],
+[
+"Move 6",
+"Golpe 6",
+"Técnica 6"
+],
+[
+"Move 7",
+"Golpe 7",
+"Técnica 7"
+],
+[
+"Move 8",
+"Golpe 8",
+"Técnica 8"
+],
+[
+"Move 9",
+"Golpe 9",
+"Técnica 9"
+],
+[
+"Move 10",
+"Golpe 10",
+"Técnica 10"
+],
+[
+"Sprawl / Base",
+"Sprawl / Base",
+"Sprawl / Base"
+],
+[
+"Frame",
+"Frame",
+"Frame"
+],
+[
+"Defend",
+"Defender",
+"Defender"
+],
+[
+"Breathe",
+"Respirar",
+"Respirar"
+],
+[
+"Origin racial",
+"Racial de origem",
+"Racial de origen"
+],
+[
+"Character",
+"Personagem",
+"Personaje"
+],
+[
+"Talents",
+"Talentos",
+"Talentos"
+],
+[
+"Moves",
+"Golpes",
+"Técnicas"
+],
+[
+"Bags",
+"Bolsas",
+"Bolsas"
+],
+[
+"Quest log",
+"Missões",
+"Misiones"
+],
+[
+"Group finder",
+"Buscar grupo",
+"Buscar grupo"
+],
+[
+"Ranked arena",
+"Arena ranqueada",
+"Arena clasificatoria"
 ]
 ]

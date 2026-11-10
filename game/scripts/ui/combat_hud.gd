@@ -118,7 +118,7 @@ func slot_id(i: int) -> String:
 	return str(Abilities.UTILITY[i - 10])
 
 func slot_key(i: int) -> String:
-	return Abilities.KEYS[i] if i < 10 else str(Abilities.UTILITY_KEYS[Abilities.UTILITY[i - 10]])
+	return Keys.label("ab_%d" % i) if i < 10 else Keys.label("ab_" + str(Abilities.UTILITY[i - 10]))
 
 func _ability(i: int) -> Dictionary:
 	if combat == null or combat.me == null:
@@ -423,7 +423,7 @@ func _next_card() -> void:
 	h.add_child(v)
 	v.add_child(Wow.title("NEW TECHNIQUE", 11, Wow.GREEN))
 	var slot := Game.bar_layout.find(str(a.id))
-	var key: String = Abilities.KEYS[slot] if slot >= 0 else str(Abilities.UTILITY_KEYS.get(str(a.id), ""))
+	var key: String = Keys.label("ab_%d" % slot) if slot >= 0 else (Keys.label("ab_" + str(a.id)) if str(a.id) in Abilities.UTILITY else "")
 	var nm := Wow.title(Tx.f("%s%s", [str(a.name), ("  [%s]" % key) if key != "" else "  (Moves book, P)"]), 15, Wow.WHITE)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.custom_minimum_size = Vector2(250, 0)
