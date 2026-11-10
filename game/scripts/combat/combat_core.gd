@@ -776,7 +776,7 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			_damage(u, tg, u.auto_dmg * (CRIT_MULT if crit else 1.0) * rng.randf_range(0.85, 1.15), crit, {"id": "auto", "type": "auto", "name": "Hand fighting"})
 			if pm(u) and rng.randf() < 0.25 + float(u.mods.get("auto_grip", 0.0)):
 				u.grip = mini(u.max_grip, u.grip + 1)
-	if u.ally:
+	if u.ally and not bool(u.data.get("remote", false)):
 		_ally_ai(u, delta)
 	elif not u.player and not bool(u.data.get("remote", false)):
 		_ai(u, delta)

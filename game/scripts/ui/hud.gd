@@ -384,6 +384,11 @@ func _build_toasts() -> void:
 
 var combat_hud: CombatHud
 
+var party: Party = null
+
+func set_party(p: Party) -> void:
+	party = p
+
 func set_combat(c: WorldCombat) -> void:
 	if combat_hud == null:
 		combat_hud = CombatHud.new()
@@ -585,6 +590,20 @@ func toggle_finder(main_node) -> void:
 	var intro := Wow.label("Five-fighter dungeons: you plus four friends from the road who fill the roles you don't. Two pulls, then a boss. Everything scales to your level; the level range is where it's meant to be run.", 14, UiKit.MUTED)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(intro)
+	if party and party.in_party():
+		var here: Array = party.here()
+		var ptxt := ""
+		if party.is_leader():
+			ptxt = Tx.f("Your party: %d here with you. They're asked to join when you pick a run; AI partners fill the rest.", here.size()) if not here.is_empty() else "Your party: nobody is in this zone with you. Partners have to be in your zone to join."
+		else:
+			ptxt = "Your party leader starts group runs. Anything you pick here, you run on your own."
+		var pl := Wow.label(ptxt, 14, Color(0.55, 0.85, 1.0))
+		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(pl)
+	else:
+		var pl := Wow.label("Got friends online? /invite Name (or walk up to them and press E) to form a party and run it together.", 13, UiKit.MUTED)
+		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(pl)
 	var lv := Game.player_level()
 	var mech_names := {"crush": "heavy hits", "wave": "Sprawl (Q)", "heal": "Frame (R)", "choke": "Defend (T)", "adds": "adds"}
 	for id in Raid.DUNGEON_ORDER:

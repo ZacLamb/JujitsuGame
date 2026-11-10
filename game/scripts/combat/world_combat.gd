@@ -12,6 +12,7 @@ signal enemy_tapped(npc: Npc, sub: String)
 
 var core := CombatCore.new()
 var pvp: Pvp = null   # live duels (set by Main)
+var coop: Coop = null # party dungeons (set by Main)
 var world: World
 var player: Player
 var me: CombatCore.Unit
@@ -157,6 +158,11 @@ func press(slot_id: String) -> void:
 	if a.is_empty():
 		_error("Not learned yet")
 		return
+	if coop and coop.is_guest():
+		var cw := coop.guest_press(slot_id)
+		if cw != "" and cw != "gcd":
+			_error(cw)
+		return
 	if pvp and pvp.is_guest():
 		var gw := pvp.guest_press(slot_id)
 		if gw != "" and gw != "gcd":
@@ -227,7 +233,9 @@ func _process(delta: float) -> void:
 			core.remove(u)
 			continue
 		u.pos = npc.global_position
-		if u.ally and not u.dead:
+		if npc.mob.has("mirror") or npc.mob.has("remote"):
+			_drive_net(npc, u, delta)
+		elif u.ally and not u.dead:
 			_drive_ally(npc, u, delta)
 		elif u.in_combat and not u.dead:
 			_traits(npc, u)
@@ -304,6 +312,30 @@ func _flee(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	npc.global_position.y = world.ground_y(npc.global_position.x, npc.global_position.z)
 	npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 9.0, 0, 1))
 	npc.rig.animate_locomotion(delta, 1.0)
+
+## A fighter whose position comes over the network: co-op partners on the host (from their own
+## game, via their live-world position) and everything on a co-op guest's screen (snapshots).
+func _drive_net(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
+	npc.rig.combat_ready = u.in_combat
+	if not npc.has_meta("net_pos") or npc.rig.in_action() or u.gpos != "standing":
+		npc.rig.animate_locomotion(delta, 0.0)
+		return
+	var goal: Vector3 = npc.get_meta("net_pos")
+	var to := goal - npc.global_position
+	to.y = 0
+	var d := to.length()
+	if d > 12.0:
+		npc.global_position = goal   # too far behind: snap
+	else:
+		npc.global_position += to * clampf(delta * 8.0, 0.0, 1.0)
+	npc.global_position.y = world.ground_y(npc.global_position.x, npc.global_position.z)
+	var yaw := float(npc.get_meta("net_yaw", npc.rig.rotation.y))
+	if u.target != null and not u.target.dead and u.in_combat and d < 0.4:
+		var f := u.target.pos - npc.global_position
+		if f.length() > 0.05:
+			yaw = atan2(-f.x, -f.z)
+	npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, yaw, clampf(delta * 9.0, 0, 1))
+	npc.rig.animate_locomotion(delta, clampf(d * 1.5, 0.0, 1.0) if d > 0.08 else 0.0)
 
 ## A raid partner: stand around your target (spread out), or follow you between pulls.
 func _drive_ally(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
@@ -765,16 +797,24 @@ signal raid_warning(head: String, sub: String)
 signal raid_over(won: bool)
 
 ## Starts Covil da Sucuri around `at` (the party spawns, the boss waits for your pull).
-func start_raid(at: Vector3, kind := "") -> void:
+func start_raid(at: Vector3, kind := "", humans: Array = []) -> void:
 	if raid != null and is_instance_valid(raid):
 		return
 	raid = Raid.new()
 	add_child(raid)
 	raid.warning.connect(func(h, sb): raid_warning.emit(h, sb))
 	raid.finished.connect(func(won):
+		if me.dead:   # co-op: you sat out the end, tapped
+			me.dead = false
+			me.hp = me.max_hp
+			me.gas = me.max_gas
+			player.rig.release(CombatAnim.getup(player.rig.rotation.y))
 		raid_over.emit(won)
 		raid = null)
-	raid.start(self, at, Game.player_level(), kind if kind != "" else Raid.kind_for_zone(world.zone))
+	var lvl := Game.player_level()
+	for h in humans:
+		lvl = maxi(lvl, int(h.get("stats", {}).get("lv", 1)))
+	raid.start(self, at, lvl, kind if kind != "" else Raid.kind_for_zone(world.zone), humans)
 	target = raid.boss
 
 ## Somebody in the raid tapped: a partner sits out, a student is done, the boss means victory.
@@ -788,6 +828,8 @@ func _raid_tap(npc: Npc, victim: CombatCore.Unit) -> void:
 		npc.in_combat = false
 		if vr:
 			vr.release()
+		if raid and raid.coop and not raid.over and raid.humans_alive() == 0:
+			_raid_wipe()
 		return
 	if raid and victim == raid.boss:
 		Sfx.play("win", -2.0)
@@ -870,19 +912,39 @@ func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit :=
 	bout_over.emit(tag, won, info)
 
 ## You tapped: no XP. Back on your feet at the zone's spawn with half Composure; fights reset.
+## Co-op: you're out of this run, the party fights on (you watch until it ends).
+func _sit_out() -> void:
+	core.leave_combat(me)
+	me.auras.clear()
+	me.cast = {}
+	me.grip = 0
+	me.dead = true
+	me.hp = 0.0
+	target = null
+	Game.toast.emit("You tapped. Your party fights on: hang in there.", Color(1, 0.6, 0.4))
+
+## Everyone real is out: the whole party resets, nobody loses anything but pride.
+func _raid_wipe() -> void:
+	raid.warning.emit("WIPE", str(raid.cfg.wipe))
+	raid.end(false)
+	core.leave_combat(me)
+	me.auras.clear()
+	me.grip = 0
+	me.dead = false
+	me.hp = me.max_hp
+	me.gas = me.max_gas
+	target = null
+	player.rig.release(CombatAnim.getup(player.rig.rotation.y))
+
 func _player_tapped(by_name: String, winner: Npc = null) -> void:
+	if coop and coop.is_guest():
+		_sit_out()
+		return
 	if raid != null and is_instance_valid(raid) and not raid.over:
-		# a wipe: the whole party resets, nobody loses anything but pride
-		raid.warning.emit("WIPE", str(raid.cfg.wipe))
-		raid.end(false)
-		core.leave_combat(me)
-		me.auras.clear()
-		me.grip = 0
-		me.dead = false
-		me.hp = me.max_hp
-		me.gas = me.max_gas
-		target = null
-		player.rig.release(CombatAnim.getup(player.rig.rotation.y))
+		if raid.coop and raid.humans_alive() > 0:
+			_sit_out()
+			return
+		_raid_wipe()
 		return
 	# a competition / team / daily bout: the loss goes to that event, not the open-world tap flow
 	var bout_npc: Npc = null

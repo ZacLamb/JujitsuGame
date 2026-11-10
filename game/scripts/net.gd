@@ -10,6 +10,7 @@ signal chat(m: Dictionary)                  # {ch, from, fid, style, text, to?, 
 signal status_changed
 signal gm_data(kind: String, d: Dictionary)   # GM: "list" / "reports" / "goto"
 signal duel_msg(from: int, d: Dictionary)     # live duel relay (see Pvp)
+signal party_msg(from: int, d: Dictionary, zone: String)   # party relay (see Party / Coop)
 
 var gm := false   # the server confirmed this account is a Game Master
 
@@ -146,6 +147,9 @@ func _on_msg(d: Dictionary) -> void:
 		"duel":
 			if d.get("d") is Dictionary:
 				duel_msg.emit(int(d.get("from", 0)), d.d)
+		"party":
+			if d.get("d") is Dictionary:
+				party_msg.emit(int(d.get("from", 0)), d.d, str(d.get("zone", "")))
 		"gm_list":
 			gm_data.emit("list", d)
 		"gm_reports":
@@ -182,6 +186,16 @@ func send_chat(ch: String, text: String, to := "") -> void:
 
 func send_duel(to: int, d: Dictionary) -> void:
 	_send({"t": "duel", "to": to, "d": d})
+
+## Party relay: to one id, a list of ids, or (name != "") the player with that name.
+func send_party(to, d: Dictionary, name_ := "") -> void:
+	if name_ != "":
+		_send({"t": "party", "name": name_, "d": d})
+	elif to is Array:
+		if not (to as Array).is_empty():
+			_send({"t": "party", "to": to, "d": d})
+	else:
+		_send({"t": "party", "to": int(to), "d": d})
 
 func send_gm(op: String, args := {}) -> void:
 	var m := {"t": "gm", "op": op}

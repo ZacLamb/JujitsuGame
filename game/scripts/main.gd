@@ -275,7 +275,50 @@ func rival_opponent(ch: Dictionary) -> Dictionary:
 # ------------------------------------------------------------ live duels (see Pvp)
 var pvp: Pvp = null
 var _duel_ask := ""          # "menu" (you picked a player) / "incoming" (someone challenged you)
+var party: Party = null      # your party (see Party)
+var coop: Coop = null        # party dungeons and raids (see Coop)
+var _party_ask := ""         # "party" (an invite) / "coop" (your leader is starting a run)
+
+func ask_party(ch: Dictionary) -> void:
+	_party_ask = "party"
+	player.input_enabled = false
+	hud.open_dialogue("Party", Tx.f("%s (%s, level %d) invites you to their party.\n\nRun dungeons and raids together, see each other's health, and talk on /p.", [str(ch.get("name", "?")), Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))]), "Join the party", "Decline")
+
+func ask_coop(leader_name: String, title: String) -> void:
+	if hud.dialogue_open():
+		hud._close_dialogue(false)
+	_party_ask = "coop"
+	player.input_enabled = false
+	hud.open_dialogue(title, Tx.f("%s is starting %s with the party. Join them? You'll be brought to the entrance.", [leader_name, title]), "Join", "Not this time")
+
+## Leader: the party said yes (or time ran out); the run starts here with the real players in it.
+func start_coop_raid(kind: String, at: Vector3, humans: Array) -> void:
+	hud.close_finder()
+	player.input_enabled = true
+	_raid_kind = kind if Raid.DUNGEONS.has(kind) else ""
+	combat.start_raid(at, kind, humans)
+
+func coop_guest_started(kind: String) -> void:
+	hud.close_finder()
+	if hud.journal.visible:
+		hud.toggle_journal()
+	player.input_enabled = true
+	_raid_kind = kind if Raid.DUNGEONS.has(kind) else ""
+
+func coop_guest_over(kind: String, won: bool) -> void:
+	_raid_kind = kind if Raid.DUNGEONS.has(kind) else ""
+	combat.raid_over.emit(won)
+
+## The run with your party, or on your own.
+func _party_run(kind: String) -> bool:
+	if party and party.is_leader() and not party.here().is_empty():
+		coop.gather(kind)
+		return true
+	if party and party.in_party() and not party.is_leader() and not party.here().is_empty():
+		Game.toast.emit("Your party leader starts group runs. Going on your own.", Color(1, 0.8, 0.5))
+	return false
 var _duel_rp: RemotePlayer = null
+var _duel_party := false     # the menu's second button invites them to your party
 
 func _duel_menu(rp: RemotePlayer) -> void:
 	if pvp == null or pvp.busy():
@@ -289,6 +332,11 @@ func _duel_menu(rp: RemotePlayer) -> void:
 	var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
 	var txt := Tx.f("%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept).", [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))])
 	var no := "Not now"
+	_duel_party = false
+	if not other and party and not party.members.has(int(rp.net_id)) and (not party.in_party() or party.is_leader()):
+		txt += "\n\nOr invite them to your party: run dungeons and raids together."
+		no = "Invite to party"
+		_duel_party = true
 	if other:
 		txt += " A win counts for the Faction War (20 points)."
 		if wait <= 0:
@@ -581,6 +629,19 @@ func _make_world(z: String) -> void:
 		pvp.setup(self)
 		combat.pvp = pvp
 		pvp.finished.connect(_on_pvp_finished)
+		party = Party.new()
+		party.name = "Party"
+		add_child(party)
+		party.setup(self)
+		coop = Coop.new()
+		coop.name = "Coop"
+		add_child(coop)
+		coop.setup(self, party)
+		combat.coop = coop
+		if hud and hud.combat_log:
+			hud.combat_log.party = party
+		if hud:
+			hud.set_party(party)
 		combat.raid_over.connect(_on_raid_over)
 		combat.raid_warning.connect(func(h, sb): hud.combat_hud.flash(h, sb) if hud.combat_hud else null)
 	else:
@@ -1082,6 +1143,15 @@ func _interact(target: Npc = null) -> void:
 	hud.open_dialogue(Tx.f("%s  ·  %s", [o.name, Data.rank_name(int(o.rank))]), intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
+	if _party_ask != "":
+		var pk := _party_ask
+		_party_ask = ""
+		player.input_enabled = true
+		if pk == "party":
+			party.answer(accepted)
+		else:
+			coop.answer(accepted)
+		return
 	if _duel_ask != "":
 		var kind := _duel_ask
 		_duel_ask = ""
@@ -1095,6 +1165,8 @@ func _on_dialogue_choice(accepted: bool) -> void:
 					rid = id
 			if accepted and rid >= 0:
 				pvp.invite(rid, _duel_rp.char)
+			elif not accepted and rid >= 0 and _duel_party:
+				party.invite_id(rid, str(_duel_rp.char.get("name", "?")))
 			elif not accepted and str(_duel_rp.char.get("faction", "brasil")) != Game.faction():
 				var nm := str(_duel_rp.char.get("name", "?"))
 				if int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN <= int(Time.get_unix_time_from_system()):
@@ -1110,8 +1182,10 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		return
 	if _raid_prompt:
 		_raid_prompt = false
-		if accepted:
+		if accepted and not _party_run(Raid.kind_for_zone(world.zone)):
 			_start_raid()
+		elif accepted:
+			player.input_enabled = true
 		else:
 			player.input_enabled = true
 		return
@@ -1325,6 +1399,11 @@ func start_dungeon(id: String) -> void:
 		Game.toast.emit("Finish what you're doing first.", Color(1, 0.5, 0.4))
 		return
 	hud.close_finder()
+	if (coop and coop.busy()):
+		Game.toast.emit("Finish what you're doing first.", Color(1, 0.5, 0.4))
+		return
+	if _party_run(id):
+		return
 	Game.toast.emit(Tx.f("Entering %s...", str(Raid.DUNGEONS[id].title).capitalize()), Color(1, 0.85, 0.4))
 	_start_raid(id)
 

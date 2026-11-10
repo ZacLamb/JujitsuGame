@@ -11,12 +11,14 @@ const CH := {
 	"zone": {"tag": "[Zone] ", "color": Color(1.0, 0.76, 0.6)},
 	"world": {"tag": "[World] ", "color": Color(1.0, 0.86, 0.5)},
 	"whisper": {"tag": "", "color": Color(1.0, 0.5, 1.0)},
+	"party": {"tag": "[Party] ", "color": Color(0.55, 0.78, 1.0)},
 	"sys": {"tag": "", "color": Color(1.0, 0.95, 0.35)},
 	"announce": {"tag": "[Game Master] ", "color": Color(0.4, 0.75, 1.0)},
 }
-const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper"}
+const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper", "party": "Party"}
 
 static var typing := false
+var party: Party = null   # set by Main
 signal gm_requested   # the player reads this so WASD doesn't walk while you type
 
 var _text: RichTextLabel
@@ -137,15 +139,15 @@ func add_chat(m: Dictionary) -> void:
 	var body := ""
 	match ch:
 		"say":
-			body = Tx.f("%s says: %s", [who, text])
+			body = Tx.s("%s says: %s") % [who, text]
 		"whisper":
 			if m.get("echo", false):
-				body = Tx.f("To %s: %s", [_esc(str(m.get("to", ""))), text])
+				body = Tx.s("To %s: %s") % [_esc(str(m.get("to", ""))), text]
 			else:
-				body = Tx.f("%s whispers: %s", [who, text])
+				body = Tx.s("%s whispers: %s") % [who, text]
 				Sfx.play("click", -10.0)
 		_:
-			body = "%s%s: %s" % [CH[ch].tag.replace("[", "[lb]"), who, text]
+			body = "%s%s: %s" % [Tx.s(CH[ch].tag).replace("[", "[lb]"), who, text]
 	_line("[color=#%s]%s[/color]" % [cc.to_html(false), body])
 
 # ------------------------------------------------------------ typing
@@ -175,7 +177,7 @@ func _set_channel(ch: String) -> void:
 
 ## WoW-style: typing "/z " or "/w name " switches the channel on the spot.
 func _on_typed(t: String) -> void:
-	var sw := {"/s ": "say", "/say ": "say", "/z ": "zone", "/zone ": "zone", "/g ": "world", "/world ": "world", "/1 ": "world"}
+	var sw := {"/p ": "party", "/party ": "party", "/s ": "say", "/say ": "say", "/z ": "zone", "/zone ": "zone", "/g ": "world", "/world ": "world", "/1 ": "world"}
 	for k in sw:
 		if t.to_lower() == k:
 			_set_channel(sw[k])
@@ -202,6 +204,9 @@ func _submit(t: String) -> void:
 		return
 	if channel == "whisper":
 		Net.send_chat("whisper", t, whisper_to)
+	elif channel == "party":
+		if party:
+			party.say(t)
 	else:
 		Net.send_chat(channel, t)
 
@@ -239,6 +244,22 @@ func _command(t: String) -> void:
 				Net.send_chat("whisper", rest, whisper_to)
 		"/who":
 			Net.who()
+		"/p", "/party":
+			_set_channel("party")
+			if rest != "" and party:
+				party.say(rest)
+		"/invite", "/inv":
+			if party:
+				party.invite(rest)
+		"/leave", "/leaveparty":
+			if party:
+				party.leave()
+		"/kick":
+			if party:
+				party.kick(rest)
+		"/promote":
+			if party:
+				party.promote(rest)
 		"/gm":
 			gm_requested.emit()
 		"/ignore":
@@ -257,7 +278,7 @@ func _command(t: String) -> void:
 				return
 			Net.report(parts[1], rest.substr(parts[1].length()).strip_edges())
 		_:
-			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /who · /ignore Name · /report Name reason"})
+			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /who · /ignore Name · /report Name reason"})
 
 func _process(delta: float) -> void:
 	_idle += delta

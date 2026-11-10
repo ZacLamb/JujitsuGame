@@ -222,30 +222,66 @@ func _draw() -> void:
 		draw_string(Wow.title_font(), tp + Vector2(12, 120), Tx.s(hint), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
 	_auras(t, tp + Vector2(280, 30))
 
-## Raid party: a compact frame per partner under yours (name, role colour, Composure, casting).
+## Party frames under yours: raid / dungeon partners (AI and real), or your party out in the world.
 func _party_frames(at: Vector2) -> void:
-	if combat.raid == null or not is_instance_valid(combat.raid):
+	var y := at.y
+	if combat.raid != null and is_instance_valid(combat.raid):
+		for n in combat.raid.ally_npcs:
+			if not is_instance_valid(n):
+				continue
+			var u: CombatCore.Unit = combat._unit_of.get(n.get_instance_id())
+			y = _pframe(at.x, y, str(n.mob.name), str(n.mob.get("role", "dps")), u, n.mob.has("remote"))
+		return
+	var co: Coop = combat.coop
+	if co and co.is_guest():
+		for id in co._npc:
+			var nv = co._npc[id]
+			if not is_instance_valid(nv):
+				continue
+			var n: Npc = nv
+			if not n.mob.has("ally"):
+				continue
+			var u: CombatCore.Unit = co._loc.get(id)
+			y = _pframe(at.x, y, str(n.mob.name), str(n.mob.get("role", "dps")), u if u and not u.dead else null, n.has_meta("peer"))
+		return
+	var pt: Party = co.party if co else null
+	if pt == null or not pt.in_party():
 		return
 	var f := Wow.body()
-	var y := at.y
-	for n in combat.raid.ally_npcs:
-		if not is_instance_valid(n):
-			continue
-		var u: CombatCore.Unit = combat._unit_of.get(n.get_instance_id())
-		var role := str(n.mob.get("role", "dps"))
-		var rc: Color = {"tank": Color(0.35, 0.65, 1.0), "heal": Color(0.35, 0.85, 0.78), "dps": Color(1.0, 0.45, 0.35)}.get(role, Color.WHITE)
+	for i in pt.others():
+		var row: Dictionary = pt.members[i]
+		var on := pt.online(i)
+		var away := on and str(row.get("zone", "")) != Net.zone
+		var rc := Rpg.class_color(str(row.get("style", "")))
 		draw_rect(Rect2(at.x, y, 196, 30), Color(0, 0, 0, 0.55))
-		draw_rect(Rect2(at.x, y, 4, 30), rc)
-		var nm := Tx.f("%s  ·  %s", [str(n.mob.name), {"tank": "Tank", "heal": "Healer", "dps": "Damage"}.get(role, "")])
-		draw_string_outline(f, Vector2(at.x + 9, y + 12), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 185, 11, 3, Color.BLACK)
-		draw_string(f, Vector2(at.x + 9, y + 12), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 185, 11, Color.WHITE if u else Color(0.6, 0.6, 0.6))
-		if u:
-			_bar(Vector2(at.x + 8, y + 16), Vector2(184, 10), u.pct(), HP_COL, "")
-			if not u.cast.is_empty():
-				draw_rect(Rect2(at.x + 8, y + 27, 184.0 * float(u.cast.t) / float(u.cast.dur), 2), Color(1, 0.85, 0.3))
+		draw_rect(Rect2(at.x, y, 4, 30), rc if on else Color(0.4, 0.4, 0.4))
+		var nm := "%s%s  ·  %s %d" % ["★ " if i == pt.leader else "", str(row.get("name", "?")), Tx.s("Lv"), int(row.get("level", 1))]
+		draw_string_outline(f, Vector2(at.x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, 3, Color.BLACK)
+		draw_string(f, Vector2(at.x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, Color.WHITE if on else Color(0.6, 0.6, 0.6))
+		if not on:
+			draw_string(f, Vector2(at.x + 9, y + 26), Tx.s("offline"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.7, 0.7, 0.7))
+		elif away:
+			var zn := Tx.s(str(Data.ZONES.get(str(row.get("zone", "")), {}).get("name", str(row.get("zone", "?")))))
+			draw_string(f, Vector2(at.x + 9, y + 26), zn, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, Color(0.75, 0.75, 0.6))
 		else:
-			draw_string(f, Vector2(at.x + 9, y + 26), Tx.s("tapped out"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.5, 0.4))
+			_bar(Vector2(at.x + 8, y + 16), Vector2(184, 10), float(row.get("hp", 1.0)), HP_COL, "")
 		y += 34
+
+func _pframe(x: float, y: float, name_: String, role: String, u: CombatCore.Unit, human: bool) -> float:
+	var f := Wow.body()
+	var rc: Color = {"tank": Color(0.35, 0.65, 1.0), "heal": Color(0.35, 0.85, 0.78), "dps": Color(1.0, 0.45, 0.35)}.get(role, Color.WHITE)
+	draw_rect(Rect2(x, y, 196, 30), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(x, y, 4, 30), rc)
+	var nm := "%s%s  ·  %s" % ["◆ " if human else "", Tx.s(name_), Tx.s({"tank": "Tank", "heal": "Healer", "dps": "Damage"}.get(role, ""))]
+	draw_string_outline(f, Vector2(x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, 3, Color.BLACK)
+	draw_string(f, Vector2(x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, (Color(0.55, 0.85, 1.0) if human else Color.WHITE) if u else Color(0.6, 0.6, 0.6))
+	if u:
+		_bar(Vector2(x + 8, y + 16), Vector2(184, 10), u.pct(), HP_COL, "")
+		if not u.cast.is_empty():
+			draw_rect(Rect2(x + 8, y + 27, 184.0 * float(u.cast.t) / maxf(0.01, float(u.cast.dur)), 2), Color(1, 0.85, 0.3))
+	else:
+		draw_string(f, Vector2(x + 9, y + 26), Tx.s("tapped out"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.5, 0.4))
+	return y + 34
 
 func _auras(u: CombatCore.Unit, at: Vector2) -> void:
 	var names := {"down": ["DOWN", Color(1, 0.55, 0.2)], "pinned": ["PIN", Color(0.95, 0.8, 0.3)], "exposed": ["EXP", Color(0.75, 0.55, 1.0)],

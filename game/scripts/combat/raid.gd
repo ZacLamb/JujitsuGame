@@ -107,7 +107,48 @@ var trash_npcs: Array = []
 var heal_t := 16.0
 var choke_t := 26.0
 
-func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri") -> void:
+## Co-op (see Coop): the real players in this run besides you. peer id -> their Unit.
+var humans := {}
+var coop := false
+
+## Fills the party: AI partners take every role the humans don't cover.
+static func ai_roles(player_role: String, human_roles: Array) -> Array:
+	var covered := {}
+	for r in [player_role] + human_roles:
+		covered[{"anchor": "tank", "coach": "heal"}.get(str(r), "dps")] = true
+	var out: Array = []
+	for r in ["tank", "heal", "dps", "dps2", "dps3"]:
+		var base: String = "dps" if str(r).begins_with("dps") else str(r)
+		if base != "dps" and covered.has(base):
+			continue
+		out.append(r)
+	var need := 4 - human_roles.size()
+	return out.slice(0, maxi(0, need))
+
+## Real players still standing (you and the co-op partners).
+func humans_alive() -> int:
+	var n := 0 if wc.me.dead else 1
+	for p in humans:
+		var u: CombatCore.Unit = humans[p]
+		if u != null and not u.dead and wc.core.units.has(u):
+			n += 1
+	return n
+
+## Whom a targeted boss mechanic goes for: you, or (co-op) any real player still in it.
+func _victim() -> CombatCore.Unit:
+	var pool: Array = []
+	if not wc.me.dead:
+		pool.append(wc.me)
+	for p in humans:
+		var u: CombatCore.Unit = humans[p]
+		if u != null and not u.dead and wc.core.units.has(u):
+			pool.append(u)
+	if pool.is_empty():
+		return wc.me
+	return pool[randi() % pool.size()]
+
+## humans: [{peer, role, stats, mob}] (co-op partners; their games mirror this one).
+func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri", human_list: Array = []) -> void:
 	dungeon = DUNGEONS.has(raid_kind)
 	kind = raid_kind if (RAIDS.has(raid_kind) or dungeon) else "sucuri"
 	cfg = DUNGEONS[kind].duplicate() if dungeon else RAIDS[kind]
@@ -127,7 +168,36 @@ func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri") -> void:
 		_spawn_trash(0)
 	var role := Team.player_role()
 	var i := 0
-	for r in party_for(role):
+	coop = not human_list.is_empty()
+	var hroles: Array = []
+	for h in human_list:
+		hroles.append(str(h.get("role", "dps")))
+	for h in human_list:
+		var d: Dictionary = (h.mob as Dictionary).duplicate()
+		var hr := str(h.get("role", "dps"))
+		d["ally"] = true
+		d["remote"] = true
+		d["pvp_peer"] = true
+		d["peer"] = int(h.peer)
+		d["role"] = {"anchor": "tank", "coach": "heal"}.get(hr, "dps")
+		var ang := -0.9 + i * 0.6
+		var n := _spawn(d, at + Vector3(sin(ang) * 3.0, 0, cos(ang) * 3.0 + 1.0))
+		ally_npcs.append(n)
+		var u = wc.unit_for(n)
+		var st: Dictionary = h.get("stats", {})
+		u.max_hp = float(st.get("mhp", u.max_hp))
+		u.hp = u.max_hp
+		u.dmg = float(st.get("dmg", u.dmg))
+		u.auto_dmg = float(st.get("auto", u.auto_dmg))
+		u.max_gas = float(st.get("mgas", 100.0))
+		u.gas = u.max_gas
+		u.gas_regen = float(st.get("regen", 15.0))
+		u.swing_time = float(st.get("swing", 2.0))
+		u.mods = st.get("mods", {})
+		u.level = int(st.get("lv", u.level))
+		humans[int(h.peer)] = u
+		i += 1
+	for r in (ai_roles(role, hroles) if coop else party_for(role)):
 		var d: Dictionary = (cfg.party as Dictionary)[r].duplicate()
 		d["ally"] = true
 		d["role"] = "dps" if r.begins_with("dps") else r
@@ -179,8 +249,9 @@ func _engage_trash() -> void:
 		var u = wc.unit_for(n)
 		if u == null:
 			continue
-		wc.core.engage(u, wc.me)
-		u.target = wc.me
+		var tv := _victim()
+		wc.core.engage(u, tv)
+		u.target = tv
 		n.in_combat = true
 		n.rig.combat_ready = true
 		for an in ally_npcs:
@@ -228,7 +299,8 @@ func pull() -> void:
 		wc.core.engage(u, boss)
 		u.target = boss
 		n.in_combat = true
-	wc.core.engage(wc.me, boss)
+	if not wc.me.dead:
+		wc.core.engage(wc.me, boss)
 	boss_npc.in_combat = true
 	boss_npc.rig.combat_ready = true
 	boss.target = wc.core._top_threat(boss)
@@ -247,8 +319,9 @@ func _process(delta: float) -> void:
 					if n.global_position.distance_to(center) > 20.0:
 						n.global_position = center + Vector3(randf_range(-3, 3), 0, -5)
 						n.global_position.y = wc.world.ground_y(n.global_position.x, n.global_position.z)
-					wc.core.engage(tu, wc.me)
-					tu.target = wc.me
+					var sv := _victim()
+					wc.core.engage(tu, sv)
+					tu.target = sv
 					n.in_combat = true
 		if not _trash_alive():
 			stage += 1
@@ -258,8 +331,9 @@ func _process(delta: float) -> void:
 				_spawn_boss()
 				warning.emit(Tx.s(str(cfg.boss)).to_upper(), str(cfg.intro))
 				# he walks in and the party goes straight at him
-				wc.core.engage(boss, wc.me)
-				boss.target = wc.me
+				var bv := _victim()
+				wc.core.engage(boss, bv)
+				boss.target = bv
 				wc.target = boss
 		return
 	if boss == null or boss.dead:
@@ -292,14 +366,16 @@ func _process(delta: float) -> void:
 	if "choke" in mechs and choke_t <= 0.0 and boss.cast.is_empty() and not boss.down():
 		choke_t = 23.0
 		var cab := {"id": "hidden_choke", "name": "Hidden Choke", "type": "sub", "cast": 3.2, "dmg": 3.0, "finisher": true, "per_grip": 0.0, "range": 60.0, "_mv": "rnc"}
-		boss.cast = {"ab": cab, "t": 0.0, "dur": 3.2, "target": wc.me}
-		wc.core.emit({"t": "cast", "u": boss, "ab": cab, "target": wc.me, "dur": 3.2})
+		var cv := _victim()
+		boss.cast = {"ab": cab, "t": 0.0, "dur": 3.2, "target": cv}
+		wc.core.emit({"t": "cast", "u": boss, "ab": cab, "target": cv, "dur": 3.2})
 		warning.emit("HIDDEN CHOKE!", "DEFEND IT! [T]")
 	if wave_t <= 0.0 and "wave" in mechs and boss.cast.is_empty() and not boss.down():
 		wave_t = 24.0
 		var ab := {"id": "wave", "name": "Takedown Wave", "type": "takedown", "cast": 2.8, "dmg": 0.0, "range": 60.0, "_mv": ""}
-		boss.cast = {"ab": ab, "t": 0.0, "dur": 2.8, "target": wc.me}
-		wc.core.emit({"t": "cast", "u": boss, "ab": ab, "target": wc.me, "dur": 2.8})
+		var wv := _victim()
+		boss.cast = {"ab": ab, "t": 0.0, "dur": 2.8, "target": wv}
+		wc.core.emit({"t": "cast", "u": boss, "ab": ab, "target": wv, "dur": 2.8})
 		warning.emit("TAKEDOWN WAVE!", "SPRAWL IT! [Q]")
 	# students join the fight
 	for th in [0.6, 0.3]:
@@ -340,7 +416,7 @@ func _call_students() -> void:
 			u.max_hp *= 0.6
 			u.hp = u.max_hp
 			u.dmg *= 0.7
-		var tgt: CombatCore.Unit = healer if healer else wc.me
+		var tgt: CombatCore.Unit = healer if healer else _victim()
 		u.threat[tgt.id] = 999.0
 		wc.core.engage(u, tgt)
 		u.target = tgt
@@ -352,26 +428,7 @@ func end(won: bool) -> void:
 		return
 	over = true
 	if won:
-		# your class's tier set first (one missing piece per clear), then rolled epics
-		var gear_id := ""
-		if dungeon:
-			gear_id = Game.make_rolled(_epic_roll() if randf() < 0.35 else _rare_roll())
-		else:
-			gear_id = Game.missing_tier_piece()
-			if gear_id == "":
-				gear_id = Game.make_rolled(_epic_roll())
-		Game.add_item("gear:" + gear_id)
-		var xp := (90 + 20 * level) if dungeon else (120 + 25 * level)
-		Game.add_xp(xp)
-		Game.money += (40 + 4 * level) if dungeon else (60 + 6 * level)
-		Game.unlock(str(cfg.ach))
-		if dungeon:
-			Game.bump("dungeons_all")
-		else:
-			Game.add_war(30, "raid")
-		Game.toast.emit(Tx.f("%s cleared! +%d XP, R$ %d", ["Dungeon" if dungeon else "Raid", xp, (40 + 4 * level) if dungeon else (60 + 6 * level)]), Color(1, 0.85, 0.35))
-		Game.toast.emit(Tx.f("Looted: %s", str(Gear.ITEMS[gear_id].name)), Gear.rarity_color(gear_id))
-		Game.save_game()
+		Raid.reward(kind, level)
 	for n in ally_npcs + add_npcs + trash_npcs + [boss_npc]:
 		if is_instance_valid(n):
 			var u = wc._unit_of.get(n.get_instance_id())
@@ -385,12 +442,44 @@ func end(won: bool) -> void:
 	finished.emit(won)
 	queue_free()
 
+## Your loot for a clear (co-op partners roll their own on their games).
+static func reward(raid_kind: String, lvl: int) -> void:
+	var dng := DUNGEONS.has(raid_kind)
+	var c: Dictionary = DUNGEONS[raid_kind] if dng else RAIDS.get(raid_kind, RAIDS.sucuri)
+	var prefix := str(c.prefix)
+	var gear_id := ""
+	if dng:
+		gear_id = Game.make_rolled(_epic_roll_for(lvl, prefix) if randf() < 0.35 else _rare_roll_for(lvl, prefix))
+	else:
+		gear_id = Game.missing_tier_piece()
+		if gear_id == "":
+			gear_id = Game.make_rolled(_epic_roll_for(lvl, prefix))
+	Game.add_item("gear:" + gear_id)
+	var xp := (90 + 20 * lvl) if dng else (120 + 25 * lvl)
+	var money := (40 + 4 * lvl) if dng else (60 + 6 * lvl)
+	Game.add_xp(xp)
+	Game.money += money
+	Game.unlock(("dng_" + raid_kind) if dng else str(c.ach))
+	if dng:
+		Game.bump("dungeons_all")
+	else:
+		Game.add_war(30, "raid")
+	Game.toast.emit(Tx.f("%s cleared! +%d XP, R$ %d", ["Dungeon" if dng else "Raid", xp, money]), Color(1, 0.85, 0.35))
+	Game.toast.emit(Tx.f("Looted: %s", str(Gear.ITEMS[gear_id].name)), Gear.rarity_color(gear_id))
+	Game.save_game()
+
 func _rare_roll() -> Dictionary:
+	return _rare_roll_for(level, str(cfg.prefix))
+
+func _epic_roll() -> Dictionary:
+	return _epic_roll_for(level, str(cfg.prefix))
+
+static func _rare_roll_for(level: int, prefix: String) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var d := Gear.roll(level + 1, rng, true, false)
 	d["rarity"] = "rare"
-	d["name"] = str(cfg.prefix) + " " + str(d.name).split(" ", false, 1)[1]
+	d["name"] = prefix + " " + str(d.name).split(" ", false, 1)[1]
 	d["ilvl"] = level + 1
 	var pts := 3 + level / 12
 	var pair: Array = ["strength", "grip"]
@@ -403,12 +492,12 @@ func _rare_roll() -> Dictionary:
 	d["attrs"] = attrs
 	return d
 
-func _epic_roll() -> Dictionary:
+static func _epic_roll_for(level: int, prefix: String) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var d := Gear.roll(level + 2, rng, true, true)
 	d["rarity"] = "epic"
-	d["name"] = str(cfg.prefix) + " " + str(d.name).split(" ", false, 1)[1]
+	d["name"] = prefix + " " + str(d.name).split(" ", false, 1)[1]
 	d["ilvl"] = level + 3
 	var pts := 5 + level / 12
 	var pair: Array = ["strength", "grip"]

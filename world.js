@@ -7,6 +7,7 @@
 //   {t:"char", char}                    look / level changed
 //   {t:"chat", ch, text, to?}           ch: say | zone | world | whisper
 //   {t:"report", name, reason}
+//   {t:"party", to: id | [ids] | name, d}   party relay (any zone)
 // Server -> client:
 //   welcome / join / leave / st (batched positions) / char / chat / sys
 const { URL } = require('url');
@@ -22,6 +23,8 @@ const ZONES = new Set(['caceres', 'pantanal', 'chapada', 'rio', 'socal', 'texas'
 // local testing only: WORLD_DEV=1 with no database accepts any token
 const DEV = process.env.WORLD_DEV === '1';
 const DUEL_RATE = 40;         // live duel relay: messages per second per client
+const PARTY_RATE = 60;        // party relay (roster, chat, co-op dungeon snapshots): messages per second
+const PARTY_MAX = 5;
 
 // A short word filter (English + Portuguese). Matches whole words, ignoring case and simple
 // letter swaps; the word is replaced with asterisks rather than the message being dropped.
@@ -252,6 +255,28 @@ function attach(server, pool, isReady) {
           if (++c.duelN > DUEL_RATE) break;
           const to = clients.get(m.to | 0);
           if (to && to.ok && to !== c && to.zone === c.zone) send(to, { t: 'duel', from: c.id, d: m.d });
+          break;
+        }
+        case 'party': {
+          // parties: a relay to one or more players anywhere in the world (by id, or one name).
+          // The party leader's game owns the roster and runs co-op dungeons; see party.gd / coop.gd
+          const now = Date.now();
+          if (!c.partyWin || now - c.partyWin > 1000) { c.partyWin = now; c.partyN = 0; }
+          if (++c.partyN > PARTY_RATE) break;
+          const d = m.d && typeof m.d === 'object' ? m.d : null;
+          if (!d) break;
+          if (d.k === 'chat') d.text = clean(d.text);
+          let targets = [];
+          if (m.name) {
+            const want = String(m.name).toLowerCase();
+            const hit = [...clients.values()].find((o) => o.ok && o !== c && !o.invisible && String(o.char.name || '').toLowerCase() === want);
+            if (!hit) { send(c, { t: 'party', from: 0, d: { k: 'nf', name: cleanName(m.name) } }); break; }
+            targets = [hit];
+          } else {
+            const ids = Array.isArray(m.to) ? m.to.slice(0, PARTY_MAX) : [m.to];
+            targets = ids.map((i) => clients.get(i | 0)).filter((o) => o && o.ok && o !== c);
+          }
+          for (const o of targets) send(o, { t: 'party', from: c.id, zone: c.zone, d });
           break;
         }
         case 'gm':
