@@ -109,7 +109,8 @@ static func char_mob(ch: Dictionary) -> Dictionary:
 	var lv := clampi(int(ch.get("level", 1)), 1, 60)
 	return {"name": str(ch.get("name", "?")), "title": "Party", "rank": clampi(int(ch.get("belt", 0)) * 5 + 2, 0, 24),
 		"level": 1.0 + float(lv - 1) * 0.55 / 2.0, "gi": gi, "skin": UiKit.skin_tone(float(ch.get("skin", 0.35))),
-		"body": str(ch.get("body", "male")), "style": "balanced"}
+		"body": str(ch.get("body", "male")), "style": "balanced", "look": ch.get("look", {}), "cls": str(ch.get("style", "")),
+		"head": str(ch.get("head", "classic"))}
 
 # ------------------------------------------------------------ guest: asked to join
 func answer(accept: bool) -> void:

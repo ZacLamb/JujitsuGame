@@ -19,6 +19,7 @@ const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "W
 
 static var typing := false
 var party: Party = null   # set by Main
+var trade: Trade = null   # set by Main
 signal gm_requested   # the player reads this so WASD doesn't walk while you type
 
 var _text: RichTextLabel
@@ -254,6 +255,9 @@ func _command(t: String) -> void:
 		"/leave", "/leaveparty":
 			if party:
 				party.leave()
+		"/trade":
+			if trade:
+				trade.request_name(rest)
 		"/kick":
 			if party:
 				party.kick(rest)
@@ -278,7 +282,7 @@ func _command(t: String) -> void:
 				return
 			Net.report(parts[1], rest.substr(parts[1].length()).strip_edges())
 		_:
-			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /who · /ignore Name · /report Name reason"})
+			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /who · /ignore Name · /report Name reason"})
 
 func _process(delta: float) -> void:
 	_idle += delta

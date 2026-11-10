@@ -254,7 +254,7 @@ func _rival_process() -> void:
 		else:
 			var nm := str(best.char.get("name", "?"))
 			var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-			hud.prompt.text = Tx.f("[E]  Duel %s  (%s, Lv %d)", [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))])
+			hud.prompt.text = Tx.f("[E]  %s  (%s, Lv %d)  ·  duel · party · trade", [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))])
 			hud.touch.interact_btn.visible = true
 			hud.touch.interact_btn.text = "ROLL"
 
@@ -277,6 +277,12 @@ var pvp: Pvp = null
 var _duel_ask := ""          # "menu" (you picked a player) / "incoming" (someone challenged you)
 var party: Party = null      # your party (see Party)
 var coop: Coop = null        # party dungeons and raids (see Coop)
+var trade: Trade = null      # player-to-player trades (see Trade)
+
+func ask_trade(who: String) -> void:
+	_party_ask = "trade"
+	player.input_enabled = false
+	hud.open_dialogue("Trade", Tx.f("%s wants to trade with you.", who), "Open trade", "Decline")
 var _party_ask := ""         # "party" (an invite) / "coop" (your leader is starting a run)
 
 func ask_party(ch: Dictionary) -> void:
@@ -321,30 +327,34 @@ var _duel_rp: RemotePlayer = null
 var _duel_party := false     # the menu's second button invites them to your party
 
 func _duel_menu(rp: RemotePlayer) -> void:
-	if pvp == null or pvp.busy():
+	if pvp == null or pvp.busy() or hud.player_menu_open():
 		return
 	_duel_rp = rp
-	_duel_ask = "menu"
+	if not hud.player_menu_toggled.is_connected(_on_player_menu):
+		hud.player_menu_toggled.connect(_on_player_menu)
 	player.input_enabled = false
 	var ch: Dictionary = rp.char
+	var rid := int(rp.net_id)
 	var other := str(ch.get("faction", "brasil")) != Game.faction()
 	var nm := str(ch.get("name", "?"))
 	var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-	var txt := Tx.f("%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept).", [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))])
-	var no := "Not now"
-	_duel_party = false
-	if not other and party and not party.members.has(int(rp.net_id)) and (not party.in_party() or party.is_leader()):
-		txt += "\n\nOr invite them to your party: run dungeons and raids together."
-		no = "Invite to party"
-		_duel_party = true
-	if other:
-		txt += " A win counts for the Faction War (20 points)."
-		if wait <= 0:
-			txt += "\n\nOr fight their shadow: an AI copy of their character, no need to ask."
-			no = "Fight their shadow"
-		else:
-			txt += Tx.f("\n\n(Their shadow needs %d min to recover.)", ceili(wait / 60.0))
-	hud.open_dialogue("Duel", txt, "Challenge to a live duel", no)
+	var txt := Tx.f("%s  ·  %s, level %d.", [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))])
+	var opts: Array = []
+	opts.append([Tx.s("Challenge to a live duel") + (Tx.s(" (Faction War: 20 points)") if other else ""), func(): pvp.invite(rid, rp.char)])
+	if other and wait <= 0:
+		opts.append([Tx.s("Fight their shadow (an AI copy, no need to ask)"), func(): _start_rival(rp)])
+	elif other:
+		txt += Tx.f("\n\n(Their shadow needs %d min to recover.)", ceili(wait / 60.0))
+	if party and not party.members.has(rid) and (not party.in_party() or party.is_leader()):
+		opts.append([Tx.s("Invite to party"), func(): party.invite_id(rid, nm)])
+	if trade and not trade.busy():
+		opts.append([Tx.s("Trade"), func(): trade.request(rid, nm)])
+	opts.append([Tx.s("Whisper"), func(): hud.combat_log.open_input("/w %s " % nm)])
+	hud.player_menu(nm, txt, opts)
+
+func _on_player_menu(open: bool) -> void:
+	if not open and not hud.dialogue_open():
+		player.input_enabled = true
 
 func ask_duel(ch: Dictionary) -> void:
 	_duel_ask = "incoming"
@@ -633,6 +643,10 @@ func _make_world(z: String) -> void:
 		party.name = "Party"
 		add_child(party)
 		party.setup(self)
+		trade = Trade.new()
+		trade.name = "Trade"
+		add_child(trade)
+		trade.setup(self, party)
 		coop = Coop.new()
 		coop.name = "Coop"
 		add_child(coop)
@@ -640,6 +654,7 @@ func _make_world(z: String) -> void:
 		combat.coop = coop
 		if hud and hud.combat_log:
 			hud.combat_log.party = party
+			hud.combat_log.trade = trade
 		if hud:
 			hud.set_party(party)
 		combat.raid_over.connect(_on_raid_over)
@@ -1149,6 +1164,8 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		player.input_enabled = true
 		if pk == "party":
 			party.answer(accepted)
+		elif pk == "trade":
+			trade.answer(accepted)
 		else:
 			coop.answer(accepted)
 		return
@@ -1165,8 +1182,7 @@ func _on_dialogue_choice(accepted: bool) -> void:
 					rid = id
 			if accepted and rid >= 0:
 				pvp.invite(rid, _duel_rp.char)
-			elif not accepted and rid >= 0 and _duel_party:
-				party.invite_id(rid, str(_duel_rp.char.get("name", "?")))
+
 			elif not accepted and str(_duel_rp.char.get("faction", "brasil")) != Game.faction():
 				var nm := str(_duel_rp.char.get("name", "?"))
 				if int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN <= int(Time.get_unix_time_from_system()):

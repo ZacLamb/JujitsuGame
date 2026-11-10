@@ -9,6 +9,7 @@ extends Node
 
 signal changed
 signal coop_msg(from: int, d: Dictionary, zone: String)
+signal trade_msg(from: int, d: Dictionary, zone: String)   # see Trade (same relay)
 
 const MAX := 5
 const STATUS_EVERY := 2.0
@@ -147,6 +148,9 @@ func send(to, d: Dictionary) -> void:
 # ------------------------------------------------------------ network
 func _on_msg(from: int, d: Dictionary, zone: String) -> void:
 	var k := str(d.get("k", ""))
+	if k.begins_with("tr_"):
+		trade_msg.emit(from, d, zone)
+		return
 	match k:
 		"nf":
 			_sys(Tx.f("Nobody called %s is online.", str(d.get("name", "?"))))

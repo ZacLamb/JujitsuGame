@@ -96,6 +96,11 @@ func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	add_child(rig)
 	if m.get("rare", false) or m.get("elite", false):
 		rig.bulk = 1.14   # elites and rares are built heavier
+	if m.get("look") is Dictionary and not (m.look as Dictionary).is_empty():   # a real player's gear (co-op)
+		rig.look = Net.dec(m.look)
+		rig.build = Rpg.class_build(str(m.get("cls", "")))
+		rig.crest = str(m.get("cls", ""))
+		rig.head_id = str(m.get("head", "classic"))
 	rig.setup(m.gi, Data.BELTS[Data.belt_of(int(m.rank))].color, m.skin, Color(0.12, 0.08, 0.05), -1, str(m.get("body", "male")))
 	tag = Label3D.new()
 	tag.font = Wow.title_font()

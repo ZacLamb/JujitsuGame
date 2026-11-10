@@ -385,9 +385,74 @@ func _build_toasts() -> void:
 var combat_hud: CombatHud
 
 var party: Party = null
+var trade_panel: TradePanel = null
 
 func set_party(p: Party) -> void:
 	party = p
+
+## The trade window, with your bags open beside it.
+func open_trade(t: Trade) -> void:
+	if trade_panel and is_instance_valid(trade_panel):
+		trade_panel.queue_free()
+	trade_panel = TradePanel.new(t)
+	root.add_child(trade_panel)
+	bag_panel.trade = t
+	bag_panel.shop_mode = false
+	bag_panel.visible = true
+	bag_panel.refresh()
+	bag_panel.move_to_front()
+	t.changed.connect(func(): if bag_panel.visible: bag_panel.refresh())
+	t.closed.connect(func(): bag_panel.refresh() if bag_panel.visible else null)
+
+var _pmenu: PanelContainer = null
+
+## A small menu of actions about another player (duel, party, trade, whisper...).
+## options: [[label, Callable], ...]
+func player_menu(title_: String, body: String, options: Array) -> void:
+	close_player_menu()
+	var p := PanelContainer.new()
+	p.theme = Wow.theme()
+	p.anchor_left = 0.5
+	p.anchor_right = 0.5
+	p.anchor_top = 0.5
+	p.anchor_bottom = 0.5
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	p.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 14, 2))
+	root.add_child(p)
+	_pmenu = p
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	v.custom_minimum_size = Vector2(420, 0)
+	p.add_child(v)
+	v.add_child(Wow.title(title_, 20, Wow.GOLD))
+	var l := Wow.label(body, 14, Wow.PALE)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(l)
+	for o in options:
+		var b := Wow.button(str(o[0]), Vector2(0, 38))
+		var cb: Callable = o[1]
+		b.pressed.connect(func():
+			close_player_menu()
+			cb.call())
+		v.add_child(b)
+	var x := Wow.button("Close", Vector2(0, 32))
+	x.pressed.connect(close_player_menu)
+	v.add_child(x)
+	prompt.visible = false
+	player_menu_toggled.emit(true)
+
+signal player_menu_toggled(open: bool)
+
+func close_player_menu() -> void:
+	if _pmenu and is_instance_valid(_pmenu):
+		_pmenu.queue_free()
+		_pmenu = null
+		prompt.visible = true
+		player_menu_toggled.emit(false)
+
+func player_menu_open() -> bool:
+	return _pmenu != null and is_instance_valid(_pmenu)
 
 func set_combat(c: WorldCombat) -> void:
 	if combat_hud == null:

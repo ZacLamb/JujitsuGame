@@ -1,0 +1,22 @@
+[
+[" (Faction War: 20 points)", " (Guerra de Facções: 20 pontos)", " (Guerra de Facciones: 20 puntos)"],
+["%s cancelled the trade.", "%s cancelou a troca.", "%s canceló el intercambio."],
+["%s has to be nearby (same zone) to trade.", "%s precisa estar por perto (mesma zona) para trocar.", "%s tiene que estar cerca (misma zona) para intercambiar."],
+["%s wants to trade with you.", "%s quer trocar com você.", "%s quiere intercambiar contigo."],
+["Accepted", "Aceito", "Aceptado"],
+["Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /who · /ignore Name · /report Name reason", "Chat: Enter para digitar. /s falar (perto, balão) · /z zona · /g mundo · /w Nome sussurrar · /r responder · /p grupo · /invite Nome · /leave · /trade Nome · /who · /ignore Nome · /report Nome motivo", "Chat: Enter para escribir. /s decir (cerca, bocadillo) · /z zona · /g mundo · /w Nombre susurrar · /r responder · /p grupo · /invite Nombre · /leave · /trade Nombre · /who · /ignore Nombre · /report Nombre motivo"],
+["Click items in your bags to put them on the table (click again to take them back). Changing anything clears both Accepts.", "Clique nos itens da mochila para colocá-los na mesa (clique de novo para tirar). Qualquer mudança desfaz os dois Aceitar.", "Haz clic en los objetos de tu bolsa para ponerlos en la mesa (otra vez para quitarlos). Cualquier cambio anula ambos Aceptar."],
+["Fight their shadow (an AI copy, no need to ask)", "Lutar contra a sombra (uma cópia por IA, sem precisar pedir)", "Luchar contra su sombra (una copia por IA, sin preguntar)"],
+["Open trade", "Abrir troca", "Abrir intercambio"],
+["Put something on the table first.", "Coloque algo na mesa primeiro.", "Pon algo en la mesa primero."],
+["Something in the trade changed. Cancelled.", "Algo na troca mudou. Cancelada.", "Algo cambió en el intercambio. Cancelado."],
+["The trade window is full (6).", "A janela de troca está cheia (6).", "La ventana de intercambio está llena (6)."],
+["Trade", "Trocar", "Intercambiar"],
+["Trade cancelled.", "Troca cancelada.", "Intercambio cancelado."],
+["Trade request sent to %s...", "Pedido de troca enviado para %s...", "Solicitud de intercambio enviada a %s..."],
+["Trade with %s", "Troca com %s", "Intercambio con %s"],
+["Trade with %s done.", "Troca com %s concluída.", "Intercambio con %s completado."],
+["Unaccept", "Desfazer", "Deshacer"],
+["Whisper", "Sussurrar", "Susurrar"],
+["[E]  %s  (%s, Lv %d)  ·  duel · party · trade", "[E]  %s  (%s, Nv %d)  ·  duelo · grupo · troca", "[E]  %s  (%s, Nv %d)  ·  duelo · grupo · intercambio"]
+]

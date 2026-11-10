@@ -103,6 +103,7 @@ static func tooltip(id: String, n := 1, price_mode := "") -> PanelContainer:
 ## The bags window: backpack + equipped bags as one grid, bag bar, money.
 class BagPanel extends PanelContainer:
 	var shop_mode := false
+	var trade: Trade = null   # while a trade window is open, clicks put items on the table
 	var _grid: GridContainer
 	var _money: Label
 	var _bagbar: HBoxContainer
@@ -163,6 +164,8 @@ class BagPanel extends PanelContainer:
 			s.tip_holder = self
 			s.price_mode = "sell" if shop_mode else ""
 			s.clicked.connect(_clicked)
+			if trade and trade.is_open() and trade.mine.has(k):
+				s.modulate = Color(0.45, 0.45, 0.45)   # on the trade table
 			_grid.add_child(s)
 		for c in _bagbar.get_children():
 			c.queue_free()
@@ -182,6 +185,10 @@ class BagPanel extends PanelContainer:
 		_msg.text = Tx.f("%d / %d free  ·  %s", [Game.free_slots(), Game.bag_capacity(), "click to sell" if shop_mode else "click to use"])
 	func _clicked(k: int, _right: bool) -> void:
 		if Game.bag[k] == null:
+			return
+		if trade and trade.is_open():
+			_msg.text = trade.toggle_slot(k)
+			refresh()
 			return
 		if shop_mode:
 			var name_: String = Loot.item(str(Game.bag[k].id)).get("name", "")
