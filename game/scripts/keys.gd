@@ -114,3 +114,15 @@ static func reset() -> void:
 	for a in _defaults:
 		bind(str(a), int(_defaults[a]), false)
 	Sfx.set_pref("keys", {})
+
+## Hint text with the player's own keys: translates, then swaps the default letters written in
+## brackets ("Sprawl (Q)", "Hit R to Frame") for whatever those actions are bound to now.
+const HINT_KEYS := {"Q": "ab_base", "R": "ab_frame", "T": "ab_defend", "F": "ab_breathe", "G": "ab_racial"}
+static func fill(text: String) -> String:
+	var t := Tx.s(text)
+	for k in HINT_KEYS:
+		var lb := label(str(HINT_KEYS[k]))
+		if lb == "-" or lb == k:
+			continue
+		t = t.replace("(%s)" % k, "(%s)" % lb).replace(" %s " % k, " %s " % lb)
+	return t

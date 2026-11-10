@@ -996,14 +996,14 @@ func _player_tapped(by_name: String, winner: Npc = null) -> void:
 func _lesson(ab: Dictionary) -> String:
 	match str(ab.get("type", "")):
 		"sub":
-			return Tx.f("Coach: \"Their %s has a cast bar under their name. Hit R to Frame it before it lands.\"", str(ab.get("name", "submission")))
+			return Keys.fill("Coach: \"Their %s has a cast bar under their name. Hit R to Frame it before it lands.\"") % Tx.s(str(ab.get("name", "submission")))
 		"takedown", "sweep":
-			return "Coach: \"When they put you Down, Escape (it works while you're Down) and get your base back.\""
+			return Keys.fill("Coach: \"When they put you Down, Escape (it works while you're Down) and get your base back.\"")
 		"pass":
-			return "Coach: \"Pinned means you hit softer. Escape breaks the pin; Base (Q) halves the damage while you work.\""
+			return Keys.fill("Coach: \"Pinned means you hit softer. Escape breaks the pin; Base (Q) halves the damage while you work.\"")
 	if core.engaged_enemies().size() > 1:
-		return "Coach: \"Too many at once. Pull one at a time, and press Base (Q) the moment it gets ugly.\""
-	return "Coach: \"Build Grip before you go for the finish, and don't be afraid of Base (Q) and Breathe (F).\""
+		return Keys.fill("Coach: \"Too many at once. Pull one at a time, and press Base (Q) the moment it gets ugly.\"")
+	return Keys.fill("Coach: \"Build Grip before you go for the finish, and don't be afraid of Base (Q) and Breathe (F).\"")
 
 ## The player chose how to come back from a tap.
 func resolve_tap(shake_off: bool) -> void:

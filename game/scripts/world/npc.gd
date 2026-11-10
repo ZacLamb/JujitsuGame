@@ -150,9 +150,13 @@ func _mob_process(delta: float) -> bool:
 	to_p.y = 0
 	var d := to_p.length()
 	var home_d := (global_position - _home).length()
-	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Time.get_ticks_msec() >= int(get_meta("no_aggro_until", 0)) and Data.display_level(float(mob.level)) >= Game.player_level() - 6
-	if can_aggro and d < AGGRO_RANGE and home_d < camp_radius + 10.0:
+	var gap := Game.player_level() - Data.display_level(float(mob.level))   # >0: you out-level it
+	var can_aggro: bool = mob.get("aggro", false) and world.aggro_grace <= 0.0 and Time.get_ticks_msec() >= int(get_meta("no_aggro_until", 0)) and gap <= 6
+	# WoW-style: tougher mobs spot you from further away; ones you out-level have to be stepped on
+	var reach := clampf(AGGRO_RANGE + 1.5 - maxf(0.0, float(gap)) * 0.6 + (1.5 if mob.get("elite", false) else 0.0), 4.0, 11.0)
+	if can_aggro and not _chasing and d < reach and home_d < camp_radius + 10.0:
 		_chasing = true
+		_notice()
 	elif _chasing and (d > 14.0 or home_d > camp_radius + 12.0 or world.aggro_grace > 0.0):
 		_chasing = false
 		_target = _home
@@ -167,6 +171,26 @@ func _mob_process(delta: float) -> bool:
 	rig.rotation.y = lerp_angle(rig.rotation.y, atan2(-to_p.x, -to_p.z), clampf(delta * 8.0, 0, 1))
 	rig.animate_locomotion(delta, 0.7)
 	return true
+
+## A red "!" pops over a mob that just spotted you, with a shout, so a pull is never a surprise.
+func _notice() -> void:
+	var l := Label3D.new()
+	l.text = "!"
+	l.font = Wow.title_font()
+	l.font_size = 120
+	l.outline_size = 18
+	l.modulate = Color(1, 0.25, 0.2)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.position = Vector3(0, 2.9, 0)
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_property(l, "position:y", 3.4, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.6)
+	tw.tween_property(l, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(l.queue_free)
+	if world and world.player and global_position.distance_to(world.player.global_position) < 14.0:
+		Sfx.play("squeeze", -8.0, 1.4)
 
 # ------------------------------------------------------------ quest givers
 const FEMALE_GIVERS := ["lurdes", "rosa", "lia", "ana", "cristal", "nanda", "jaci", "dandara"]

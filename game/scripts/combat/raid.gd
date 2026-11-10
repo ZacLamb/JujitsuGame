@@ -208,7 +208,7 @@ func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri", human_lis
 		ally_npcs.append(n)
 		wc.unit_for(n)
 		i += 1
-	warning.emit(str(cfg.title), str(cfg.intro) if not dungeon else Tx.f("Clear the way: %d pulls, then %s.", [cfg.trash.size(), str(cfg.boss)]))
+	warning.emit(str(cfg.title), Keys.fill(str(cfg.intro)) if not dungeon else Tx.f("Clear the way: %d pulls, then %s.", [cfg.trash.size(), str(cfg.boss)]))
 
 func _spawn_boss() -> void:
 	var cl: float = 1.0 + (level - 1) * 0.55 / 2.0
@@ -329,7 +329,7 @@ func _process(delta: float) -> void:
 				_spawn_trash(stage)
 			else:
 				_spawn_boss()
-				warning.emit(Tx.s(str(cfg.boss)).to_upper(), str(cfg.intro))
+				warning.emit(Tx.s(str(cfg.boss)).to_upper(), Keys.fill(str(cfg.intro)))
 				# he walks in and the party goes straight at him
 				var bv := _victim()
 				wc.core.engage(boss, bv)

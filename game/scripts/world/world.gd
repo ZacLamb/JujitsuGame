@@ -53,6 +53,10 @@ func _quartermaster(p: Vector3, fid: String, who: String) -> void:
 	_spot(b + Vector3(0, 0, 1.4), 3.0, Tx.f("Quartermaster: %s (Honor gear)", who), "quartermaster", fid + "|" + who)
 
 func build(z := "caceres") -> void:
+	critters = Critters.new()
+	critters.name = "Critters"
+	critters.world = self
+	add_child(critters)
 	_build_zone(z)
 	if QUARTERMASTERS.has(zone):
 		var qm: Array = QUARTERMASTERS[zone]
@@ -70,8 +74,22 @@ func build(z := "caceres") -> void:
 	add_child(chests)
 	chests.build(self)
 	_dress_props()
+	critters.finish()
 	_batch_static()
 	apply_graphics()
+
+var critters: Critters
+
+## TownKit.build, except animals go to Critters so they can react to the player.
+func _kit(items: Array) -> void:
+	var still: Array = []
+	var live: Array = []
+	for it in items:
+		(live if Critters.is_critter(str(it.kind)) else still).append(it)
+	if not still.is_empty():
+		TownKit.build(self, still)
+	if not live.is_empty():
+		critters.add(live)
 
 ## Merges static, opaque primitive meshes (houses, walls, posts, mats...) into one mesh per
 ## material per 40 m cell. Hundreds of draw calls become a few dozen; cells keep culling working.
@@ -770,7 +788,7 @@ func _build_cathedral() -> void:
 	# twin-tower colonial church (tools/townbuild/houses.py igreja), façade toward the plaza
 	var items: Array = [{"kind": "igreja", "xform": Transform3D(Basis.IDENTITY, c + Vector3(0, -0.05, 0.6)),
 		"wall": Color(0.97, 0.95, 0.9), "wood": Color(0.32, 0.2, 0.12)}]
-	TownKit.build(self, items)
+	_kit(items)
 	# collision: nave + towers
 	for sh in [[Vector3(10, 12, 15), Vector3(0, 6, 0.6)], [Vector3(3.4, 20, 3.4), Vector3(-6.3, 10, 7.1)], [Vector3(3.4, 20, 3.4), Vector3(6.3, 10, 7.1)]]:
 		var cs := CollisionShape3D.new()
@@ -790,7 +808,7 @@ func _build_academia() -> void:
 		_box(b[0], c + b[1], wall).visible = false
 	for x in [-8.4, -3, 3, 8.4]:
 		_box(Vector3(1.1, 5, 0.9), c + Vector3(x, 2.5, 6.55), wall).visible = false
-	TownKit.build(self, [{"kind": "academia", "xform": Transform3D(Basis.IDENTITY, c + Vector3(0, -0.02, 0)),
+	_kit([{"kind": "academia", "xform": Transform3D(Basis.IDENTITY, c + Vector3(0, -0.02, 0)),
 		"wall": Color(0.95, 0.62, 0.28), "wood": Color(0.3, 0.2, 0.12)}])
 	_kit_footprints.append([Rect2(c.x - 9, c.z - 7, 18, 14), wall])
 	# tatame inside
@@ -860,7 +878,7 @@ func _build_houses() -> void:
 		if absf(p.x - river_x(p.z)) < 20.0:
 			continue
 		_town_building(items, p, front, palette)
-	TownKit.build(self, items)
+	_kit(items)
 
 ## Places one kit building (two-storey ones near the plaza and main streets) with collision and a
 ## minimap footprint. front: direction the façade faces.
@@ -1483,7 +1501,7 @@ func _build_pier() -> void:
 	boats.append({"kind": "br_voadeira", "xform": Transform3D(Basis(Vector3.UP, PI / 2 - 0.1), Vector3(x1 - 5.0, WATER_Y - 0.25, z - 3.0)), "wall": Color.WHITE, "wood": Color(0.5, 0.35, 0.2)})
 	var cz := 8.0
 	boats.append({"kind": "br_chalana", "xform": Transform3D(Basis(Vector3.UP, 0.05), Vector3(river_x(cz) + 1.5, WATER_Y - 0.55, cz)), "wall": Color(0.97, 0.97, 0.95), "wood": Color(0.15, 0.35, 0.7)})
-	TownKit.build(self, boats)
+	_kit(boats)
 	_label("BARCO-HOTEL TUIUIÚ", Vector3(river_x(cz) + 1.5, WATER_Y + 6.6, cz), 70, Color(1, 0.95, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _build_nest_tree() -> void:
@@ -1507,7 +1525,7 @@ func _build_nest_tree() -> void:
 	_box(Vector3(3.2, 0.4, 3.2), base + Vector3(0, top_y, 0), Color(0.45, 0.32, 0.2))
 	# nest + tuiuiú (jabiru stork): white body, black neck, red collar
 	_cyl(1.0, 0.7, 0.4, base + Vector3(0.6, top_y + 0.4, 0), Color(0.5, 0.38, 0.22), 10)
-	TownKit.build(self, [{"kind": "an_jabiru", "xform": Transform3D(Basis(Vector3.UP, 0.6), base + Vector3(0.6, top_y + 0.55, 0)), "wall": Color.WHITE, "wood": Color.WHITE}])
+	_kit([{"kind": "an_jabiru", "xform": Transform3D(Basis(Vector3.UP, 0.6), base + Vector3(0.6, top_y + 0.55, 0)), "wall": Color.WHITE, "wood": Color.WHITE}])
 
 func _build_capybaras() -> void:
 	var fam: Array = []
@@ -1517,7 +1535,7 @@ func _build_capybaras() -> void:
 			var gy := ground_y(p.x, p.z)
 			fam.append({"kind": "an_capybara", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * (1.25 if k == 0 else 0.8)), Vector3(p.x, gy, p.z)),
 				"wall": Color(0.52, 0.38, 0.25), "wood": Color(0.36, 0.26, 0.18)})
-	TownKit.build(self, fam)
+	_kit(fam)
 	_label("capivaras", Vector3(-58, ground_y(-58, 10) + 1.6, 10), 36, Color(1, 1, 1, 0.8)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _area(pos: Vector3, radius: float) -> Area3D:
@@ -1902,6 +1920,8 @@ func attach_player(p: Player) -> void:
 		add_child(wildlife)
 		wildlife.setup(zone, p)
 	player = p
+	if critters:
+		critters.player = p
 	for id in fighters:
 		fighters[id].set_player(p)
 	for e in mobs:
@@ -2170,7 +2190,7 @@ func _p_bus_stop(at := Vector3(-82, 0, -4), title := "TRANSPANTANEIRA") -> void:
 func _p_fazenda() -> void:
 	var c := Vector3(64, ground_y(64, 58), 58)
 	# open-air mat shed with a sapé roof (tools/westbuild/coastal.py), open on all sides
-	TownKit.build(self, [{"kind": "br_galpao", "xform": Transform3D(Basis.IDENTITY, c), "wall": Color.WHITE, "wood": Color(0.45, 0.32, 0.2)}])
+	_kit([{"kind": "br_galpao", "xform": Transform3D(Basis.IDENTITY, c), "wall": Color.WHITE, "wood": Color(0.45, 0.32, 0.2)}])
 	for x in [-7.0, 0.0, 7.0]:
 		for z in [-6.0, 6.0]:
 			var cs := CollisionShape3D.new()
@@ -2188,7 +2208,7 @@ func _p_fazenda() -> void:
 	# the sede: a white farmhouse with a veranda
 	var items: Array = []
 	_town_building(items, Vector3(74, 0, 71), Vector3(0, 0, -1), [Color(0.97, 0.95, 0.9)], "casa_varanda", 9.0, [Color(0.2, 0.4, 0.6)])
-	TownKit.build(self, items)
+	_kit(items)
 	# drill stations along the pavilion's west side
 	var zs := [-7.0, -3.5, 0.0, 3.5, 7.0]
 	for i in Rpg.ATTR_ORDER.size():
@@ -2214,7 +2234,7 @@ func _p_ranch() -> void:
 		var gy := ground_y(cp.x, cp.z)
 		cows.append({"kind": "br_cow", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(0.9, 1.1)), Vector3(cp.x, gy, cp.z)),
 			"wall": [Color(0.95, 0.94, 0.9), Color(0.85, 0.84, 0.82), Color(0.75, 0.74, 0.72)][i % 3], "wood": Color(0.3, 0.28, 0.26)})
-	TownKit.build(self, cows)
+	_kit(cows)
 
 func _p_tower() -> void:
 	var c := Vector3(-18, ground_y(-18, -50), -50)
@@ -2338,7 +2358,7 @@ func _p_wildlife() -> void:
 			continue   # only in shallow water
 		fauna.append({"kind": "an_jabiru", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU), Vector3(x, gy, z)), "wall": Color.WHITE, "wood": Color.WHITE})
 		waded += 1
-	TownKit.build(self, fauna)
+	_kit(fauna)
 	# araras (macaws) perched on poles
 	for i in 8:
 		var x := _rng.randf_range(-80, 80)
@@ -2354,7 +2374,7 @@ func _p_wildlife() -> void:
 		for k in 2:
 			perch.append({"kind": "an_macaw", "xform": Transform3D(Basis(Vector3.UP, _rng.randf_range(-0.6, 0.6) + PI * k).scaled(Vector3.ONE * 1.3), Vector3(x - 0.3 + k * 0.6, gy3 + 4.9, z)),
 				"wall": Color(0.85, 0.12, 0.1) if red else Color(0.12, 0.38, 0.9), "wood": Color(0.15, 0.6, 0.3) if red else Color(0.95, 0.75, 0.1)})
-		TownKit.build(self, perch)
+		_kit(perch)
 	# the onça pintada (jaguar), lounging on a branch
 	var t := Vector3(-64, ground_y(-64, -64), -64)
 	_cyl(0.5, 0.8, 7.0, t + Vector3(0, 3.5, 0), Color(0.42, 0.3, 0.2), 8, true)
@@ -2367,7 +2387,7 @@ func _p_wildlife() -> void:
 	crown.material_override = _mat(Color(0.18, 0.38, 0.16))
 	crown.position = t + Vector3(0, 7.5, 0)
 	add_child(crown)
-	TownKit.build(self, [{"kind": "an_jaguar", "xform": Transform3D(Basis(Vector3.UP, -PI / 2).scaled(Vector3.ONE * 1.5), t + Vector3(2.1, 4.38, 0)),
+	_kit([{"kind": "an_jaguar", "xform": Transform3D(Basis(Vector3.UP, -PI / 2).scaled(Vector3.ONE * 1.5), t + Vector3(2.1, 4.38, 0)),
 		"wall": Color(0.88, 0.62, 0.24), "wood": Color(0.88, 0.62, 0.24)}])
 	_jaguar_area = _area(t + Vector3(2, 1, 0), 8.0)
 	_jaguar_area.body_entered.connect(func(b):
@@ -2530,7 +2550,7 @@ func _c_village() -> void:
 		var toward := (Vector3(42, 0, 40) - p).normalized()
 		var front := Vector3(signf(toward.x), 0, 0) if absf(toward.x) > absf(toward.z) else Vector3(0, 0, signf(toward.z))
 		_town_building(items, p, front, palette, ["casa_a", "casa_b", "casa_varanda", "casa_c", "casa_d", "casa_a"][i], 6.4)
-	TownKit.build(self, items)
+	_kit(items)
 	# crystal shop stand for Joaquim
 	var cs := Vector3(50, ground_y(50, 34), 34)
 	_box(Vector3(3, 1, 1.2), cs + Vector3(0, 0.5, 0), Color(0.45, 0.32, 0.2))
@@ -2908,7 +2928,7 @@ func _r_buildings() -> void:
 		if i % 3 == 2:
 			x += 7.0  # cross street down to the beach
 		i += 1
-	TownKit.build(self, items)
+	_kit(items)
 
 func _r_beach_life() -> void:
 	var cols := [Color(0.95, 0.3, 0.25), Color(0.98, 0.8, 0.2), Color(0.2, 0.55, 0.9), Color(0.3, 0.75, 0.4), Color(0.95, 0.55, 0.75), Color(1, 1, 1)]
@@ -2987,7 +3007,7 @@ func _r_morro() -> void:
 		_static.add_child(cs)
 		_kit_footprints.append([Rect2(x - 1.5, z - 1.5, 3.0, 3.0), Color(0.75, 0.45, 0.35)])
 		n += 1
-	TownKit.build(self, morro)
+	_kit(morro)
 	# Tatu's free class: mats in a cleared square
 	var mc := Vector3(36, ground_y(36, -42), -42)
 	_box(Vector3(7, 0.3, 7), mc + Vector3(0, 0.05, 0), Color(0.6, 0.55, 0.5))
@@ -3334,7 +3354,7 @@ func _s_town() -> void:
 		if i % 4 == 3:
 			x += 6.0   # side street up to the hills
 		i += 1
-	TownKit.build(self, items)
+	_kit(items)
 	_label("OCEAN BEACH", Vector3(-20, ground_y(-20, 16) + 8.5, 16), 100, Color(1, 0.92, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _s_beach() -> void:
@@ -3353,7 +3373,7 @@ func _s_beach() -> void:
 	var towers: Array = []
 	for p in [Vector3(37, 0, 40), Vector3(-30, 0, 41), Vector3(80, 0, 42)]:
 		_town_building(towers, p, Vector3(0, 0, 1), [Color(0.3, 0.62, 0.82)], "sd_lifeguard", 0.0, [Color(0.85, 0.8, 0.7)])
-	TownKit.build(self, towers)
+	_kit(towers)
 	_label("LIFEGUARD", Vector3(37, ground_y(37, 40) + 3.95, 40 + 1.0), 44, Color(1, 0.3, 0.25))
 	# Tyler's sand mats + surf rack
 	_box(Vector3(6, 0.12, 6), Vector3(22, ground_y(22, 42) + 0.06, 42), Color(0.12, 0.2, 0.45), false)
@@ -3444,7 +3464,7 @@ func _usa_gym(c2: Vector2, title: String, wall: Color, comp: String) -> Vector3:
 
 func _gator(p: Vector3) -> void:
 	var gy := maxf(ground_y(p.x, p.z), -0.4)
-	TownKit.build(self, [{"kind": "an_caiman", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(1.4, 1.8)), Vector3(p.x, gy - 0.05, p.z)),
+	_kit([{"kind": "an_caiman", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(1.4, 1.8)), Vector3(p.x, gy - 0.05, p.z)),
 		"wall": Color(0.16, 0.19, 0.13), "wood": Color(0.1, 0.12, 0.08)}])
 	var lab := _label("gator", Vector3(p.x, gy + 1.0, p.z), 36, Color(1, 1, 1, 0.8))
 	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -3613,7 +3633,7 @@ func _tx_town() -> void:
 		cs.shape = sh
 		cs.position = Vector3(wm.x, wy + 4.0, wm.y)
 		_static.add_child(cs)
-	TownKit.build(self, items)
+	_kit(items)
 	# longhorns grazing their way round the south pasture
 	var herd := Herd.new()
 	add_child(herd)
@@ -3848,7 +3868,7 @@ func _gl_dock() -> void:
 		var b := Vector3(c.x + (-3.6 if k % 2 == 0 else 3.6), -0.42, c.z - 4.0 - k * 3.4)
 		boats.append({"kind": "gl_airboat", "xform": Transform3D(Basis(Vector3.UP, PI + (k - 1) * 0.08), b), "wall": Color.WHITE,
 			"wood": [Color(0.75, 0.2, 0.15), Color(0.2, 0.45, 0.7), Color(0.9, 0.75, 0.2)][k]})
-	TownKit.build(self, boats)
+	_kit(boats)
 	_label("AIRBOAT TOURS", c + Vector3(0, 3.0, 1.0), 70, Color(1, 0.9, 0.5)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 ## The Gold Compound: Gunnar Sterling's gated training camp in the swamp (raid entrance).
@@ -3870,7 +3890,7 @@ func _gl_fishcamp() -> void:
 		var p := c + Vector3(-9 + k * 9, 0, -7 + (k % 2) * 12)
 		_town_building(items, p, Vector3(0, 0, 1) if k % 2 == 0 else Vector3(0, 0, -1), [cols[k]], "gl_shack", 0.0, [Color(0.4, 0.3, 0.22)])
 	_town_building(items, c + Vector3(9, 0, 9), Vector3(-1, 0, 0), [Color.WHITE], "gl_chickee", 0.0, [Color(0.4, 0.3, 0.22)])
-	TownKit.build(self, items)
+	_kit(items)
 	_place_model("campfire", c + Vector3(0, 0, 2), 3.0)
 	_label("FISH CAMP", c + Vector3(0, 6.2, 0), 80, Color(1, 0.9, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
@@ -3878,7 +3898,7 @@ func _gl_ranger() -> void:
 	var c := Vector3(-18, ground_y(-18, -50), -50)
 	var items: Array = []
 	_town_building(items, Vector3(-18, 0, -50), Vector3(0, 0, 1), [Color(0.45, 0.55, 0.4)], "gl_ranger", 0.0, [Color(0.35, 0.26, 0.18)])
-	TownKit.build(self, items)
+	_kit(items)
 	_label("RANGER STATION", c + Vector3(0, 7.0, -1), 70, Color(0.85, 1, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _gl_hammock() -> void:
@@ -3895,7 +3915,7 @@ func _gl_hammock() -> void:
 	for p in [Vector3(-60, 0, 6), Vector3(22, 0, 6), Vector3(70, 0, -14)]:
 		if not _is_blocked(p.x, p.z, 2.0):
 			_town_building(items, p, Vector3(0, 0, -1), [Color.WHITE], "gl_chickee", 0.0, [Color(0.4, 0.3, 0.22)])
-	TownKit.build(self, items)
+	_kit(items)
 
 # ---------------------------------------------------------------- Red Rock, Sedona (Lv 21-30)
 const SD_GYM := Vector2(46, -6)
@@ -3997,7 +4017,7 @@ func _sd_uptown() -> void:
 		var hh: float = {"az_adobe": 3.6, "az_pueblo": 3.4, "az_adobe_small": 3.2}[kind]
 		var sl := _label(shops[k], Vector3(x, ground_y(x, zc) + hh + 0.45, zc - wall_d - 0.25), 72, Color(1, 0.94, 0.82), PI)
 		sl.outline_size = 12
-	TownKit.build(self, items)
+	_kit(items)
 	# turquoise trim shop with crystals out front
 	for k in 5:
 		_place_model("crystal", c + Vector3(-12 + k * 2.4, 0, 6.5), 0.7, _rng.randf() * TAU)
@@ -4031,5 +4051,5 @@ func _sd_ghost_town() -> void:
 	var spots := [[Vector3(-8, 0, -3), "tx_store_plain", Vector3(0, 0, 1)], [Vector3(0, 0, -3), "tx_store", Vector3(0, 0, 1)], [Vector3(8, 0, 4), "tx_house_small", Vector3(-1, 0, 0)]]
 	for sp in spots:
 		_town_building(items, c + sp[0], sp[2], weathered, sp[1], 0.0, [Color(0.4, 0.34, 0.28)])
-	TownKit.build(self, items)
+	_kit(items)
 	_label("GHOST TOWN", c + Vector3(0, 4.4, 0), 80, Color(1, 0.85, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
