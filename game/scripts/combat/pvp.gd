@@ -12,6 +12,8 @@ extends Node
 
 signal finished(won: bool, opp_name: String, cross: bool)
 
+var duel_id := ""   # the host makes one per duel; both report it for the ranked ladder
+
 const INVITE_TIMEOUT := 20.0
 const LINK_TIMEOUT := 8.0
 const SNAP_EVERY := 0.1
@@ -99,6 +101,7 @@ func _on_msg(from: int, d: Dictionary) -> void:
 				_start_host(d.get("stats", {}))
 		"go":
 			if state == "invited":
+				duel_id = str(d.get("id", ""))
 				_start_guest(d.get("stats", {}))
 		"act":
 			if state == "host" and opp != null and not opp.dead:
@@ -193,7 +196,8 @@ func _spawn(stats: Dictionary, host: bool) -> void:
 func _start_host(stats: Dictionary) -> void:
 	state = "host"
 	_t = LINK_TIMEOUT
-	Net.send_duel(peer, {"k": "go", "stats": _my_stats()})
+	duel_id = "%x%x" % [randi(), Time.get_ticks_usec()]
+	Net.send_duel(peer, {"k": "go", "stats": _my_stats(), "id": duel_id})
 	wc.core.event.connect(_forward)
 	_spawn(stats, true)
 

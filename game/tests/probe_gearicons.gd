@@ -10,8 +10,12 @@ func _ready() -> void:
 		Game.give_item(id, true)
 	for id in ["onca_gi", "onca_gi_pants", "onca_headband"]:
 		Game.equip(id)
-	for id in ["gear:polvo_gi", "gear:selecao_rash", "gear:touro_knees", "gear:leao_tape"]:
+	for id in ["gear:polvo_gi", "gear:selecao_rash", "gear:touro_knees", "gear:leao_tape", "gear:tape_basic"]:
 		Game.add_item(id)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for i in 9:
+		Game.add_item("gear:" + Game.make_rolled(Gear.roll(20 + i, rng, i % 2 == 0, i % 3 == 0)))
 	var main: Node = load("res://main.tscn").instantiate()
 	add_child(main)
 	await get_tree().process_frame

@@ -381,6 +381,43 @@ app.post('/api/arena/result', needDb, auth, async (req, res) => {
     res.json({ ok: true, delta, board: await arenaBoard(pid) });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Something went wrong.' }); }
 });
+// Live duels count too: both players report the same duel (the host's id for it); when the two
+// reports agree (one won, one lost) both ratings move. The same pair only counts once per 30 min.
+const liveReports = new Map();   // duel id -> {pid, won, at, body}
+const livePairs = new Map();     // "a:b" -> last counted
+app.post('/api/arena/live', needDb, auth, async (req, res) => {
+  try {
+    const id = String(req.body.duel || '').slice(0, 40);
+    const won = !!req.body.won;
+    const pid = req.player.id;
+    if (!/^[a-z0-9]{8,40}$/i.test(id)) return res.status(400).json({ error: 'Bad report.' });
+    const now = Date.now();
+    for (const [k, v] of liveReports) if (now - v.at > 120000) liveReports.delete(k);
+    const first = liveReports.get(id);
+    if (!first) {
+      liveReports.set(id, { pid, won, at: now, body: req.body });
+      return res.json({ ok: true, pending: true });
+    }
+    if (first.pid === pid || first.won === won) { liveReports.delete(id); return res.json({ ok: true, counted: false }); }
+    liveReports.delete(id);
+    const pair = [first.pid, pid].sort((x, y) => x - y).join(':');
+    if (now - (livePairs.get(pair) || 0) < 30 * 60000) return res.json({ ok: true, counted: false, why: 'pair' });
+    livePairs.set(pair, now);
+    const week = isoWeek();
+    await arenaUpsert(first.pid, week, first.body || {});
+    await arenaUpsert(pid, week, req.body || {});
+    const a = await arenaRow(first.pid, week);
+    const b = await arenaRow(pid, week);
+    const ea = 1 / (1 + 10 ** ((b.rating - a.rating) / 400));
+    const da = Math.round(ARENA_K * ((first.won ? 1 : 0) - ea));
+    await pool.query(`UPDATE arena SET rating = GREATEST(0, rating + $3), wins = wins + $4, losses = losses + $5 WHERE week = $1 AND player_id = $2`,
+      [week, first.pid, da, first.won ? 1 : 0, first.won ? 0 : 1]);
+    await pool.query(`UPDATE arena SET rating = GREATEST(0, rating - $3), wins = wins + $4, losses = losses + $5 WHERE week = $1 AND player_id = $2`,
+      [week, pid, da, won ? 1 : 0, won ? 0 : 1]);
+    res.json({ ok: true, counted: true, delta: -da, board: await arenaBoard(pid) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Something went wrong.' }); }
+});
+
 // Last week's payout, once: rank 1 / top 3 / top 10 / everyone who played enough.
 app.post('/api/arena/claim', needDb, auth, async (req, res) => {
   try {

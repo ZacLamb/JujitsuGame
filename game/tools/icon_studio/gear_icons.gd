@@ -51,6 +51,18 @@ func _ready() -> void:
 		if str(a).begins_with("only="):
 			only = str(a).substr(5)
 	var n := 0
+	if only == "bases":
+		# white "tint bases" (transparent) for rolled drops: the game tints them with the drop's colour
+		var bases := {"jacket": "", "pants": "", "rash": "", "spats": "", "knees": "", "head_Headband": "Headband", "head_EarGuards": "EarGuards"}
+		for b in bases:
+			var slot: String = str(b).split("_")[0]
+			Gear.ITEMS["_tb"] = {"slot": slot, "name": "base", "rarity": "common", "attrs": {}, "look": {"color": Color(0.97, 0.97, 0.97)}, "piece": bases[b]}
+			if await _shoot("_tb", "res://assets/icons/tb_%s.png" % b):
+				n += 1
+		Gear.ITEMS.erase("_tb")
+		print("tint bases written: ", n)
+		get_tree().quit()
+		return
 	for id in Gear.ITEMS:
 		if only == "dark":
 			if (Gear.look(id).get("color", Color.WHITE) as Color).get_luminance() > 0.15:
@@ -62,7 +74,7 @@ func _ready() -> void:
 	print("gear icons written: ", n)
 	get_tree().quit()
 
-func _shoot(id: String) -> bool:
+func _shoot(id: String, out_path := "") -> bool:
 	var it: Dictionary = Gear.ITEMS[id]
 	var slot := str(it.slot)
 	if slot == "tape":   # the tape mesh is a mitten-shaped blob on its own: keeps the drawn icon
@@ -114,6 +126,11 @@ func _shoot(id: String) -> bool:
 	await RenderingServer.frame_post_draw
 	var shot := vp.get_texture().get_image()
 	rig.queue_free()
+	if out_path != "":   # transparent, no backdrop
+		shot.convert(Image.FORMAT_RGBA8)
+		shot.resize(128, 128, Image.INTERPOLATE_LANCZOS)
+		shot.save_png(ProjectSettings.globalize_path(out_path))
+		return true
 	var img := _backdrop(Gear.rarity_color(id), (lk.get("color", Color.WHITE) as Color).get_luminance() < 0.15)
 	shot.convert(Image.FORMAT_RGBA8)
 	img.blend_rect(shot, Rect2i(0, 0, RES, RES), Vector2i.ZERO)

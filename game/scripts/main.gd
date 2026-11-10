@@ -334,6 +334,10 @@ func _arena_after(won: bool) -> void:
 		Game.save_game()
 		hud.refresh())
 
+func _ranked_toast(delta: int, me) -> void:
+	var r := int(me.rating) if me is Dictionary else 0
+	Game.toast.emit(Tx.f("Ranked duel: rating %s%d  →  %d", ["+" if delta >= 0 else "", delta, r]), Color(0.6, 1.0, 0.6) if delta >= 0 else Color(1, 0.6, 0.5))
+
 var _arena_claimed := false
 
 ## Last week's payout (once per account; the server remembers).
@@ -438,6 +442,22 @@ func ask_duel(ch: Dictionary) -> void:
 
 func _on_pvp_finished(won: bool, opp_name: String, cross: bool) -> void:
 	var xp := Game.record_pvp(won, cross)
+	if Cloud.logged_in() and pvp.duel_id != "":
+		var did := pvp.duel_id
+		pvp.duel_id = ""
+		Cloud.arena_live(did, won, func(code: int, d: Dictionary):
+			if code != 200:
+				return
+			if bool(d.get("counted", false)):
+				_ranked_toast(int(d.get("delta", 0)), d.get("board", {}).get("me"))
+			elif bool(d.get("pending", false)):
+				# the other player's report closes it: look again in a moment
+				get_tree().create_timer(4.0).timeout.connect(func():
+					var before = Cloud.arena.get("me")
+					var r0 := int(before.rating) if before is Dictionary else 1000
+					Cloud.arena_board(func(c2: int, b: Dictionary):
+						if c2 == 200 and b.get("me") is Dictionary and int(b.me.rating) != r0:
+							_ranked_toast(int(b.me.rating) - r0, b.me))))
 	await get_tree().create_timer(1.6).timeout
 	if won:
 		Game.toast.emit(Tx.f("You beat %s in a live duel!%s", [opp_name, ("  +%d XP" % xp) if xp > 0 else ""]), Wow.GOLD)

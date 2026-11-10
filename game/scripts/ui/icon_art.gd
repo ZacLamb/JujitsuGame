@@ -33,14 +33,17 @@ static func move_key(mid: String) -> String:
 
 ## Key for a bag item: its id if painted, else its icon, else its kind.
 static func item_key(id: String, it: Dictionary) -> String:
-	if it.has("gear") and tex(gear_key(str(it.gear))) != null:
-		return gear_key(str(it.gear))
+	if it.has("gear") and Gear.ITEMS.has(str(it.gear)):
+		return "gear:" + str(it.gear)   # drawn by draw_gear (photo, or a tinted base for rolled drops)
 	for k in [id, str(it.get("icon", "")), str(it.get("kind", ""))]:
 		if tex(k) != null:
 			return k
 	return ""
 
 static func draw(ci: CanvasItem, r: Rect2, glyph: String, col: Color, edge := Color(0, 0, 0, 0), dim := false, key := "") -> void:
+	if key.begins_with("gear:"):
+		draw_gear(ci, r, key.trim_prefix("gear:"), edge, dim)
+		return
 	var c := r.get_center()
 	var painted := tex(key)
 	if painted != null:
@@ -80,7 +83,7 @@ static func draw(ci: CanvasItem, r: Rect2, glyph: String, col: Color, edge := Co
 	if dim:
 		ci.draw_rect(inner, Color(0, 0, 0, 0.45))
 
-static func _draw_painted(ci: CanvasItem, r: Rect2, t: Texture2D, edge: Color, dim: bool) -> void:
+static func _draw_painted(ci: CanvasItem, r: Rect2, t: Texture2D, edge: Color, dim: bool, tint := Color.WHITE) -> void:
 	ci.draw_rect(r, Color(0.02, 0.02, 0.02, 1.0))
 	var f := r.grow(-1.5)
 	ci.draw_rect(f, Color(0.42, 0.32, 0.16))
@@ -89,7 +92,7 @@ static func _draw_painted(ci: CanvasItem, r: Rect2, t: Texture2D, edge: Color, d
 	ci.draw_line(Vector2(f.position.x, f.end.y), f.end, Color(0.18, 0.12, 0.06), 1.5)
 	ci.draw_line(Vector2(f.end.x, f.position.y), f.end, Color(0.18, 0.12, 0.06), 1.5)
 	var inner := r.grow(-3.0)
-	ci.draw_texture_rect(t, inner, false, Color(0.5, 0.5, 0.5) if dim else Color.WHITE)
+	ci.draw_texture_rect(t, inner, false, tint * Color(0.5, 0.5, 0.5) if dim else tint)
 	ci.draw_rect(inner, Color(0, 0, 0, 0.6), false, 1.0)
 	if edge.a > 0.0:
 		ci.draw_rect(r.grow(-1.0), edge, false, 2.0)
@@ -161,3 +164,45 @@ static func talent_key(nd: Dictionary, spec_id := "") -> String:
 ## Photographed gear icon (tools/icon_studio): g_<gear id>.
 static func gear_key(gid: String) -> String:
 	return "g_" + gid
+
+## A gear icon: its photograph (tools/icon_studio), or for rolled drops and tape a white base
+## shot tinted with the item's colour on a backdrop lit in its rarity colour.
+static func gear_art(gid: String) -> Dictionary:
+	var photo := tex(gear_key(gid))
+	if photo != null:
+		return {"tex": photo, "tint": Color.WHITE, "base": false}
+	var it: Dictionary = Gear.ITEMS.get(gid, {})
+	var slot := str(it.get("slot", ""))
+	var col: Color = Gear.look(gid).get("color", Color(0.9, 0.9, 0.9))
+	if slot == "tape":
+		return {"tex": tex("ring"), "tint": Color(1, 1, 1).lerp(col, 0.65), "base": false}
+	var k := "tb_head_" + str(it.get("piece", "Headband")) if slot == "head" else "tb_" + slot
+	return {"tex": tex(k), "tint": col, "base": true}
+
+static func draw_gear(ci: CanvasItem, r: Rect2, gid: String, edge := Color(0, 0, 0, 0), dim := false) -> void:
+	var a := gear_art(gid)
+	if a.tex == null:
+		draw(ci, r, "shield", Color(0.55, 0.7, 0.95), edge, dim)
+		return
+	if not a.base:
+		_draw_painted(ci, r, a.tex, edge, dim, a.tint)
+		return
+	# frame + backdrop, then the tinted base
+	ci.draw_rect(r, Color(0.02, 0.02, 0.02, 1.0))
+	var f := r.grow(-1.5)
+	ci.draw_rect(f, Color(0.42, 0.32, 0.16))
+	var inner := r.grow(-3.0)
+	var rc := Gear.rarity_color(gid)
+	ci.draw_rect(inner, Color(0.08, 0.07, 0.06))
+	var c := inner.get_center()
+	var rad := minf(inner.size.x, inner.size.y) * 0.5
+	for k in 5:
+		var t := float(k) / 5.0
+		ci.draw_circle(c, rad * (1.0 - t * 0.8), Color(rc.darkened(0.6 - t * 0.2), 0.2))
+	var tint: Color = a.tint
+	if tint.get_luminance() < 0.12:
+		ci.draw_circle(c, rad * 0.8, Color(0.4, 0.42, 0.46, 0.35))   # dark gear: a lighter halo behind it
+	ci.draw_texture_rect(a.tex, inner, false, tint.darkened(0.45) if dim else tint)
+	ci.draw_rect(inner, Color(0, 0, 0, 0.6), false, 1.0)
+	if edge.a > 0.0:
+		ci.draw_rect(r.grow(-1.0), edge, false, 2.0)

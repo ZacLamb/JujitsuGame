@@ -76,11 +76,9 @@ class SlotIcon extends Control:
 	func _draw() -> void:
 		var s := minf(size.x, size.y)
 		var o := (size - Vector2(s, s)) / 2.0
-		if gear_id != "" and not empty:
-			var t := IconArt.tex(IconArt.gear_key(gear_id))
-			if t != null:
-				draw_texture_rect(t, Rect2(o, Vector2(s, s)).grow(-2.0), false)
-				return
+		if gear_id != "" and not empty and Gear.ITEMS.has(gear_id):
+			IconArt.draw_gear(self, Rect2(o, Vector2(s, s)).grow(-2.0), gear_id)
+			return
 		var c := col if not empty else Color(1, 1, 1, 0.16)
 		var dk := c.darkened(0.45)
 		var tc := trim if trim.a > 0.0 and not empty else dk

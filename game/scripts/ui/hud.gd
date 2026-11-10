@@ -995,7 +995,7 @@ func _wardrobe_item(id: String, slot: String, worn: bool) -> Control:
 	var ic := CharSheet.SlotIcon.new()
 	ic.kind = slot
 	ic.gear_id = id
-	ic.empty = not have and IconArt.tex(IconArt.gear_key(id)) == null   # photographed: show it dimmed
+	ic.empty = false   # every piece has art now: uncollected ones show dimmed
 	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if have:
 		var lk := Gear.look(id)

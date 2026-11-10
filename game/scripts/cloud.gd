@@ -112,6 +112,16 @@ func arena_result(won: bool, cb: Callable) -> void:
 			arena_changed.emit()
 		cb.call(code, d))
 
+## A finished live duel; both players report it and the server pairs the reports.
+func arena_live(duel_id: String, won: bool, cb: Callable) -> void:
+	var body := {"duel": duel_id, "won": won, "name": Game.player_name, "faction": Game.faction(), "style": Game.style,
+		"level": Game.player_level(), "char": Net.my_char()}
+	_req(HTTPClient.METHOD_POST, "/api/arena/live", body, func(code: int, d: Dictionary):
+		if code == 200 and d.has("board"):
+			arena = d.board
+			arena_changed.emit()
+		cb.call(code, d))
+
 func arena_claim(cb: Callable) -> void:
 	_req(HTTPClient.METHOD_POST, "/api/arena/claim", {}, cb)
 
