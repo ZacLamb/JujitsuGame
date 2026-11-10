@@ -366,27 +366,48 @@ def favela(name="br_casa_morro", Wd=3.4, D=3.4, H=2.8, upper=False):
     finish(name)
 
 
+def longhorn(name="tx_longhorn"):
+    """Texas longhorn: a lean body without a hump and those famously wide, upswept horns."""
+    reset()
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 1.12), segments=12, ring_count=8)
+    b = bpy.context.object; b.scale = (0.38, 0.95, 0.42); bpy.ops.object.transform_apply(scale=True)
+    b.data.materials.append(W["M"]["stucco"])
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, -1.15, 1.32), segments=10, ring_count=6)
+    h = bpy.context.object; h.scale = (0.17, 0.32, 0.19); bpy.ops.object.transform_apply(scale=True)
+    h.data.materials.append(W["M"]["wood"])
+    beam((0, -0.85, 1.35), (0, -1.0, 1.36), 0.24, "stucco")
+    for s in (-1, 1):
+        beam((s * 0.08, -1.05, 1.5), (s * 0.55, -1.05, 1.56), 0.05, "base")
+        beam((s * 0.55, -1.05, 1.56), (s * 0.85, -1.0, 1.78), 0.04, "base")
+        box((0.06, 0.14, 0.22), (s * 0.19, -1.0, 1.4), "wood")
+    for x in (-0.2, 0.2):
+        for y in (-0.6, 0.6):
+            cyl(0.065, 0.95, (x, y, 0.47), "stucco", 6)
+    beam((0, 0.92, 1.18), (0, 1.0, 0.55), 0.04, "wood")
+    finish(name)
+
+
 def zebu(name="br_cow"):
     """Nelore zebu: long body, a shoulder hump, droopy ears, short horns, a dewlap and a tail."""
     reset()
     bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 1.15), segments=12, ring_count=8)
     b = bpy.context.object; b.scale = (0.42, 0.95, 0.45); bpy.ops.object.transform_apply(scale=True)
-    b.data.materials.append(W["M"]["siding"])
+    b.data.materials.append(W["M"]["stucco"])
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.28, location=(0, -0.45, 1.6), segments=10, ring_count=6)
-    bpy.context.object.data.materials.append(W["M"]["siding"])                    # hump
+    bpy.context.object.data.materials.append(W["M"]["stucco"])                    # hump
     bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, -1.15, 1.35), segments=10, ring_count=6)
     h = bpy.context.object; h.scale = (0.18, 0.32, 0.2); bpy.ops.object.transform_apply(scale=True)
-    h.data.materials.append(W["M"]["siding"])
-    beam((0, -0.85, 1.45), (0, -1.0, 1.4), 0.24, "siding")                          # neck
+    h.data.materials.append(W["M"]["stucco"])
+    beam((0, -0.85, 1.45), (0, -1.0, 1.4), 0.24, "stucco")                          # neck
     for s in (-1, 1):
-        o = box((0.06, 0.14, 0.28), (s * 0.2, -1.05, 1.42), "siding", rot=(0, s * 0.6, 0))     # ears
+        o = box((0.06, 0.14, 0.28), (s * 0.2, -1.05, 1.42), "stucco", rot=(0, s * 0.6, 0))     # ears
         cyl(0.03, 0.15, (s * 0.1, -1.0, 1.58), "base", 5, rot=(0, s * 0.4, 0))                  # horns
     for x in (-0.22, 0.22):
         for y in (-0.6, 0.6):
-            cyl(0.07, 0.95, (x, y, 0.47), "siding", 6)
+            cyl(0.07, 0.95, (x, y, 0.47), "stucco", 6)
             cyl(0.075, 0.08, (x, y, 0.04), "base", 6)
-    beam((0, 0.92, 1.2), (0, 1.0, 0.55), 0.04, "siding")
-    beam((0, -0.9, 1.0), (0, -0.7, 0.85), 0.12, "siding")                           # dewlap
+    beam((0, 0.92, 1.2), (0, 1.0, 0.55), 0.04, "stucco")
+    beam((0, -0.9, 1.0), (0, -0.7, 0.85), 0.12, "stucco")                           # dewlap
     finish(name)
 
 
@@ -440,7 +461,7 @@ def voadeira(name="br_voadeira"):
     finish(name)
 
 
-ALL = {"chalana": chalana, "voadeira": voadeira, "galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
+ALL = {"longhorn": longhorn, "chalana": chalana, "voadeira": voadeira, "galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
        "casa_morro": favela, "casa_morro2": lambda: favela("br_casa_morro2", Wd=3.6, D=3.2, upper=True), "cow": zebu, "adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
        "bungalow": bungalow, "spanish": spanish, "spanish_house": lambda: spanish("sd_spanish_house", Wd=9.0, D=8.0, H=3.6, shop=False),
        "lifeguard": lifeguard, "surfshop": surf_shop}

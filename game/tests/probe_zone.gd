@@ -1,7 +1,7 @@
 extends Node
 ## Visual QA for a zone: xvfb-run -a godot --rendering-driver opengl3 tests/probe_zone.tscn -- <zone> [origin]
 const VIEWS := {
-	"texas": [["arrive", Vector3(0, 0, 26), 0.0, 13.0], ["main", Vector3(-30, 0, -7), -PI / 2, 9.0], ["square", Vector3(4, 0, 12), 0.3, 9.0], ["creek", Vector3(-50, 0, 24), 0.58, 12.0], ["chapel", Vector3(-30, 0, -54), 0.2, 14.0], ["ranch", Vector3(16, 0, 56), PI, 16.0]],
+	"texas": [["longhorns", Vector3(-35, 0, 52), PI, 8.0], ["arrive", Vector3(0, 0, 26), 0.0, 13.0], ["main", Vector3(-30, 0, -7), -PI / 2, 9.0], ["square", Vector3(4, 0, 12), 0.3, 9.0], ["creek", Vector3(-50, 0, 24), 0.58, 12.0], ["chapel", Vector3(-30, 0, -54), 0.2, 14.0], ["ranch", Vector3(16, 0, 56), PI, 16.0]],
 	"everglades": [["arrive", Vector3(-82, 0, -4), PI / 2, 10.0], ["trail", Vector3(0, 0, -4), PI / 2, 14.0], ["pit", Vector3(60, 0, 32), PI, 13.0], ["dock", Vector3(26, 0, -40), -PI / 2, 12.0], ["dock2", Vector3(38, 0, -26), 0.0, 5.0], ["fishcamp", Vector3(-40, 0, 10), PI, 12.0]],
 	"caceres": [["river", Vector3(-50, 0, 22), 0.9, 18.0]],
 	"pantanal": [["herd", Vector3(-30, 0, -14), 0.2, 16.0], ["fazenda", Vector3(56, 0, 44), 0.6, 16.0], ["ranch", Vector3(-40, 0, 12), PI, 12.0]],

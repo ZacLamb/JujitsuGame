@@ -12,7 +12,7 @@ var _xf0: Transform3D
 var _state: Array = []   # per cow: [distance along path, side offset, bob phase, scale]
 var speed := 1.1
 
-func setup(w: World, pts: PackedVector2Array, count := 12) -> void:
+func setup(w: World, pts: PackedVector2Array, count := 12, kind := "br_cow", colors: Array = []) -> void:
 	world = w
 	path = pts
 	_total = 0.0
@@ -21,7 +21,9 @@ func setup(w: World, pts: PackedVector2Array, count := 12) -> void:
 		var b := path[(i + 1) % path.size()]
 		_lens.append(a.distance_to(b))
 		_total += a.distance_to(b)
-	var mesh := TownKit.mesh("br_cow")
+	var mesh := TownKit.mesh(kind)
+	if colors.is_empty():
+		colors = [Color(0.95, 0.94, 0.9), Color(0.86, 0.85, 0.82), Color(0.72, 0.7, 0.68)]
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_colors = true
@@ -32,8 +34,8 @@ func setup(w: World, pts: PackedVector2Array, count := 12) -> void:
 	rng.seed = 77
 	for i in count:
 		_state.append([i * 2.6 + rng.randf_range(-0.6, 0.6), rng.randf_range(-1.8, 1.8), rng.randf() * TAU, rng.randf_range(0.9, 1.1)])
-		_mm.set_instance_color(i, [Color(0.95, 0.94, 0.9), Color(0.86, 0.85, 0.82), Color(0.72, 0.7, 0.68)][i % 3])
-		_mm.set_instance_custom_data(i, Color(0.3, 0.28, 0.26))
+		_mm.set_instance_color(i, colors[i % colors.size()])
+		_mm.set_instance_custom_data(i, colors[(i + 1) % colors.size()].darkened(0.3) if kind != "br_cow" else Color(0.3, 0.28, 0.26))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = _mm
 	add_child(mmi)

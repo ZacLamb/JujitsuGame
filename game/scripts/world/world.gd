@@ -3654,6 +3654,12 @@ func _tx_town() -> void:
 		cs.position = Vector3(wm.x, wy + 4.0, wm.y)
 		_static.add_child(cs)
 	TownKit.build(self, items)
+	# longhorns grazing their way round the south pasture
+	var herd := Herd.new()
+	add_child(herd)
+	herd.speed = 0.7
+	herd.setup(self, PackedVector2Array([Vector2(-50, 56), Vector2(-20, 58), Vector2(-20, 76), Vector2(-50, 74)]), 9, "tx_longhorn",
+		[Color(0.55, 0.32, 0.2), Color(0.9, 0.86, 0.78), Color(0.4, 0.26, 0.18), Color(0.75, 0.5, 0.3)])
 	_tx_fences()
 	_tx_limestone()
 	# the square: gazebo and benches
