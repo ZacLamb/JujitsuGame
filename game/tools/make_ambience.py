@@ -224,7 +224,138 @@ def step(kind):
     return s
 
 
+# ---------------------------------------------------------------- Team USA zones
+def coyote(d=2.2):
+    """A coyote yip-howl: a rising glide, a wavering hold, a few yips."""
+    x = tt(d)
+    f = 520 + 380 * np.clip(x / 0.5, 0, 1) - 160 * np.clip((x - 1.2) / 0.8, 0, 1) + 25 * np.sin(2 * np.pi * 6 * x)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    s = np.sin(ph) + 0.3 * np.sin(2 * ph)
+    return s * np.sin(np.pi * np.clip(x / d, 0, 1)) ** 0.7
+
+
+def meadowlark():
+    """Western meadowlark: a few clear whistles then a quick jumble."""
+    out = [chirp(2400, 2900, 0.18, 0.9), np.zeros(int(SR * 0.05)), chirp(3200, 2600, 0.14, 0.8), np.zeros(int(SR * 0.04))]
+    for _ in range(4):
+        f0 = rng.uniform(2200, 3800)
+        out.append(chirp(f0, f0 * rng.uniform(0.8, 1.2), 0.05, 0.6))
+    return np.concatenate(out)
+
+
+def canyon_wren():
+    """Canyon wren: a cascade of clear notes falling down the scale (Sedona's signature)."""
+    out = []
+    f = 4200.0
+    for k in range(10):
+        out.append(chirp(f, f * 0.97, 0.07, 0.8 - k * 0.04))
+        out.append(np.zeros(int(SR * 0.04)))
+        f *= 0.93
+    return np.concatenate(out)
+
+
+def raven(d=0.35):
+    x = tt(d)
+    s = np.sign(np.sin(2 * np.pi * 420 * x)) * 0.5 + np.sin(2 * np.pi * 840 * x)
+    return bp(s, 300, 1800) * np.sin(np.pi * x / d) ** 2
+
+
+def creak(d=0.9):
+    """Windmill: a slow metal squeak."""
+    x = tt(d)
+    f = 700 + 220 * np.sin(np.pi * x / d)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    return bp(np.sign(np.sin(ph)), 500, 2500) * (0.5 + 0.5 * np.sin(2 * np.pi * 30 * x)) * np.sin(np.pi * x / d) ** 2
+
+
+def moo(d=1.4):
+    x = tt(d)
+    f = 110 + 40 * np.sin(np.pi * x / d)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    return lp(np.sin(ph) + 0.6 * np.sign(np.sin(ph)) * 0.3, 900) * np.sin(np.pi * x / d) ** 1.2
+
+
+def bellow(d=1.2):
+    """Gator bellow: a deep, rough rumble."""
+    x = tt(d)
+    s = np.sin(2 * np.pi * 48 * x) * (0.6 + 0.4 * np.sign(np.sin(2 * np.pi * 9 * x)))
+    return lp(s + n(d) * 0.3, 300) * np.sin(np.pi * x / d) ** 0.8
+
+
+def airboat(d=6.0):
+    x = tt(d)
+    s = np.sin(2 * np.pi * 95 * x) + 0.6 * np.sign(np.sin(2 * np.pi * 190 * x)) * 0.4
+    return lp(s, 700) * np.sin(np.pi * x / d) ** 2
+
+
+def egret(d=0.4):
+    x = tt(d)
+    return bp(np.sign(np.sin(2 * np.pi * 330 * x)), 250, 1400) * np.sin(np.pi * x / d)
+
+
+def texas_day():
+    b = wind(D, 0.7) * 0.5 + hp(n(D), 4000) * 0.02   # grass hiss
+    for _ in range(7):
+        place(b, meadowlark() * 0.4, rng.uniform(0, D))
+    for _ in range(2):
+        place(b, creak() * 0.18, rng.uniform(0, D))
+    place(b, moo() * 0.3, rng.uniform(0, D))
+    return seamless(b)
+
+
+def everglades_day():
+    b = insects(D, 4800) * 0.14 + wind(D, 0.2) * 0.1
+    for _ in range(14):
+        place(b, croak(rng.uniform(150, 260), 0.15) * 0.35, rng.uniform(0, D))
+    for _ in range(3):
+        place(b, egret() * 0.3, rng.uniform(0, D))
+    place(b, airboat() * 0.12, rng.uniform(0, D))
+    return seamless(b)
+
+
+def sedona_day():
+    b = wind(D, 1.0) * 0.55
+    for _ in range(3):
+        place(b, canyon_wren() * 0.35, rng.uniform(0, D))
+    for _ in range(4):
+        place(b, raven() * 0.3, rng.uniform(0, D))
+    place(b, hawk() * 0.25, rng.uniform(0, D))
+    return seamless(b)
+
+
+def socal_day():
+    b = waves(D) * 0.75 + city(D) * 0.12
+    for _ in range(5):
+        place(b, gull() * 0.3, rng.uniform(0, D))
+    return seamless(b)
+
+
+def usa_night(zone):
+    b = crickets(D) * 0.3 + wind(D, 0.4) * 0.15
+    if zone in ('texas', 'sedona'):
+        for _ in range(2):
+            place(b, coyote() * 0.22, rng.uniform(0, D))
+    if zone == 'everglades':
+        b += insects(D, 3600) * 0.1
+        for _ in range(20):
+            place(b, croak(rng.uniform(90, 200)) * 0.5, rng.uniform(0, D))
+        place(b, bellow() * 0.4, rng.uniform(0, D))
+    if zone == 'socal':
+        b = b * 0.4 + waves(D) * 0.7
+    return seamless(b)
+
+
 if __name__ == '__main__':
+    import sys
+    if 'usa' in sys.argv:
+        save('amb_texas_day', texas_day())
+        save('amb_everglades_day', everglades_day())
+        save('amb_sedona_day', sedona_day())
+        save('amb_socal_day', socal_day())
+        for z in ['texas', 'everglades', 'sedona', 'socal']:
+            save('amb_%s_night' % z, usa_night(z), 0.5)
+        print('usa ambience written')
+        sys.exit(0)
     save('amb_caceres_day', caceres_day())
     save('amb_pantanal_day', pantanal_day())
     save('amb_chapada_day', chapada_day())

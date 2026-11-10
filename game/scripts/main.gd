@@ -744,6 +744,7 @@ func _make_world(z: String) -> void:
 	if hud:
 		hud.minimap.set_world(world, player)
 	Sfx.ambience(z)
+	Sfx.music_zone = z
 	world.nearby_changed.connect(_on_nearby)
 	world.spot_changed.connect(_on_spot)
 	world.mob_engaged.connect(_on_mob_engaged)
@@ -855,6 +856,7 @@ func _travel(z: String, free := false, arrive := "") -> void:
 	hud.refresh()
 	var zd: Dictionary = Data.ZONES[z]
 	hud.zone_banner(str(zd.name), "%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(z)], Origins.faction_of_zone(z) == Game.faction())
+	Sfx.music("explore")
 	_note_visit(z, arrive != "")
 	if z == "pantanal":
 		Game.unlock("travel")

@@ -103,7 +103,12 @@ func play(n: String, vol_db := 0.0, pitch := 1.0) -> void:
 			pl.play()
 			return
 
+var music_zone := ""   # set by main when a zone loads
+
 func music(n: String) -> void:
+	# exploring plays the zone's own track when it has one (Team USA zones), else the bossa
+	if n == "explore" and music_zone != "" and ResourceLoader.exists("res://assets/audio/music_explore_%s.ogg" % music_zone):
+		n = "explore_" + music_zone
 	if n == _current:
 		return
 	_current = n
