@@ -3444,16 +3444,8 @@ func _usa_gym(c2: Vector2, title: String, wall: Color, comp: String) -> Vector3:
 
 func _gator(p: Vector3) -> void:
 	var gy := maxf(ground_y(p.x, p.z), -0.4)
-	var body := MeshInstance3D.new()
-	var cm := CapsuleMesh.new()
-	cm.radius = 0.3
-	cm.height = 2.6
-	body.mesh = cm
-	body.material_override = _mat(Color(0.18, 0.22, 0.13))
-	body.rotation = Vector3(PI / 2, _rng.randf() * TAU, 0)
-	body.position = Vector3(p.x, gy + 0.05, p.z)
-	body.scale = Vector3(1, 1, 0.5)
-	add_child(body)
+	TownKit.build(self, [{"kind": "an_caiman", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(1.4, 1.8)), Vector3(p.x, gy - 0.05, p.z)),
+		"wall": Color(0.16, 0.19, 0.13), "wood": Color(0.1, 0.12, 0.08)}])
 	var lab := _label("gator", Vector3(p.x, gy + 1.0, p.z), 36, Color(1, 1, 1, 0.8))
 	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
