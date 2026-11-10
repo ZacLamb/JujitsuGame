@@ -344,7 +344,10 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 		u.target = t
 		if t == null:
 			return
-	if t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
+	if npc.mob.has("raid") and (t == null or t.dead or core.dist(u, me) > 45.0):
+		u.target = me   # raid / dungeon enemies never evade: they come back for the party
+		t = me
+	elif t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
 		_evade(npc, u)
 		return
 	if u.down() or not u.cast.is_empty() or npc.rig.in_action() or u.gpos != "standing":
@@ -762,7 +765,7 @@ signal raid_warning(head: String, sub: String)
 signal raid_over(won: bool)
 
 ## Starts Covil da Sucuri around `at` (the party spawns, the boss waits for your pull).
-func start_raid(at: Vector3) -> void:
+func start_raid(at: Vector3, kind := "") -> void:
 	if raid != null and is_instance_valid(raid):
 		return
 	raid = Raid.new()
@@ -771,7 +774,7 @@ func start_raid(at: Vector3) -> void:
 	raid.finished.connect(func(won):
 		raid_over.emit(won)
 		raid = null)
-	raid.start(self, at, Game.player_level(), Raid.kind_for_zone(world.zone))
+	raid.start(self, at, Game.player_level(), kind if kind != "" else Raid.kind_for_zone(world.zone))
 	target = raid.boss
 
 ## Somebody in the raid tapped: a partner sits out, a student is done, the boss means victory.

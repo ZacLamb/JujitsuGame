@@ -190,6 +190,7 @@ func _build_status() -> void:
 	status_panels.append(micro)
 	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
 			["lock", "Bags (B)", toggle_bag], ["link", "Quest Log (L)", func(): open_window("journal")],
+			["triangle", "Group Finder: dungeons (K)", func(): toggle_finder(get_parent())],
 			["wave", "World Map (M)", func(): minimap.toggle_big()], ["loop", "Game Menu (Esc)", toggle_settings]]:
 		var mb := MicroButton.new()
 		mb.glyph = e[0]
@@ -546,6 +547,68 @@ func _passport_box() -> Control:
 				rb.text = "Sure? Tap again")
 		ph.add_child(rb)
 	return pc
+
+# ------------------------------------------------------------ group finder (dungeons)
+var finder: PanelContainer = null
+
+func close_finder() -> void:
+	if finder and is_instance_valid(finder):
+		finder.queue_free()
+	finder = null
+
+func toggle_finder(main_node) -> void:
+	if finder and is_instance_valid(finder):
+		close_finder()
+		return
+	finder = PanelContainer.new()
+	finder.theme = Wow.theme()
+	finder.anchor_left = 0.5
+	finder.anchor_right = 0.5
+	finder.anchor_top = 0.5
+	finder.anchor_bottom = 0.5
+	finder.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	finder.grow_vertical = Control.GROW_DIRECTION_BOTH
+	finder.add_theme_stylebox_override("panel", Wow.sb(Wow.BG, Wow.FRAME, 6, 14, 2))
+	root.add_child(finder)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	v.custom_minimum_size = Vector2(640, 0)
+	finder.add_child(v)
+	var head := HBoxContainer.new()
+	v.add_child(head)
+	var t := Wow.title("GROUP FINDER", 22, Wow.GOLD)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(t)
+	var x := Wow.button("Close", Vector2(90, 32))
+	x.pressed.connect(close_finder)
+	head.add_child(x)
+	var intro := Wow.label("Five-fighter dungeons: you plus four friends from the road who fill the roles you don't. Two pulls, then a boss. Everything scales to your level; the level range is where it's meant to be run.", 14, UiKit.MUTED)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(intro)
+	var lv := Game.player_level()
+	var mech_names := {"crush": "heavy hits", "wave": "Sprawl (Q)", "heal": "Frame (R)", "choke": "Defend (T)", "adds": "adds"}
+	for id in Raid.DUNGEON_ORDER:
+		var d: Dictionary = Raid.DUNGEONS[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		v.add_child(row)
+		var mid := (int(d.levels[0]) + int(d.levels[1])) / 2
+		var col := Data.con_color(mid, lv)
+		var done := Game.unlocked.has("dng_" + id)
+		var lab := Wow.label("%s%s\nLv %d-%d  ·  boss: %s  ·  %s" % [str(d.title).capitalize(), "  ✓" if done else "", int(d.levels[0]), int(d.levels[1]), str(d.boss),
+			", ".join((d.mechs as Array).map(func(m): return mech_names.get(m, m)))], 15, col)
+		lab.autowrap_mode = TextServer.AUTOWRAP_OFF
+		lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(lab)
+		var b := Wow.button("Enter", Vector2(110, 40))
+		b.disabled = lv < int(d.levels[0]) - 4
+		if b.disabled:
+			b.text = "Lv %d" % (int(d.levels[0]) - 4)
+		b.pressed.connect(func(): main_node.start_dungeon(id))
+		row.add_child(b)
+	var raid_l := Wow.label("Raids (bigger, harder, tier sets): Covil da Sucuri in the Pantanal (Time Brasil) and the Gold Compound in the Everglades (Team USA). Walk up to their gates.", 13, Color(0.7, 0.55, 1.0))
+	raid_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(raid_l)
 
 # ------------------------------------------------------------ quartermaster (Honor gear)
 var qm_panel: PanelContainer = null

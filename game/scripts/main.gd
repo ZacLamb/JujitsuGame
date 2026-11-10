@@ -145,7 +145,7 @@ func _register_inputs() -> void:
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
 		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_defend": [KEY_T], "ab_breathe": [KEY_F], "ab_racial": [KEY_G], "character": [KEY_C], "talents": [KEY_N], "spellbook": [KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
-		"pause": [KEY_ESCAPE],
+		"pause": [KEY_ESCAPE], "finder": [KEY_K],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -512,6 +512,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.open_window("talents")
 	elif event.is_action_pressed("spellbook") and not hud.dialogue_open():
 		hud.open_window("talents", Hud.TAB_SPELLBOOK)
+	elif event.is_action_pressed("finder") and not hud.dialogue_open():
+		hud.toggle_finder(self)
 	elif event.is_action_pressed("character") and not hud.dialogue_open():
 		hud.open_window("character")
 	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:
@@ -1309,14 +1311,35 @@ func _start_job(id: String) -> void:
 # ------------------------------------------------------------ raids
 var _raid_prompt := false
 
-func _start_raid() -> void:
+var _raid_kind := ""
+
+func _start_raid(kind := "") -> void:
 	player.input_enabled = true
+	_raid_kind = kind
 	var fwd := Vector3(sin(player.rig.global_rotation.y), 0, cos(player.rig.global_rotation.y))
-	combat.start_raid(player.global_position + fwd * 7.0)
+	combat.start_raid(player.global_position + fwd * 7.0, kind)
+
+## Group Finder (K): enter a dungeon from anywhere.
+func start_dungeon(id: String) -> void:
+	if combat.me.in_combat or (combat.raid != null and is_instance_valid(combat.raid)) or (pvp and pvp.busy()):
+		Game.toast.emit("Finish what you're doing first.", Color(1, 0.5, 0.4))
+		return
+	hud.close_finder()
+	Game.toast.emit("Entering %s..." % str(Raid.DUNGEONS[id].title).capitalize(), Color(1, 0.85, 0.4))
+	_start_raid(id)
 
 func _on_raid_over(won: bool) -> void:
 	await get_tree().create_timer(2.5).timeout
 	player.input_enabled = false
+	if Raid.DUNGEONS.has(_raid_kind):
+		var dd: Dictionary = Raid.DUNGEONS[_raid_kind]
+		if won:
+			hud.open_dialogue(str(dd.title).capitalize(), "%s\n\nYour loot is in your bags. Run it again any time from the Group Finder (K): it scales to your level." % str(dd.victory), "", "Oss")
+		else:
+			hud.open_dialogue("Wiped", "%s\n\nRead the cast bars: Sprawl (Q) takedown waves, Frame (R) his Second Breath, Defend (T) chokes aimed at you. Kill the adds before they reach your healer." % str(dd.wipe), "", "Oss")
+		_raid_kind = ""
+		hud.refresh()
+		return
 	if won and Raid.kind_for_zone(world.zone) == "compound":
 		hud.open_dialogue("The Gold Compound", "Gunnar Sterling taps! His franchise coaches are tearing up their contracts.\n\nYour loot is in your bags. Run it again any time: he scales to your level.", "", "Oss")
 	elif won:
