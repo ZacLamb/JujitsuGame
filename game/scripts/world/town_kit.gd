@@ -55,6 +55,15 @@ static func _mat(kind: String) -> Material:
 			m.set_shader_parameter("tex", EnvShaders.env_tex("roof")); m.set_shader_parameter("scale", 0.55)
 		"wood":
 			m.set_shader_parameter("tex", EnvShaders.env_tex("wood")); m.set_shader_parameter("tint", 2); m.set_shader_parameter("scale", 0.9)
+		# western kit (tools/westbuild/western.py)
+		"siding":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("siding")); m.set_shader_parameter("tint", 1); m.set_shader_parameter("scale", 0.42)
+		"brick":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("brick")); m.set_shader_parameter("scale", 0.32)
+		"stone":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("limestone")); m.set_shader_parameter("scale", 0.22)
+		"tin":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("tin")); m.set_shader_parameter("scale", 0.5); m.set_shader_parameter("rough", 0.55)
 		"glass":
 			var g := StandardMaterial3D.new()
 			g.albedo_color = Color(0.13, 0.17, 0.22)
@@ -85,7 +94,7 @@ static func mesh(kind: String) -> ArrayMesh:
 			nm = sm.resource_name
 		if src.get_surface_override_material(i):
 			nm = src.get_surface_override_material(i).resource_name
-		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron"] else "trim"))
+		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron", "siding", "brick", "stone", "tin"] else "trim"))
 	sc.free()
 	_meshes[kind] = m
 	return m

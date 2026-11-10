@@ -175,7 +175,7 @@ static func grass(c: Color, strength := 1.0) -> ShaderMaterial:
 	m.set_shader_parameter("strength", strength)
 	return m
 
-static func terrain(strata := 0.3) -> ShaderMaterial:
+static func terrain(strata := 0.3, set := {}) -> ShaderMaterial:
 	if _terrain_shader == null:
 		_terrain_shader = Shader.new()
 		_terrain_shader.code = TERRAIN_CODE
@@ -185,9 +185,10 @@ static func terrain(strata := 0.3) -> ShaderMaterial:
 	if OS.get_environment("NODETAIL") != "":
 		m.set_shader_parameter("detail", 0.0)
 	for k in [["grass", "grass"], ["dirt", "dirt"], ["dry", "cerrado"]]:
-		var tx := env_tex(k[1])
+		var tn: String = set.get(k[0], k[1])   # a zone can swap in its own ground (Texas: prairie, caliche)
+		var tx := env_tex(tn)
 		m.set_shader_parameter(k[0] + "_tex", tx)
-		m.set_shader_parameter(k[0] + "_avg", tex_avg(k[1]))
+		m.set_shader_parameter(k[0] + "_avg", tex_avg(tn))
 	return m
 
 ## Painted tiling textures (assets/textures/env), and their average colour (linear) for shaders

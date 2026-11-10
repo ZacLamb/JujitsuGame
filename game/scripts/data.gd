@@ -687,7 +687,7 @@ const TERRITORIES := {
 	"t_cliffs": {"name": "Sunset Cliffs", "zone": "socal", "pos": Vector3(-64, 0, 38), "academy": "Coastline Grappling"},
 	"t_canyon": {"name": "Canyon Trails", "zone": "socal", "pos": Vector3(50, 0, -56), "academy": "Desert Rose BJJ"},
 	"t_courthouse": {"name": "Courthouse Square", "zone": "texas", "pos": Vector3(10, 0, 15), "academy": "Hill Country BJJ"},
-	"t_drycreek": {"name": "Swimming Hole", "zone": "texas", "pos": Vector3(-44, 0, 7), "academy": "Lone Star Combat"},
+	"t_drycreek": {"name": "Swimming Hole", "zone": "texas", "pos": Vector3(-52, 0, 15), "academy": "Lone Star Combat"},
 	"t_feedstore": {"name": "Feed & Tack", "zone": "texas", "pos": Vector3(30, 0, -11), "academy": "Gold League USA"},
 	"t_fishcamp": {"name": "Fish Camp", "zone": "everglades", "pos": Vector3(-40, 0, 16), "academy": "Swamp Rat MMA"},
 	"t_airdock": {"name": "Airboat Dock", "zone": "everglades", "pos": Vector3(38, 0, -28), "academy": "Gulf Coast Grappling"},

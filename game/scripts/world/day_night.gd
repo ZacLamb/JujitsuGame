@@ -11,6 +11,9 @@ var env: Environment
 var sky: ProceduralSkyMaterial
 var sun: DirectionalLight3D
 var base_horizon := Color(0.7, 0.84, 0.95)
+var day_top := DAY_TOP          # per-zone daytime colours (World.ZONE_LOOK), read in setup()
+var day_ambient := DAY_AMBIENT
+var sun_day := SUN_DAY
 var base_exposure := 0.88
 var stars: MultiMeshInstance3D
 var _star_mat: StandardMaterial3D
@@ -41,6 +44,9 @@ func setup(e: Environment, s: ProceduralSkyMaterial, light: DirectionalLight3D, 
 	sky = s
 	sun = light
 	base_horizon = s.sky_horizon_color
+	day_top = s.sky_top_color
+	day_ambient = e.ambient_light_color
+	sun_day = light.light_color
 	base_exposure = exposure
 	_build_stars()
 	apply()
@@ -98,20 +104,20 @@ func apply() -> void:
 	d = d * d * (3.0 - 2.0 * d)
 	var gold := clampf(1.0 - absf(elev - 6.0) / 16.0, 0.0, 1.0) * clampf((elev + 6.0) / 6.0, 0.0, 1.0)
 	# sky
-	var top := NIGHT_TOP.lerp(DAY_TOP, d).lerp(GOLD_TOP, gold * 0.6)
+	var top := NIGHT_TOP.lerp(day_top, d).lerp(GOLD_TOP, gold * 0.6)
 	var hor := NIGHT_HORIZON.lerp(base_horizon, d).lerp(GOLD_HORIZON, gold * 0.85)
 	sky.sky_top_color = top
 	sky.sky_horizon_color = hor
 	sky.ground_horizon_color = hor.darkened(0.25)
 	env.fog_light_color = hor.lerp(top, 0.25)
 	EnvShaders.set_sky_tint(hor.lerp(top, 0.35))
-	env.ambient_light_color = NIGHT_AMBIENT.lerp(DAY_AMBIENT, d).lerp(Color(1.0, 0.75, 0.6), gold * 0.25)
+	env.ambient_light_color = NIGHT_AMBIENT.lerp(day_ambient, d).lerp(Color(1.0, 0.75, 0.6), gold * 0.25)
 	env.ambient_light_energy = lerpf(0.52, 0.42, d)
 	env.tonemap_exposure = base_exposure * lerpf(1.22, 1.0, d)
 	# sun by day, moon by night
 	if elev > -2.0:
 		sun.rotation_degrees = Vector3(-maxf(elev, 4.0), -35.0 + (hour - 12.0) * 6.0, 0)
-		sun.light_color = SUN_DAY.lerp(SUN_GOLD, gold)
+		sun.light_color = sun_day.lerp(SUN_GOLD, gold)
 		sun.light_energy = lerpf(0.3, 1.05, d)
 	else:
 		var night_t := fmod(hour + 6.0, 24.0) / 12.0  # 0 at 18:00 .. 1 at 06:00
