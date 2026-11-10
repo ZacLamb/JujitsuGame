@@ -829,6 +829,11 @@ class TalentNode extends Control:
 			while fs > 9 and font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
 				fs -= 1
 			var y := 4 + S + 16
+			var tw := font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var plate := StyleBoxFlat.new()
+			plate.bg_color = Color(0.02, 0.025, 0.04, 0.92)
+			plate.set_corner_radius_all(6)
+			draw_style_box(plate, Rect2(Vector2((size.x - tw) / 2.0 - 5, y - fs - 1), Vector2(tw + 10, fs + 6)))
 			draw_string_outline(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 3, Color(0, 0, 0, 0.9))
 			draw_string(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
 
@@ -1359,7 +1364,7 @@ static func _tree2(hud, tree: String, title: String, col: Color, holder: Control
 	for nd in TalentTrees.tree(tree, Game.spec):
 		var n := TalentNode.new()
 		n.wow = true
-		n.setup_node(nd, col, 34)
+		n.setup_node(nd, col, 38)
 		g.add_child(n)
 		g.nodes[str(nd.id)] = n
 		n.learn_requested.connect(func(id: String): _talent_click(hud, id, n, holder))
@@ -1410,15 +1415,40 @@ class TalentGraph extends Control:
 	var nodes := {}
 	const CW := 82.0
 	const RH := 55.0
+	var cw := CW
+	var rh := RH
+	var rows := 1
+	var top := 0.0
+	## Spreads the nodes over whatever room the panel gives it (wider panels: wider columns,
+	## taller ones: more room between rows), so names never sit on top of each other.
 	func layout() -> void:
-		var rows := 0
+		rows = 1
+		for id in nodes:
+			rows = maxi(rows, int(TalentTrees.node(id, Game.spec).row) + 1)
+		custom_minimum_size = Vector2(TalentTrees.COLS * CW, rows * 44.0 + 8)
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+		if not resized.is_connected(_place):
+			resized.connect(_place)
+		_place()
+	func _place() -> void:
+		cw = clampf((size.x - 56.0) / TalentTrees.COLS, CW, 150.0) if size.x > 0 else CW   # the right edge keeps room for the gate notes
+		rh = clampf((size.y - 10.0) / rows, 44.0, 80.0) if size.y > 0 else RH
+		var left := maxf(0.0, (size.x - 56.0 - cw * TalentTrees.COLS) * 0.5)
+		top = maxf(0.0, (size.y - 10.0 - rh * rows) * 0.5)
+		# icon size follows the row height so a name never runs into the icon below it
+		var s := clampf(rh - 24.0, 22.0, 46.0)
 		for id in nodes:
 			var nd := TalentTrees.node(id, Game.spec)
-			rows = maxi(rows, int(nd.row) + 1)
 			var n: Control = nodes[id]
-			n.position = Vector2(int(nd.col) * CW + (CW - n.size.x) / 2.0, int(nd.row) * RH)
-		custom_minimum_size = Vector2(TalentTrees.COLS * CW, rows * RH + 8)
+			n.S = s * (1.12 if nd.get("capstone", false) else 1.0)
+			n.custom_minimum_size = Vector2(maxf(n.S + 30, 92), n.S + 26)
+			n.size = n.custom_minimum_size
+			n.position = Vector2(left + int(nd.col) * cw + (cw - n.size.x) / 2.0, top + int(nd.row) * rh)
+			n.queue_redraw()
+		queue_redraw()
 	func _draw() -> void:
+		# centre to centre: the icons and the name plates sit on top of the lines
 		for id in nodes:
 			var nd := TalentTrees.node(id, Game.spec)
 			var a: Control = nodes[id]
@@ -1426,23 +1456,23 @@ class TalentGraph extends Control:
 				if not nodes.has(r):
 					continue
 				var b: Control = nodes[r]
-				var p0: Vector2 = b.position + Vector2(b.size.x / 2.0, 4 + b.S)
-				var p1: Vector2 = a.position + Vector2(a.size.x / 2.0, 4)
+				var p0: Vector2 = b.position + Vector2(b.size.x / 2.0, 4 + b.S / 2.0)
+				var p1: Vector2 = a.position + Vector2(a.size.x / 2.0, 4 + a.S / 2.0)
 				var lit := Game.talent_rank(str(r)) > 0
 				var c := Wow.GOLD if lit and Game.talent_rank(id) > 0 else (Color(0.55, 0.85, 0.45) if lit else Color(0.3, 0.28, 0.25))
 				draw_line(p0, p1, Color(0, 0, 0, 0.8), 6.0, true)
 				draw_line(p0, p1, c, 2.5, true)
 		for g in TalentTrees.GATES[tree]:
-			var y := float(g[0]) * RH - 3
+			var y := top + float(g[0]) * rh - 4
 			var need := int(g[1])
 			var open := Game.tree_points(tree) >= need
-			var lc := Color(0.55, 0.85, 0.45, 0.4) if open else Color(0.8, 0.3, 0.25, 0.55)
+			var lc := Color(0.55, 0.85, 0.45, 0.35) if open else Color(0.8, 0.3, 0.25, 0.5)
 			draw_dashed_line(Vector2(4, y), Vector2(size.x - 4, y), lc, 1.5, 6.0)
 			if not open:
 				var f := Wow.body()
 				var txt := Tx.f("%d more", (need - Game.tree_points(tree)))
-				draw_string_outline(f, Vector2(size.x - 70, y + 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, 3, Color.BLACK)
-				draw_string(f, Vector2(size.x - 70, y + 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, Color(1, 0.55, 0.45))
+				draw_string_outline(f, Vector2(size.x - 60, y + 14), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 56, 12, 3, Color.BLACK)
+				draw_string(f, Vector2(size.x - 60, y + 14), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 56, 12, Color(1, 0.55, 0.45))
 
 ## "Hand Fight deals 15% more damage per rank." at rank 2 -> "Hand Fight deals 30% more damage."
 static func rank_text(desc: String, r: int) -> String:

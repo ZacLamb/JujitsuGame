@@ -38,8 +38,8 @@ func _init() -> void:
 	anchor_top = 1.0
 	anchor_bottom = 1.0
 	offset_left = 10
-	offset_right = 330
-	offset_top = -196
+	offset_right = 272
+	offset_top = -214
 	offset_bottom = -14
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	var sb := StyleBoxFlat.new()

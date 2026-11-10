@@ -184,8 +184,8 @@ func _build_status() -> void:
 	micro.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	micro.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	micro.offset_right = -14
-	micro.offset_bottom = -12
-	micro.add_theme_constant_override("separation", 3)
+	micro.offset_bottom = -14
+	micro.add_theme_constant_override("separation", 2)
 	root.add_child(micro)
 	status_panels.append(micro)
 	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
@@ -225,7 +225,7 @@ class LevelBadge extends Control:
 class MicroButton extends Button:
 	var glyph := "star"
 	func _init() -> void:
-		custom_minimum_size = Vector2(34, 40)
+		custom_minimum_size = Vector2(29, 36)
 		focus_mode = Control.FOCUS_NONE
 		var n := Wow.button_box(Color(0.12, 0.08, 0.07), Wow.FRAME)
 		var h := Wow.button_box(Color(0.22, 0.15, 0.1), Wow.FRAME_HI)
@@ -233,7 +233,7 @@ class MicroButton extends Button:
 		add_theme_stylebox_override("hover", h)
 		add_theme_stylebox_override("pressed", h)
 	func _draw() -> void:
-		CharSheet.draw_glyph(self, glyph, size / 2.0, 20, Wow.GOLD)
+		CharSheet.draw_glyph(self, glyph, size / 2.0, 17, Wow.GOLD)
 
 const STYLE_GLYPH := {"guard": "loop", "wrestler": "down", "judoka": "link", "athlete": "bolt", "passer": "chevron"}
 
@@ -886,9 +886,9 @@ const TAB_SPELLBOOK := 6
 const TAB_FIGHTERS := 7
 const TAB_TEAM := 8
 const WINDOWS := {
-	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(860, 530), "at": "left", "glyph": "shield"},
-	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Moves"], "size": Vector2(1160, 580), "at": "center", "glyph": "star"},
-	"journal": {"tabs": [4, 5, 7, 8], "names": ["Quests", "Achievements", "Fighters", "Team"], "size": Vector2(900, 540), "at": "center", "glyph": "link"},
+	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(880, 560), "at": "left", "glyph": "shield"},
+	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Moves"], "size": Vector2(1180, 660), "at": "center", "glyph": "star"},
+	"journal": {"tabs": [4, 5, 7, 8], "names": ["Quests", "Achievements", "Fighters", "Team"], "size": Vector2(920, 600), "at": "center", "glyph": "link"},
 }
 var _window := "character"
 
@@ -913,13 +913,14 @@ func open_window(w: String, tab := -1) -> void:
 func _layout_window() -> void:
 	var g: Dictionary = WINDOWS[_window]
 	var vs := root.size if root.size.x > 0 else Vector2(1280, 720)
+	# windows live between the player frame and the action bar (never over the bar)
+	var top := 92.0
+	var bottom := vs.y - 72.0
 	var sz: Vector2 = g.size
-	sz = Vector2(minf(sz.x, vs.x - 40), minf(sz.y, vs.y - 60))
+	sz = Vector2(minf(sz.x, vs.x - 60), minf(sz.y, bottom - top))
 	journal.size = sz
-	# below the player frame (top-left) so the emblem doesn't cover it, tabs above the screen edge
-	journal.position = Vector2(48, 140) if g.at == "left" else Vector2(floorf((vs.x - sz.x) * 0.5), maxf(100.0, vs.y - sz.y - 44.0))
-	if journal.position.y + sz.y + 32 > vs.y:
-		journal.position.y = maxf(8.0, vs.y - sz.y - 34)
+	var y := top + floorf((bottom - top - sz.y) * 0.5)
+	journal.position = Vector2(48, top) if g.at == "left" else Vector2(floorf((vs.x - sz.x) * 0.5), y)
 	var cur := journal_tabs.current_tab
 	journal.set_tabs(g.names, (g.tabs as Array).find(cur))
 	var st: String = Rpg.STYLES[Game.style].name if Rpg.STYLES.has(Game.style) else ""
@@ -1021,6 +1022,7 @@ func _scroll_tab(name_: String) -> VBoxContainer:
 	journal_tabs.add_child(sc)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_EXPAND_FILL   # short pages (talents) get the whole window
 	v.add_theme_constant_override("separation", 8)
 	sc.add_child(v)
 	return v
@@ -1327,12 +1329,17 @@ func toggle_settings() -> void:
 	touch.visible = false
 	journal_toggled.emit(true)
 
+func _set_head(t: String) -> Label:
+	var l := UiKit.label(t, 20, UiKit.ACCENT)
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	return l
+
 func _slider_row(parent: Control, text: String, value: float, min_v: float, max_v: float, on_change: Callable) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	parent.add_child(row)
-	var l := UiKit.label(text, 19)
-	l.custom_minimum_size = Vector2(190, 0)
+	var l := UiKit.label(text, 16)
+	l.custom_minimum_size = Vector2(150, 0)
 	l.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(l)
 	var sl := HSlider.new()
@@ -1340,11 +1347,11 @@ func _slider_row(parent: Control, text: String, value: float, min_v: float, max_
 	sl.max_value = max_v
 	sl.step = 0.05
 	sl.value = value
-	sl.custom_minimum_size = Vector2(260, 28)
+	sl.custom_minimum_size = Vector2(120, 24)
 	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sl.focus_mode = Control.FOCUS_NONE
-	var val := UiKit.label("%d%%" % int(value * 100), 17, UiKit.MUTED)
-	val.custom_minimum_size = Vector2(60, 0)
+	var val := UiKit.label("%d%%" % int(value * 100), 15, UiKit.MUTED)
+	val.custom_minimum_size = Vector2(48, 0)
 	sl.value_changed.connect(func(v):
 		val.text = "%d%%" % int(v * 100)
 		on_change.call(v))
@@ -1373,6 +1380,7 @@ static func lang_row() -> HBoxContainer:
 	return row
 
 func _build_settings() -> void:
+	var vs := root.size if root.size.x > 0 else Vector2(1280, 720)
 	settings_panel = PanelContainer.new()
 	settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	settings_panel.anchor_left = 0.5
@@ -1381,49 +1389,66 @@ func _build_settings() -> void:
 	settings_panel.anchor_bottom = 0.5
 	settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	settings_panel.custom_minimum_size = Vector2(780, 0)
+	settings_panel.custom_minimum_size = Vector2(minf(1000, vs.x - 40), 0)
 	root.add_child(settings_panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
+	v.add_theme_constant_override("separation", 8)
 	settings_panel.add_child(v)
-	v.add_theme_constant_override("separation", 6)
-	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
-	var lrow := HBoxContainer.new()   # "Language" and its buttons on one line
-	lrow.add_theme_constant_override("separation", 16)
-	lrow.add_child(UiKit.label("Language", 22, UiKit.ACCENT))
+	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	# two columns, scrolling if the screen is short; the buttons stay pinned at the bottom
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size = Vector2(0, minf(500, vs.y - 230))
+	v.add_child(sc)
+	var cols := HBoxContainer.new()
+	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cols.add_theme_constant_override("separation", 28)
+	sc.add_child(cols)
+	var lc := VBoxContainer.new()
+	lc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lc.add_theme_constant_override("separation", 6)
+	cols.add_child(lc)
+	var rc := VBoxContainer.new()
+	rc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rc.add_theme_constant_override("separation", 6)
+	cols.add_child(rc)
+	lc.add_child(_set_head("Language"))
 	var lb := lang_row()
 	for c in lb.get_children():
-		(c as Control).custom_minimum_size = Vector2(190, 40)
-	lrow.add_child(lb)
-	v.add_child(lrow)
-	v.add_child(UiKit.label("Sound", 22, UiKit.ACCENT))
+		(c as Control).custom_minimum_size = Vector2(0, 34)
+		(c as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		(c as Button).add_theme_font_size_override("font_size", 15)
+	lc.add_child(lb)
+	lc.add_child(_set_head("Sound"))
 	var mute := CheckButton.new()
 	mute.text = "Mute all sound"
 	mute.button_pressed = Sfx.muted
 	mute.focus_mode = Control.FOCUS_NONE
 	mute.toggled.connect(func(on): Sfx.set_muted(on))
-	v.add_child(mute)
-	_slider_row(v, "Music", float(Sfx.pref("music", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("music", x))
-	_slider_row(v, "Ambience", float(Sfx.pref("ambience", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("ambience", x))
-	_slider_row(v, "Effects", float(Sfx.pref("sfx", 0.9)), 0.0, 1.0, func(x):
+	lc.add_child(mute)
+	_slider_row(lc, "Music", float(Sfx.pref("music", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("music", x))
+	_slider_row(lc, "Ambience", float(Sfx.pref("ambience", 0.8)), 0.0, 1.0, func(x): Sfx.set_pref("ambience", x))
+	_slider_row(lc, "Effects", float(Sfx.pref("sfx", 0.9)), 0.0, 1.0, func(x):
 		Sfx.set_pref("sfx", x)
 		Sfx.play("click", -6.0))
-	v.add_child(UiKit.label("Controls", 22, UiKit.ACCENT))
-	_slider_row(v, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
-	_slider_row(v, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
+	lc.add_child(_set_head("Controls"))
+	_slider_row(lc, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
+	_slider_row(lc, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
 	var inv := CheckButton.new()
 	inv.text = "Invert camera up/down"
 	inv.button_pressed = bool(Sfx.pref("invert_y", false))
 	inv.focus_mode = Control.FOCUS_NONE
 	inv.toggled.connect(func(on): Sfx.set_pref("invert_y", on))
-	v.add_child(inv)
-	v.add_child(UiKit.label("Graphics", 22, UiKit.ACCENT))
+	lc.add_child(inv)
+	rc.add_child(_set_head("Graphics"))
 	var gr := HBoxContainer.new()
-	gr.add_theme_constant_override("separation", 10)
-	v.add_child(gr)
+	gr.add_theme_constant_override("separation", 6)
+	rc.add_child(gr)
 	var btns: Array = []
 	for i in 3:
-		var b := UiKit.button(["Low (phones)", "High", "Ultra (desktop)"][i], Vector2(180, 48))
+		var b := UiKit.button(["Low (phones)", "High", "Ultra (desktop)"][i], Vector2(0, 34))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 15)
 		b.toggle_mode = true
 		b.button_pressed = Game.graphics_level() == i
 		btns.append(b)
@@ -1437,25 +1462,40 @@ func _build_settings() -> void:
 			if gfx_btn:
 				gfx_btn.text = Tx.s("Gfx: ") + Tx.s(Game.GFX_NAMES[bi])
 			graphics_changed.emit())
-	v.add_child(UiKit.label("Keys", 22, UiKit.ACCENT))
-	var keys := Tx.s("WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n") + \
-		Tx.s("Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n") + \
-		Tx.s("E or click: talk / roll   ·   C: character   ·   N: specs, talents & moves   ·   P: moves   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n") + \
-		Tx.s("Fighting: 1-0 your moves (drag from P to arrange)   ·   Tab: next target   ·   Q / R / T: Sprawl, Frame, Defend (counter their cast)   ·   F: breathe   ·   G: origin racial")
-	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
+	rc.add_child(_set_head("Keys"))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 2)
+	rc.add_child(grid)
+	for kv in [["WASD / arrows", "Move"], ["Shift  ·  X", "Run  ·  auto-run"], ["Space", "Jump"], ["Left / right drag", "Look / turn"],
+			["Wheel", "Zoom"], ["E or click", "Talk / roll"], ["C  ·  N  ·  P", "Character  ·  talents  ·  moves"], ["B  ·  L  ·  M", "Bags  ·  quest log  ·  map"],
+			["K  ·  H", "Group finder  ·  ranked arena"], ["1 - 0", "Your moves (drag from P)"], ["Tab", "Next target"],
+			["Q / R / T", "Sprawl, Frame, Defend"], ["F  ·  G", "Breathe  ·  origin racial"], ["Enter", "Chat"], ["Esc", "This menu"]]:
+		var k := UiKit.label(kv[0], 15, UiKit.ACCENT)
+		k.autowrap_mode = TextServer.AUTOWRAP_OFF
+		grid.add_child(k)
+		var d := UiKit.label(kv[1], 15, UiKit.MUTED)
+		d.autowrap_mode = TextServer.AUTOWRAP_OFF
+		grid.add_child(d)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 12)
 	v.add_child(row)
-	var resume := UiKit.button("Resume", Vector2(200, 56))
+	var resume := UiKit.button("Resume", Vector2(180, 44))
 	resume.pressed.connect(toggle_settings)
 	row.add_child(resume)
-	var barb := UiKit.button("Barber (change look)", Vector2(260, 56))
+	var barb := UiKit.button("Barber (change look)", Vector2(230, 44))
 	barb.pressed.connect(func():
 		toggle_settings()
 		barber_requested.emit())
 	row.add_child(barb)
-	var quit := UiKit.button("Title screen", Vector2(200, 56))
+	# the scroll area is only as tall as it needs to be (capped by the screen)
+	var cap := sc.custom_minimum_size.y
+	(func():
+		if is_instance_valid(sc):
+			sc.custom_minimum_size.y = minf(cols.get_combined_minimum_size().y + 4, cap)).call_deferred()
+	var quit := UiKit.button("Title screen", Vector2(180, 44))
 	quit.pressed.connect(func():
 		get_tree().paused = false
 		Game.save_game()
