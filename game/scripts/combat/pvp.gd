@@ -33,7 +33,7 @@ func setup(m) -> void:
 	Net.duel_msg.connect(_on_msg)
 	Net.left.connect(func(id: int):
 		if id == peer and state != "":
-			_abort("%s left." % str(peer_char.get("name", "Your opponent"))))
+			_abort(Tx.f("%s left.", str(peer_char.get("name", "Your opponent")))))
 
 func busy() -> bool:
 	return state != ""
@@ -56,7 +56,7 @@ func invite(id: int, ch: Dictionary) -> void:
 	peer_char = ch
 	_t = INVITE_TIMEOUT
 	Net.send_duel(peer, {"k": "inv", "char": Net.my_char()})
-	Game.toast.emit("Duel challenge sent to %s..." % str(ch.get("name", "?")), Color(1, 0.85, 0.4))
+	Game.toast.emit(Tx.f("Duel challenge sent to %s...", str(ch.get("name", "?"))), Color(1, 0.85, 0.4))
 
 func answer(accept: bool) -> void:
 	if state != "invited":
@@ -92,7 +92,7 @@ func _on_msg(from: int, d: Dictionary) -> void:
 	match k:
 		"dec":
 			if state == "inviting":
-				Game.toast.emit("%s declined%s." % [str(peer_char.get("name", "?")), " (busy)" if str(d.get("why", "")) == "busy" else ""], Color(1, 0.6, 0.4))
+				Game.toast.emit(Tx.f("%s declined%s.", [str(peer_char.get("name", "?")), " (busy)" if str(d.get("why", "")) == "busy" else ""]), Color(1, 0.6, 0.4))
 				_reset()
 		"acc":
 			if state == "inviting":
@@ -117,7 +117,7 @@ func _on_msg(from: int, d: Dictionary) -> void:
 				_replay(d.get("e", {}))
 		"bye":
 			if state == "host" or state == "guest":
-				_abort("%s forfeited." % str(peer_char.get("name", "Your opponent")), true)
+				_abort(Tx.f("%s forfeited.", str(peer_char.get("name", "Your opponent"))), true)
 
 func _process(delta: float) -> void:
 	if state == "":
@@ -125,13 +125,13 @@ func _process(delta: float) -> void:
 	_t -= delta
 	if _t <= 0.0:
 		if state == "inviting":
-			Game.toast.emit("%s didn't answer." % str(peer_char.get("name", "?")), Color(1, 0.6, 0.4))
+			Game.toast.emit(Tx.f("%s didn't answer.", str(peer_char.get("name", "?"))), Color(1, 0.6, 0.4))
 			_reset()
 		elif state == "invited":
 			main.hud._close_dialogue(false)
 			_reset()
 		else:
-			_abort("Lost the connection to %s." % str(peer_char.get("name", "your opponent")))
+			_abort(Tx.f("Lost the connection to %s.", str(peer_char.get("name", "your opponent"))))
 		return
 	if state == "host" and opp != null:
 		_snap_t -= delta
@@ -148,7 +148,7 @@ func _process(delta: float) -> void:
 func _opp_dict(stats: Dictionary) -> Dictionary:
 	var od: Dictionary = main.rival_opponent(peer_char)
 	od["name"] = str(peer_char.get("name", "?"))
-	od["title"] = "%s · Live Duel" % str(Origins.faction(str(peer_char.get("faction", "brasil"))).long)
+	od["title"] = Tx.f("%s · Live Duel", str(Origins.faction(str(peer_char.get("faction", "brasil"))).long))
 	od["remote"] = true
 	od["intro"] = "Oss."
 	od["win"] = "Good roll."
@@ -188,7 +188,7 @@ func _spawn(stats: Dictionary, host: bool) -> void:
 	opp_npc.rig.combat_ready = true
 	_ended = false
 	Sfx.music("roll")
-	main.hud.show_toast("DUEL: %s%s" % [str(peer_char.get("name", "?")), "  ·  for %s!" % Origins.faction(Game.faction()).long if cross() else ""], Color(1, 0.75, 0.3))
+	main.hud.show_toast(Tx.f("DUEL: %s%s", [str(peer_char.get("name", "?")), "  ·  for %s!" % Origins.faction(Game.faction()).long if cross() else ""]), Color(1, 0.75, 0.3))
 
 func _start_host(stats: Dictionary) -> void:
 	state = "host"

@@ -49,8 +49,8 @@ func _quartermaster(p: Vector3, fid: String, who: String) -> void:
 	_box(Vector3(1.6, 0.25, 0.06), b + Vector3(-0.4, 3.65, 0), fd.accent, false)
 	_box(Vector3(2.2, 1.0, 0.9), b + Vector3(0.6, 0.5, 0), Color(0.35, 0.25, 0.16))
 	_box(Vector3(2.3, 0.08, 1.0), b + Vector3(0.6, 1.04, 0), (fd.color as Color).darkened(0.3), false)
-	_label("%s QUARTERMASTER" % str(fd.name).to_upper(), b + Vector3(0, 5.0, 0), 50, (fd.color as Color).lightened(0.35)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_spot(b + Vector3(0, 0, 1.4), 3.0, "Quartermaster: %s (Honor gear)" % who, "quartermaster", fid + "|" + who)
+	_label(Tx.f("%s QUARTERMASTER", Tx.s(str(fd.name)).to_upper()), b + Vector3(0, 5.0, 0), 50, (fd.color as Color).lightened(0.35)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_spot(b + Vector3(0, 0, 1.4), 3.0, Tx.f("Quartermaster: %s (Honor gear)", who), "quartermaster", fid + "|" + who)
 
 func build(z := "caceres") -> void:
 	_build_zone(z)
@@ -121,7 +121,7 @@ func _batch_static() -> void:
 			mi.queue_free()
 		merged += list.size()
 	if OS.is_debug_build() and merged > 0:
-		print_verbose("batched %d static meshes" % merged)
+		print_verbose(Tx.f("batched %d static meshes", merged))
 
 ## Graphics tiers. Low (phones): no sun shadows, short grass distance, 75% 3D resolution.
 ## High: 2-cascade shadows to 55 m. Ultra (desktop): 4x MSAA, glow, 90 m shadows, far grass.
@@ -1448,7 +1448,7 @@ func _build_quests() -> void:
 		npc.position = Vector3(p.x, ground_y(p.x, p.z), p.z)
 		npc.rig.rotation.y = PI
 		quest_givers[g] = npc
-		_spot(npc.position, 2.6, "Talk to %s" % gd.name, "quest", g)
+		_spot(npc.position, 2.6, Tx.f("Talk to %s", gd.name), "quest", g)
 	refresh_quests()
 
 func refresh_quests() -> void:
@@ -1801,7 +1801,7 @@ func _drill_station(k: String, pos: Vector3) -> void:
 	var l := _label(Rpg.DRILLS[k].name + "\n" + Rpg.ATTRS[k].name, base + Vector3(0, 2.1, 0), 40, c)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.pixel_size = 0.0055
-	_spot(base, 1.9, "Drill: %s (%s)" % [Rpg.DRILLS[k].name, Rpg.ATTRS[k].name], "drill", k)
+	_spot(base, 1.9, Tx.f("Drill: %s (%s)", [Rpg.DRILLS[k].name, Rpg.ATTRS[k].name]), "drill", k)
 
 ## Barbearia do Seu Zé: a little open-air barbershop (pole, chair, mirror, Seu Zé). Talking to him
 ## opens the Barber screen to restyle your fighter.
@@ -1861,13 +1861,13 @@ func _job_spot(p: Vector3, j: Dictionary) -> void:
 	who.setup(Color(0.85, 0.75, 0.55) if not fem else Color(0.9, 0.5, 0.6), Color(0.3, 0.25, 0.2), UiKit.skin_tone(_rng.randf_range(0.3, 0.8)), Color(0.15, 0.1, 0.06), -1, "female" if fem else "", true)
 	who.position = b
 	who.rotation.y = _rng.randf() * TAU
-	var l := _label("%s\n<Needs a hand>" % str(j.who), b + Vector3(0, 2.3, 0), 30, Color(1, 0.9, 0.55))
+	var l := _label(Tx.f("%s\n<Needs a hand>", str(j.who)), b + Vector3(0, 2.3, 0), 30, Color(1, 0.9, 0.55))
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.fixed_size = true
 	l.pixel_size = 0.0007
 	l.no_depth_test = true
 	l.visibility_range_end = 26.0
-	_spot(b + Vector3(0, 0, 1.2), 3.0, "Bico: %s (%s)" % [str(j.name), str(j.who)], "job", str(j.id))
+	_spot(b + Vector3(0, 0, 1.2), 3.0, Tx.f("Bico: %s (%s)", [str(j.name), str(j.who)]), "job", str(j.id))
 
 ## Covil da Sucuri: the raid entrance (a green-and-black banner on two posts and a mat).
 func _raid_gate(p: Vector3, title := "COVIL DA SUCURI", spot := "Raid: Covil da Sucuri (you + 4 partners)", col := Color(0.6, 1.0, 0.55)) -> void:
@@ -2408,7 +2408,7 @@ func _comp_board(pos: Vector3, comp_id: String) -> void:
 	_box(Vector3(0.15, 2.6, 0.15), Vector3(pos.x - 1.0, gy + 1.3, pos.z), wood, false)
 	_box(Vector3(0.15, 2.6, 0.15), Vector3(pos.x + 1.0, gy + 1.3, pos.z), wood, false)
 	_box(Vector3(2.4, 1.6, 0.1), Vector3(pos.x, gy + 2.1, pos.z), Color(0.55, 0.12, 0.12), false)
-	var nm: String = Data.COMPS[comp_id].name.to_upper()
+	var nm: String = Tx.s(Data.COMPS[comp_id].name).to_upper()
 	for side in [1, -1]:
 		var l := _label(("TOURNAMENT\n%s" if Data.continent_of(zone) == "america" else "CAMPEONATO\n%s") % nm, Vector3(pos.x, gy + 2.15, pos.z + 0.07 * side), 40, Color(1, 0.88, 0.4), 0.0 if side == 1 else PI)
 		l.pixel_size = 0.0055
@@ -2441,7 +2441,7 @@ func _build_territories() -> void:
 		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		lbl.pixel_size = 0.006
 		flags[tid] = {"cloth": cloth, "label": lbl}
-		_spot(Vector3(p.x, gy, p.z), 2.6, "Territory: %s" % t.name, "territory", tid)
+		_spot(Vector3(p.x, gy, p.z), 2.6, Tx.f("Territory: %s", t.name), "territory", tid)
 	refresh_flags()
 
 func refresh_flags() -> void:
@@ -2458,13 +2458,13 @@ func refresh_flags() -> void:
 		var l: Label3D = flags[tid].label
 		match st:
 			"rival":
-				l.text = "%s\n%s" % [t.name.to_upper(), t.academy]
+				l.text = "%s\n%s" % [Tx.s(t.name).to_upper(), t.academy]
 				l.modulate = Color(1, 0.85, 0.75)
 			"held":
-				l.text = "%s\nGringo BJJ" % t.name.to_upper()
+				l.text = Tx.f("%s\nGringo BJJ", Tx.s(t.name).to_upper())
 				l.modulate = Color(0.6, 1, 0.7)
 			"attacked":
-				l.text = "%s\nUNDER ATTACK!" % t.name.to_upper()
+				l.text = Tx.f("%s\nUNDER ATTACK!", Tx.s(t.name).to_upper())
 				l.modulate = Color(1, 0.4, 0.35)
 
 ## The Circuito board (purple): roguelite tournament runs.
@@ -2940,7 +2940,7 @@ func _build_mobs() -> void:
 		var c: Dictionary = camp
 		var p: Vector3 = c.pos
 		if zone != "caceres":
-			_label("%s  ·  Lv %d-%d" % [str(c.title).to_upper(), Data.display_level(float(c.lv[0])), Data.display_level(float(c.lv[1]))], Vector3(p.x, ground_y(p.x, p.z) + 3.4, p.z - c.radius), 56, Color(1, 0.85, 0.5))
+			_label(Tx.f("%s  ·  Lv %d-%d", [Tx.s(str(c.title)).to_upper(), Data.display_level(float(c.lv[0])), Data.display_level(float(c.lv[1]))]), Vector3(p.x, ground_y(p.x, p.z) + 3.4, p.z - c.radius), 56, Color(1, 0.85, 0.5))
 		for i in int(c.count):
 			var e := {"npc": null, "camp": c, "rare": false, "t": 0.0}
 			mobs.append(e)

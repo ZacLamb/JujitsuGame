@@ -160,9 +160,9 @@ func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, text: String, ba
 	if text != "":
 		var f := Wow.body()
 		var fs := int(size.y * 0.85)
-		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string_outline(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0))
-		draw_string(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1))
+		var w := f.get_string_size(Tx.s(text), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string_outline(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), Tx.s(text), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0))
+		draw_string(f, pos + Vector2((size.x - w) / 2.0, size.y * 0.82), Tx.s(text), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1))
 
 func _draw() -> void:
 	var me: CombatCore.Unit = combat.me
@@ -177,8 +177,8 @@ func _draw() -> void:
 		draw_circle(c, 3.3, Color(1, 0.35, 0.2) if g < me.grip else Color(0.2, 0.16, 0.12))
 	var f := Wow.title_font()
 	if me.grip > 0:
-		draw_string_outline(f, Vector2(x0 + 4 + me.max_grip * 12, 66), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
-		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), "GRIP", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
+		draw_string_outline(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
+		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
 	_auras(me, Vector2(x0, 76))
 	_party_frames(Vector2(14, 98))
 	# player cast bar (above the action bar)
@@ -193,13 +193,13 @@ func _draw() -> void:
 	var tp := Vector2(300, 12)
 	var plate := Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Color(1, 0.82, 0.3, 0.9) if t.elite else Color(Wow.FRAME, 0.9), 4, 0, 2 if t.elite else 1)
 	draw_style_box(plate, Rect2(tp, Vector2(270, 74)))
-	var nm := "%s" % t.name
-	var lvl := "%d%s" % [t.level, "+" if t.elite else ""]
+	var nm := Tx.f("%s", t.name)
+	var lvl := Tx.f("%d%s", [t.level, "+" if t.elite else ""])
 	var ncol := Data.con_color(t.level, Game.player_level())
-	draw_string_outline(f, tp + Vector2(10, 22), nm, HORIZONTAL_ALIGNMENT_LEFT, 200, 16, 4, Color.BLACK)
-	draw_string(f, tp + Vector2(10, 22), nm, HORIZONTAL_ALIGNMENT_LEFT, 200, 16, Wow.GOLD if not t.dead else Color(0.6, 0.6, 0.6))
-	draw_string_outline(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, 4, Color.BLACK)
-	draw_string(f, tp + Vector2(222, 22), lvl, HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, ncol)
+	draw_string_outline(f, tp + Vector2(10, 22), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 200, 16, 4, Color.BLACK)
+	draw_string(f, tp + Vector2(10, 22), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 200, 16, Wow.GOLD if not t.dead else Color(0.6, 0.6, 0.6))
+	draw_string_outline(f, tp + Vector2(222, 22), Tx.s(lvl), HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, 4, Color.BLACK)
+	draw_string(f, tp + Vector2(222, 22), Tx.s(lvl), HORIZONTAL_ALIGNMENT_RIGHT, 40, 16, ncol)
 	_bar(tp + Vector2(10, 30), Vector2(250, 20), t.pct(), HP_COL if not t.in_combat else Color(0.85, 0.25, 0.2), "%d%%" % int(round(t.pct() * 100.0)))
 	# where the fight is: position, who's on top, and how dominant you are
 	var pi: Array = combat.core.pos_info(me, t)
@@ -208,18 +208,18 @@ func _draw() -> void:
 	if dm != 0:
 		ptxt += "   %+d" % dm
 	var pcol := Color(0.5, 1.0, 0.6) if dm > 0 else (Color(1, 0.5, 0.4) if dm < 0 else Wow.PALE)
-	draw_string_outline(Wow.body(), tp + Vector2(12, 66), ptxt, HORIZONTAL_ALIGNMENT_LEFT, 250, 13, 3, Color.BLACK)
-	draw_string(Wow.body(), tp + Vector2(12, 66), ptxt, HORIZONTAL_ALIGNMENT_LEFT, 250, 13, pcol)
+	draw_string_outline(Wow.body(), tp + Vector2(12, 66), Tx.s(ptxt), HORIZONTAL_ALIGNMENT_LEFT, 250, 13, 3, Color.BLACK)
+	draw_string(Wow.body(), tp + Vector2(12, 66), Tx.s(ptxt), HORIZONTAL_ALIGNMENT_LEFT, 250, 13, pcol)
 	if t.elite:
 		var tag := ("Boss" if t.data.get("raid", false) else "Rare") if t.boss else "Elite"
-		draw_string(Wow.body(), tp + Vector2(222, 66), tag, HORIZONTAL_ALIGNMENT_RIGHT, 40, 11, Color(1, 0.82, 0.3))
+		draw_string(Wow.body(), tp + Vector2(222, 66), Tx.s(tag), HORIZONTAL_ALIGNMENT_RIGHT, 40, 11, Color(1, 0.82, 0.3))
 	if not t.cast.is_empty():
 		var kind := CombatCore.counter_kind(t.cast.ab)
 		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind]
 		_bar(tp + Vector2(10, 82), Vector2(250, 16), float(t.cast.t) / float(t.cast.dur), kc, str(t.cast.ab.name))
-		var hint := "%s it!  [%s]" % [CombatCore.KIND_VERB[kind].to_upper(), CombatCore.KIND_KEY[kind]]
-		draw_string_outline(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
-		draw_string(Wow.title_font(), tp + Vector2(12, 120), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
+		var hint := Tx.f("%s it!  [%s]", [Tx.s(CombatCore.KIND_VERB[kind]).to_upper(), CombatCore.KIND_KEY[kind]])
+		draw_string_outline(Wow.title_font(), tp + Vector2(12, 120), Tx.s(hint), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 4, Color.BLACK)
+		draw_string(Wow.title_font(), tp + Vector2(12, 120), Tx.s(hint), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, kc)
 	_auras(t, tp + Vector2(280, 30))
 
 ## Raid party: a compact frame per partner under yours (name, role colour, Composure, casting).
@@ -236,15 +236,15 @@ func _party_frames(at: Vector2) -> void:
 		var rc: Color = {"tank": Color(0.35, 0.65, 1.0), "heal": Color(0.35, 0.85, 0.78), "dps": Color(1.0, 0.45, 0.35)}.get(role, Color.WHITE)
 		draw_rect(Rect2(at.x, y, 196, 30), Color(0, 0, 0, 0.55))
 		draw_rect(Rect2(at.x, y, 4, 30), rc)
-		var nm := "%s  ·  %s" % [str(n.mob.name), {"tank": "Tank", "heal": "Healer", "dps": "Damage"}.get(role, "")]
-		draw_string_outline(f, Vector2(at.x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, 3, Color.BLACK)
-		draw_string(f, Vector2(at.x + 9, y + 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 185, 11, Color.WHITE if u else Color(0.6, 0.6, 0.6))
+		var nm := Tx.f("%s  ·  %s", [str(n.mob.name), {"tank": "Tank", "heal": "Healer", "dps": "Damage"}.get(role, "")])
+		draw_string_outline(f, Vector2(at.x + 9, y + 12), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 185, 11, 3, Color.BLACK)
+		draw_string(f, Vector2(at.x + 9, y + 12), Tx.s(nm), HORIZONTAL_ALIGNMENT_LEFT, 185, 11, Color.WHITE if u else Color(0.6, 0.6, 0.6))
 		if u:
 			_bar(Vector2(at.x + 8, y + 16), Vector2(184, 10), u.pct(), HP_COL, "")
 			if not u.cast.is_empty():
 				draw_rect(Rect2(at.x + 8, y + 27, 184.0 * float(u.cast.t) / float(u.cast.dur), 2), Color(1, 0.85, 0.3))
 		else:
-			draw_string(f, Vector2(at.x + 9, y + 26), "tapped out", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.5, 0.4))
+			draw_string(f, Vector2(at.x + 9, y + 26), Tx.s("tapped out"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.5, 0.4))
 		y += 34
 
 func _auras(u: CombatCore.Unit, at: Vector2) -> void:
@@ -301,9 +301,9 @@ func _draw_slot(b: Button, i: int) -> void:
 		if cd > 1.5:
 			var s := str(ceili(cd))
 			var f := Wow.title_font()
-			var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
-			b.draw_string_outline(f, Vector2((b.size.x - w) / 2.0, 36), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color.BLACK)
-			b.draw_string(f, Vector2((b.size.x - w) / 2.0, 36), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 0.85))
+			var w := f.get_string_size(Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+			b.draw_string_outline(f, Vector2((b.size.x - w) / 2.0, 36), Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color.BLACK)
+			b.draw_string(f, Vector2((b.size.x - w) / 2.0, 36), Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 0.85))
 	# finisher / advance ready glow
 	if why == "" and (bool(a.get("finisher", false)) and me.grip >= 3 or str(a.get("needs", "")) == "control"):
 		b.draw_rect(r.grow(-1), Color(1, 0.85, 0.3, 0.85), false, 2.0)
@@ -388,7 +388,7 @@ func _next_card() -> void:
 	v.add_child(Wow.title("NEW TECHNIQUE", 11, Wow.GREEN))
 	var slot := Game.bar_layout.find(str(a.id))
 	var key: String = Abilities.KEYS[slot] if slot >= 0 else str(Abilities.UTILITY_KEYS.get(str(a.id), ""))
-	var nm := Wow.title("%s%s" % [str(a.name), ("  [%s]" % key) if key != "" else "  (Moves book, P)"], 15, Wow.WHITE)
+	var nm := Wow.title(Tx.f("%s%s", [str(a.name), ("  [%s]" % key) if key != "" else "  (Moves book, P)"]), 15, Wow.WHITE)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.custom_minimum_size = Vector2(250, 0)
 	v.add_child(nm)

@@ -23,21 +23,21 @@ static func game_url() -> String:
 static func build_text(daily: Dictionary, res: Dictionary, log: Array, pts: Vector2i, streak: int) -> String:
 	var rule: Dictionary = Data.DAILY_RULES.get(daily.get("rule", ""), {"name": "Daily"})
 	var lines: Array[String] = []
-	lines.append("🥋 Tatame Daily · %s" % daily.get("date", ""))
-	lines.append("Rule: %s · vs %s" % [rule.name, daily.get("opp", {}).get("name", "?")])
+	lines.append(Tx.f("🥋 Tatame Daily · %s", daily.get("date", "")))
+	lines.append(Tx.f("Rule: %s · vs %s", [rule.name, daily.get("opp", {}).get("name", "?")]))
 	var how := ""
 	if res.get("by_sub", false):
-		how = "tapped out" if res.get("sub", "") == "tap" else "by %s" % Data.MOVES.get(res.sub, {"name": "submission"}).name
+		how = "tapped out" if res.get("sub", "") == "tap" else Tx.f("by %s", Data.MOVES.get(res.sub, {"name": "submission"}).name)
 	else:
-		how = "on points %d–%d" % [pts.x, pts.y]
-	lines.append("%s %s" % ["✅ WIN" if res.get("won", false) else "❌ LOSS", how])
+		how = Tx.f("on points %d–%d", [pts.x, pts.y])
+	lines.append(Tx.f("%s %s", ["✅ WIN" if res.get("won", false) else "❌ LOSS", how]))
 	var sq := ""
 	for c in log.slice(0, MAX_SQUARES):
 		sq += CODES[c].emoji
 	if sq != "":
 		lines.append(sq)
 	if res.get("won", false) and streak > 1:
-		lines.append("🔥 %d-day streak" % streak)
+		lines.append(Tx.f("🔥 %d-day streak", streak))
 	var url := game_url()
 	if url != "":
 		lines.append(url)

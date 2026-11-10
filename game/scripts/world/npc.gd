@@ -119,8 +119,8 @@ func refresh_mob_tag() -> void:
 		kind += "  ⚔ Revenge"
 	var tr := str(mob.get("trait", ""))
 	if tr != "":
-		kind += "  <%s>" % str(Loot.TRAITS.get(tr, tr))
-	tag.text = "%s\nLv %d%s" % [mob.name, lv, kind]
+		kind += Tx.f("  <%s>", str(Loot.TRAITS.get(tr, tr)))
+	tag.text = Tx.f("%s\nLv %d%s", [mob.name, lv, kind])
 	tag.modulate = Data.con_color(lv, Game.player_level())
 	if mob.get("rare", false):
 		tag.outline_modulate = Color(0.5, 0.5, 0.6)
@@ -224,10 +224,10 @@ func refresh_tag() -> void:
 	var mark := "  (beaten)" if Game.beaten(opp_id) else ""
 	var lv := Data.display_level(float(o.level))
 	var plv := Game.player_level()
-	var lv_txt := "Lv ??" if lv - plv >= 10 else "Lv %d" % lv
+	var lv_txt := "Lv ??" if lv - plv >= 10 else Tx.f("Lv %d", lv)
 	if o.get("boss", false):
 		lv_txt += " Boss"
-	tag.text = "%s%s\n%s · %s" % [o.name, mark, lv_txt, Data.BELTS[Data.belt_of(int(o.rank))].name + " Belt"]
+	tag.text = "%s%s\n%s · %s" % [o.name, mark, lv_txt, Tx.f("%s Belt", [Data.BELTS[Data.belt_of(int(o.rank))].name])]
 	tag.modulate = Data.con_color(lv, plv)
 
 func set_player(p: Node3D) -> void:

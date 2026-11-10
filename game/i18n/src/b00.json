@@ -1,0 +1,1147 @@
+[
+[
+"\n\n(Their shadow needs %d min to recover.)",
+"\n\n(A sombra dele precisa de %d min para se recuperar.)",
+"\n\n(Su sombra necesita %d min para recuperarse.)"
+],
+[
+"\n\nCome back when it's done.",
+"\n\nVolte quando terminar.",
+"\n\nVuelve cuando termines."
+],
+[
+"\n\nFor the Faction War: a win is worth 20 points.",
+"\n\nPela Guerra de Facções: uma vitória vale 20 pontos.",
+"\n\nPor la Guerra de Facciones: una victoria vale 20 puntos."
+],
+[
+"\n\nOr fight their shadow: an AI copy of their character, no need to ask.",
+"\n\nOu lute contra a sombra dele: uma cópia por IA do personagem, sem precisar pedir.",
+"\n\nO lucha contra su sombra: una copia por IA de su personaje, sin tener que pedirlo."
+],
+[
+"\n\nYou'll still train No-Gi; its signatures come about 10 levels later.",
+"\n\nVocê ainda vai treinar No-Gi; as técnicas de assinatura vêm uns 10 níveis depois.",
+"\n\nSeguirás entrenando No-Gi; sus técnicas insignia llegan unos 10 niveles después."
+],
+[
+"\n\nYou'll still train in the gi; its signatures come about 10 levels later.",
+"\n\nVocê ainda vai treinar de kimono; as técnicas de assinatura vêm uns 10 níveis depois.",
+"\n\nSeguirás entrenando con gi; sus técnicas insignia llegan unos 10 niveles después."
+],
+[
+"     %s  Favorites: %s.",
+"     %s  Favoritas: %s.",
+"     %s  Favoritas: %s."
+],
+[
+"   (dangerous: you're level %d)",
+"   (perigoso: você é nível %d)",
+"   (peligroso: eres nivel %d)"
+],
+[
+"   (need R$ %d)",
+"   (precisa de R$ %d)",
+"   (necesitas R$ %d)"
+],
+[
+"   (you are here)",
+"   (você está aqui)",
+"   (estás aquí)"
+],
+[
+"   ·   +%d points",
+"   ·   +%d pontos",
+"   ·   +%d puntos"
+],
+[
+"   ·   bus",
+"   ·   ônibus",
+"   ·   autobús"
+],
+[
+"   ·   flight R$ %d",
+"   ·   voo R$ %d",
+"   ·   vuelo R$ %d"
+],
+[
+"  (%d each)",
+"  (%d cada)",
+"  (%d cada uno)"
+],
+[
+"  (%d waiting to send)",
+"  (%d aguardando envio)",
+"  (%d pendientes de enviar)"
+],
+[
+"  (Moves book, P)",
+"  (Livro de Golpes, P)",
+"  (Libro de Técnicas, P)"
+],
+[
+"  (beaten)",
+"  (vencido)",
+"  (vencido)"
+],
+[
+"  (done)",
+"  (feito)",
+"  (hecho)"
+],
+[
+"  (roll first)",
+"  (role primeiro)",
+"  (rueda primero)"
+],
+[
+"  (stripe cap: beat %s to promote)",
+"  (limite de graus: vença %s para ser promovido)",
+"  (límite de grados: vence a %s para ascender)"
+],
+[
+"  (you're in the other kit now)",
+"  (você está no outro kit agora)",
+"  (ahora llevas el otro equipo)"
+],
+[
+"  (you)",
+"  (você)",
+"  (tú)"
+],
+[
+"  - Return to %s",
+"  - Volte para %s",
+"  - Vuelve con %s"
+],
+[
+"  Rank %d / %d",
+"  Grau %d / %d",
+"  Rango %d / %d"
+],
+[
+"  Spoils of war: +%d%% XP for you all week.",
+"  Espólios de guerra: +%d%% XP para você a semana toda.",
+"  Botín de guerra: +%d%% XP para ti toda la semana."
+],
+[
+"  UNDER ATTACK: %s",
+"  SOB ATAQUE: %s",
+"  BAJO ATAQUE: %s"
+],
+[
+"  Win this week for +5% XP next week.",
+"  Vença esta semana para ganhar +5% XP na próxima.",
+"  Gana esta semana para obtener +5% XP la próxima."
+],
+[
+"  ·  %d stripe%s",
+"  ·  %d grau%s",
+"  ·  %d grado%s"
+],
+[
+"  ·  ACTIVE",
+"  ·  ATIVO",
+"  ·  ACTIVO"
+],
+[
+"  ·  ENRAGED",
+"  ·  ENFURECIDO",
+"  ·  ENFURECIDO"
+],
+[
+"  ·  HEAVY BASE ×%d",
+"  ·  BASE PESADA ×%d",
+"  ·  BASE PESADA ×%d"
+],
+[
+"  ·  MUTED",
+"  ·  SILENCIADO",
+"  ·  SILENCIADO"
+],
+[
+"  ·  Signature",
+"  ·  Assinatura",
+"  ·  Insignia"
+],
+[
+"  ·  YOU",
+"  ·  VOCÊ",
+"  ·  TÚ"
+],
+[
+"  ·  fighting",
+"  ·  lutando",
+"  ·  luchando"
+],
+[
+"  ·  fights in phases, watch for gold specials",
+"  ·  luta em fases, cuidado com os especiais dourados",
+"  ·  pelea por fases, atento a los especiales dorados"
+],
+[
+"  ·  for %s!",
+"  ·  por %s!",
+"  ·  ¡por %s!"
+],
+[
+"  ★ Rare Elite",
+"  ★ Elite Rara",
+"  ★ Élite Rara"
+],
+[
+"  ★ master",
+"  ★ mestre",
+"  ★ maestro"
+],
+[
+"  ⚔ Revenge",
+"  ⚔ Vingança",
+"  ⚔ Venganza"
+],
+[
+" (busy)",
+" (ocupado)",
+" (ocupado)"
+],
+[
+" A win counts for the Faction War (20 points).",
+" Uma vitória conta para a Guerra de Facções (20 pontos).",
+" Una victoria cuenta para la Guerra de Facciones (20 puntos)."
+],
+[
+" Belt",
+" Faixa",
+" Cinturón"
+],
+[
+" Boss",
+" Chefe",
+" Jefe"
+],
+[
+" Jacket",
+" Paletó",
+" Chaqueta"
+],
+[
+" Pants",
+" Calça",
+" Pantalón"
+],
+[
+" is yours!",
+" é seu!",
+" ¡es tuyo!"
+],
+[
+" over your %s (item level %d)",
+" sobre seu %s (nível de item %d)",
+" sobre tu %s (nivel de objeto %d)"
+],
+[
+" per rank",
+" por grau",
+" por rango"
+],
+[
+" spec",
+" especialização",
+" especialización"
+],
+[
+" with a %s",
+" com um %s",
+" con un %s"
+],
+[
+"! quest  ·  ? turn in  ·  dots: fighters  ·  flags: territories (green yours, red under attack)  ·  star: objective  ·  M closes",
+"! missão  ·  ? entregar  ·  pontos: lutadores  ·  bandeiras: territórios (verde seu, vermelho sob ataque)  ·  estrela: objetivo  ·  M fecha",
+"! misión  ·  ? entregar  ·  puntos: luchadores  ·  banderas: territorios (verde tuyo, rojo bajo ataque)  ·  estrella: objetivo  ·  M cierra"
+],
+[
+"\"Olha o açaí! Fresquinho!\"  ·  Click your bag items to sell them.",
+"\"Olha o açaí! Fresquinho!\"  ·  Clique nos itens da mochila para vendê-los.",
+"\"¡Olha o açaí! ¡Fresquinho!\"  ·  Haz clic en los objetos de tu bolsa para venderlos."
+],
+[
+"#%d  %s  ·  reported %s by %s",
+"#%d  %s  ·  denunciado %s por %s",
+"#%d  %s  ·  denunciado %s por %s"
+],
+[
+"#%d in line",
+"#%d na fila",
+"#%d en la fila"
+],
+[
+"%.0f sec cooldown",
+"%.0f s de recarga",
+"%.0f s de reutilización"
+],
+[
+"%.1f sec cast",
+"%.1f s de conjuração",
+"%.1f s de lanzamiento"
+],
+[
+"%.1f sec channel",
+"%.1f s canalizando",
+"%.1f s canalizando"
+],
+[
+"%d / %d free  ·  %s",
+"%d / %d livres  ·  %s",
+"%d / %d libres  ·  %s"
+],
+[
+"%d / %d wins",
+"%d / %d vitórias",
+"%d / %d victorias"
+],
+[
+"%d Gas",
+"%d de Gás",
+"%d de Gas"
+],
+[
+"%d XP to %d",
+"%d XP até %d",
+"%d XP hasta %d"
+],
+[
+"%d XP to level %d",
+"%d XP até o nível %d",
+"%d XP hasta el nivel %d"
+],
+[
+"%d attribute point%s [C]",
+"%d ponto%s de atributo [C]",
+"%d punto%s de atributo [C]"
+],
+[
+"%d attribute point%s to spend",
+"%d ponto%s de atributo para gastar",
+"%d punto%s de atributo por gastar"
+],
+[
+"%d gold · %d silver · %d bronze",
+"%d ouro · %d prata · %d bronze",
+"%d oro · %d plata · %d bronce"
+],
+[
+"%d more",
+"mais %d",
+"%d más"
+],
+[
+"%d point%s to spend",
+"%d ponto%s para gastar",
+"%d punto%s por gastar"
+],
+[
+"%d sec cooldown",
+"%d s de recarga",
+"%d s de reutilización"
+],
+[
+"%d spent  ·  next point at level %d",
+"%d gastos  ·  próximo ponto no nível %d",
+"%d gastados  ·  siguiente punto al nivel %d"
+],
+[
+"%d stamina",
+"%d de fôlego",
+"%d de aguante"
+],
+[
+"%d talent point%s [N]",
+"%d ponto%s de talento [N]",
+"%d punto%s de talento [N]"
+],
+[
+"%d techniques known. Each move button uses the strongest technique of its kind you know.",
+"%d técnicas conhecidas. Cada botão de golpe usa a técnica mais forte desse tipo que você conhece.",
+"%d técnicas conocidas. Cada botón de técnica usa la más fuerte de ese tipo que conozcas."
+],
+[
+"%d win%s this run. +%d XP. The road resets every run; the cards will be different next time.",
+"%d vitória%s nesta jornada. +%d XP. O circuito recomeça a cada jornada; as cartas serão outras na próxima.",
+"%d victoria%s en esta ruta. +%d XP. El circuito se reinicia en cada ruta; las cartas serán otras la próxima vez."
+],
+[
+"%s\n\n%s\n\n%s\nReward: %d XP",
+"%s\n\n%s\n\n%s\nRecompensa: %d XP",
+"%s\n\n%s\n\n%s\nRecompensa: %d XP"
+],
+[
+"%s\n\n%s\n\nReward: %d XP",
+"%s\n\n%s\n\nRecompensa: %d XP",
+"%s\n\n%s\n\nRecompensa: %d XP"
+],
+[
+"%s\n\nBlack belts only. Come back when Leão ties one around your waist.",
+"%s\n\nSó faixas pretas. Volte quando o Leão amarrar uma na sua cintura.",
+"%s\n\nSolo cinturones negros. Vuelve cuando Leão te ate uno a la cintura."
+],
+[
+"%s\n\nRead the cast bars: Sprawl (Q) takedown waves, Frame (R) his Second Breath, Defend (T) chokes aimed at you. Kill the adds before they reach your healer.",
+"%s\n\nLeia as barras de conjuração: Sprawl (Q) nas ondas de queda, Frame (R) no Segundo Fôlego dele, Defenda (T) os estrangulamentos em você. Derrube os ajudantes antes que cheguem ao seu curandeiro.",
+"%s\n\nLee las barras de lanzamiento: Sprawl (Q) a las oleadas de derribos, Frame (R) a su Segundo Aliento, Defiende (T) las estrangulaciones contra ti. Acaba con los refuerzos antes de que lleguen a tu sanador."
+],
+[
+"%s\n\nYour loot is in your bags. Run it again any time from the Group Finder (K): it scales to your level.",
+"%s\n\nSeu saque está na mochila. Faça de novo quando quiser pelo Buscador de Grupo (K): ajusta-se ao seu nível.",
+"%s\n\nTu botín está en tu bolsa. Repítelo cuando quieras desde el Buscador de Grupo (K): se ajusta a tu nivel."
+],
+[
+"%s\n<Needs a hand>",
+"%s\n<Precisa de ajuda>",
+"%s\n<Necesita ayuda>"
+],
+[
+"%s\nBase %d · Training +%d · Style +%d · Points +%d · Gear +%d",
+"%s\nBase %d · Treino +%d · Estilo +%d · Pontos +%d · Equipamento +%d",
+"%s\nBase %d · Entrenamiento +%d · Estilo +%d · Puntos +%d · Equipo +%d"
+],
+[
+"%s\nLv %d%s",
+"%s\nNv %d%s",
+"%s\nNv %d%s"
+],
+[
+"%s\nUNDER ATTACK!",
+"%s\nSOB ATAQUE!",
+"%s\n¡BAJO ATAQUE!"
+],
+[
+"%s  (bags full!)",
+"%s  (mochila cheia!)",
+"%s  (¡bolsa llena!)"
+],
+[
+"%s  -10 gas",
+"%s  -10 de gás",
+"%s  -10 de gas"
+],
+[
+"%s  -8 gas",
+"%s  -8 de gás",
+"%s  -8 de gas"
+],
+[
+"%s  vs  %s   ·   winner stays on, stamina carries over, a draw eliminates both",
+"%s  vs  %s   ·   quem vence fica, o fôlego continua, empate elimina os dois",
+"%s  vs  %s   ·   el ganador se queda, el aguante se mantiene, un empate elimina a ambos"
+],
+[
+"%s  ·  %s Quartermaster",
+"%s  ·  Intendente de %s",
+"%s  ·  Intendente de %s"
+],
+[
+"%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept).",
+"%s  ·  %s, nível %d.\n\nDuelo ao vivo: um rola de verdade contra ele, agora mesmo (ele precisa aceitar).",
+"%s  ·  %s, nivel %d.\n\nDuelo en vivo: un combate real contra él, ahora mismo (tiene que aceptar)."
+],
+[
+"%s  ·  Level %d",
+"%s  ·  Nível %d",
+"%s  ·  Nivel %d"
+],
+[
+"%s  ·  Lv %d",
+"%s  ·  Nv %d",
+"%s  ·  Nv %d"
+],
+[
+"%s  ·  Lv %d  ·  %s",
+"%s  ·  Nv %d  ·  %s",
+"%s  ·  Nv %d  ·  %s"
+],
+[
+"%s  ·  Lv %d  ·  click to roll",
+"%s  ·  Nv %d  ·  clique para rolar",
+"%s  ·  Nv %d  ·  clic para luchar"
+],
+[
+"%s  ·  Lv %d %s",
+"%s  ·  Nv %d %s",
+"%s  ·  Nv %d %s"
+],
+[
+"%s  ·  Lv %d%s",
+"%s  ·  Nv %d%s",
+"%s  ·  Nv %d%s"
+],
+[
+"%s  ·  Lv %d-%d",
+"%s  ·  Nv %d-%d",
+"%s  ·  Nv %d-%d"
+],
+[
+"%s  ·  Tier %d  ·  %s",
+"%s  ·  Nível %d  ·  %s",
+"%s  ·  Nivel %d  ·  %s"
+],
+[
+"%s  ·  click to talk",
+"%s  ·  clique para conversar",
+"%s  ·  clic para hablar"
+],
+[
+"%s  ·  hover for details",
+"%s  ·  passe o mouse para detalhes",
+"%s  ·  pasa el ratón para ver detalles"
+],
+[
+"%s  ·  uses your %s",
+"%s  ·  usa seu %s",
+"%s  ·  usa tu %s"
+],
+[
+"%s (%s, level %d) challenges you to a live duel.%s",
+"%s (%s, nível %d) desafia você para um duelo ao vivo.%s",
+"%s (%s, nivel %d) te reta a un duelo en vivo.%s"
+],
+[
+"%s (Lv %d)",
+"%s (Nv %d)",
+"%s (Nv %d)"
+],
+[
+"%s (chain)",
+"%s (encadeado)",
+"%s (encadenado)"
+],
+[
+"%s (re-counter)",
+"%s (recontra-ataque)",
+"%s (recontraataque)"
+],
+[
+"%s Belt",
+"Faixa %s",
+"Cinturón %s"
+],
+[
+"%s Belt, %d stripe%s",
+"Faixa %s, %d grau%s",
+"Cinturón %s, %d grado%s"
+],
+[
+"%s Honor",
+"%s de Honra",
+"%s de Honor"
+],
+[
+"%s PATH  ·  %s\n\n%s\n\nSignature techniques (learned first, +%d%% damage in your path's kit):\n%s",
+"CAMINHO %s  ·  %s\n\n%s\n\nTécnicas de assinatura (aprendidas primeiro, +%d%% de dano no kit do seu caminho):\n%s",
+"CAMINO %s  ·  %s\n\n%s\n\nTécnicas insignia (se aprenden primero, +%d%% de daño en el equipo de tu camino):\n%s"
+],
+[
+"%s QUARTERMASTER",
+"INTENDENTE %s",
+"INTENDENTE %s"
+],
+[
+"%s are back for %s! Defend it in a 3v3 within %dh or the flag falls.",
+"%s voltaram por %s! Defenda num 3x3 em até %dh ou a bandeira cai.",
+"¡%s volvieron por %s! Defiéndelo en un 3v3 en menos de %dh o la bandera cae."
+],
+[
+"%s beat %s, %d fighters left standing.  +%d XP",
+"%s venceu %s, restam %d lutadores.  +%d XP",
+"%s venció a %s, quedan %d luchadores.  +%d XP"
+],
+[
+"%s beats %s %s.",
+"%s vence %s %s.",
+"%s vence a %s %s."
+],
+[
+"%s belt! Ride the bus to %s.",
+"Faixa %s! Pegue o ônibus para %s.",
+"¡Cinturón %s! Toma el autobús a %s."
+],
+[
+"%s belt%s",
+"faixa %s%s",
+"cinturón %s%s"
+],
+[
+"%s cleared! +%d XP, R$ %d",
+"%s concluída! +%d XP, R$ %d",
+"¡%s completada! +%d XP, R$ %d"
+],
+[
+"%s colours? Not at my table. Go earn your Honor with your own side.",
+"Cores do %s? Não na minha mesa. Vá conquistar sua Honra com o seu lado.",
+"¿Colores de %s? No en mi mesa. Ve a ganarte el Honor con tu bando."
+],
+[
+"%s declined%s.",
+"%s recusou%s.",
+"%s rechazó%s."
+],
+[
+"%s didn't answer.",
+"%s não respondeu.",
+"%s no respondió."
+],
+[
+"%s escapes! Advantage to you.",
+"%s escapa! Vantagem para você.",
+"¡%s escapa! Ventaja para ti."
+],
+[
+"%s fell back to %s.",
+"%s recuou para %s.",
+"%s se replegó a %s."
+],
+[
+"%s fell to %s while you were away.",
+"%s caiu para %s enquanto você estava fora.",
+"%s cayó ante %s mientras no estabas."
+],
+[
+"%s forfeited.",
+"%s desistiu.",
+"%s se rindió."
+],
+[
+"%s holds! The rivals back off for now.",
+"%s resiste! Os rivais recuam por enquanto.",
+"¡%s resiste! Los rivales se retiran por ahora."
+],
+[
+"%s in %s",
+"%s em %s",
+"%s en %s"
+],
+[
+"%s is attacking %s! Defend it within %dh.",
+"%s está atacando %s! Defenda em até %dh.",
+"¡%s ataca %s! Defiéndelo en menos de %dh."
+],
+[
+"%s is no longer ignored.",
+"%s não está mais ignorado.",
+"%s ya no está ignorado."
+],
+[
+"%s is now ignored. /unignore %s to undo.",
+"%s agora está ignorado. /unignore %s para desfazer.",
+"%s ahora está ignorado. /unignore %s para deshacer."
+],
+[
+"%s is waiting for the winner!",
+"%s está esperando o vencedor!",
+"¡%s espera al ganador!"
+],
+[
+"%s is yours! +10%% XP in %s while you hold it.",
+"%s é seu! +10%% de XP em %s enquanto você mantiver.",
+"¡%s es tuyo! +10%% de XP en %s mientras lo mantengas."
+],
+[
+"%s it!  [%s]",
+"%s isso!  [%s]",
+"¡%s eso!  [%s]"
+],
+[
+"%s leaves the mat with %d%% stamina",
+"%s sai do tatame com %d%% de fôlego",
+"%s sale del tatami con %d%% de aguante"
+],
+[
+"%s left.",
+"%s saiu.",
+"%s se fue."
+],
+[
+"%s locks in a %s!",
+"%s encaixa um %s!",
+"¡%s asegura un %s!"
+],
+[
+"%s medal",
+"medalha de %s",
+"medalla de %s"
+],
+[
+"%s plant their flag here. Take it with a 3v3: their best three against your first three (set your lineup on any Team Challenge board).\n\nHold it for +10%% XP from rolls in %s. Rivals will come back for it.",
+"%s fincaram a bandeira aqui. Tome com um 3x3: os três melhores deles contra seus três primeiros (monte sua escalação em qualquer quadro de Desafio de Equipes).\n\nMantenha para +10%% de XP nos rolas em %s. Os rivais vão voltar.",
+"%s plantaron su bandera aquí. Tómala en un 3v3: sus tres mejores contra tus tres primeros (arma tu alineación en cualquier tablero de Reto por Equipos).\n\nMantenla para +10%% de XP en los combates en %s. Los rivales volverán por ella."
+],
+[
+"%s says: %s",
+"%s diz: %s",
+"%s dice: %s"
+],
+[
+"%s shuts down your %s.",
+"%s anula seu %s.",
+"%s anula tu %s."
+],
+[
+"%s signature finisher: a fast 0.8s cast that hits harder per Grip.",
+"Finalização de assinatura %s: conjuração rápida de 0,8 s que bate mais forte por Pegada.",
+"Finalización insignia %s: lanzamiento rápido de 0,8 s que pega más fuerte por Agarre."
+],
+[
+"%s signature. Big damage and +2 Grip.",
+"Assinatura %s. Muito dano e +2 de Pegada.",
+"Insignia %s. Mucho daño y +2 de Agarre."
+],
+[
+"%s signature: big damage, +2 Grip, Down for 2.5s.",
+"Assinatura %s: muito dano, +2 de Pegada, Derrubado por 2,5 s.",
+"Insignia %s: mucho daño, +2 de Agarre, Derribado 2,5 s."
+],
+[
+"%s signature: big damage, +2 Grip, Exposed for 10s.",
+"Assinatura %s: muito dano, +2 de Pegada, Exposto por 10 s.",
+"Insignia %s: mucho daño, +2 de Agarre, Expuesto 10 s."
+],
+[
+"%s signature: big damage, +2 Grip, Pinned for 8s.",
+"Assinatura %s: muito dano, +2 de Pegada, Imobilizado por 8 s.",
+"Insignia %s: mucho daño, +2 de Agarre, Inmovilizado 8 s."
+],
+[
+"%s signature: break free and recover.",
+"Assinatura %s: escape e recupere-se.",
+"Insignia %s: escápate y recupérate."
+],
+[
+"%s spec",
+"especialização %s",
+"especialización %s"
+],
+[
+"%s squares up!",
+"%s se prepara!",
+"¡%s se pone en guardia!"
+],
+[
+"%s tapped!",
+"%s bateu!",
+"¡%s se rindió!"
+],
+[
+"%s wants to roll!",
+"%s quer rolar!",
+"¡%s quiere luchar!"
+],
+[
+"%s whispers: %s",
+"%s sussurra: %s",
+"%s susurra: %s"
+],
+[
+"%s win this one.  +%d XP",
+"%s vence esta.  +%d XP",
+"%s gana esta.  +%d XP"
+],
+[
+"%s won the duel. Oss.",
+"%s venceu o duelo. Oss.",
+"%s ganó el duelo. Oss."
+],
+[
+"%s won!\n\nNext up, the %s: %s (%s), %s guy.",
+"%s venceu!\n\nO próximo é %s: %s (%s), um cara %s.",
+"¡%s ganó!\n\nEl siguiente es %s: %s (%s), un tipo %s."
+],
+[
+"%s · Live Duel",
+"%s · Duelo ao Vivo",
+"%s · Duelo en Vivo"
+],
+[
+"%s!  Finish it!",
+"%s!  Finalize!",
+"¡%s!  ¡Termina!"
+],
+[
+"%s!  Finish it: %s",
+"%s!  Finalize: %s",
+"¡%s!  Termina: %s"
+],
+[
+"%s%s\n<Level %d%s · %s>",
+"%s%s\n<Nível %d%s · %s>",
+"%s%s\n<Nivel %d%s · %s>"
+],
+[
+"%s%s\nLv %d-%d  ·  boss: %s  ·  %s",
+"%s%s\nNv %d-%d  ·  chefe: %s  ·  %s",
+"%s%s\nNv %d-%d  ·  jefe: %s  ·  %s"
+],
+[
+"%s%s  (+%d gas)",
+"%s%s  (+%d de gás)",
+"%s%s  (+%d de gas)"
+],
+[
+"%s%s  ·  Lv %d %s  ·  %s (%d, %d)%s%s",
+"%s%s  ·  Nv %d %s  ·  %s (%d, %d)%s%s",
+"%s%s  ·  Nv %d %s  ·  %s (%d, %d)%s%s"
+],
+[
+"%s's Shadow",
+"Sombra de %s",
+"Sombra de %s"
+],
+[
+"%s's cooldown is 35%% shorter.",
+"A recarga de %s é 35%% menor.",
+"La reutilización de %s es un 35%% menor."
+],
+[
+"%s: \"Oss!\"  Slap hands, bump fists...",
+"%s: \"Oss!\"  Tapa na mão, soquinho...",
+"%s: \"¡Oss!\"  Choque de manos, de puños..."
+],
+[
+"%s: +%d XP, R$ %d",
+"%s: +%d XP, R$ %d",
+"%s: +%d XP, R$ %d"
+],
+[
+"%s: beat %s",
+"%s: vença %s",
+"%s: vence a %s"
+],
+[
+"%s: complete! Return to %s.",
+"%s: completa! Volte para %s.",
+"%s: ¡completada! Vuelve con %s."
+],
+[
+"%s: lost to %s",
+"%s: perdeu para %s",
+"%s: perdió contra %s"
+],
+[
+"%s: nothing from %s",
+"%s: nada de %s",
+"%s: nada de %s"
+],
+[
+"%s: reach level %d, then see %s.",
+"%s: chegue ao nível %d e procure %s.",
+"%s: llega al nivel %d y busca a %s."
+],
+[
+"%s: return to %s.",
+"%s: volte para %s.",
+"%s: vuelve con %s."
+],
+[
+"%s: talk to %s.",
+"%s: fale com %s.",
+"%s: habla con %s."
+],
+[
+"(%d) Set: %s",
+"(%d) Conjunto: %s",
+"(%d) Conjunto: %s"
+],
+[
+"(no recent chat)",
+"(nenhum chat recente)",
+"(sin chat reciente)"
+],
+[
+"(none given)",
+"(nenhum informado)",
+"(ninguno indicado)"
+],
+[
+"(you on top)",
+"(você por cima)",
+"(tú arriba)"
+],
+[
+"(you underneath)",
+"(você por baixo)",
+"(tú abajo)"
+],
+[
+"+  New Character",
+"+  Novo Personagem",
+"+  Nuevo Personaje"
+],
+[
+"+%d %s war points  (%s)",
+"+%d pontos de guerra de %s  (%s)",
+"+%d puntos de guerra de %s  (%s)"
+],
+[
+"+%d Composure",
+"+%d de Compostura",
+"+%d de Compostura"
+],
+[
+"+%d XP   ·   %s",
+"+%d XP   ·   %s",
+"+%d XP   ·   %s"
+],
+[
+"+%d gas between bouts",
+"+%d de gás entre lutas",
+"+%d de gas entre combates"
+],
+[
+"+%d gear",
+"+%d equipamento",
+"+%d equipo"
+],
+[
+"+%s%% Power (move damage)",
+"+%s%% de Poder (dano dos golpes)",
+"+%s%% de Poder (daño de técnicas)"
+],
+[
+"+0.5% critical chance. +2% damage with submissions and back takes.",
+"+0,5% de chance crítica. +2% de dano com finalizações e pegadas de costas.",
+"+0,5% de probabilidad de crítico. +2% de daño con sumisiones y tomas de espalda."
+],
+[
+"+1 Grip Control (+2 while they're off-balance). Techniques spend all your grips: more grips, better odds and deeper submissions.",
+"+1 Controle de Pegada (+2 com o oponente desequilibrado). Técnicas gastam todas as pegadas: mais pegadas, mais chances e finalizações mais profundas.",
+"+1 Control de Agarre (+2 si está desequilibrado). Las técnicas gastan todos tus agarres: más agarres, mejores opciones y sumisiones más profundas."
+],
+[
+"+1.5% damage with every move, +2% more with passes, takedowns and mount. Harder finishing squeezes.",
+"+1,5% de dano em todo golpe, +2% a mais com passagens, quedas e montada. Apertos mais difíceis de escapar.",
+"+1,5% de daño en cada técnica, +2% más con pases, derribos y montada. Aprietes más duros."
+],
+[
+"+10% XP from rolls for 20 min.",
+"+10% de XP nos rolas por 20 min.",
+"+10% de XP en combates durante 20 min."
+],
+[
+"+10% haste, and Escape costs no Gas.",
+"+10% de pressa, e o Escape não custa Gás.",
+"+10% de celeridad, y Escapar no cuesta Gas."
+],
+[
+"+12 maximum Gas per rank.",
+"+12 de Gás máximo por grau.",
+"+12 de Gas máximo por rango."
+],
+[
+"+15 max stamina for 15 min.",
+"+15 de fôlego máximo por 15 min.",
+"+15 de aguante máximo durante 15 min."
+],
+[
+"+15 max stamina; their passes take 30% longer to cast.",
+"+15 de fôlego máximo; as passagens deles demoram 30% mais.",
+"+15 de aguante máximo; sus pases tardan un 30% más."
+],
+[
+"+15% Gas regeneration per rank.",
+"+15% de regeneração de Gás por grau.",
+"+15% de regeneración de Gas por rango."
+],
+[
+"+20 STAMINA",
+"+20 FÔLEGO",
+"+20 AGUANTE"
+],
+[
+"+20 max stamina.",
+"+20 de fôlego máximo.",
+"+20 de aguante máximo."
+],
+[
+"+20 maximum Gas.",
+"+20 de Gás máximo.",
+"+20 de Gas máximo."
+],
+[
+"+20% damage to Down targets.",
+"+20% de dano em alvos Derrubados.",
+"+20% de daño a objetivos Derribados."
+],
+[
+"+20% reaction time against guard passes per rank.",
+"+20% de tempo de reação contra passagens de guarda por grau.",
+"+20% de tiempo de reacción contra pases de guardia por rango."
+],
+[
+"+20% reaction time against sweeps and escapes per rank.",
+"+20% de tempo de reação contra raspagens e escapes por grau.",
+"+20% de tiempo de reacción contra barridas y escapes por rango."
+],
+[
+"+20% reaction time against takedowns per rank.",
+"+20% de tempo de reação contra quedas por grau.",
+"+20% de tiempo de reacción contra derribos por rango."
+],
+[
+"+25 maximum Gas.",
+"+25 de Gás máximo.",
+"+25 de Gas máximo."
+],
+[
+"+3% Composure (health). +2% damage with sweeps, guard and escapes.",
+"+3% de Compostura (vida). +2% de dano com raspagens, guarda e escapes.",
+"+3% de Compostura (vida). +2% de daño con barridas, guardia y escapes."
+],
+[
+"+30% damage to targets below 35% Composure.",
+"+30% de dano em alvos com menos de 35% de Compostura.",
+"+30% de daño a objetivos con menos del 35% de Compostura."
+],
+[
+"+4 max Gas, +5% Gas regen, moves cost 2% less.",
+"+4 de Gás máximo, +5% de regeneração de Gás, golpes custam 2% menos.",
+"+4 de Gas máximo, +5% de regeneración de Gas, las técnicas cuestan un 2% menos."
+],
+[
+"+4% critical strike chance per rank.",
+"+4% de chance de golpe crítico por grau.",
+"+4% de probabilidad de golpe crítico por rango."
+],
+[
+"+5% damage per rank.",
+"+5% de dano por grau.",
+"+5% de daño por rango."
+],
+[
+"+50% Gas regeneration. Escapes are 20% stronger.",
+"+50% de regeneração de Gás. Escapes 20% mais fortes.",
+"+50% de regeneración de Gas. Los escapes son un 20% más fuertes."
+],
+[
+"+6% damage.",
+"+6% de dano.",
+"+6% de daño."
+],
+[
+"+6% maximum Composure per rank.",
+"+6% de Compostura máxima por grau.",
+"+6% de Compostura máxima por rango."
+],
+[
+"+GRIP  %d",
+"+PEGADA  %d",
+"+AGARRE  %d"
+],
+[
+", +%d talent point%s",
+", +%d ponto%s de talento",
+", +%d punto%s de talento"
+],
+[
+"...Mr. Sterling is not gonna love this.",
+"...O Sr. Sterling não vai gostar nada disso.",
+"...Al Sr. Sterling no le va a gustar nada esto."
+],
+[
+"...My dad's going to pull out. Brazil was supposed to be easy money.",
+"...Meu pai vai desistir. O Brasil era pra ser dinheiro fácil.",
+"...Mi papá se va a retirar. Brasil iba a ser dinero fácil."
+],
+[
+"...the Patrão is not going to like this.",
+"...o Patrão não vai gostar disso.",
+"...al Patrão no le va a gustar esto."
+],
+[
+"2 stamina",
+"2 de fôlego",
+"2 de aguante"
+],
+[
+"25% more time against takedowns and sweeps.",
+"25% mais tempo contra quedas e raspagens.",
+"25% más de tiempo contra derribos y barridas."
+],
+[
+"4% haste per rank.",
+"4% de pressa por grau.",
+"4% de celeridad por rango."
+],
+[
+"4% haste per rank: faster global cooldown and casts.",
+"4% de pressa por grau: recarga global e conjurações mais rápidas.",
+"4% de celeridad por rango: tiempo global y lanzamientos más rápidos."
+],
+[
+"6 stamina",
+"6 de fôlego",
+"6 de aguante"
+],
+[
+"<Main Story>\n",
+"<História Principal>\n",
+"<Historia Principal>\n"
+],
+[
+"A 10-slot bag. Dropped by elite rollers.",
+"Uma mochila de 10 espaços. Cai de lutadores de elite.",
+"Una bolsa de 10 espacios. La sueltan luchadores de élite."
+],
+[
+"A 12-slot bag. Only rare named rollers carry these.",
+"Uma mochila de 12 espaços. Só lutadores raros nomeados carregam.",
+"Una bolsa de 12 espacios. Solo la llevan luchadores raros con nombre."
+],
+[
+"A 6-slot bag.",
+"Uma mochila de 6 espaços.",
+"Una bolsa de 6 espacios."
+],
+[
+"A Blank Passport",
+"Um Passaporte em Branco",
+"Un Pasaporte en Blanco"
+],
+[
+"A Liga Ouro 'resort' wants the land around Véu de Noiva, and Mestre Cachoeira's academy sits right on it. Walk the plateau with me. See what they want to sell.",
+"Um 'resort' da Liga Ouro quer as terras em volta do Véu de Noiva, e a academia do Mestre Cachoeira fica bem em cima. Ande pelo planalto comigo. Veja o que eles querem vender.",
+"Un 'resort' de la Liga Ouro quiere las tierras alrededor del Véu de Noiva, y la academia del Mestre Cachoeira está justo encima. Recorre la meseta conmigo. Mira lo que quieren vender."
+],
+[
+"A flight to %s costs R$ %d.",
+"Um voo para %s custa R$ %d.",
+"Un vuelo a %s cuesta R$ %d."
+],
+[
+"A gourd of mate between rounds: restore 25% Composure over 6 seconds.",
+"Uma cuia de mate entre os rounds: recupera 25% de Compostura em 6 segundos.",
+"Un mate entre asaltos: recupera un 25% de Compostura en 6 segundos."
+],
+[
+"A medal at the Rio Open. Gringo, they'll be talking about you back in Cáceres.",
+"Uma medalha no Rio Open. Gringo, vão falar de você lá em Cáceres.",
+"Una medalla en el Rio Open. Gringo, van a hablar de ti allá en Cáceres."
+],
+[
+"A medal in that heat? You're half gator already.",
+"Uma medalha naquele calor? Você já é meio jacaré.",
+"¿Una medalla con ese calor? Ya eres medio caimán."
+],
+[
+"A medal in your first comp! Mestre Onça pretended not to smile. I saw it.",
+"Uma medalha no seu primeiro campeonato! O Mestre Onça fingiu que não sorriu. Eu vi.",
+"¡Una medalla en tu primer torneo! El Mestre Onça fingió no sonreír. Yo lo vi."
+],
+[
+"A medal on two continents. Dale's waiting in The Garage. He doesn't give stamps. He's never had a passport to stamp.",
+"Uma medalha em dois continentes. O Dale está esperando na Garagem. Ele não dá carimbos. Nunca teve um passaporte pra carimbar.",
+"Una medalla en dos continentes. Dale te espera en El Garaje. Él no da sellos. Nunca tuvo un pasaporte que sellar."
+],
+[
+"A tin shed, no AC and a gator in the parking lot. Bring water.",
+"Um galpão de zinco, sem ar-condicionado e um jacaré no estacionamento. Traga água.",
+"Un galpón de chapa, sin aire acondicionado y un caimán en el estacionamiento. Trae agua."
+]
+]

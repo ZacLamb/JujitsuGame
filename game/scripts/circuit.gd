@@ -128,14 +128,14 @@ class Run:
 	func apply(r: Dictionary, me_stam: float) -> void:
 		var o := current()
 		if r.get("won", false):
-			feed.append(["%s: beat %s" % [Circuit.ROUND_NAMES[round], o.name], Color(0.45, 1.0, 0.55)])
+			feed.append([Tx.f("%s: beat %s", [Circuit.ROUND_NAMES[round], o.name]), Color(0.45, 1.0, 0.55)])
 			round += 1
 			var rec := Circuit.RECOVER + 0.3 * Circuit.count(perks, "ice_bath")
 			stamina = clampf(me_stam + rec, 0.15, 1.0)
 			if round < ladder.size():
 				offers = Circuit.offer(rng)
 		else:
-			feed.append(["%s: lost to %s" % [Circuit.ROUND_NAMES[round], o.name], Color(1.0, 0.5, 0.45)])
+			feed.append([Tx.f("%s: lost to %s", [Circuit.ROUND_NAMES[round], o.name]), Color(1.0, 0.5, 0.45)])
 			lost = true
 
 static func new_run(nonce: int) -> Run:

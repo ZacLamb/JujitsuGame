@@ -716,7 +716,7 @@ func _special_lands(c: Dictionary) -> void:
 			opp_pts += 2
 			control = 0
 			reset_t = RESET_PAUSE
-			log_lines.append("%s: %s  +2" % [opp.name, c.name])
+			log_lines.append(Tx.f("%s: %s  +2", [opp.name, c.name]))
 		"crush":
 			spend(25.0)
 			control = 0
@@ -760,7 +760,7 @@ func apply_move(move_id: String, actor_player: bool) -> Dictionary:
 	else:
 		opp_stamina = maxf(0.0, opp_stamina - cost)
 	if typeof(m.result) == TYPE_STRING and m.result == "sub":
-		return {"sub": true, "text": "%s locks in a %s!" % ["You" if actor_player else opp.name, m.name]}
+		return {"sub": true, "text": Tx.f("%s locks in a %s!", ["You" if actor_player else opp.name, m.name])}
 	var res: Array = m.result
 	pos = res[0]
 	var actor_top: bool = res[1]
@@ -771,7 +771,7 @@ func apply_move(move_id: String, actor_player: bool) -> Dictionary:
 	else:
 		opp_pts += pts
 	var who: String = "You" if actor_player else str(opp.name)
-	var text := "%s: %s" % [who, m.name]
+	var text := Tx.f("%s: %s", [who, m.name])
 	if pts > 0:
 		text += "  +%d" % pts
 	log_lines.append(text)

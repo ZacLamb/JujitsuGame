@@ -338,7 +338,7 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 	if u.player and (str(a.get("type", "")) in POSITIONAL or str(a.get("id", "")) == "spec") and str(a.get("effect", "")) != "advice":
 		var pi := pos_info(u, t if t != null else u.target)
 		if move_for(u, a, t if t != null else u.target) == "":
-			return "Not from %s" % pos_label(str(pi[0]), bool(pi[1]))
+			return Tx.f("Not from %s", pos_label(str(pi[0]), bool(pi[1])))
 	if bool(a.get("harm", true)):
 		if t == null or t.dead:
 			return "No target"
@@ -375,10 +375,10 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		chained = true
 		a = a.duplicate()
 		a["dmg"] = float(a.get("dmg", 0.0)) * 1.25
-		a["name"] = "%s (chain)" % str(a.get("name", ""))
+		a["name"] = Tx.f("%s (chain)", str(a.get("name", "")))
 		u.auras.erase("chain")
 		emit({"t": "aura_off", "u": u, "aura": "chain"})
-		emit({"t": "proc", "u": u, "text": "Chain! %s" % str(Data.MOVES[str(a._mv)].name)})
+		emit({"t": "proc", "u": u, "text": Tx.f("Chain! %s", str(Data.MOVES[str(a._mv)].name))})
 	u.gas -= cost_of(u, a)
 	if bool(a.get("gcd", true)):
 		u.gcd = GCD / haste(u)
@@ -559,13 +559,13 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 				t.auras.erase("framed")
 				var ra := move_ability(re)
 				ra["cast"] = float(ra.cast) * 0.7
-				ra["name"] = "%s (re-counter)" % str(ra.name)
+				ra["name"] = Tx.f("%s (re-counter)", str(ra.name))
 				t.cast = {"ab": ra, "t": 0.0, "dur": float(ra.cast), "target": u}
 				emit({"t": "proc", "u": t, "text": "Re-counter!"})
 				emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
 	elif kind == "frame":
 		t.cast.dur = float(t.cast.dur) + 0.7
-		emit({"t": "miss", "u": u, "target": t, "text": "Wrong counter: %s it! [%s]" % [KIND_VERB[counter_kind(ab)], KIND_KEY[counter_kind(ab)]]})
+		emit({"t": "miss", "u": u, "target": t, "text": Tx.f("Wrong counter: %s it! [%s]", [KIND_VERB[counter_kind(ab)], KIND_KEY[counter_kind(ab)]])})
 
 ## A submission that didn't end it opens the next link of its chain for a few seconds.
 func _start_chain(u: Unit, a: Dictionary) -> void:

@@ -85,11 +85,11 @@ func _load_growth() -> void:
 	_growth.text = "Loading..."
 	Cloud._req(HTTPClient.METHOD_GET, "/api/stats", null, func(code: int, d: Dictionary):
 		if code != 200:
-			_growth.text = str(d.get("error", "Couldn't load (%d)." % code))
+			_growth.text = str(d.get("error", Tx.f("Couldn't load (%d).", code)))
 			return
 		var opt := 0 if int(d.players) == 0 else int(round(100.0 * int(d.optin) / int(d.players)))
-		_growth.text = "Accounts: %d   (last 24h: %d · last 7 days: %d)\nOpted in to emails: %d  (%d%%)\nAccounts with characters saved: %d\nOnline now: %d\nCommunity button: %s" % [
-			int(d.players), int(d.last24), int(d.last7), int(d.optin), opt, int(d.saves), int(d.online), Cloud.community_url if Cloud.community_url != "" else "not set (COMMUNITY_URL)"])
+		_growth.text = Tx.f("Accounts: %d   (last 24h: %d · last 7 days: %d)\nOpted in to emails: %d  (%d%%)\nAccounts with characters saved: %d\nOnline now: %d\nCommunity button: %s", [
+			int(d.players), int(d.last24), int(d.last7), int(d.optin), opt, int(d.saves), int(d.online), Cloud.community_url if Cloud.community_url != "" else "not set (COMMUNITY_URL)"]))
 
 # ------------------------------------------------------------ live world
 func _build_live() -> void:
@@ -125,9 +125,9 @@ func _fill_players(list: Array) -> void:
 		_players.add_child(Wow.label("Nobody online.", 13, Wow.GREY))
 	for p in list:
 		var r := _row(_players)
-		var tag := "%s%s  ·  Lv %d %s  ·  %s (%d, %d)%s%s" % ["[GM] " if p.get("gm", false) else "", str(p.name), int(p.level),
+		var tag := Tx.f("%s%s  ·  Lv %d %s  ·  %s (%d, %d)%s%s", ["[GM] " if p.get("gm", false) else "", str(p.name), int(p.level),
 			Rpg.class_name_of(str(p.style)), Data.ZONES.get(str(p.zone), {}).get("name", str(p.zone)), int(p.x), int(p.z),
-			"  ·  fighting" if int(p.get("combat", 0)) else "", "  ·  MUTED" if p.get("muted", false) else ""]
+			"  ·  fighting" if int(p.get("combat", 0)) else "", "  ·  MUTED" if p.get("muted", false) else ""])
 		var l := Wow.label(tag, 13, Rpg.class_color(str(p.style)))
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		r.add_child(l)
@@ -153,7 +153,7 @@ func _fill_reports(list: Array) -> void:
 	for r in list:
 		var when := Time.get_datetime_string_from_unix_time(int(r.at)).replace("T", " ")
 		_reports.add_child(Wow.label("#%d  %s  ·  reported %s by %s" % [int(r.id), when, str(r.target), str(r.reporter)], 14, Wow.GOLD))
-		_reports.add_child(Wow.label("Reason: " + (str(r.reason) if str(r.reason) != "" else "(none given)"), 13, Wow.WHITE, true))
+		_reports.add_child(Wow.label(Tx.s("Reason: ") + (str(r.reason) if str(r.reason) != "" else Tx.s("(none given)")), 13, Wow.WHITE, true))
 		var ctx := Wow.label(str(r.context) if str(r.context) != "" else "(no recent chat)", 12, Wow.GREY, true)
 		ctx.custom_minimum_size = Vector2(700, 0)
 		_reports.add_child(ctx)
@@ -165,7 +165,7 @@ func _build_tools() -> void:
 	var r1 := _row(v)
 	r1.add_child(Wow.label("Level", 14, Wow.PALE))
 	for lv in [1, 10, 20, 30, 40, 50]:
-		_btn(r1, str(lv), func(): Game.set_level(lv); _done("Level %d" % lv))
+		_btn(r1, str(lv), func(): Game.set_level(lv); _done(Tx.f("Level %d", lv)))
 	var r2 := _row(v)
 	_btn(r2, "+R$ 1000", func(): Game.money += 1000; _done("+R$ 1000"))
 	_btn(r2, "Class tier set", func():
@@ -192,7 +192,7 @@ func _build_tools() -> void:
 		_btn(r3, "x%d" % int(k), func():
 			if main:
 				main.player.speed_mult = k
-			_done("Speed x%d" % int(k)))
+			_done(Tx.f("Speed x%d", int(k))))
 	var r4 := _row(v)
 	r4.add_child(Wow.label("Zone", 14, Wow.PALE))
 	for z in Data.ZONES:
@@ -200,19 +200,19 @@ func _build_tools() -> void:
 		_btn(r4, str(Data.ZONES[z].name), func():
 			if main:
 				main._travel(zz, true)
-			_done("Travelled to " + str(Data.ZONES[zz].name)))
+			_done(Tx.s("Travelled to ") + Tx.s(str(Data.ZONES[zz].name))))
 	var r5 := _row(v)
 	r5.add_child(Wow.label("Time", 14, Wow.PALE))
 	for h in [[6.0, "Dawn"], [12.0, "Noon"], [18.0, "Sunset"], [22.0, "Night"]]:
 		var hh: float = h[0]
-		_btn(r5, str(h[1]), func(): DayNight.hour = hh; _done("Time set to " + str(h[1])))
+		_btn(r5, str(h[1]), func(): DayNight.hour = hh; _done(Tx.s("Time set to ") + Tx.s(str(h[1]))))
 
 func _done(what: String) -> void:
 	Game.save_game()
 	Game.progress_changed.emit()
 	if main and main.hud:
 		main.hud.refresh()
-	_status.text = "Done: " + what
+	_status.text = Tx.s("Done: ") + what
 
 # ------------------------------------------------------------ server replies
 func _on_gm_data(kind: String, d: Dictionary) -> void:
@@ -228,7 +228,7 @@ func _on_gm_data(kind: String, d: Dictionary) -> void:
 			if z != "" and z != main.world.zone and Data.ZONES.has(z):
 				main._travel(z, true)
 			main.player.teleport(Vector3(float(d.x), float(d.y) + 0.5, float(d.z)) + Vector3(1.5, 0, 1.5), main.player.cam_yaw)
-			_status.text = "Teleported to %s" % str(d.get("name", "?"))
+			_status.text = Tx.f("Teleported to %s", str(d.get("name", "?")))
 
 func toggle() -> void:
 	if not Net.gm:
@@ -237,4 +237,4 @@ func toggle() -> void:
 	visible = not visible
 	if visible:
 		Net.send_gm("list")
-		_status.text = "Signed in as a Game Master · %d online" % Net.online
+		_status.text = Tx.f("Signed in as a Game Master · %d online", Net.online)

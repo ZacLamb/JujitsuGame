@@ -58,7 +58,7 @@ func start(attr_id: String, job_d: Dictionary = {}) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	panel.add_child(v)
-	_title = UiKit.label(("%s  ·  uses your %s" % [d.name, Rpg.ATTRS[attr].name]) if not job.is_empty() else ("%s  ·  %s" % [d.name, Rpg.ATTRS[attr].name]), 32, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	_title = UiKit.label((Tx.f("%s  ·  uses your %s", [d.name, Rpg.ATTRS[attr].name])) if not job.is_empty() else (Tx.f("%s  ·  %s", [d.name, Rpg.ATTRS[attr].name])), 32, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(_title)
 	_info = UiKit.label(d.tip, 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	v.add_child(_info)
@@ -162,7 +162,7 @@ func _next_timing() -> void:
 	var w := clampf(0.22 + 0.012 * _skill(), 0.12, 0.4)
 	var c := randf_range(0.15 + w / 2.0, 0.85 - w / 2.0)
 	_timing.start({"center": c, "width": w, "perfect": w * 0.2, "speed": 1.0 + 0.1 * _round})
-	_info.text = "Rep %d of %d  ·  hits: %d" % [_round + 1, _rounds, _hits]
+	_info.text = Tx.f("Rep %d of %d  ·  hits: %d", [_round + 1, _rounds, _hits])
 
 func _stop_timing() -> void:
 	if not _active or kind != "timing" or not _timing.running:
@@ -188,7 +188,7 @@ func _next_arrow() -> void:
 	for c in _arrow_holder.get_children():
 		c.queue_free()
 	_arrow_holder.add_child(ArrowGlyph.make(_dir, 80, UiKit.ACCENT))
-	_info.text = "Prompt %d of %d  ·  correct: %d" % [_round + 1, _rounds, _hits]
+	_info.text = Tx.f("Prompt %d of %d  ·  correct: %d", [_round + 1, _rounds, _hits])
 
 func _answer(d: String) -> void:
 	if not _active or kind != "arrows":
@@ -206,7 +206,7 @@ func _finish(success: bool) -> void:
 	for c in _body.get_children():
 		c.queue_free()
 	_title.text = "Good session!" if success else "Rough session."
-	_info.text = "Keep drilling. Every 3 good sessions = +1 %s (max +%d)." % [Rpg.ATTRS[attr].name, Game.TRAIN_CAP] if success else "No progress this time. Roll with someone, then try again."
+	_info.text = Tx.f("Keep drilling. Every 3 good sessions = +1 %s (max +%d).", [Rpg.ATTRS[attr].name, Game.TRAIN_CAP]) if success else "No progress this time. Roll with someone, then try again."
 	if not job.is_empty():
 		_title.text = "Job done!" if success else "Not this time."
 		_info.text = str(job.done) if success else str(job.fail)

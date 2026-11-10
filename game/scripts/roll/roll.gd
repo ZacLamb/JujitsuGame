@@ -119,15 +119,15 @@ func start(opponent_id: String, daily_challenge: Dictionary = {}, comp_match: Di
 	var t := 6.0 if tut else (1.4 if not mob.is_empty() else 2.4)
 	if not daily.is_empty():
 		var rd: Dictionary = Data.DAILY_RULES[daily.rule]
-		_show_message("DAILY CHALLENGE: %s\n%s" % [rd.name, rd.desc], maxf(t, 2.6), _go_live)
+		_show_message(Tx.f("DAILY CHALLENGE: %s\n%s", [rd.name, rd.desc]), maxf(t, 2.6), _go_live)
 	elif not comp.is_empty():
-		_show_message("%s  ·  %s\nvs %s (%s)" % [Data.COMPS[comp.id].name.to_upper(), comp.round_name.to_upper(), opp.name, opp.get("academy", "")], t, _go_live)
+		_show_message(Tx.f("%s  ·  %s\nvs %s (%s)", [Tx.s(Data.COMPS[comp.id].name).to_upper(), Tx.s(comp.round_name).to_upper(), opp.name, opp.get("academy", "")]), t, _go_live)
 	else:
 		var plan: String = sim.traits.plan
 		if plan != "":
-			_show_message("SCOUTING REPORT: %s\n%s" % [opp.name.to_upper(), plan], maxf(t, 3.2), _go_live)
+			_show_message(Tx.f("SCOUTING REPORT: %s\n%s", [Tx.s(opp.name).to_upper(), plan]), maxf(t, 3.2), _go_live)
 		else:
-			_show_message("%s: \"Oss!\"  Slap hands, bump fists..." % opp.name, t, _go_live)
+			_show_message(Tx.f("%s: \"Oss!\"  Slap hands, bump fists...", opp.name), t, _go_live)
 
 func _go_live() -> void:
 	if phase != Phase.INTRO:
@@ -452,19 +452,19 @@ func _on_event(ev: Dictionary) -> void:
 				cast_o.col = CombatUi.KIND_COLORS["grip" if c == "grip" else c]
 				cast_o.interrupted = 0.0
 				if ev.kind in ["move", "special"]:
-					alert.title = "%s" % ev.name
+					alert.title = Tx.f("%s", ev.name)
 					alert.col = CombatUi.KIND_COLORS[c]
-					alert.tag = RollSim.DEF_NAMES[c].to_upper()
+					alert.tag = Tx.s(RollSim.DEF_NAMES[c]).to_upper()
 					alert.interrupted = 0.0
 					alert.special = ev.kind == "special"
 					if ev.kind == "special":
 						Sfx.play("levelup", -6.0, 0.6)
 						if str(ev.get("hint", "")) != "":
-							_float(str(ev.hint).to_upper(), Vector2(0.5, 0.38), UiKit.ACCENT, 22)
+							_float(Tx.s(str(ev.hint)).to_upper(), Vector2(0.5, 0.38), UiKit.ACCENT, 22)
 					else:
 						Sfx.play("click", -4.0, 0.7)
 		"phase":
-			_float("PHASE %d: %s" % [int(ev.n) + 1, str(ev.name).to_upper()], Vector2(0.5, 0.24), Color(1, 0.55, 0.3), 40)
+			_float(Tx.f("PHASE %d: %s", [int(ev.n) + 1, Tx.s(str(ev.name)).to_upper()]), Vector2(0.5, 0.24), Color(1, 0.55, 0.3), 40)
 			_message(str(ev.text), 3.0)
 			Sfx.play("lose", -8.0, 1.4)
 			_shake = 0.35
@@ -472,14 +472,14 @@ func _on_event(ev: Dictionary) -> void:
 			_pose_now(0.5)
 		"shield":
 			if int(ev.left) > 0:
-				_float("HEAVY BASE CRACKS  (%d left)" % int(ev.left), Vector2(0.7, 0.46), Color(1, 0.85, 0.4), 24)
+				_float(Tx.f("HEAVY BASE CRACKS  (%d left)", int(ev.left)), Vector2(0.7, 0.46), Color(1, 0.85, 0.4), 24)
 			else:
 				_float("HEAVY BASE BROKEN!", Vector2(0.7, 0.46), Color(0.5, 1, 0.6), 32)
 				Sfx.play("perfect", -4.0, 0.8)
 		"special_landed":
 			alert.title = ""
 			var what: String = {"sweep": "Swept! +2 to them", "crush": "Crushed: -25 stamina", "roar": "Silenced: counters locked", "deep_sub": "Caught deep!"}.get(str(ev.effect), "")
-			_float("%s!  %s" % [str(ev.name), what], Vector2(0.5, 0.3), UiKit.RED, 34)
+			_float(Tx.f("%s!  %s", [str(ev.name), what]), Vector2(0.5, 0.3), UiKit.RED, 34)
 			_shake = 0.5
 			UiKit.buzz(80)
 			Sfx.play("hit", 0.0, 0.5)
@@ -488,7 +488,7 @@ func _on_event(ev: Dictionary) -> void:
 			motion.bump(player_rig if who_p else opp_rig, FightMotion.YANK, 0.45)
 			motion.bump(opp_rig if who_p else player_rig, FightMotion.PULLED, 0.45)
 			if who_p:
-				_float("+GRIP  %d" % ev.n, Vector2(0.3, 0.55), UiKit.ACCENT, 24)
+				_float(Tx.f("+GRIP  %d", ev.n), Vector2(0.3, 0.55), UiKit.ACCENT, 24)
 				Sfx.play("hit", -14.0, 1.6)
 				if int(ev.n) >= RollSim.MAX_CONTROL and not _maxed_grips:
 					_maxed_grips = true
@@ -498,9 +498,9 @@ func _on_event(ev: Dictionary) -> void:
 		"wear":
 			motion.bump(opp_rig if who_p else player_rig, FightMotion.SLUMP, 0.7)
 			if who_p:
-				_float("%s  -10 gas" % ev.name, Vector2(0.7, 0.5), Color(0.8, 0.65, 1), 22)
+				_float(Tx.f("%s  -10 gas", ev.name), Vector2(0.7, 0.5), Color(0.8, 0.65, 1), 22)
 			else:
-				_float("%s  -8 gas" % ev.name, Vector2(0.3, 0.5), Color(0.8, 0.65, 1), 22)
+				_float(Tx.f("%s  -8 gas", ev.name), Vector2(0.3, 0.5), Color(0.8, 0.65, 1), 22)
 		"breathed":
 			_float("+20 STAMINA", Vector2(0.3, 0.5), Color(0.5, 0.9, 1), 24)
 		"interrupt":
@@ -512,7 +512,7 @@ func _on_event(ev: Dictionary) -> void:
 				cast_o.interrupted = 0.7
 				if ev.was == "special":
 					alert.interrupted = 0.8
-					_float("BIG INTERRUPT! %s STOPPED" % str(ev.name), Vector2(0.5, 0.3), UiKit.ACCENT, 46)
+					_float(Tx.f("BIG INTERRUPT! %s STOPPED", str(ev.name)), Vector2(0.5, 0.3), UiKit.ACCENT, 46)
 					Sfx.play("perfect")
 					Game.bump("perfect")
 					_log.append("B")
@@ -531,7 +531,7 @@ func _on_event(ev: Dictionary) -> void:
 			else:
 				cast_p.interrupted = 0.7
 				if ev.was == "move":
-					_float("READ!  %s stuffs it" % opp.name, Vector2(0.5, 0.3), UiKit.RED, 34)
+					_float(Tx.f("READ!  %s stuffs it", opp.name), Vector2(0.5, 0.3), UiKit.RED, 34)
 					Sfx.play("miss")
 					_log.append("R")
 					_lean(opp_rig, player_rig)
@@ -539,7 +539,7 @@ func _on_event(ev: Dictionary) -> void:
 					_float("Grip stripped", Vector2(0.3, 0.55), Color(1, 0.6, 0.55), 20)
 		"wrong":
 			motion.bump(player_rig, FightMotion.STUMBLE, 0.5)
-			_float("WRONG COUNTER (needed %s)" % RollSim.DEF_NAMES.get(ev.need, "?").to_upper(), Vector2(0.5, 0.62), UiKit.RED, 24)
+			_float(Tx.f("WRONG COUNTER (needed %s)", RollSim.DEF_NAMES.get(ev.need, "?").to_upper()), Vector2(0.5, 0.62), UiKit.RED, 24)
 			Sfx.play("miss", -8.0)
 		"whiff":
 			_float("Nothing to counter", Vector2(0.5, 0.62), UiKit.MUTED, 18)
@@ -548,12 +548,12 @@ func _on_event(ev: Dictionary) -> void:
 			motion.bump(player_rig if who_p else opp_rig, FightMotion.LUNGE, 0.55)
 			motion.bump(opp_rig if who_p else player_rig, FightMotion.BRACE.base, 0.55)
 			if who_p:
-				_message("%s shuts down your %s." % [opp.name, m.name], 1.4)
+				_message(Tx.f("%s shuts down your %s.", [opp.name, m.name]), 1.4)
 				_float("STUFFED", Vector2(0.3, 0.42), UiKit.RED, 30)
 				Sfx.play("miss")
 				_log.append("R")
 			else:
-				_message("You shut down the %s." % m.name, 1.4)
+				_message(Tx.f("You shut down the %s.", m.name), 1.4)
 				_float("DEFENDED", Vector2(0.7, 0.42), Color(0.6, 1, 0.7), 28)
 				Sfx.play("hit", -3.0, 1.25)
 				_log.append("B")
@@ -622,11 +622,11 @@ func _start_struggle(attacking: bool, sub_id: String) -> void:
 	var m: Dictionary = Data.MOVES[sub_id]
 	var flavor: String = Data.SUB_FLAVOR.get(sub_id, "")
 	if attacking:
-		struggle_title.text = "%s!  Finish it: %s" % [m.name, flavor] if flavor != "" else "%s!  Finish it!" % m.name
+		struggle_title.text = Tx.f("%s!  Finish it: %s", [m.name, flavor]) if flavor != "" else Tx.f("%s!  Finish it!", m.name)
 		struggle_btn.text = "SQUEEZE!  (Space / A)"
 		struggle_bar.add_theme_stylebox_override("fill", UiKit.box(UiKit.ACCENT, 6))
 	else:
-		struggle_title.text = "Caught in a %s!  ESCAPE!" % m.name
+		struggle_title.text = Tx.f("Caught in a %s!  ESCAPE!", m.name)
 		struggle_btn.text = "FIGHT THE HANDS!  (Space / A)"
 		struggle_bar.add_theme_stylebox_override("fill", UiKit.box(UiKit.RED, 6))
 	struggle_panel.visible = true
@@ -688,16 +688,16 @@ func _sub_finished(player_won: bool) -> void:
 	Sfx.play("tap")
 	var m: Dictionary = Data.MOVES.get(sim.result.get("sub", ""), {"name": "submission"})
 	if player_won:
-		_message("TAP! TAP! %s taps to your %s!" % [opp.name, m.name], 1.6)
+		_message(Tx.f("TAP! TAP! %s taps to your %s!", [opp.name, m.name]), 1.6)
 	else:
-		_message("You tap to the %s. Tap early, tap often." % m.name, 1.6)
+		_message(Tx.f("You tap to the %s. Tap early, tap often.", m.name), 1.6)
 	_after(1.5, _end_match)
 
 func _sub_escaped(attacker_was_player: bool) -> void:
 	struggle_panel.visible = false
 	_sub_pose = {}
 	if attacker_was_player:
-		_message("%s escapes! Advantage to you." % opp.name, 1.4)
+		_message(Tx.f("%s escapes! Advantage to you.", opp.name), 1.4)
 	else:
 		Game.bump("escapes")
 		_message("You escape! Hand fight won.", 1.4)
@@ -754,16 +754,16 @@ func _end_match() -> void:
 		if res.sub == "tap":
 			how = "You tapped out."
 		else:
-			how = "by %s" % Data.MOVES[res.sub].name
+			how = Tx.f("by %s", Data.MOVES[res.sub].name)
 	else:
-		how = "on points  %d – %d   (adv %d – %d)" % [sim.player_pts, sim.opp_pts, sim.player_adv, sim.opp_adv]
+		how = Tx.f("on points  %d – %d   (adv %d – %d)", [sim.player_pts, sim.opp_pts, sim.player_adv, sim.opp_adv])
 	action_body.add_child(UiKit.label(how, 24, UiKit.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	var line: String = opp.win if res.won else opp.lose
-	action_body.add_child(UiKit.label("%s: \"%s\"" % [opp.name, line], 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	action_body.add_child(UiKit.label(Tx.f("%s: \"%s\"", [opp.name, line]), 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	if team.is_empty():
-		action_body.add_child(UiKit.label("+%d XP   ·   %s" % [xp, Data.rank_name(Game.rank)], 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+		action_body.add_child(UiKit.label(Tx.f("+%d XP   ·   %s", [xp, Data.rank_name(Game.rank)]), 22, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
 	else:
-		action_body.add_child(UiKit.label("%s leaves the mat with %d%% stamina" % [me_name if res.won else opp.name, int(100.0 * float(res.me_stam if res.won else res.them_stam))], 20, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
+		action_body.add_child(UiKit.label(Tx.f("%s leaves the mat with %d%% stamina", [me_name if res.won else opp.name, int(100.0 * float(res.me_stam if res.won else res.them_stam))]), 20, Color(0.6, 0.9, 1), HORIZONTAL_ALIGNMENT_CENTER))
 	if not loot.is_empty() and (int(loot.money) > 0 or not loot.items.is_empty()):
 		action_body.add_child(_loot_box())
 	if not daily.is_empty():
@@ -776,13 +776,13 @@ func _end_match() -> void:
 			var st := ShareCard.share(text)
 			sh.text = "Shared!" if st == "shared" else "Copied! Paste it in the group chat")
 		action_body.add_child(sh)
-	var back_text := "Back to %s" % Data.ZONES[Game.zone].name
+	var back_text := Tx.f("Back to %s", Data.ZONES[Game.zone].name)
 	if not comp.is_empty():
 		back_text = "Continue"
 	if not team.is_empty():
 		back_text = str(team.get("back", "Back to the team board"))
 	if not mob.is_empty() and res.won and not queue_names.is_empty():
-		back_text = "Next: %s" % str(queue_names[0])
+		back_text = Tx.f("Next: %s", str(queue_names[0]))
 	var back := UiKit.button(back_text, Vector2(320, 64))
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): finished.emit(opp_id, res, xp))
@@ -803,7 +803,7 @@ func _loot_box() -> Control:
 	for id in loot.items:
 		v.add_child(UiKit.label(str(Loot.item(str(id)).get("name", id)), 17, Loot.color(str(id))))
 	for id in loot.get("lost", []):
-		v.add_child(UiKit.label("%s  (bags full!)" % str(Loot.item(str(id)).get("name", id)), 15, UiKit.RED))
+		v.add_child(UiKit.label(Tx.f("%s  (bags full!)", str(Loot.item(str(id)).get("name", id))), 15, UiKit.RED))
 	return p
 
 ## Intro / blocking message (calls `then` when it ends).
@@ -1297,17 +1297,17 @@ func _refresh_hud() -> void:
 	stat_o.text = "OFF-BALANCE" if sim.opp_off_bal > 0.0 else ""
 	if not sim.boss_phases.is_empty():
 		var ph: Dictionary = sim.boss_phases[sim.phase]
-		var t := "Phase %d/%d · %s" % [sim.phase + 1, sim.boss_phases.size(), ph.name]
+		var t := Tx.f("Phase %d/%d · %s", [sim.phase + 1, sim.boss_phases.size(), ph.name])
 		if sim.shield > 0:
-			t += "  ·  HEAVY BASE ×%d" % sim.shield
+			t += Tx.f("  ·  HEAVY BASE ×%d", sim.shield)
 		if sim.cast_mult < 1.0:
 			t += "  ·  ENRAGED"
 		if phase_lbl:
 			phase_lbl.text = t
 	if sim.def_cd > 2.0 and stat_p.text == "":
-		stat_p.text = "SILENCED %.0fs" % ceilf(sim.def_cd)
+		stat_p.text = Tx.f("SILENCED %.0fs", ceilf(sim.def_cd))
 	stat_o.add_theme_color_override("font_color", Color(0.5, 1, 0.6))
-	counter_ready.text = "◆ Counter ready" if sim.opp_counter_cd <= 0.0 else "Counter %.0fs" % ceilf(sim.opp_counter_cd)
+	counter_ready.text = "◆ Counter ready" if sim.opp_counter_cd <= 0.0 else Tx.f("Counter %.0fs", ceilf(sim.opp_counter_cd))
 	counter_ready.modulate.a = 1.0 if sim.opp_counter_cd <= 0.0 else 0.45
 	if phase != Phase.LIVE:
 		return
@@ -1492,7 +1492,7 @@ func set_queue(names: Array) -> void:
 		_queue_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ui.add_child(_queue_lbl)
 	if _queue_lbl:
-		_queue_lbl.text = ("WAITING FOR THE WINNER:  " + "  ·  ".join(names)) if not names.is_empty() else ""
+		_queue_lbl.text = (Tx.s("WAITING FOR THE WINNER:  ") + "  ·  ".join(names)) if not names.is_empty() else ""
 
 func announce(text: String) -> void:
 	_float(text, Vector2(0.5, 0.2), Color(1, 0.6, 0.4), 22)

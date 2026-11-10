@@ -42,7 +42,7 @@ func rebuild() -> void:
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	var best := int(Game.flags.get("circuit_best", 0))
-	head.add_child(CharSheet._small("Best run: %d/%d wins" % [best, Circuit.ROUNDS], 15, UiKit.MUTED))
+	head.add_child(CharSheet._small(Tx.f("Best run: %d/%d wins", [best, Circuit.ROUNDS]), 15, UiKit.MUTED))
 	_body.add_child(CharSheet._small("Five matches, one life. Stamina carries over. Draft a coaching card before every match; the perks stack.", 15, UiKit.MUTED, true))
 	_body.add_child(_road())
 	_body.add_child(_status())
@@ -52,9 +52,9 @@ func rebuild() -> void:
 			_body.add_child(_cards())
 		"ready":
 			var o := run.current()
-			var nx := CharSheet._head("NEXT: %s  ·  %s" % [Circuit.ROUND_NAMES[run.round].to_upper(), str(o.name).to_upper()], 28, UiKit.TEXT)
+			var nx := CharSheet._head(Tx.f("NEXT: %s  ·  %s", [Tx.s(Circuit.ROUND_NAMES[run.round]).to_upper(), Tx.s(str(o.name)).to_upper()]), 28, UiKit.TEXT)
 			_body.add_child(nx)
-			var sub := "%s  ·  Lv %d" % [o.get("academy", ""), Data.display_level(float(o.level))]
+			var sub := Tx.f("%s  ·  Lv %d", [o.get("academy", ""), Data.display_level(float(o.level))])
 			if str(o.get("phases_of", "")) != "":
 				sub += "  ·  fights in phases, watch for gold specials"
 			_body.add_child(CharSheet._small(sub, 15, Color(1, 0.6, 0.4) if str(o.get("phases_of", "")) != "" else UiKit.MUTED))
@@ -79,7 +79,7 @@ func _road() -> Control:
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 0)
 		p.add_child(v)
-		v.add_child(CharSheet._small(Circuit.ROUND_NAMES[i].to_upper(), 12, col.lightened(0.2)))
+		v.add_child(CharSheet._small(Tx.s(Circuit.ROUND_NAMES[i]).to_upper(), 12, col.lightened(0.2)))
 		var known := done or cur or fin
 		v.add_child(CharSheet._small(str(o.name) if known else "???", 16, UiKit.TEXT))
 		if done:
@@ -87,7 +87,7 @@ func _road() -> Control:
 		elif run.lost and i == run.round:
 			v.add_child(CharSheet._head("LOST", 20, UiKit.RED))
 		elif known:
-			v.add_child(CharSheet._small("Lv %d%s" % [Data.display_level(float(o.level)), "  ★ master" if fin else ""], 12, UiKit.MUTED))
+			v.add_child(CharSheet._small(Tx.f("Lv %d%s", [Data.display_level(float(o.level)), "  ★ master" if fin else ""]), 12, UiKit.MUTED))
 		h.add_child(p)
 	return h
 
@@ -148,7 +148,7 @@ func _cards() -> Control:
 		ic.icon = c.icon
 		ic.col = rc
 		v.add_child(ic)
-		var nm := CharSheet._head(str(c.name).to_upper(), 24, UiKit.TEXT)
+		var nm := CharSheet._head(Tx.s(str(c.name)).to_upper(), 24, UiKit.TEXT)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
 		var rl := CharSheet._small(Circuit.RARITY[c.rarity].name, 12, rc)

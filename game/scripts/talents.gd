@@ -138,10 +138,10 @@ static func spec_tree(spec_id: String) -> Array:
 				"desc": "Corner Advice heals 8% more per rank.", "fx": {"advice_heal": 0.08}})
 		elif k == -1:
 			nd.merge({"name": "Mastery", "max": 2, "icon": "star",
-				"desc": "Your signature, %s, deals 15%% more damage per rank." % mname, "fx": {"ab_dmg": {"spec": 0.15}}})
+				"desc": Tx.f("Your signature, %s, deals 15%% more damage per rank.", mname), "fx": {"ab_dmg": {"spec": 0.15}}})
 		elif k == -2:
 			nd.merge({"name": "Signature Drill", "max": 1, "icon": "bolt",
-				"desc": "%s's cooldown is 35%% shorter." % mname, "fx": {"cd": {"spec": 0.35}}})
+				"desc": Tx.f("%s's cooldown is 35%% shorter.", mname), "fx": {"cd": {"spec": 0.35}}})
 		elif k == -3:
 			nd.merge({"name": "Game Plan", "max": 1, "kind": "choice", "icon": "loop", "choice": [
 				{"name": "Aggressive", "desc": "+6% damage.", "fx": {"dmg_all": 0.06}},
@@ -202,14 +202,14 @@ static func class_tree(style: String = "") -> Array:
 			if mvs.size() == 1:
 				var tp := str(Data.MOVES[mvs[0]].type)
 				n["fx"] = {"move": mvs[0]}
-				n["desc"] = "Learn %s: a stronger %s from %s." % [names[0], MoveInfo.TYPE_NAMES.get(tp, tp), str(Data.MOVES[mvs[0]].pos)]
+				n["desc"] = Tx.f("Learn %s: a stronger %s from %s.", [names[0], MoveInfo.TYPE_NAMES.get(tp, tp), str(Data.MOVES[mvs[0]].pos)])
 			else:
 				n["fx"] = {"moves": mvs}
-				n["desc"] = "Learn %s and %s." % [names[0], names[1]]
+				n["desc"] = Tx.f("Learn %s and %s.", [names[0], names[1]])
 		elif str(n.id) == "c_capstone":
 			var cap := str(ct.cap)
 			n.choice[0]["name"] = str(Data.MOVES[cap].name)
-			n.choice[0]["desc"] = "Learn the %s, and your Submissions have no cast time." % str(Data.MOVES[cap].name)
+			n.choice[0]["desc"] = Tx.f("Learn the %s, and your Submissions have no cast time.", str(Data.MOVES[cap].name))
 			n.choice[0]["fx"] = {"move": cap, "instant_sub": true}
 		out.append(n)
 	_class_cache[style] = out

@@ -281,13 +281,13 @@ func refresh() -> void:
 	elif capped:
 		_xp_text.text = "Max level"
 	else:
-		_xp_text.text = "Level %d  ·  %d / %d XP" % [lv, Game.xp_into_level(), Game.xp_level_need()]
+		_xp_text.text = Tx.f("Level %d  ·  %d / %d XP", [lv, Game.xp_into_level(), Game.xp_level_need()])
 	var parts: Array = []
 	if Game.attr_points() > 0:
-		parts.append("%d attribute point%s [C]" % [Game.attr_points(), "" if Game.attr_points() == 1 else "s"])
+		parts.append(Tx.f("%d attribute point%s [C]", [Game.attr_points(), "" if Game.attr_points() == 1 else "s"]))
 	if Game.talent_points() > 0:
-		parts.append("%d talent point%s [N]" % [Game.talent_points(), "" if Game.talent_points() == 1 else "s"])
-	lvl_label.text = ("✦ Spend " + "  ·  ".join(parts)) if not parts.is_empty() else ""
+		parts.append(Tx.f("%d talent point%s [N]", [Game.talent_points(), "" if Game.talent_points() == 1 else "s"]))
+	lvl_label.text = (Tx.s("✦ Spend ") + "  ·  ".join(parts)) if not parts.is_empty() else ""
 	# objective tracker
 	objective.text = Game.current_objective()
 	for c in _tracker.get_children():
@@ -303,7 +303,7 @@ func refresh() -> void:
 			continue
 		_tracker.add_child(Wow.label(str(q.title), 14, Wow.GOLD))
 		if Game.quest_ready(id):
-			_tracker.add_child(Wow.label("  - Return to %s" % Data.QUEST_GIVERS[q.giver].name, 13, Wow.GREEN))
+			_tracker.add_child(Wow.label(Tx.f("  - Return to %s", Data.QUEST_GIVERS[q.giver].name), 13, Wow.GREEN))
 		else:
 			var pr := Game.objective_progress(id, 0)
 			_tracker.add_child(Wow.label("  - %d/%d %s" % [pr[0], pr[1], q.obj[0].text], 13, Wow.WHITE, true))
@@ -356,7 +356,7 @@ func set_prompt(npc: Npc) -> void:
 		touch.interact_btn.visible = false
 		return
 	if not npc.mob.is_empty():
-		prompt.text = "[E] / [1]  Attack %s (Lv %d)    [Tab] target" % [npc.mob.name, Data.display_level(float(npc.mob.level))]
+		prompt.text = Tx.f("[E] / [1]  Attack %s (Lv %d)    [Tab] target", [npc.mob.name, Data.display_level(float(npc.mob.level))])
 		touch.interact_btn.visible = true
 		touch.interact_btn.text = "ROLL"
 		return
@@ -433,7 +433,7 @@ func show_toast(text: String, color := Color.WHITE) -> void:
 func _on_achievement(id: String) -> void:
 	var a := Data.achievement(id)
 	Sfx.play("perfect", -4.0)
-	show_toast("Achievement unlocked: %s" % a.name, UiKit.ACCENT)
+	show_toast(Tx.f("Achievement unlocked: %s", a.name), UiKit.ACCENT)
 
 # ------------------------------------------------------------ dialogue
 func _build_dialogue() -> void:
@@ -526,17 +526,17 @@ func _passport_box() -> Control:
 	v.add_child(nl)
 	# path
 	if Game.path == "":
-		v.add_child(UiKit.label("Path: not chosen yet (%s offers the choice at blue belt)" % ("Coach Mae" if Game.faction() == "usa" else "Professora Tati"), 16, UiKit.MUTED))
+		v.add_child(UiKit.label(Tx.f("Path: not chosen yet (%s offers the choice at blue belt)", ("Coach Mae" if Game.faction() == "usa" else "Professora Tati")), 16, UiKit.MUTED))
 	else:
 		var pd: Dictionary = Data.PATHS[Game.path]
-		var pl := UiKit.label("Path: %s  ·  +%d%% technique damage in your %s kit%s" % [pd.name, int(Data.PATH_MASTERY * 100), pd.name,
-			"" if Game.kit == Game.path else "  (you're in the other kit now)"], 16, Color(0.6, 0.9, 1.0))
+		var pl := UiKit.label(Tx.f("Path: %s  ·  +%d%% technique damage in your %s kit%s", [pd.name, int(Data.PATH_MASTERY * 100), pd.name,
+			"" if Game.kit == Game.path else "  (you're in the other kit now)"]), 16, Color(0.6, 0.9, 1.0))
 		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(pl)
 		var ph := HBoxContainer.new()
 		v.add_child(ph)
 		var other := "nogi" if Game.path == "gi" else "gi"
-		var rb := UiKit.button("Retrain to %s (R$ %d)" % [Data.PATHS[other].name, Data.PATH_RETRAIN_COST], Vector2(260, 34))
+		var rb := UiKit.button(Tx.f("Retrain to %s (R$ %d)", [Data.PATHS[other].name, Data.PATH_RETRAIN_COST]), Vector2(260, 34))
 		rb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		rb.add_theme_font_size_override("font_size", 14)
 		rb.pressed.connect(func():
@@ -595,15 +595,15 @@ func toggle_finder(main_node) -> void:
 		var mid := (int(d.levels[0]) + int(d.levels[1])) / 2
 		var col := Data.con_color(mid, lv)
 		var done := Game.unlocked.has("dng_" + id)
-		var lab := Wow.label("%s%s\nLv %d-%d  ·  boss: %s  ·  %s" % [str(d.title).capitalize(), "  ✓" if done else "", int(d.levels[0]), int(d.levels[1]), str(d.boss),
-			", ".join((d.mechs as Array).map(func(m): return mech_names.get(m, m)))], 15, col)
+		var lab := Wow.label(Tx.f("%s%s\nLv %d-%d  ·  boss: %s  ·  %s", [str(d.title).capitalize(), "  ✓" if done else "", int(d.levels[0]), int(d.levels[1]), str(d.boss),
+			", ".join((d.mechs as Array).map(func(m): return mech_names.get(m, m)))]), 15, col)
 		lab.autowrap_mode = TextServer.AUTOWRAP_OFF
 		lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(lab)
 		var b := Wow.button("Enter", Vector2(110, 40))
 		b.disabled = lv < int(d.levels[0]) - 4
 		if b.disabled:
-			b.text = "Lv %d" % (int(d.levels[0]) - 4)
+			b.text = Tx.f("Lv %d", (int(d.levels[0]) - 4))
 		b.pressed.connect(func(): main_node.start_dungeon(id))
 		row.add_child(b)
 	var raid_l := Wow.label("Raids (bigger, harder, tier sets): Covil da Sucuri in the Pantanal (Time Brasil) and the Gold Compound in the Everglades (Team USA). Walk up to their gates.", 13, Color(0.7, 0.55, 1.0))
@@ -616,7 +616,7 @@ var _qm := {}
 
 func _qm_fill() -> void:
 	var list: VBoxContainer = _qm.list
-	(_qm.bal as Label).text = "Your Honor: %s   ·   earned with every war point   ·   needs Lv %d" % [_thousands(Game.honor), Gear.HONOR_MIN_LEVEL]
+	(_qm.bal as Label).text = Tx.f("Your Honor: %s   ·   earned with every war point   ·   needs Lv %d", [_thousands(Game.honor), Gear.HONOR_MIN_LEVEL])
 	for c in list.get_children():
 		c.queue_free()
 	for id in Gear.SETS[_qm.set].pieces:
@@ -629,12 +629,12 @@ func _qm_fill() -> void:
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(nm)
 		var owned := Game.inventory.has(id)
-		var b := Wow.button("Owned" if owned else "%s Honor" % _thousands(int(Gear.HONOR_PRICES[id])), Vector2(130, 40))
+		var b := Wow.button("Owned" if owned else Tx.f("%s Honor", _thousands(int(Gear.HONOR_PRICES[id]))), Vector2(130, 40))
 		b.disabled = owned
 		b.add_theme_font_size_override("font_size", 14)
 		b.pressed.connect(func():
 			var why := Game.buy_honor(id)
-			(_qm.msg as Label).text = why if why != "" else "Bought %s." % it.name
+			(_qm.msg as Label).text = why if why != "" else Tx.f("Bought %s.", it.name)
 			Sfx.play("click" if why == "" else "miss", -6.0)
 			_qm_fill.call_deferred())
 		h.add_child(b)
@@ -655,7 +655,7 @@ func open_quartermaster(who: String, fid: String) -> void:
 	v.add_theme_constant_override("separation", 6)
 	v.custom_minimum_size = Vector2(420, 0)
 	qm_panel.add_child(v)
-	v.add_child(Wow.title("%s  ·  %s Quartermaster" % [who, fd.long], 17, (fd.color as Color).lightened(0.35)))
+	v.add_child(Wow.title(Tx.f("%s  ·  %s Quartermaster", [who, fd.long]), 17, (fd.color as Color).lightened(0.35)))
 	var bal := Wow.label("", 15, Color(1, 0.85, 0.35))
 	v.add_child(bal)
 	var msg := Wow.label("", 14, UiKit.MUTED)
@@ -667,7 +667,7 @@ func open_quartermaster(who: String, fid: String) -> void:
 	_qm = {"list": list, "bal": bal, "msg": msg, "set": set_id}
 	_qm_fill()
 	var bonus: Dictionary = Gear.SETS[set_id].bonus
-	var bl := Wow.label("Set: 2 pieces: +1 %s.  4 pieces: %s" % [Rpg.ATTRS[bonus[2].attrs.keys()[0]].name, bonus[4].text], 13, Color(0.6, 0.9, 1.0))
+	var bl := Wow.label(Tx.f("Set: 2 pieces: +1 %s.  4 pieces: %s", [Rpg.ATTRS[bonus[2].attrs.keys()[0]].name, bonus[4].text]), 13, Color(0.6, 0.9, 1.0))
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(bl)
 	v.add_child(msg)
@@ -687,7 +687,7 @@ func _war_box() -> Control:
 	v.add_theme_constant_override("separation", 6)
 	pc.add_child(v)
 	var w: Dictionary = Game.war
-	v.add_child(UiKit.label("FACTION WAR%s" % (("  ·  " + str(w.week)) if w.has("week") else ""), 24, Color(1.0, 0.8, 0.35)))
+	v.add_child(UiKit.label(Tx.f("FACTION WAR%s", (("  ·  " + str(w.week)) if w.has("week") else "")), 24, Color(1.0, 0.8, 0.35)))
 	var b := int(w.get("brasil", 0))
 	var u := int(w.get("usa", 0))
 	var row := HBoxContainer.new()
@@ -695,7 +695,7 @@ func _war_box() -> Control:
 	v.add_child(row)
 	var fb: Dictionary = Origins.FACTIONS.brasil
 	var fu: Dictionary = Origins.FACTIONS.usa
-	var lb := UiKit.label("%s  %s" % [fb.long, _thousands(b)], 18, (fb.color as Color).lightened(0.3))
+	var lb := UiKit.label(Tx.f("%s  %s", [fb.long, _thousands(b)]), 18, (fb.color as Color).lightened(0.3))
 	lb.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(lb)
 	var bar := ProgressBar.new()
@@ -712,23 +712,23 @@ func _war_box() -> Control:
 	bar.add_theme_stylebox_override("fill", fill)
 	bar.add_theme_stylebox_override("background", bg)
 	row.add_child(bar)
-	var lu := UiKit.label("%s  %s" % [_thousands(u), fu.long], 18, (fu.color as Color).lightened(0.3))
+	var lu := UiKit.label(Tx.f("%s  %s", [_thousands(u), fu.long]), 18, (fu.color as Color).lightened(0.3))
 	lu.autowrap_mode = TextServer.AUTOWRAP_OFF
 	row.add_child(lu)
 	var lines: Array = []
 	if not w.has("week"):
 		lines.append("The war report loads from the server (web version, online).")
-	lines.append("You fight for %s. Every win adds points: rolls 5, bosses 25, street rollers 1-10, medals 5-20, territories 15, daily 10, rival shadows 15." % mine.long)
-	lines.append("Honor: %s. Every war point is also Honor, spent on faction gear at your quartermaster (%s)." % [_thousands(Game.honor), "Cáceres and Rio" if Game.faction() == "brasil" else "Dry Creek and San Diego"])
+	lines.append(Tx.f("You fight for %s. Every win adds points: rolls 5, bosses 25, street rollers 1-10, medals 5-20, territories 15, daily 10, rival shadows 15.", mine.long))
+	lines.append(Tx.f("Honor: %s. Every war point is also Honor, spent on faction gear at your quartermaster (%s).", [_thousands(Game.honor), "Cáceres and Rio" if Game.faction() == "brasil" else "Dry Creek and San Diego"]))
 	if Cloud.logged_in():
-		lines.append("Your points this week: %s%s" % [_thousands(Game.war_mine), ("  (%d waiting to send)" % Game.war_pending) if Game.war_pending > 0 else ""])
+		lines.append(Tx.f("Your points this week: %s%s", [_thousands(Game.war_mine), ("  (%d waiting to send)" % Game.war_pending) if Game.war_pending > 0 else ""]))
 	else:
-		lines.append("Log in (title screen) so your points count for %s." % mine.long)
+		lines.append(Tx.f("Log in (title screen) so your points count for %s.", mine.long))
 	var last: Dictionary = w.get("last", {})
 	if str(last.get("winner", "")) != "":
 		var wf: Dictionary = Origins.faction(str(last.winner))
-		lines.append("Last week: %s won %s to %s.%s" % [wf.long, _thousands(maxi(int(last.brasil), int(last.usa))), _thousands(mini(int(last.brasil), int(last.usa))),
-			("  Spoils of war: +%d%% XP for you all week." % int(Game.WAR_SPOILS * 100)) if Game.war_spoils() else "  Win this week for +5% XP next week."])
+		lines.append(Tx.f("Last week: %s won %s to %s.%s", [wf.long, _thousands(maxi(int(last.brasil), int(last.usa))), _thousands(mini(int(last.brasil), int(last.usa))),
+			("  Spoils of war: +%d%% XP for you all week." % int(Game.WAR_SPOILS * 100)) if Game.war_spoils() else "  Win this week for +5% XP next week."]))
 	for t in lines:
 		var l := UiKit.label(str(t), 15, UiKit.TEXT)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -743,12 +743,12 @@ func _war_box() -> Control:
 			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tr.add_child(col)
 			col.custom_minimum_size = Vector2(240, 0)
-			col.add_child(UiKit.label("Top %s" % Origins.FACTIONS[f].name, 15, (Origins.FACTIONS[f].color as Color).lightened(0.3)))
+			col.add_child(UiKit.label(Tx.f("Top %s", Origins.FACTIONS[f].name), 15, (Origins.FACTIONS[f].color as Color).lightened(0.3)))
 			var arr: Array = top.get(f, [])
 			if arr.is_empty():
 				col.add_child(UiKit.label("nobody yet", 14, UiKit.MUTED))
 			for i in arr.size():
-				col.add_child(UiKit.label("%d. %s  %s" % [i + 1, str(arr[i].name), _thousands(int(arr[i].points))], 14, UiKit.TEXT))
+				col.add_child(UiKit.label(Tx.f("%d. %s  %s", [i + 1, str(arr[i].name), _thousands(int(arr[i].points))]), 14, UiKit.TEXT))
 	return pc
 
 static func _thousands(n: int) -> String:
@@ -828,7 +828,7 @@ func _layout_window() -> void:
 		"talents":
 			journal.title_lbl.text = {TAB_SPECS: "Specialization", TAB_TALENTS: "Talents", TAB_SPELLBOOK: "Moves"}.get(cur, "Talents") + ("  ·  " + st if st != "" else "")
 		_:
-			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters", TAB_TEAM: "Team  ·  " + Team.TEAM_NAMES[0]}.get(cur, "Journal")
+			journal.title_lbl.text = {TAB_QUESTS: "Quest Log", TAB_ACHIEVEMENTS: "Achievements", TAB_FIGHTERS: "Fighters", TAB_TEAM: Tx.s("Team  ·  ") + Tx.s(Team.TEAM_NAMES[0])}.get(cur, "Journal")
 	var sp := Specs.get_spec(Game.spec)
 	journal.set_emblem(str(sp.get("role", "")) if false else str(g.glyph), Team.ROLES[sp.role].color if not sp.is_empty() else Wow.GOLD)
 
@@ -862,7 +862,7 @@ func _fill_gear() -> void:
 	for id in Gear.ITEMS:
 		if Game.has_item(id):
 			owned += 1
-	v.add_child(Wow.label("Wardrobe  ·  %d / %d collected  ·  wearing your %s kit  ·  click an item to wear it" % [owned, Gear.ITEMS.size(), Gear.KIT_NAMES[Game.kit]], 14, Wow.GOLD))
+	v.add_child(Wow.label(Tx.f("Wardrobe  ·  %d / %d collected  ·  wearing your %s kit  ·  click an item to wear it", [owned, Gear.ITEMS.size(), Gear.KIT_NAMES[Game.kit]]), 14, Wow.GOLD))
 	for slot in Gear.SLOTS:
 		v.add_child(Wow.banner(Gear.SLOT_NAMES[slot]))
 		var row := HFlowContainer.new()
@@ -940,7 +940,7 @@ func _fill_journal() -> void:
 	q.add_child(_passport_box())
 	q.add_child(_war_box())
 	q.add_child(_daily_box())
-	q.add_child(UiKit.label("Next belt: " + Game.current_objective(), 20, UiKit.ACCENT))
+	q.add_child(UiKit.label(Tx.s("Next belt: ") + Tx.s(Game.current_objective()), 20, UiKit.ACCENT))
 	var held := 0
 	var hot: Array = []
 	for tid in Data.TERRITORIES:
@@ -948,9 +948,9 @@ func _fill_journal() -> void:
 			held += 1
 			if Game.territory_state(tid) == "attacked":
 				hot.append(Data.TERRITORIES[tid].name)
-	var tl := "Academy wars: Gringo BJJ holds %d / %d territories." % [held, Data.TERRITORIES.size()]
+	var tl := Tx.f("Academy wars: Gringo BJJ holds %d / %d territories.", [held, Data.TERRITORIES.size()])
 	if not hot.is_empty():
-		tl += "  UNDER ATTACK: %s" % ", ".join(hot)
+		tl += Tx.f("  UNDER ATTACK: %s", ", ").join(hot)
 	q.add_child(UiKit.label(tl, 18, Color(1, 0.45, 0.35) if not hot.is_empty() else Color(0.55, 0.9, 0.65)))
 	var act := Game.active_quests()
 	if not act.is_empty():
@@ -958,9 +958,9 @@ func _fill_journal() -> void:
 		for id in act:
 			var qd: Dictionary = Data.QUESTS[id]
 			var gz: String = Data.QUEST_GIVERS[qd.giver].zone
-			var head := "%s  (%s, %s)" % [qd.title, Data.QUEST_GIVERS[qd.giver].name, Data.ZONES[gz].name]
+			var head := Tx.f("%s  (%s, %s)", [qd.title, Data.QUEST_GIVERS[qd.giver].name, Data.ZONES[gz].name])
 			if qd.get("story", false):
-				head = "[Main Story] " + head
+				head = Tx.s("[Main Story] ") + head
 			q.add_child(UiKit.label(head, 20, Color(1, 0.85, 0.3) if Game.quest_ready(id) else (Color(1.0, 0.65, 0.25) if qd.get("story", false) else UiKit.TEXT)))
 			for i in qd.obj.size():
 				var pr := Game.objective_progress(id, i)
@@ -969,10 +969,10 @@ func _fill_journal() -> void:
 	for id in Data.QUESTS:
 		if Game.quest_state(id) == "done":
 			ndone += 1
-	q.add_child(UiKit.label("Quests completed: %d / %d" % [ndone, Data.QUESTS.size()], 18, UiKit.MUTED))
+	q.add_child(UiKit.label(Tx.f("Quests completed: %d / %d", [ndone, Data.QUESTS.size()]), 18, UiKit.MUTED))
 	for s in Game.side_objectives():
 		q.add_child(UiKit.label("•  " + s, 20))
-	q.add_child(UiKit.label("Next stripe: %d / %d XP%s" % [Game.xp_into_stripe(), Game.stripe_cost(Game.rank), "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""], 18, UiKit.MUTED))
+	q.add_child(UiKit.label(Tx.f("Next stripe: %d / %d XP%s", [Game.xp_into_stripe(), Game.stripe_cost(Game.rank), "  (stripe cap: beat %s to promote)" % Data.OPPONENTS[Data.ZONES[Game.zone].boss].name if Game.at_stripe_cap() and Data.ZONES.has(Game.zone) else ""]), 18, UiKit.MUTED))
 	if Cloud.community_url != "":
 		var cb := UiKit.button(Cloud.community_label, Vector2(260, 52))
 		cb.pressed.connect(func(): UiKit.open_url(Cloud.community_url))
@@ -988,7 +988,7 @@ func _fill_journal() -> void:
 	q.add_child(reset)
 	# Achievements
 	var a := _scroll_tab("Achievements")
-	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Achievements %d/%d" % [Game.unlocked.size(), Data.ACHIEVEMENTS.size()])
+	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, Tx.f("Achievements %d/%d", [Game.unlocked.size(), Data.ACHIEVEMENTS.size()]))
 	for ach in Data.ACHIEVEMENTS:
 		var got := Game.unlocked.has(ach.id)
 		if ach.get("hidden", false) and not got:
@@ -1004,13 +1004,13 @@ func _fill_journal() -> void:
 	for id in Data.OPPONENTS:
 		var o: Dictionary = Data.OPPONENTS[id]
 		var rec := "W %d · L %d" % [int(Game.wins.get(id, 0)), int(Game.losses.get(id, 0))]
-		f.add_child(UiKit.label("%s — %s, Lv %d  (%s)" % [o.name, o.title, Data.display_level(float(o.level)), rec], 19, Data.con_color(Data.display_level(float(o.level)), Game.player_level())))
+		f.add_child(UiKit.label(Tx.f("%s — %s, Lv %d  (%s)", [o.name, o.title, Data.display_level(float(o.level)), rec]), 19, Data.con_color(Data.display_level(float(o.level)), Game.player_level())))
 		var pl := Data.personality(o, id)
 		if pl.plan != "" and (Game.beaten(id) or int(Game.losses.get(id, 0)) > 0 or Data.zone_of(id) == Game.zone):
 			var favs: Array[String] = []
 			for mv in pl.fav:
 				favs.append(str(Data.MOVES[mv].name))
-			f.add_child(UiKit.label("     %s  Favorites: %s." % [pl.plan, ", ".join(favs)], 16, UiKit.MUTED))
+			f.add_child(UiKit.label(Tx.f("     %s  Favorites: %s.", [pl.plan, ", ".join(favs)]), 16, UiKit.MUTED))
 	_fill_team()
 	journal_tabs.current_tab = clampi(cur, 0, journal_tabs.get_tab_count() - 1)
 	_window = window_of(journal_tabs.current_tab)
@@ -1030,7 +1030,7 @@ func _fill_character() -> void:
 func _fill_talents() -> void:
 	var t := _scroll_tab("Talents")
 	var tp := Game.talent_points()
-	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, "Talents (%d)" % tp if tp > 0 else "Talents")
+	journal_tabs.set_tab_title(journal_tabs.get_tab_count() - 1, Tx.f("Talents (%d)", tp) if tp > 0 else "Talents")
 	t.add_child(CharSheet.build_talents_wow(self))
 	t.get_parent().set_meta("wow", true)
 
@@ -1041,9 +1041,9 @@ func _daily_box() -> Control:
 	box.add_theme_stylebox_override("panel", UiKit.box(Color(0.25, 0.2, 0.05, 0.6), 12, UiKit.ACCENT))
 	var v := VBoxContainer.new()
 	box.add_child(v)
-	v.add_child(UiKit.label("DAILY CHALLENGE  ·  %s" % Game.today(), 22, UiKit.ACCENT))
-	v.add_child(UiKit.label("%s — %s" % [rd.name, rd.desc], 19))
-	v.add_child(UiKit.label("Opponent: %s (%s)   ·   Streak: %d   ·   Best: %d" % [dc.opp.name, Data.rank_name(int(dc.opp.rank)), Game.daily_streak(), int(Game.daily.get("best", 0))], 17, UiKit.MUTED))
+	v.add_child(UiKit.label(Tx.f("DAILY CHALLENGE  ·  %s", Game.today()), 22, UiKit.ACCENT))
+	v.add_child(UiKit.label(Tx.f("%s — %s", [rd.name, rd.desc]), 19))
+	v.add_child(UiKit.label(Tx.f("Opponent: %s (%s)   ·   Streak: %d   ·   Best: %d", [dc.opp.name, Data.rank_name(int(dc.opp.rank)), Game.daily_streak(), int(Game.daily.get("best", 0))]), 17, UiKit.MUTED))
 	var b := UiKit.button("Take today's challenge" if Game.daily_available() else "Won today! Replay for practice", Vector2(320, 50))
 	b.pressed.connect(func(): daily_requested.emit())
 	v.add_child(b)
@@ -1057,7 +1057,7 @@ func _ach_row(got: bool, title_: String, desc: String, prog: String) -> Control:
 	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	box.add_theme_stylebox_override("panel", UiKit.box(UiKit.ACCENT if got else Color(0, 0, 0, 0.3), 5, UiKit.ACCENT if got else Color(1, 1, 1, 0.3)))
 	row.add_child(box)
-	var l := UiKit.label("%s — %s%s" % [title_, desc, prog], 19, UiKit.ACCENT if got else UiKit.TEXT)
+	var l := UiKit.label(Tx.f("%s — %s%s", [title_, desc, prog]), 19, UiKit.ACCENT if got else UiKit.TEXT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(l)
 	return row
@@ -1081,7 +1081,7 @@ func open_travel() -> void:
 	v.add_child(UiKit.label("TRAVEL  ·  Where to?", 30, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
 	var my_c := Data.continent_of(Game.zone)
 	for cont in Data.CONTINENTS:
-		var head := str(Data.CONTINENTS[cont]).to_upper() + ("   ·   bus" if cont == my_c else "   ·   flight R$ %d" % Data.FLIGHT_COST)
+		var head := Tx.s(str(Data.CONTINENTS[cont])).to_upper() + ("   ·   bus" if cont == my_c else Tx.f("   ·   flight R$ %d", Data.FLIGHT_COST))
 		v.add_child(UiKit.label(head, 20, Color(1.0, 0.8, 0.35) if cont == my_c else Color(0.55, 0.85, 1.0)))
 		for z in Data.ZONES:
 			if Data.continent_of(z) != cont:
@@ -1090,14 +1090,14 @@ func open_travel() -> void:
 			# open world: every zone is reachable; it just tells you if it's above your level
 			var lo := int(zd.levels[0])
 			var here: bool = z == Game.zone
-			var txt := "%s  ·  %s" % [zd.name, Data.zone_levels(z)]
+			var txt := Tx.f("%s  ·  %s", [zd.name, Data.zone_levels(z)])
 			if here:
 				txt += "   (you are here)"
 			elif Game.player_level() < lo - 2:
-				txt += "   (dangerous: you're level %d)" % Game.player_level()
+				txt += Tx.f("   (dangerous: you're level %d)", Game.player_level())
 			var fly: bool = cont != my_c
 			if fly and Game.money < Data.FLIGHT_COST:
-				txt += "   (need R$ %d)" % Data.FLIGHT_COST
+				txt += Tx.f("   (need R$ %d)", Data.FLIGHT_COST)
 			var b := UiKit.button(txt, Vector2(0, 50))
 			b.disabled = here or (fly and Game.money < Data.FLIGHT_COST)
 			if not here and Game.player_level() < lo - 2:
@@ -1150,12 +1150,25 @@ func _build_title() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 4)
 	v.add_child(spacer)
-	v.add_child(CharSelect.new())
-	var how := UiKit.label(
-		"Explore with WASD / joystick · drag to look · wheel to zoom · Space to jump · E to talk or fight\n" +
-		"Fights: 1-0 your moves · Tab target · Q / R / T counter their cast · F breathe · G origin racial",
-		16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var lr := lang_row()
+	lr.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(lr)
+	var cs_box := VBoxContainer.new()   # holds the character screen so it can be rebuilt
+	v.add_child(cs_box)
+	cs_box.add_child(CharSelect.new())
+	var how := UiKit.label("", 16, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var how_text := func():
+		how.text = Tx.s("Explore with WASD / joystick · drag to look · wheel to zoom · Space to jump · E to talk or fight\n") + \
+			Tx.s("Fights: 1-0 your moves · Tab target · Q / R / T counter their cast · F breathe · G origin racial")
+	how_text.call()
 	v.add_child(how)
+	# a new language: rebuild the character screen (its text is formatted when built)
+	Lang.changed.connect(func():
+		how_text.call()
+		if is_instance_valid(cs_box) and title.visible:
+			for c in cs_box.get_children():
+				c.queue_free()
+			cs_box.add_child(CharSelect.new()))
 	# the community button: the server sets the link (COMMUNITY_URL), so it can appear late
 	var cb := UiKit.button(Cloud.community_label, Vector2(280, 52))
 	cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1236,6 +1249,27 @@ func _slider_row(parent: Control, text: String, value: float, min_v: float, max_
 	row.add_child(sl)
 	row.add_child(val)
 
+## Language buttons (used in settings and on the title screen). Labels are the languages'
+## own names, so they never get translated.
+static func lang_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var btns: Array = []
+	for code in Lang.ORDER:
+		var b := UiKit.button(Lang.LANGS[code], Vector2(230, 48))
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		b.toggle_mode = true
+		b.button_pressed = Lang.current == code
+		btns.append(b)
+		row.add_child(b)
+	for i in btns.size():
+		var c: String = Lang.ORDER[i]
+		(btns[i] as Button).pressed.connect(func():
+			Lang.set_lang(c)
+			for j in btns.size():
+				(btns[j] as Button).set_pressed_no_signal(Lang.ORDER[j] == c))
+	return row
+
 func _build_settings() -> void:
 	settings_panel = PanelContainer.new()
 	settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -1250,7 +1284,16 @@ func _build_settings() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	settings_panel.add_child(v)
+	v.add_theme_constant_override("separation", 6)
 	v.add_child(UiKit.label("PAUSED  ·  SETTINGS", 34, UiKit.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	var lrow := HBoxContainer.new()   # "Language" and its buttons on one line
+	lrow.add_theme_constant_override("separation", 16)
+	lrow.add_child(UiKit.label("Language", 22, UiKit.ACCENT))
+	var lb := lang_row()
+	for c in lb.get_children():
+		(c as Control).custom_minimum_size = Vector2(190, 40)
+	lrow.add_child(lb)
+	v.add_child(lrow)
 	v.add_child(UiKit.label("Sound", 22, UiKit.ACCENT))
 	var mute := CheckButton.new()
 	mute.text = "Mute all sound"
@@ -1290,13 +1333,13 @@ func _build_settings() -> void:
 			for j in 3:
 				(btns[j] as Button).set_pressed_no_signal(j == bi)
 			if gfx_btn:
-				gfx_btn.text = "Gfx: " + Game.GFX_NAMES[bi]
+				gfx_btn.text = Tx.s("Gfx: ") + Tx.s(Game.GFX_NAMES[bi])
 			graphics_changed.emit())
 	v.add_child(UiKit.label("Keys", 22, UiKit.ACCENT))
-	var keys := "WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n" + \
-		"Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n" + \
-		"E or click: talk / roll   ·   C: character   ·   N: specs, talents & moves   ·   P: moves   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n" + \
-		"Fighting: 1-0 your moves (drag from P to arrange)   ·   Tab: next target   ·   Q / R / T: Sprawl, Frame, Defend (counter their cast)   ·   F: breathe   ·   G: origin racial"
+	var keys := Tx.s("WASD / arrows: move   ·   Shift: run   ·   Space: jump   ·   X: auto-run\n") + \
+		Tx.s("Left drag: look   ·   Right drag: turn   ·   Both buttons: run forward   ·   Wheel: zoom\n") + \
+		Tx.s("E or click: talk / roll   ·   C: character   ·   N: specs, talents & moves   ·   P: moves   ·   L / J: quest log   ·   B: bags   ·   M: map   ·   Esc: this menu\n") + \
+		Tx.s("Fighting: 1-0 your moves (drag from P to arrange)   ·   Tab: next target   ·   Q / R / T: Sprawl, Frame, Defend (counter their cast)   ·   F: breathe   ·   G: origin racial")
 	v.add_child(UiKit.label(keys, 16, UiKit.MUTED))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1385,11 +1428,11 @@ func _fill_specs() -> void:
 	var cur := Specs.get_spec(Game.spec)
 	var sub := ""
 	if not Game.can_choose_spec():
-		sub = "Specializations unlock at level %d (you're level %d)." % [Specs.UNLOCK_LEVEL, Game.player_level()]
+		sub = Tx.f("Specializations unlock at level %d (you're level %d).", [Specs.UNLOCK_LEVEL, Game.player_level()])
 	elif cur.is_empty():
 		sub = "Choose your path. Your first choice is free; switching later costs R$ %d." % Specs.RESPEC_COST
 	else:
-		sub = "Switching specialization costs R$ %d  ·  you have R$ %d" % [Specs.RESPEC_COST, Game.money]
+		sub = Tx.f("Switching specialization costs R$ %d  ·  you have R$ %d", [Specs.RESPEC_COST, Game.money])
 	v.add_child(Wow.label(sub, 14, Wow.PALE, false, HORIZONTAL_ALIGNMENT_CENTER))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -1439,7 +1482,7 @@ func _spec_card(sp: Dictionary) -> Control:
 	col.add_child(emc)
 	col.add_child(Wow.title(str(sp.name), 19, Wow.WHITE))
 	(col.get_child(col.get_child_count() - 1) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(Wow.label("%s%s" % [role.name, "  ·  ACTIVE" if mine else ""], 13, rc.lightened(0.25), false, HORIZONTAL_ALIGNMENT_CENTER))
+	col.add_child(Wow.label(Tx.f("%s%s", [role.name, "  ·  ACTIVE" if mine else ""]), 13, rc.lightened(0.25), false, HORIZONTAL_ALIGNMENT_CENTER))
 	col.add_child(Wow.label(str(sp.desc), 13, Wow.PALE, true, HORIZONTAL_ALIGNMENT_CENTER))
 	col.add_child(Wow.banner("Passive"))
 	col.add_child(Wow.label(str(sp.passive), 13, Wow.GREEN, true))
@@ -1476,7 +1519,7 @@ func _spec_card(sp: Dictionary) -> Control:
 		tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tv.add_child(Wow.label(str(Data.MOVES[sp.move].name), 15, Wow.WHITE))
-		tv.add_child(Wow.label("%s  ·  hover for details" % MoveInfo.TYPE_NAMES.get(str(Data.MOVES[sp.move].type), ""), 12, Wow.GREY))
+		tv.add_child(Wow.label(Tx.f("%s  ·  hover for details", MoveInfo.TYPE_NAMES.get(str(Data.MOVES[sp.move].type), "")), 12, Wow.GREY))
 		e.add_child(tv)
 		col.add_child(e)
 	var fill := Control.new()
@@ -1487,11 +1530,11 @@ func _spec_card(sp: Dictionary) -> Control:
 		b.text = "Active"
 		b.disabled = true
 	elif not Game.can_choose_spec():
-		b.text = "Unlocks at level %d" % Specs.UNLOCK_LEVEL
+		b.text = Tx.f("Unlocks at level %d", Specs.UNLOCK_LEVEL)
 		b.disabled = true
 	else:
 		var cost := Game.spec_cost(sp.id)
-		b.text = "Activate" if cost == 0 else "Activate  (R$ %d)" % cost
+		b.text = "Activate" if cost == 0 else Tx.f("Activate  (R$ %d)", cost)
 		var sid: String = sp.id
 		b.pressed.connect(func():
 			var why := Game.choose_spec(sid)
@@ -1573,7 +1616,7 @@ func _fill_spellbook() -> void:
 	var th := Wow.title("Technique library", 19, Color(0.45, 0.2, 0.05))
 	th.add_theme_constant_override("outline_size", 0)
 	v.add_child(th)
-	var sub := Wow.label("%d techniques known. Each move button uses the strongest technique of its kind you know." % known_n, 13, Color(0.35, 0.24, 0.12))
+	var sub := Wow.label(Tx.f("%d techniques known. Each move button uses the strongest technique of its kind you know.", known_n), 13, Color(0.35, 0.24, 0.12))
 	sub.add_theme_constant_override("outline_size", 0)
 	v.add_child(sub)
 	var tip_layer := Control.new()
@@ -1640,12 +1683,12 @@ class AbilityEntry extends HBoxContainer:
 		tv.add_child(nm)
 		var where := ""
 		if not have:
-			where = "Unlocks at level %d" % int(a.get("unlock", 1))
+			where = Tx.f("Unlocks at level %d", int(a.get("unlock", 1)))
 		elif str(a.id) in Abilities.UTILITY:
-			where = "Always on your bar [%s]" % str(Abilities.UTILITY_KEYS[str(a.id)])
+			where = Tx.f("Always on your bar [%s]", str(Abilities.UTILITY_KEYS[str(a.id)]))
 		else:
 			var i := Game.bar_layout.find(str(a.id))
-			where = ("On your bar [%s]" % Abilities.KEYS[i]) if i >= 0 else "Not on your bar: drag it there"
+			where = (Tx.f("On your bar [%s]", Abilities.KEYS[i])) if i >= 0 else "Not on your bar: drag it there"
 		var sl := Wow.label(where, 12, Color(0.4, 0.3, 0.18) if have else Color(0.5, 0.25, 0.2))
 		sl.add_theme_constant_override("outline_size", 0)
 		tv.add_child(sl)
@@ -1749,7 +1792,7 @@ func _spell_entry(id: String) -> Control:
 	tv.add_child(nm)
 	var subt: String = str(MoveInfo.TYPE_NAMES.get(str(m.type), str(m.type)))
 	if not known:
-		subt = ("%s spec" % Specs.get_spec(str(m.spec)).name) if m.has("spec") else "Unlocks at %s" % Data.rank_name(int(m.rank))
+		subt = (Tx.f("%s spec", Specs.get_spec(str(m.spec)).name)) if m.has("spec") else Tx.f("Unlocks at %s", Data.rank_name(int(m.rank)))
 	elif m.role != "any":
 		subt += "  ·  " + ("top" if m.role == "top" else "bottom")
 	var sl := Wow.label(subt, 12, Color(0.4, 0.3, 0.18))
@@ -1799,7 +1842,7 @@ func _fill_team() -> void:
 		if c.id in order:
 			continue
 		ids.append(c.id)
-		ob.add_item("%s%s  (+%d gas)" % [c.name, "  ★ master" if c.get("boss", false) else "", int(Team.coach_heal(c) + Team.BETWEEN_REGEN)])
+		ob.add_item(Tx.f("%s%s  (+%d gas)", [c.name, "  ★ master" if c.get("boss", false) else "", int(Team.coach_heal(c) + Team.BETWEEN_REGEN)]))
 		if c.id == str(lu.coach):
 			ob.select(ob.item_count - 1)
 	ob.item_selected.connect(func(ix: int):
@@ -1821,7 +1864,7 @@ func _fill_team() -> void:
 	right.custom_minimum_size = Vector2(330, 0)
 	right.add_theme_constant_override("separation", 4)
 	page.add_child(right)
-	right.add_child(Wow.banner("Bench  ·  swap into slot %d" % (_team_sel + 1)))
+	right.add_child(Wow.banner(Tx.f("Bench  ·  swap into slot %d", (_team_sel + 1))))
 	var bench := Team.roster().filter(func(f): return not f.id in order)
 	if bench.is_empty():
 		right.add_child(Wow.label("Beat fighters around the world to recruit them.", 13, Wow.GREY, true))
@@ -1831,7 +1874,7 @@ func _fill_team() -> void:
 		var badge := TeamBoard._RoleBadge.new()
 		badge.role = f.role
 		h.add_child(badge)
-		var nl := Wow.label("%s  ·  Lv %d %s" % [f.name, Data.display_level(float(f.level)), Team.ROLES[f.role].name], 13, Wow.WHITE)
+		var nl := Wow.label(Tx.f("%s  ·  Lv %d %s", [f.name, Data.display_level(float(f.level)), Team.ROLES[f.role].name]), 13, Wow.WHITE)
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		h.add_child(nl)
@@ -1849,7 +1892,7 @@ func _fill_team() -> void:
 	right.add_child(Wow.banner("Record"))
 	right.add_child(Wow.stat_row("Team matches:", str(int(Game.counters.get("team_matches", 0)))))
 	right.add_child(Wow.stat_row("Team wins:", str(Game.counter("team_wins"))))
-	right.add_child(Wow.stat_row("Circuito best:", "%d / %d wins" % [int(Game.flags.get("circuit_best", 0)), Circuit.ROUNDS]))
+	right.add_child(Wow.stat_row("Circuito best:", Tx.f("%d / %d wins", [int(Game.flags.get("circuit_best", 0)), Circuit.ROUNDS])))
 	right.add_child(Wow.stat_row("Circuito titles:", str(Game.counter("circuit_titles"))))
 	var held := 0
 	for tid in Data.TERRITORIES:
@@ -1880,7 +1923,7 @@ func _team_row(f: Dictionary, i: int, order: Array, coach: String) -> Control:
 	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(nv)
 	nv.add_child(Wow.label(str(f.name) + ("  (you)" if f.get("player", false) else ""), 15, Wow.WHITE))
-	nv.add_child(Wow.label("%s  ·  Lv %d  ·  %s" % [role.name, Data.display_level(float(f.level)), Data.rank_name(int(f.rank))], 12, role.color.lightened(0.2)))
+	nv.add_child(Wow.label(Tx.f("%s  ·  Lv %d  ·  %s", [role.name, Data.display_level(float(f.level)), Data.rank_name(int(f.rank))]), 12, role.color.lightened(0.2)))
 	for d in [-1, 1]:
 		var b := Wow.button("▲" if d < 0 else "▼", Vector2(28, 24))
 		b.disabled = i + d < 0 or i + d >= order.size()

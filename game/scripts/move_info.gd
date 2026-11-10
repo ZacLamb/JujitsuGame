@@ -94,21 +94,21 @@ static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "",
 	if spec_name == "" and mv.has("spec"):
 		spec_name = str(Specs.get_spec(str(mv.spec)).get("name", ""))
 	if spec_name != "":
-		sub += "  ·  " + spec_name + " spec"
+		sub += "  ·  " + Tx.s(spec_name) + Tx.s(" spec")
 	v.add_child(_line(sub, 13, Color(1, 0.82, 0.3) if signature or mv.has("spec") else UiKit.MUTED, true))
 	# costs row (two columns like WoW)
 	var cast := (sim.cast_time(id, true) if sim else 0.7 + 0.14 * float(mv.diff) + (0.15 if mv.type == "sub" else 0.0)) / maxf(pace, 0.1)
 	var cost := sim.player_cost(id) if sim else float(mv.cost)
 	var cd := 4.0 if mv.type == "sub" else 2.2
-	v.add_child(_pair("%.1f sec cast" % cast, "%d stamina" % int(round(cost))))
+	v.add_child(_pair(Tx.f("%.1f sec cast", cast), Tx.f("%d stamina", int(round(cost)))))
 	var req := RollSim.control_req(id)
-	v.add_child(_pair("Needs %d grip%s" % [req, "" if req == 1 else "s"] if req > 0 else "No grips needed", "%.0f sec cooldown" % (cd / maxf(pace, 0.1))))
+	v.add_child(_pair(Tx.f("Needs %d grip%s", [req, "" if req == 1 else "s"]) if req > 0 else "No grips needed", Tx.f("%.0f sec cooldown", (cd / maxf(pace, 0.1)))))
 	# what stops it
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 6)
 	var chip := PanelContainer.new()
 	chip.add_theme_stylebox_override("panel", UiKit.box(Color(cc, 0.25), 6, cc, 1))
-	chip.add_child(_line(" %s " % RollSim.DEF_NAMES[counter].to_upper(), 12, cc.lightened(0.3)))
+	chip.add_child(_line(" %s " % Tx.s(RollSim.DEF_NAMES[counter]).to_upper(), 12, cc.lightened(0.3)))
 	hb.add_child(chip)
 	hb.add_child(_line("stops it", 13, UiKit.MUTED))
 	v.add_child(hb)
@@ -118,7 +118,7 @@ static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "",
 		var now := sim.technique_chance(id, true, have)
 		var full := sim.technique_chance(id, true, RollSim.MAX_CONTROL)
 		var col := Color(0.45, 1.0, 0.55) if now >= 0.55 else (Color(1, 0.85, 0.35) if now >= 0.35 else Color(1, 0.5, 0.45))
-		v.add_child(_line("Chance right now: %d%%   (with %d grips: %d%%)" % [int(now * 100), RollSim.MAX_CONTROL, int(full * 100)], 15, col))
+		v.add_child(_line(Tx.f("Chance right now: %d%%   (with %d grips: %d%%)", [int(now * 100), RollSim.MAX_CONTROL, int(full * 100)]), 15, col))
 		var notes: Array = []
 		if sim.opp_off_bal > 0.0:
 			notes.append("they're off-balance")
@@ -138,9 +138,9 @@ static func panel(id: String, sim: RollSim = null, pace := 1.0, spec_name := "",
 		outcome = "Locks the submission: mash to finish. Spent grips make it start deeper."
 	elif mv.result is Array:
 		var r: Array = mv.result
-		outcome = "Lands you: %s" % Data.role_label(str(r[0]), bool(r[1]))
+		outcome = Tx.f("Lands you: %s", Data.role_label(str(r[0]), bool(r[1])))
 		if int(mv.pts) > 0:
-			outcome += "   ·   +%d points" % int(mv.pts)
+			outcome += Tx.f("   ·   +%d points", int(mv.pts))
 	v.add_child(_line(outcome, 14, Color(0.6, 0.85, 1.0), true))
 	v.add_child(_line("\"%s\"" % DESC.get(id, ""), 13, Color(1, 0.86, 0.55), true))
 	return p
@@ -149,20 +149,20 @@ static func _basic(v: VBoxContainer, id: String, sim: RollSim, pace: float) -> v
 	match id:
 		"grip":
 			v.add_child(_line("Grip Fight", 20, Color.WHITE))
-			v.add_child(_pair("%.1f sec cast" % (0.5 / pace), "2 stamina"))
+			v.add_child(_pair(Tx.f("%.1f sec cast", (0.5 / pace)), "2 stamina"))
 			v.add_child(_line("+1 Grip Control (+2 while they're off-balance). Techniques spend all your grips: more grips, better odds and deeper submissions.", 14, UiKit.TEXT, true))
 			v.add_child(_line("Any counter strips it.", 13, UiKit.MUTED))
 		"wear":
 			v.add_child(_line("Wear Them Down", 20, Color.WHITE))
-			v.add_child(_pair("%.1f sec cast" % (0.75 / pace), "6 stamina"))
+			v.add_child(_pair(Tx.f("%.1f sec cast", (0.75 / pace)), "6 stamina"))
 			v.add_child(_line("Drains 10 of their stamina and strips one of their grips. Breaks a boss's Heavy Base.", 14, UiKit.TEXT, true))
 		"breathe":
 			v.add_child(_line("Breathe", 20, Color.WHITE))
-			v.add_child(_pair("%.1f sec channel" % (1.4 / pace), "free"))
+			v.add_child(_pair(Tx.f("%.1f sec channel", (1.4 / pace)), "free"))
 			v.add_child(_line("Recover 20 stamina. You can't counter while you breathe, so pick your moment.", 14, UiKit.TEXT, true))
 		"disengage":
 			v.add_child(_line("Walk Away", 20, Color.WHITE))
-			v.add_child(_pair("%.1f sec channel" % (1.8 / pace), "free"))
+			v.add_child(_pair(Tx.f("%.1f sec channel", (1.8 / pace)), "free"))
 			v.add_child(_line("Back off and leave the fight: no win, no loss, no loot. Only from standing, and they may grab you back while you go. Not allowed in competitions.", 14, UiKit.TEXT, true))
 			v.add_child(_line("Out of a fight, just walk off: mobs give up the chase once you're far from their camp.", 13, UiKit.MUTED, true))
 		"base", "frame", "defend":
@@ -173,7 +173,7 @@ static func _basic(v: VBoxContainer, id: String, sim: RollSim, pace: float) -> v
 
 static func _line(t: String, size: int, col: Color, wrap := false) -> Label:
 	var l := Label.new()
-	l.text = t
+	l.text = Tx.disp(t)
 	if Wow.body():
 		l.add_theme_font_override("font", Wow.body())
 	l.add_theme_constant_override("outline_size", 2)

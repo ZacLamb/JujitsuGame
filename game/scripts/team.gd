@@ -162,7 +162,7 @@ static func make_enemy(zone: String, nonce: int, exclude: Array = []) -> Diction
 		f["level"] = pl + 0.1 + i * 0.35 + rng.randf_range(-0.15, 0.15)
 		f["rank"] = clampi(int(f.get("rank", Game.rank)), 0, 24)
 		fighters.append(f)
-	var coach := {"name": "Professor %s" % Data.COMP_LAST[rng.randi() % Data.COMP_LAST.size()], "level": pl, "boss": false}
+	var coach := {"name": Tx.f("Professor %s", Data.COMP_LAST[rng.randi() % Data.COMP_LAST.size()]), "level": pl, "boss": false}
 	return {"academy": academy, "fighters": fighters, "coach": coach}
 
 # ------------------------------------------------------------ bouts
@@ -285,21 +285,21 @@ class Match:
 		bouts += 1
 		var a := current_ours()
 		var b := current_theirs()
-		var how := "by %s" % Data.MOVES[r.sub].name if r.get("by_sub", false) and Data.MOVES.has(str(r.get("sub", ""))) else ("on points %d-%d" % [r.score[0], r.score[1]] if r.has("score") else "")
+		var how := Tx.f("by %s", Data.MOVES[r.sub].name) if r.get("by_sub", false) and Data.MOVES.has(str(r.get("sub", ""))) else (Tx.f("on points %d-%d", [r.score[0], r.score[1]]) if r.has("score") else "")
 		if r.get("draw", false):
-			feed.append(["Draw: %s and %s are both out." % [a.name, b.name], Color(0.8, 0.8, 0.75)])
+			feed.append([Tx.f("Draw: %s and %s are both out.", [a.name, b.name]), Color(0.8, 0.8, 0.75)])
 			i += 1
 			j += 1
 			stam_ours = 1.0
 			stam_theirs = 1.0
 			return
 		if r.won:
-			feed.append(["%s beats %s %s." % [a.name, b.name, how], Color(0.45, 1.0, 0.55)])
+			feed.append([Tx.f("%s beats %s %s.", [a.name, b.name, how]), Color(0.45, 1.0, 0.55)])
 			j += 1
 			stam_ours = clampf(me_stam + (Team.BETWEEN_REGEN + Team.coach_heal(coach)) / 100.0 - Team._drain(b), 0.1, 1.0)
 			stam_theirs = 1.0
 		else:
-			feed.append(["%s beats %s %s." % [b.name, a.name, how], Color(1.0, 0.5, 0.45)])
+			feed.append([Tx.f("%s beats %s %s.", [b.name, a.name, how]), Color(1.0, 0.5, 0.45)])
 			i += 1
 			stam_theirs = clampf(them_stam + (Team.BETWEEN_REGEN + Team.coach_heal(their_coach) * 0.7) / 100.0 - Team._drain(a), 0.1, 1.0)
 			stam_ours = 1.0
@@ -320,7 +320,7 @@ static func new_match(zone: String, lineup: Dictionary, nonce: int, size := 5, a
 	m.theirs = e.fighters.slice(5 - size) if size < 5 else e.fighters
 	m.their_coach = e.coach
 	m.academy = academy if academy != "" else e.academy
-	m.title = "TEAM CHALLENGE  ·  5v5" if size == 5 else "TERRITORY FIGHT  ·  %dv%d" % [size, size]
+	m.title = "TEAM CHALLENGE  ·  5v5" if size == 5 else Tx.f("TERRITORY FIGHT  ·  %dv%d", [size, size])
 	for id in lineup.order:
 		var f := find(str(id))
 		if not f.is_empty() and m.ours.size() < size:

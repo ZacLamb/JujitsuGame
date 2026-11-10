@@ -1,0 +1,1182 @@
+[
+[
+"Out of range",
+"Fora de alcance",
+"Fuera de alcance"
+],
+[
+"Over-Under Pass",
+"Passagem Over-Under",
+"Pase Over-Under"
+],
+[
+"Own a legendary piece of gear.",
+"Tenha uma peça de equipamento lendária.",
+"Ten una pieza de equipo legendaria."
+],
+[
+"Owned",
+"Possui",
+"Obtenido"
+],
+[
+"PANTANAL  ·  Lv 11-20\nBus leaves here",
+"PANTANAL  ·  Nv 11-20\nO ônibus sai daqui",
+"PANTANAL  ·  Nv 11-20\nEl autobús sale de aquí"
+],
+[
+"PAUSED  ·  SETTINGS",
+"PAUSADO  ·  CONFIGURAÇÕES",
+"PAUSA  ·  AJUSTES"
+],
+[
+"PAWN",
+"PEÃO",
+"PEÓN"
+],
+[
+"PB&J Sandwich",
+"Sanduíche de Pasta de Amendoim e Geleia",
+"Sándwich de Crema de Cacahuete y Mermelada"
+],
+[
+"PHASE %d: %s",
+"FASE %d: %s",
+"FASE %d: %s"
+],
+[
+"PIN",
+"IMOBILIZAR",
+"INMOVILIZAR"
+],
+[
+"PLAN",
+"PLANO",
+"PLAN"
+],
+[
+"POST OFFICE",
+"CORREIOS",
+"OFICINA DE CORREOS"
+],
+[
+"POUNCE",
+"BOTE",
+"ZARPAZO"
+],
+[
+"PROMOTED",
+"PROMOVIDO",
+"ASCENDIDO"
+],
+[
+"PROMOTED: %s Belt!",
+"PROMOVIDO: Faixa %s!",
+"ASCENDIDO: ¡Cinturón %s!"
+],
+[
+"PSYCHIC",
+"VIDENTE",
+"VIDENTE"
+],
+[
+"PULL %d / %d",
+"GRUPO %d / %d",
+"GRUPO %d / %d"
+],
+[
+"PUMP JACKS",
+"CAVALOS DE PETRÓLEO",
+"BOMBAS DE PETRÓLEO"
+],
+[
+"Pace Pusher",
+"Ditador de Ritmo",
+"Marcador de Ritmo"
+],
+[
+"Paid Black Belt",
+"Faixa Preta Comprada",
+"Cinturón Negro Pagado"
+],
+[
+"Paid Judge",
+"Juiz Comprado",
+"Juez Comprado"
+],
+[
+"Paid in Full",
+"Pago Integralmente",
+"Pagado por Completo"
+],
+[
+"Pair",
+"Dupla",
+"Pareja"
+],
+[
+"Pan-American",
+"Pan-Americano",
+"Panamericano"
+],
+[
+"Pan-American Open",
+"Pan-American Open",
+"Pan-American Open"
+],
+[
+"Pantanal Fight",
+"Luta no Pantanal",
+"Combate en el Pantanal"
+],
+[
+"Pantanal Gate",
+"Portão do Pantanal",
+"Puerta del Pantanal"
+],
+[
+"Pantanal river fish. +15 max stamina and 15% faster recovery for 30 min.",
+"Peixe de rio do Pantanal. +15 de fôlego máximo e recuperação 15% mais rápida por 30 min.",
+"Pescado de río del Pantanal. +15 de aguante máximo y recuperación un 15% más rápida durante 30 min."
+],
+[
+"Pantaneiro Gi",
+"Kimono Pantaneiro",
+"Gi Pantaneiro"
+],
+[
+"Pants",
+"Calça",
+"Pantalón"
+],
+[
+"Paper Cutter Choke",
+"Estrangulamento Paper Cutter",
+"Estrangulación Paper Cutter"
+],
+[
+"Park ranger, purple belt",
+"Guarda-parque, faixa roxa",
+"Guardabosques, cinturón morado"
+],
+[
+"Pass and pin: damage, +1 Grip. Pinned for %ss: they deal 25%% less.",
+"Passe e imobilize: dano, +1 de Pegada. Imobilizado por %ss: ele causa 25%% menos.",
+"Pasa e inmoviliza: daño, +1 de Agarre. Inmovilizado %ss: hace un 25%% menos."
+],
+[
+"Pass the guard 5 times.",
+"Passe a guarda 5 vezes.",
+"Pasa la guardia 5 veces."
+],
+[
+"Passagem",
+"Passagem",
+"Pase"
+],
+[
+"Passes and Advances hit 15% harder. Enemy sweeps hit you 20% softer.",
+"Passagens e Avanços batem 15% mais forte. Raspagens inimigas batem 20% mais fraco em você.",
+"Los Pases y Avances pegan un 15% más fuerte. Las barridas enemigas te pegan un 20% más flojo."
+],
+[
+"Passes and advances +8% timing window per rank.",
+"Passagens e avanços: +8% de janela de tempo por grau.",
+"Pases y avances: +8% de ventana de tiempo por rango."
+],
+[
+"Passes land 10% more often; their sweeps take 20% longer to cast; +15 max stamina.",
+"Passagens entram 10% mais vezes; as raspagens deles demoram 20% mais para conjurar; +15 de fôlego máximo.",
+"Los pases entran un 10% más; sus barridas tardan un 20% más en lanzarse; +15 de aguante máximo."
+],
+[
+"Passing half guard",
+"Passando a meia-guarda",
+"Pasando la media guardia"
+],
+[
+"Passive",
+"Passivo",
+"Pasivo"
+],
+[
+"Passport Control",
+"Controle de Passaporte",
+"Control de Pasaportes"
+],
+[
+"Passport stamped: %s  (%d/%d)",
+"Passaporte carimbado: %s  (%d/%d)",
+"Pasaporte sellado: %s  (%d/%d)"
+],
+[
+"Password (8+ characters)",
+"Senha (8+ caracteres)",
+"Contraseña (8+ caracteres)"
+],
+[
+"Path chosen: %s. Its techniques come first and hit %d%% harder in its kit.",
+"Caminho escolhido: %s. As técnicas dele vêm primeiro e batem %d%% mais forte no kit dele.",
+"Camino elegido: %s. Sus técnicas llegan primero y pegan un %d%% más fuerte con su equipo."
+],
+[
+"Path: %s  ·  +%d%% technique damage in your %s kit%s",
+"Caminho: %s  ·  +%d%% de dano das técnicas no seu kit %s%s",
+"Camino: %s  ·  +%d%% de daño de técnicas con tu equipo %s%s"
+],
+[
+"Path: not chosen yet (%s offers the choice at blue belt)",
+"Caminho: ainda não escolhido (%s oferece a escolha na faixa azul)",
+"Camino: aún sin elegir (%s ofrece la elección en cinturón azul)"
+],
+[
+"Patience",
+"Paciência",
+"Paciencia"
+],
+[
+"Patience. Roll with %d people in this valley first. You have %d. The desert decides when you're ready.",
+"Paciência. Role com %d pessoas neste vale primeiro. Você tem %d. O deserto decide quando você está pronto.",
+"Paciencia. Primero lucha con %d personas en este valle. Llevas %d. El desierto decide cuándo estás listo."
+],
+[
+"Patient Teacher",
+"Professor Paciente",
+"Profesor Paciente"
+],
+[
+"Patrol the swamp",
+"Patrulhe o pântano",
+"Patrulla el pantano"
+],
+[
+"Peak Physique",
+"Físico no Auge",
+"Físico en su Punto"
+],
+[
+"Pearl weave, a little stiff, smells like new.",
+"Trama pérola, um pouco dura, cheiro de novo.",
+"Tejido perla, un poco rígido, huele a nuevo."
+],
+[
+"Peek-Out Scramble",
+"Scramble Peek-Out",
+"Scramble Peek-Out"
+],
+[
+"Pendulum the leg and pull the arm: they fall straight to mount.",
+"Balance a perna como pêndulo e puxe o braço: ele cai direto na montada.",
+"Balancea la pierna como un péndulo y tira del brazo: cae directo a la montada."
+],
+[
+"Penthouse",
+"Cobertura",
+"Ático"
+],
+[
+"Perfect Reads",
+"Leituras Perfeitas",
+"Lecturas Perfectas"
+],
+[
+"Perfect window",
+"Janela perfeita",
+"Ventana perfecta"
+],
+[
+"Perfect! Tourists go crazy for these. Here's your cut.",
+"Perfeito! Turista fica louco por isso. Aqui está a sua parte.",
+"¡Perfecto! A los turistas les encantan. Aquí tienes tu parte."
+],
+[
+"Perfect. And hey, if you ever want to train lifeguard-style, we swim at 6 a.m. Bring your gas.",
+"Perfeito. E olha, se um dia quiser treinar no estilo salva-vidas, a gente nada às 6 da manhã. Traga seu gás.",
+"Perfecto. Y oye, si alguna vez quieres entrenar como socorrista, nadamos a las 6 a. m. Trae tu gas."
+],
+[
+"Perfeito! Here, drink. In Mato Grosso we drink tereré, not chimarrão. Don't let anyone from the south tell you different.",
+"Perfeito! Toma, bebe. No Mato Grosso a gente toma tereré, não chimarrão. Não deixa ninguém do sul te dizer o contrário.",
+"¡Perfeito! Toma, bebe. En Mato Grosso tomamos tereré, no chimarrão. Que nadie del sur te diga lo contrario."
+],
+[
+"Personal Trainer",
+"Personal Trainer",
+"Entrenador Personal"
+],
+[
+"Phase %d/%d · %s",
+"Fase %d/%d · %s",
+"Fase %d/%d · %s"
+],
+[
+"Pick a Specialization at level %d (Specialization tab) to open its tree.",
+"Escolha uma Especialização no nível %d (aba Especialização) para abrir a árvore dela.",
+"Elige una Especialización al nivel %d (pestaña Especialización) para abrir su árbol."
+],
+[
+"Pick your fighting style.",
+"Escolha seu estilo de luta.",
+"Elige tu estilo de lucha."
+],
+[
+"Pin the wrist to the mat and paint the floor with their elbow.",
+"Prenda o punho no tatame e pinte o chão com o cotovelo dele.",
+"Clava la muñeca al tatami y pinta el suelo con su codo."
+],
+[
+"Pinned",
+"Imobilizado",
+"Inmovilizado"
+],
+[
+"Pinned for three. Again.",
+"Imobilizado por três segundos. De novo.",
+"Inmovilizado tres segundos. Otra vez."
+],
+[
+"Pinned lasts 1.5s longer per rank, and Pinned targets take 5% more damage per rank.",
+"Imobilizado dura 1,5 s a mais por grau, e alvos Imobilizados recebem 5% mais dano por grau.",
+"Inmovilizado dura 1,5 s más por rango, y los objetivos Inmovilizados reciben un 5% más de daño por rango."
+],
+[
+"Pinned lasts 1.5s longer per rank.",
+"Imobilizado dura 1,5 s a mais por grau.",
+"Inmovilizado dura 1,5 s más por rango."
+],
+[
+"Pinned targets take 6% more damage per rank.",
+"Alvos Imobilizados recebem 6% mais dano por grau.",
+"Los objetivos Inmovilizados reciben un 6% más de daño por rango."
+],
+[
+"Pins them: Pinned enemies hit 25% softer. Pinned or Down targets also open up Advance.",
+"Imobiliza: inimigos Imobilizados batem 25% mais fraco. Alvos Imobilizados ou Derrubados também liberam o Avanço.",
+"Los inmoviliza: los enemigos Inmovilizados pegan un 25% más flojo. Los objetivos Inmovilizados o Derribados también abren el Avance."
+],
+[
+"Plant the Flag",
+"Fincar a Bandeira",
+"Plantar la Bandera"
+],
+[
+"Plateau Grapplers",
+"Lutadores do Planalto",
+"Luchadores de la Meseta"
+],
+[
+"Play",
+"Jogar",
+"Jugar"
+],
+[
+"Plaza regular",
+"Frequentador da praça",
+"Habitual de la plaza"
+],
+[
+"Poacher",
+"Caçador Ilegal",
+"Cazador Furtivo"
+],
+[
+"Poacher Camp",
+"Acampamento de Caçadores",
+"Campamento de Cazadores Furtivos"
+],
+[
+"Points Fighter",
+"Lutador de Pontos",
+"Luchador de Puntos"
+],
+[
+"Points don't count. Tap them or it's a loss.",
+"Pontos não contam. Finalize ou é derrota.",
+"Los puntos no cuentan. Sométele o es derrota."
+],
+[
+"Points don't mean nothing in the swamp. Go finish three people. Tap 'em.",
+"Ponto não vale nada no pântano. Vá finalizar três pessoas. Faça bater.",
+"Los puntos no valen nada en el pantano. Ve a someter a tres personas. Que se rindan."
+],
+[
+"Poker Face",
+"Cara de Paisagem",
+"Cara de Póker"
+],
+[
+"Polvo (Guard Player tier)",
+"Polvo (nível Guardeiro)",
+"Polvo (nivel Guardero)"
+],
+[
+"Polvo Gi",
+"Kimono Polvo",
+"Gi Polvo"
+],
+[
+"Polvo Ink Tape",
+"Esparadrapo Tinta de Polvo",
+"Cinta Tinta de Pulpo"
+],
+[
+"Polvo Knee Sleeves",
+"Joelheiras Polvo",
+"Rodilleras Polvo"
+],
+[
+"Ponytail",
+"Rabo de Cavalo",
+"Coleta"
+],
+[
+"Pop up onto their stomach: heavy, uncomfortable, points.",
+"Pule para a barriga dele: pesado, desconfortável, pontos.",
+"Sube a su abdomen: pesado, incómodo, puntos."
+],
+[
+"Positional Drilling",
+"Drill Posicional",
+"Ejercicios Posicionales"
+],
+[
+"Posture Up",
+"Postura",
+"Postura Arriba"
+],
+[
+"Pounce: you start every new position with 1 Grip Control.",
+"Bote: você começa toda posição nova com 1 de Controle de Pegada.",
+"Zarpazo: empiezas cada posición nueva con 1 de Control de Agarre."
+],
+[
+"Praça (Town Plaza)",
+"Praça (Praça da Cidade)",
+"Praça (Plaza del Pueblo)"
+],
+[
+"Pre-cut strips, perfect tension, podium-tested.",
+"Tiras pré-cortadas, tensão perfeita, testado no pódio.",
+"Tiras precortadas, tensión perfecta, probado en el podio."
+],
+[
+"Press F to recover Gas. Out of combat it also restores Composure.",
+"Aperte F para recuperar Gás. Fora de combate também recupera Compostura.",
+"Pulsa F para recuperar Gas. Fuera de combate también recupera Compostura."
+],
+[
+"Press Refresh.",
+"Aperte Atualizar.",
+"Pulsa Actualizar."
+],
+[
+"Press any key to start",
+"Aperte qualquer tecla para começar",
+"Pulsa cualquier tecla para empezar"
+],
+[
+"Pressure",
+"Pressão",
+"Presión"
+],
+[
+"Pressure Pass",
+"Passagem de Pressão",
+"Pase de Presión"
+],
+[
+"Pressure Passer",
+"Passador de Pressão",
+"Pasador de Presión"
+],
+[
+"Pressure Passer starter kit",
+"Kit inicial de Passador de Pressão",
+"Equipo inicial de Pasador de Presión"
+],
+[
+"Pressure Passer tier · Covil da Sucuri, elite bosses",
+"Nível Passador de Pressão · Covil da Sucuri, chefes de elite",
+"Nivel Pasador de Presión · Covil da Sucuri, jefes de élite"
+],
+[
+"Pressure first. Submission second. Every time.",
+"Pressão primeiro. Finalização depois. Sempre.",
+"Presión primero. Sumisión después. Siempre."
+],
+[
+"Pressure is a business model, gringo.",
+"Pressão é modelo de negócio, gringo.",
+"La presión es un modelo de negocio, gringo."
+],
+[
+"Pressure like August humidity, boy.",
+"Pressão que nem umidade de agosto, garoto.",
+"Presión como la humedad de agosto, chico."
+],
+[
+"Pressure, gringo. Up here we grow up under pressure.",
+"Pressão, gringo. Aqui em cima a gente cresce debaixo de pressão.",
+"Presión, gringo. Aquí arriba crecemos bajo presión."
+],
+[
+"Pressure, pressure, pressure. That's the game.",
+"Pressão, pressão, pressão. Esse é o jogo.",
+"Presión, presión, presión. Ese es el juego."
+],
+[
+"Pressure, pressure... {a} passes with the {m}.",
+"Pressão, pressão... {a} passa com {m}.",
+"Presión, presión... {a} pasa con {m}."
+],
+[
+"Price: R$ %d",
+"Preço: R$ %d",
+"Precio: R$ %d"
+],
+[
+"Prize Money",
+"Premiação em Dinheiro",
+"Premio en Metálico"
+],
+[
+"Professor",
+"Professor",
+"Profesor"
+],
+[
+"Professor %s",
+"Professor %s",
+"Profesor %s"
+],
+[
+"Professor Gil",
+"Professor Gil",
+"Profesor Gil"
+],
+[
+"Professor Rae",
+"Professor Rae",
+"Profesor Rae"
+],
+[
+"Professora Bia",
+"Professora Bia",
+"Profesora Bia"
+],
+[
+"Professora Bia wants to see you roll on the sand first. Beat Dudu and Luana, then she'll take you seriously.",
+"A Professora Bia quer te ver rolar na areia primeiro. Vença o Dudu e a Luana, aí ela vai te levar a sério.",
+"La Profesora Bia quiere verte luchar en la arena primero. Vence a Dudu y Luana, y entonces te tomará en serio."
+],
+[
+"Professora Tati",
+"Professora Tati",
+"Profesora Tati"
+],
+[
+"Projeto Social Rashguard",
+"Rashguard do Projeto Social",
+"Rashguard del Proyecto Social"
+],
+[
+"Promotion to black belt",
+"Promoção à faixa preta",
+"Ascenso a cinturón negro"
+],
+[
+"Promotion to blue belt",
+"Promoção à faixa azul",
+"Ascenso a cinturón azul"
+],
+[
+"Promotion to brown belt",
+"Promoção à faixa marrom",
+"Ascenso a cinturón marrón"
+],
+[
+"Promotion to purple belt",
+"Promoção à faixa roxa",
+"Ascenso a cinturón morado"
+],
+[
+"Prompt %d of %d  ·  correct: %d",
+"Sinal %d de %d  ·  acertos: %d",
+"Señal %d de %d  ·  aciertos: %d"
+],
+[
+"Protein Shake",
+"Shake de Proteína",
+"Batido de Proteínas"
+],
+[
+"Puff",
+"Baforada",
+"Bocanada"
+],
+[
+"Pull %d",
+"Grupo %d",
+"Grupo %d"
+],
+[
+"Pull Guard",
+"Puxar Guarda",
+"Jalar Guardia"
+],
+[
+"Pull Guard lasts twice as long.",
+"Puxar Guarda dura o dobro.",
+"Jalar Guardia dura el doble."
+],
+[
+"Pull In the Net",
+"Puxe a Rede",
+"Recoge la Red"
+],
+[
+"Pull guard and tie them up: you take 40% less damage for %ss.",
+"Puxe guarda e amarre o oponente: receba 40% menos dano por %ss.",
+"Jala guardia y amárralo: recibe un 40% menos de daño durante %ss."
+],
+[
+"Pull guard to take 40% less damage for a while.",
+"Puxe guarda para receber 40% menos dano por um tempo.",
+"Jala guardia para recibir un 40% menos de daño durante un rato."
+],
+[
+"Pulls guard, sweeps and hunts submissions off the back. Hard to pass.",
+"Puxa guarda, raspa e caça finalizações por baixo. Difícil de passar.",
+"Jala guardia, barre y busca sumisiones desde abajo. Difícil de pasar."
+],
+[
+"Pump Jacks",
+"Cavalos de Petróleo",
+"Bombas de Petróleo"
+],
+[
+"Purple",
+"Roxa",
+"Morado"
+],
+[
+"Purple Belt",
+"Faixa Roxa",
+"Cinturón Morado"
+],
+[
+"Purple belt! Ride the bus to the Chapada dos Guimarães.",
+"Faixa roxa! Pegue o ônibus para a Chapada dos Guimarães.",
+"¡Cinturón morado! Toma el autobús a la Chapada dos Guimarães."
+],
+[
+"Push the pace until they break. Win the last minute every time.",
+"Acelere o ritmo até ele quebrar. Vença o último minuto sempre.",
+"Sube el ritmo hasta que se rompa. Gana el último minuto siempre."
+],
+[
+"Python Patrol",
+"Patrulha das Pítons",
+"Patrulla de Pitones"
+],
+[
+"Pythons are eating everything out here, and so are those hammock hermits. Walk the swamp with me: hit the ranger station, the hammock and the fish camp.",
+"As pítons estão comendo tudo aqui, e aqueles eremitas da ilha também. Ande pelo pântano comigo: passe pela estação dos guarda-parques, pela ilha e pelo acampamento de pesca.",
+"Las pitones se están comiendo todo por aquí, y esos ermitaños de la isla también. Recorre el pantano conmigo: pasa por la estación de guardabosques, la isla y el campamento de pesca."
+],
+[
+"Pão de Açúcar Cable Car",
+"Bondinho do Pão de Açúcar",
+"Teleférico del Pão de Açúcar"
+],
+[
+"Q: Sprawl / base. Counters takedowns and sweeps (their cast bar says SPRAWL), and halves damage for 5 seconds.",
+"Q: Sprawl / base. Anula quedas e raspagens (a barra de conjuração deles diz SPRAWL) e corta o dano pela metade por 5 segundos.",
+"Q: Sprawl / base. Contrarresta derribos y barridas (su barra de lanzamiento dice SPRAWL) y reduce el daño a la mitad durante 5 segundos."
+],
+[
+"Qualifier",
+"Classificatória",
+"Clasificatoria"
+],
+[
+"Quarterfinal",
+"Quartas de Final",
+"Cuartos de Final"
+],
+[
+"Quartermaster: %s (Honor gear)",
+"Intendente: %s (equipamento de Honra)",
+"Intendente: %s (equipo de Honor)"
+],
+[
+"Quartz crystals",
+"Cristais de quartzo",
+"Cristales de cuarzo"
+],
+[
+"Quartz crystals found",
+"Cristais de quartzo encontrados",
+"Cristales de cuarzo encontrados"
+],
+[
+"Querido, the tereré cooler weighs more than me. Fireman's carry it to the stand?",
+"Querido, o isopor de tereré pesa mais que eu. Leva no ombro até a barraca?",
+"Querido, la nevera de tereré pesa más que yo. ¿La llevas al hombro hasta el puesto?"
+],
+[
+"Quest Log",
+"Diário de Missões",
+"Diario de Misiones"
+],
+[
+"Quest Log (L)",
+"Diário de Missões (L)",
+"Diario de Misiones (L)"
+],
+[
+"Quest accepted: %s",
+"Missão aceita: %s",
+"Misión aceptada: %s"
+],
+[
+"Quest complete",
+"Missão concluída",
+"Misión completada"
+],
+[
+"Quest complete: %s  (+%d XP)",
+"Missão concluída: %s  (+%d XP)",
+"Misión completada: %s  (+%d XP)"
+],
+[
+"Quest log",
+"Diário de missões",
+"Diario de misiones"
+],
+[
+"Quest: Beach Session",
+"Missão: Treino na Praia",
+"Misión: Sesión en la Playa"
+],
+[
+"Quest: Crystal Clear",
+"Missão: Cristalino",
+"Misión: Cristalino"
+],
+[
+"Quest: Feathers for the Festival",
+"Missão: Penas para o Festival",
+"Misión: Plumas para el Festival"
+],
+[
+"Quest: Iron Grip",
+"Missão: Pegada de Ferro",
+"Misión: Agarre de Hierro"
+],
+[
+"Quest: Kids' Class",
+"Missão: Aula Kids",
+"Misión: Clase Infantil"
+],
+[
+"Quest: Shrimping 101",
+"Missão: Fuga de Quadril 101",
+"Misión: Gamba 101"
+],
+[
+"Quest: Submission Hunter",
+"Missão: Caçador de Finalizações",
+"Misión: Cazador de Sumisiones"
+],
+[
+"Quest: Tereré Run",
+"Missão: Corrida do Tereré",
+"Misión: Ruta del Tereré"
+],
+[
+"Quests",
+"Missões",
+"Misiones"
+],
+[
+"Quests completed: %d / %d",
+"Missões concluídas: %d / %d",
+"Misiones completadas: %d / %d"
+],
+[
+"Quick Hands",
+"Mãos Rápidas",
+"Manos Rápidas"
+],
+[
+"R$ %d   ·   Bags %d/%d   [B]",
+"R$ %d   ·   Mochilas %d/%d   [B]",
+"R$ %d   ·   Bolsas %d/%d   [B]"
+],
+[
+"R: Frame. Counters passes and positional moves (their cast bar says FRAME). Each enemy technique has ONE right counter: Q, R or T.",
+"R: Frame. Anula passagens e movimentos posicionais (a barra de conjuração deles diz FRAME). Cada técnica inimiga tem UM contra-ataque certo: Q, R ou T.",
+"R: Frame. Contrarresta pases y movimientos posicionales (su barra de lanzamiento dice FRAME). Cada técnica enemiga tiene UN contraataque correcto: Q, R o T."
+],
+[
+"RANGER STATION",
+"ESTAÇÃO DOS GUARDA-PARQUES",
+"ESTACIÓN DE GUARDABOSQUES"
+],
+[
+"RANGER TOWER",
+"TORRE DOS GUARDA-PARQUES",
+"TORRE DE GUARDABOSQUES"
+],
+[
+"READ!  %s stuffs it",
+"LEU!  %s anula",
+"¡LEÍDO!  %s lo frena"
+],
+[
+"ROAR",
+"RUGIDO",
+"RUGIDO"
+],
+[
+"ROLL",
+"ROLA",
+"COMBATE"
+],
+[
+"ROLL!",
+"ROLA!",
+"¡A LUCHAR!"
+],
+[
+"RUN",
+"CORRA",
+"CORRE"
+],
+[
+"RUN OVER",
+"CORRIDA ENCERRADA",
+"CARRERA TERMINADA"
+],
+[
+"RUSH",
+"INVESTIDA",
+"EMBESTIDA"
+],
+[
+"Racial [G]: %s. %s",
+"Racial [G]: %s. %s",
+"Racial [G]: %s. %s"
+],
+[
+"Rafa: the academia is behind the cathedral. Follow the light.",
+"Rafa: a academia fica atrás da catedral. Siga a luz.",
+"Rafa: la academia está detrás de la catedral. Sigue la luz."
+],
+[
+"Raid",
+"Raide",
+"Banda"
+],
+[
+"Raid  ·  5 fighters",
+"Raide  ·  5 lutadores",
+"Banda  ·  5 luchadores"
+],
+[
+"Raid Boss",
+"Chefe de Raide",
+"Jefe de Banda"
+],
+[
+"Raid: Covil da Sucuri (you + 4 partners)",
+"Raide: Covil da Sucuri (você + 4 parceiros)",
+"Banda: Covil da Sucuri (tú + 4 compañeros)"
+],
+[
+"Raid: The Gold Compound (you + 4 partners)",
+"Raide: O Complexo Dourado (você + 4 parceiros)",
+"Banda: El Complejo Dorado (tú + 4 compañeros)"
+],
+[
+"Raids (bigger, harder, tier sets): Covil da Sucuri in the Pantanal (Time Brasil) and the Gold Compound in the Everglades (Team USA). Walk up to their gates.",
+"Raides (maiores, mais difíceis, conjuntos de nível): Covil da Sucuri no Pantanal (Time Brasil) e o Complexo Dourado nos Everglades (Team USA). Vá até os portões deles.",
+"Bandas (más grandes, más difíciles, conjuntos de nivel): Covil da Sucuri en el Pantanal (Time Brasil) y el Complejo Dorado en los Everglades (Team USA). Acércate a sus puertas."
+],
+[
+"Railway variables: COMMUNITY_URL / COMMUNITY_LABEL (the in-game community button) and SIGNUP_WEBHOOK_URL (every new account is sent there, e.g. a GHL inbound webhook).",
+"Variáveis do Railway: COMMUNITY_URL / COMMUNITY_LABEL (o botão de comunidade no jogo) e SIGNUP_WEBHOOK_URL (toda conta nova é enviada para lá, ex.: um webhook de entrada da GHL).",
+"Variables de Railway: COMMUNITY_URL / COMMUNITY_LABEL (el botón de comunidad del juego) y SIGNUP_WEBHOOK_URL (cada cuenta nueva se envía ahí, p. ej. un webhook entrante de GHL)."
+],
+[
+"Raise %s",
+"Aumentar %s",
+"Subir %s"
+],
+[
+"Raise any attribute to 12.",
+"Aumente qualquer atributo para 12.",
+"Sube cualquier atributo a 12."
+],
+[
+"Raised on a ranch.",
+"Criado numa fazenda.",
+"Criado en un rancho."
+],
+[
+"Raised on the sand.",
+"Criado na areia.",
+"Criado en la arena."
+],
+[
+"Ramón and Colt think nobody out-works a fire crew. Go show 'em some cardio.",
+"Ramón e Colt acham que ninguém trabalha mais que uma equipe de bombeiros. Vá mostrar um pouco de cardio pra eles.",
+"Ramón y Colt creen que nadie trabaja más que una brigada de bomberos. Ve a enseñarles algo de cardio."
+],
+[
+"Ranch Hands",
+"Peões de Fazenda",
+"Peones de Rancho"
+],
+[
+"Ranch Hands: +5% maximum Composure.",
+"Peões de Fazenda: +5% de Compostura máxima.",
+"Peones de Rancho: +5% de Compostura máxima."
+],
+[
+"Ranch hand",
+"Peão de fazenda",
+"Peón de rancho"
+],
+[
+"Ranch hand from the Pantanal wetlands. Roping cattle since you could walk gave you a grip like a vice.",
+"Peão das áreas alagadas do Pantanal. Laçar gado desde que aprendeu a andar te deu uma pegada de torno.",
+"Peón de los humedales del Pantanal. Enlazar ganado desde que aprendiste a andar te dio un agarre como un torno."
+],
+[
+"Ranch hands and river guides, all gas and grips. Held in the fazenda barn.",
+"Peões e guias de rio, só gás e pegada. No celeiro da fazenda.",
+"Peones y guías de río, todo gas y agarres. En el granero de la hacienda."
+],
+[
+"Ranch strength. Takes you down, climbs to mount and cranks the americana. Gasses late.",
+"Força de fazenda. Te derruba, sobe pra montada e torce a americana. Cansa no final.",
+"Fuerza de rancho. Te derriba, sube a montada y aprieta la americana. Se cansa al final."
+],
+[
+"Ranch-strong.",
+"Forte de fazenda.",
+"Fuerte de rancho."
+],
+[
+"Rancher",
+"Fazendeiro",
+"Ranchero"
+],
+[
+"Ranger Bo",
+"Guarda-Parque Bo",
+"Guardabosques Bo"
+],
+[
+"Ranger Dee",
+"Guarda-Parque Dee",
+"Guardabosques Dee"
+],
+[
+"Ranger Lia",
+"Guarda-Parque Lia",
+"Guardabosques Lia"
+],
+[
+"Ranger Station",
+"Estação dos Guarda-Parques",
+"Estación de Guardabosques"
+],
+[
+"Ranger Tower",
+"Torre dos Guarda-Parques",
+"Torre de Guardabosques"
+],
+[
+"Rank %d/%d",
+"Grau %d/%d",
+"Rango %d/%d"
+],
+[
+"Rank 1:",
+"Grau 1:",
+"Rango 1:"
+],
+[
+"Ranked Rashguard (Black)",
+"Rashguard Ranked (Preta)",
+"Rashguard de Rango (Negro)"
+],
+[
+"Ranked Rashguard (Blue)",
+"Rashguard Ranked (Azul)",
+"Rashguard de Rango (Azul)"
+],
+[
+"Ranked Rashguard (Brown)",
+"Rashguard Ranked (Marrom)",
+"Rashguard de Rango (Marrón)"
+],
+[
+"Ranked Rashguard (Purple)",
+"Rashguard Ranked (Roxa)",
+"Rashguard de Rango (Morado)"
+],
+[
+"Ranked Rashguard (White)",
+"Rashguard Ranked (Branca)",
+"Rashguard de Rango (Blanco)"
+],
+[
+"Ranked colors, blue belt edition.",
+"Cores ranked, edição faixa azul.",
+"Colores de rango, edición cinturón azul."
+],
+[
+"Ranked colors, brown belt edition.",
+"Cores ranked, edição faixa marrom.",
+"Colores de rango, edición cinturón marrón."
+],
+[
+"Ranked colors, purple belt edition.",
+"Cores ranked, edição faixa roxa.",
+"Colores de rango, edición cinturón morado."
+],
+[
+"Ranked colors. The last one.",
+"Cores ranked. A última.",
+"Colores de rango. El último."
+],
+[
+"Rapel Boy",
+"Garoto do Rapel",
+"Chico del Rápel"
+],
+[
+"Rare",
+"Raro",
+"Raro"
+],
+[
+"Rashguard",
+"Rashguard",
+"Rashguard"
+],
+[
+"Re-counter!",
+"Recontra-ataque!",
+"¡Recontraataque!"
+],
+[
+"Reach level %d first.",
+"Chegue ao nível %d primeiro.",
+"Llega primero al nivel %d."
+],
+[
+"Reach the Corcovado summit",
+"Chegue ao cume do Corcovado",
+"Llega a la cumbre del Corcovado"
+],
+[
+"Reach the Mirante and the cave",
+"Chegue ao Mirante e à caverna",
+"Llega al Mirante y a la cueva"
+],
+[
+"Reach the final of a Circuito run.",
+"Chegue à final de uma campanha no Circuito.",
+"Llega a la final de una ruta del Circuito."
+],
+[
+"Reaction time",
+"Tempo de reação",
+"Tiempo de reacción"
+],
+[
+"Reaction time:",
+"Tempo de reação:",
+"Tiempo de reacción:"
+],
+[
+"Read the Game",
+"Leia o Jogo",
+"Lee el Juego"
+],
+[
+"Read the attack, answer it.",
+"Leia o ataque, responda.",
+"Lee el ataque, respóndelo."
+],
+[
+"Read where she cuts. Answer it.",
+"Leia onde ela corta. Responda.",
+"Lee por dónde corta. Respóndelo."
+],
+[
+"Reads and escapes: 15% more time to answer, faster submission escapes.",
+"Leituras e escapes: 15% mais tempo para responder, escapes de finalização mais rápidos.",
+"Lecturas y escapes: un 15% más de tiempo para responder, escapes de sumisión más rápidos."
+],
+[
+"Rear Naked Choke",
+"Mata-Leão",
+"Mataleón"
+],
+[
+"Reason: ",
+"Motivo: ",
+"Motivo: "
+],
+[
+"Received: %s",
+"Recebeu: %s",
+"Recibiste: %s"
+],
+[
+"Record",
+"Recorde",
+"Récord"
+],
+[
+"Recover 20 stamina. You can't counter while you breathe, so pick your moment.",
+"Recupere 20 de fôlego. Você não pode contra-atacar enquanto respira, então escolha o momento.",
+"Recupera 20 de aguante. No puedes contraatacar mientras respiras, así que elige el momento."
+],
+[
+"Recover 30% more stamina between matches.",
+"Recupere 30% mais fôlego entre as lutas.",
+"Recupera un 30% más de aguante entre combates."
+],
+[
+"Recover Closed Guard",
+"Recuperar a Guarda Fechada",
+"Recuperar la Guardia Cerrada"
+],
+[
+"Recovery",
+"Recuperação",
+"Recuperación"
+],
+[
+"Recovery:",
+"Recuperação:",
+"Recuperación:"
+],
+[
+"Red Cliff Gi",
+"Kimono Penhasco Vermelho",
+"Gi Acantilado Rojo"
+],
+[
+"Red Pixie",
+"Pixie Vermelha",
+"Pixie Rojo"
+]
+]

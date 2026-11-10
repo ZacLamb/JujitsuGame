@@ -395,7 +395,7 @@ static func look(id: String) -> Dictionary:
 	return ITEMS.get(id, {}).get("look", {})
 
 static func ilvl_text(id: String) -> String:
-	return "Item Level %d  ·  +%d Composure  ·  +%s%% Power" % [ilvl(id), composure(id), str(power_pct(id))]
+	return Tx.f("Item Level %d  ·  +%d Composure  ·  +%s%% Power", [ilvl(id), composure(id), str(power_pct(id))])
 
 static func stat_text(id: String) -> String:
 	var parts: Array[String] = []

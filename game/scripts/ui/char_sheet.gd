@@ -234,7 +234,7 @@ static func _doll_panel(hud) -> Control:
 	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nv)
 	nv.add_child(_head(Game.player_name, 44, UiKit.TEXT))
-	nv.add_child(_small("%s  ·  %s" % [st.name, Data.rank_name(Game.rank)], 17, UiKit.ACCENT))
+	nv.add_child(_small(Tx.f("%s  ·  %s", [st.name, Data.rank_name(Game.rank)]), 17, UiKit.ACCENT))
 	var lv := Game.player_level()
 	var badge := _panel(Color(0, 0, 0, 0.5), UiKit.ACCENT, 30, 8)
 	badge.custom_minimum_size = Vector2(76, 76)
@@ -269,7 +269,7 @@ static func _doll_panel(hud) -> Control:
 	centre.add_child(kits)
 	for k in Gear.KITS:
 		var kb := Button.new()
-		kb.text = Gear.KIT_NAMES[k].to_upper()
+		kb.text = Tx.s(Gear.KIT_NAMES[k]).to_upper()
 		kb.custom_minimum_size = Vector2(96, 32)
 		kb.focus_mode = Control.FOCUS_NONE
 		kb.add_theme_font_size_override("font_size", 15)
@@ -277,7 +277,7 @@ static func _doll_panel(hud) -> Control:
 		kb.add_theme_stylebox_override("normal", UiKit.box(UiKit.ACCENT if on else Color(0, 0, 0, 0.45), 16, UiKit.ACCENT if on else Color(1, 1, 1, 0.15), 2))
 		kb.add_theme_stylebox_override("hover", UiKit.box(UiKit.ACCENT.darkened(0.2) if on else Color(0.2, 0.2, 0.2, 0.7), 16, UiKit.ACCENT, 2))
 		kb.add_theme_color_override("font_color", Color(0.1, 0.07, 0.02) if on else UiKit.TEXT)
-		kb.tooltip_text = "Wear your %s kit. Only the worn kit's gear and set pieces count." % Gear.KIT_NAMES[k]
+		kb.tooltip_text = Tx.f("Wear your %s kit. Only the worn kit's gear and set pieces count.", Gear.KIT_NAMES[k])
 		kb.pressed.connect(func(): Game.set_kit(k))
 		kits.add_child(kb)
 	var stage := _panel(Color(0.08, 0.12, 0.1, 0.6), Color(1, 1, 1, 0.05), 12, 0)
@@ -308,19 +308,19 @@ static func _doll_panel(hud) -> Control:
 	elif Game.level_capped():
 		xt = "Belt cap: beat the zone boss"
 	else:
-		xt = "%d XP to %d" % [Game.xp_level_need() - Game.xp_into_level(), lv + 1]
+		xt = Tx.f("%d XP to %d", [Game.xp_level_need() - Game.xp_into_level(), lv + 1])
 	xr.add_child(_small(xt, 14, UiKit.MUTED))
 	# passive + signature
 	var pp := _panel(Color(0.97, 0.77, 0.28, 0.08), Color(0.97, 0.77, 0.28, 0.35), 10, 10)
 	var pv := VBoxContainer.new()
 	pv.add_theme_constant_override("separation", 2)
 	pp.add_child(pv)
-	pv.add_child(_small("STYLE PASSIVE  ·  " + st.tag.to_upper(), 13, UiKit.ACCENT))
+	pv.add_child(_small(Tx.s("STYLE PASSIVE  ·  ") + Tx.s(st.tag).to_upper(), 13, UiKit.ACCENT))
 	pv.add_child(_small(st.passive, 15, UiKit.TEXT, true))
 	var sig: Array = []
 	for mid_ in st.signature:
 		sig.append(Data.MOVES[mid_].name)
-	pv.add_child(_small("Signature: " + ", ".join(sig), 14, UiKit.MUTED, true))
+	pv.add_child(_small(Tx.s("Signature: ") + ", ".join(sig.map(func(x): return Tx.s(x))), 14, UiKit.MUTED, true))
 	v.add_child(pp)
 	return p
 
@@ -385,17 +385,17 @@ static func item_tooltip(id: String, slot: String) -> Control:
 	Wow.tline(v, it.name, Gear.rarity_color(id), 17, true)
 	if it.has("set"):
 		Wow.tline(v, "Set piece", Wow.GREEN, 13)
-	Wow.tline(v, "Item Level %d" % Gear.ilvl(id), Wow.GOLD, 13)
+	Wow.tline(v, Tx.f("Item Level %d", Gear.ilvl(id)), Wow.GOLD, 13)
 	Wow.tpair(v, Gear.SLOT_NAMES[it.slot], Gear.RARITY[it.rarity].name)
 	if it.has("class"):
 		var ok := Gear.class_ok(id, Game.style)
-		Wow.tline(v, "Classes: " + Rpg.class_name_of(str(it["class"])), Rpg.class_color(str(it["class"])) if ok else UiKit.RED, 13)
-	Wow.tline(v, "+%d Composure" % Gear.composure(id), Wow.WHITE)
-	Wow.tline(v, "+%s%% Power (move damage)" % str(Gear.power_pct(id)), Wow.WHITE)
+		Wow.tline(v, Tx.s("Classes: ") + Tx.s(Rpg.class_name_of(str(it["class"]))), Rpg.class_color(str(it["class"])) if ok else UiKit.RED, 13)
+	Wow.tline(v, Tx.f("+%d Composure", Gear.composure(id)), Wow.WHITE)
+	Wow.tline(v, Tx.f("+%s%% Power (move damage)", str(Gear.power_pct(id))), Wow.WHITE)
 	for k in Rpg.ATTR_ORDER:
 		var val := int(it.attrs.get(k, 0))
 		if val > 0:
-			Wow.tline(v, "+%d %s" % [val, Rpg.ATTRS[k].name], Wow.WHITE)
+			Wow.tline(v, Tx.f("+%d %s", [val, Rpg.ATTRS[k].name]), Wow.WHITE)
 	if it.has("set"):
 		var st: Dictionary = Gear.SETS[it.set]
 		var have := int(Game.set_counts().get(it.set, 0))
@@ -407,10 +407,10 @@ static func item_tooltip(id: String, slot: String) -> Control:
 		Wow.tgap(v, 3)
 		for line in Gear.set_lines(it.set):
 			var on := have >= int(line[0])
-			Wow.tline(v, "(%d) Set: %s" % [line[0], line[1]], Wow.GREEN if on else Wow.GREY, 13, true)
+			Wow.tline(v, Tx.f("(%d) Set: %s", [line[0], line[1]]), Wow.GREEN if on else Wow.GREY, 13, true)
 	Wow.tgap(v)
-	Wow.tline(v, "\"%s\"" % it.desc, Wow.GOLD, 13, true)
-	Wow.tline(v, "Source: %s" % it.source, Wow.GREY, 12, true)
+	Wow.tline(v, Tx.f("\"%s\"", it.desc), Wow.GOLD, 13, true)
+	Wow.tline(v, Tx.f("Source: %s", it.source), Wow.GREY, 12, true)
 	return p
 
 ## Active / partial set bonuses under the paper doll.
@@ -426,10 +426,10 @@ static func _sets_box() -> Control:
 		return p
 	for st in c:
 		var sd: Dictionary = Gear.SETS[st]
-		v.add_child(_small("%s  %d/%d" % [sd.name.to_upper(), int(c[st]), sd.pieces.size()], 14, UiKit.ACCENT))
+		v.add_child(_small("%s  %d/%d" % [Tx.s(sd.name).to_upper(), int(c[st]), sd.pieces.size()], 14, UiKit.ACCENT))
 		for line in Gear.set_lines(st):
 			var on := int(c[st]) >= int(line[0])
-			v.add_child(_small("(%d) %s" % [line[0], line[1]], 13, Color(0.35, 1.0, 0.35) if on else Color(0.55, 0.55, 0.55), true))
+			v.add_child(_small(Tx.f("(%d) %s", [line[0], line[1]]), 13, Color(0.35, 1.0, 0.35) if on else Color(0.55, 0.55, 0.55), true))
 	return p
 
 static func _attr_panel() -> Control:
@@ -445,7 +445,7 @@ static func _attr_panel() -> Control:
 	var ap := Game.attr_points()
 	var pill := _panel(Color(0.97, 0.77, 0.28, 0.9) if ap > 0 else Color(1, 1, 1, 0.06), Color(0, 0, 0, 0), 20, 6)
 	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var pl := _small("%d point%s to spend" % [ap, "" if ap == 1 else "s"] if ap > 0 else "No points  ·  +1 every level", 15, Color(0.1, 0.08, 0.02) if ap > 0 else UiKit.MUTED)
+	var pl := _small(Tx.f("%d point%s to spend", [ap, "" if ap == 1 else "s"]) if ap > 0 else "No points  ·  +1 every level", 15, Color(0.1, 0.08, 0.02) if ap > 0 else UiKit.MUTED)
 	pl.add_theme_constant_override("outline_size", 0)
 	pill.add_child(pl)
 	hd.add_child(pill)
@@ -496,7 +496,7 @@ static func _attr_row(k: String, ap: int) -> Control:
 	top.add_child(nm)
 	var gb := Game.gear_bonus(k)
 	if gb > 0:
-		var gl := _small("+%d gear" % gb, 14, Color(0.45, 0.95, 0.45))
+		var gl := _small(Tx.f("+%d gear", gb), 14, Color(0.45, 0.95, 0.45))
 		gl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		top.add_child(gl)
 	var val := _head(str(Game.attr(k)), 28, col.lightened(0.2))
@@ -509,7 +509,7 @@ static func _attr_row(k: String, ap: int) -> Control:
 	var bar := SegBar.new()
 	bar.cap = Rpg.ATTR_CAP
 	bar.parts = [[Rpg.ATTR_BASE + Game.train_bonus(k), Color(0.78, 0.78, 0.74)], [style_b, col.darkened(0.25)], [alloc, UiKit.ACCENT], [gb, Color(0.45, 0.95, 0.45)]]
-	bar.tooltip_text = "Base %d · Training +%d · Style +%d · Points +%d · Gear +%d" % [Rpg.ATTR_BASE, Game.train_bonus(k), style_b, alloc, gb]
+	bar.tooltip_text = Tx.f("Base %d · Training +%d · Style +%d · Points +%d · Gear +%d", [Rpg.ATTR_BASE, Game.train_bonus(k), style_b, alloc, gb])
 	mv.add_child(bar)
 	var plus := Button.new()
 	plus.text = "+"
@@ -526,7 +526,7 @@ static func _attr_row(k: String, ap: int) -> Control:
 	plus.add_theme_color_override("font_color", Color(0.12, 0.08, 0.02))
 	plus.add_theme_color_override("font_hover_color", Color(0.12, 0.08, 0.02))
 	plus.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.15))
-	plus.tooltip_text = "Raise %s" % a.name
+	plus.tooltip_text = Tx.f("Raise %s", a.name)
 	plus.pressed.connect(func(): Game.raise_attr(k))
 	h.add_child(plus)
 	return row
@@ -571,7 +571,7 @@ static func _stats_panel() -> Control:
 		tv.add_theme_constant_override("separation", -4)
 		tile.add_child(tv)
 		tv.add_child(_head(t[1], 28, (t[3] as Color).lightened(0.15)))
-		var cl := _small(str(t[0]).to_upper(), 11)
+		var cl := _small(Tx.s(str(t[0])).to_upper(), 11)
 		cl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		tv.add_child(cl)
 		g.add_child(tile)
@@ -736,15 +736,15 @@ class TalentNode extends Control:
 		ps.set_corner_radius_all(8)
 		draw_style_box(ps, pr)
 		var tc := UiKit.ACCENT if maxed else (Color(0.45, 1.0, 0.55) if rank > 0 or can_learn else Color(1, 1, 1, 0.4))
-		draw_string(font, pr.position + Vector2(0, 16), txt, HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 13, tc)
+		draw_string(font, pr.position + Vector2(0, 16), Tx.s(txt), HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 13, tc)
 		if not unlocked and rank == 0:
 			CharSheet.draw_glyph(self, "lock", sq.position + Vector2(S - 12, 12), 14, Color(1, 1, 1, 0.45))
 		if show_name:
 			var fs := 13
-			while fs > 10 and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
+			while fs > 10 and font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
 				fs -= 1
-			draw_string_outline(font, Vector2(0, sq.end.y + 20), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 4, Color(0, 0, 0, 0.8))
-			draw_string(font, Vector2(0, sq.end.y + 20), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, UiKit.TEXT if lit else Color(1, 1, 1, 0.4))
+			draw_string_outline(font, Vector2(0, sq.end.y + 20), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 4, Color(0, 0, 0, 0.8))
+			draw_string(font, Vector2(0, sq.end.y + 20), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, UiKit.TEXT if lit else Color(1, 1, 1, 0.4))
 
 	## WoW talent look: round passives, square techniques, octagon capstones; gold ring when
 	## learned, green when you can learn it, dull grey when locked; small rank chip.
@@ -810,7 +810,7 @@ class TalentNode extends Control:
 		var font: Font = Wow.body() if Wow.body() else ThemeDB.fallback_font
 		var txt := ("%d" % rank) if max_rank == 1 or maxed or rank == 0 else "%d/%d" % [rank, max_rank]
 		if rank > 0 or can_learn:
-			var w := maxf(18.0, font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 8)
+			var w := maxf(18.0, font.get_string_size(Tx.s(txt), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 8)
 			var pr := Rect2(c + Vector2(r * 0.55, r * 0.5), Vector2(w, 17))
 			var ps := StyleBoxFlat.new()
 			ps.bg_color = Color(0.02, 0.02, 0.03, 0.95)
@@ -818,14 +818,14 @@ class TalentNode extends Control:
 			ps.set_border_width_all(1)
 			ps.set_corner_radius_all(8)
 			draw_style_box(ps, pr)
-			draw_string(font, pr.position + Vector2(0, 13), txt, HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 12, Wow.GOLD if maxed else (Color(0.4, 1, 0.45) if can_learn and rank < max_rank else Wow.WHITE))
+			draw_string(font, pr.position + Vector2(0, 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_CENTER, pr.size.x, 12, Wow.GOLD if maxed else (Color(0.4, 1, 0.45) if can_learn and rank < max_rank else Wow.WHITE))
 		if show_name:
 			var fs := 12
-			while fs > 9 and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
+			while fs > 9 and font.get_string_size(Tx.s(title), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > size.x - 2:
 				fs -= 1
 			var y := 4 + S + 16
-			draw_string_outline(font, Vector2(0, y), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 3, Color(0, 0, 0, 0.9))
-			draw_string(font, Vector2(0, y), title, HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
+			draw_string_outline(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, 3, Color(0, 0, 0, 0.9))
+			draw_string(font, Vector2(0, y), Tx.s(title), HORIZONTAL_ALIGNMENT_CENTER, size.x, fs, Wow.WHITE if (lit or can_learn) else Wow.GREY)
 
 ## Simple vector glyphs (no icon art needed).
 static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: Color) -> void:
@@ -928,13 +928,13 @@ class TreeGrid extends Control:
 			var bc := Vector2(GUTTER * 0.5, y + ROW * 0.42)
 			draw_circle(bc, 13, Color(col.darkened(0.5), 0.9) if open else Color(0, 0, 0, 0.45))
 			draw_arc(bc, 13, 0, TAU, 24, Color(col, 0.9) if open else Color(1, 1, 1, 0.15), 1.5, true)
-			draw_string(font, bc + Vector2(-13, 5), ["I", "II", "III", "IV"][tier], HORIZONTAL_ALIGNMENT_CENTER, 26, 13, UiKit.TEXT if open else Color(1, 1, 1, 0.35))
+			draw_string(font, bc + Vector2(-13, 5), Tx.s(["I", "II", "III", "IV"][tier]), HORIZONTAL_ALIGNMENT_CENTER, 26, 13, UiKit.TEXT if open else Color(1, 1, 1, 0.35))
 			if tier > 0:
 				if open:
-					draw_string(font, bc + Vector2(-17, 30), "%d pts" % Rpg.TIER_REQ[tier], HORIZONTAL_ALIGNMENT_CENTER, 34, 10, Color(col, 0.8))
+					draw_string(font, bc + Vector2(-17, 30), Tx.f("%d pts", Rpg.TIER_REQ[tier]), HORIZONTAL_ALIGNMENT_CENTER, 34, 10, Color(col, 0.8))
 				else:
 					CharSheet.draw_glyph(self, "lock", bc + Vector2(0, 26), 11, Color(1, 1, 1, 0.35))
-					draw_string(font, bc + Vector2(-17, 46), "%d pts" % Rpg.TIER_REQ[tier], HORIZONTAL_ALIGNMENT_CENTER, 34, 10, Color(1, 1, 1, 0.35))
+					draw_string(font, bc + Vector2(-17, 46), Tx.f("%d pts", Rpg.TIER_REQ[tier]), HORIZONTAL_ALIGNMENT_CENTER, 34, 10, Color(1, 1, 1, 0.35))
 		# connectors (behind the nodes, since children draw on top)
 		for tier in 3:
 			if not nodes.has(tier) or not nodes.has(tier + 1):
@@ -973,7 +973,7 @@ static func build_talents(hud) -> Control:
 	pill.add_child(pv)
 	var pn := _head(str(tp), 34, Color(0.12, 0.08, 0.02) if tp > 0 else UiKit.MUTED)
 	pv.add_child(pn)
-	var pt := _small("TALENT POINT%s\nAVAILABLE" % ("" if tp == 1 else "S"), 12, Color(0.12, 0.08, 0.02) if tp > 0 else UiKit.MUTED)
+	var pt := _small(Tx.f("TALENT POINT%s\nAVAILABLE", ("" if tp == 1 else "S")), 12, Color(0.12, 0.08, 0.02) if tp > 0 else UiKit.MUTED)
 	pt.add_theme_constant_override("outline_size", 0)
 	pt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	pv.add_child(pt)
@@ -982,7 +982,7 @@ static func build_talents(hud) -> Control:
 	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hv.add_theme_constant_override("separation", 0)
 	head.add_child(hv)
-	hv.add_child(UiKit.label("%d spent  ·  next point at level %d" % [spent, _next_tp_level()], 18))
+	hv.add_child(UiKit.label(Tx.f("%d spent  ·  next point at level %d", [spent, _next_tp_level()]), 18))
 	hv.add_child(_small("Click a talent to inspect it. Click again, double-click or right-click to learn. Deeper tiers open at 2 / 4 / 6 points in a tree.", 14, UiKit.MUTED, true))
 	var rs := UiKit.button("Reset", Vector2(110, 44))
 	rs.add_theme_font_size_override("font_size", 16)
@@ -1032,7 +1032,7 @@ static func _tree_panel(hud, tree: String, show: Callable, learn: Callable) -> C
 	nv.add_theme_constant_override("separation", -6)
 	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(nv)
-	nv.add_child(_head(info.name.to_upper(), 32, col.lightened(0.15)))
+	nv.add_child(_head(Tx.s(info.name).to_upper(), 32, col.lightened(0.15)))
 	nv.add_child(_small(info.pt, 14, Color(col, 0.75)))
 	var pts := Game.tree_points(tree)
 	var pc := _head(str(pts), 40, UiKit.TEXT if pts > 0 else Color(1, 1, 1, 0.3))
@@ -1107,11 +1107,11 @@ static func _fill_detail(hud, panel: PanelContainer, dv: VBoxContainer, tid: Str
 	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tv.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(tv)
-	var nm := _head(t.name.to_upper(), 30, UiKit.TEXT)
+	var nm := _head(Tx.s(t.name).to_upper(), 30, UiKit.TEXT)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tv.add_child(nm)
 	var kind := "Capstone" if int(t.tier) == 3 else ("Technique" if t.has("move") or t.has("moves") else "Passive")
-	tv.add_child(_small("%s  ·  Tier %d  ·  %s" % [info.name, int(t.tier) + 1, kind], 14, col.lightened(0.2)))
+	tv.add_child(_small(Tx.f("%s  ·  Tier %d  ·  %s", [info.name, int(t.tier) + 1, kind]), 14, col.lightened(0.2)))
 	# rank pips
 	var rank := Game.talent_rank(tid)
 	var pips := HBoxContainer.new()
@@ -1122,7 +1122,7 @@ static func _fill_detail(hud, panel: PanelContainer, dv: VBoxContainer, tid: Str
 		pip.custom_minimum_size = Vector2(34, 10)
 		pip.add_theme_stylebox_override("panel", UiKit.box(UiKit.ACCENT if i < rank else Color(1, 1, 1, 0.1), 4))
 		pips.add_child(pip)
-	pips.add_child(_small("  Rank %d / %d" % [rank, int(t.max)], 14, UiKit.ACCENT if rank > 0 else UiKit.MUTED))
+	pips.add_child(_small(Tx.f("  Rank %d / %d", [rank, int(t.max)]), 14, UiKit.ACCENT if rank > 0 else UiKit.MUTED))
 	dv.add_child(UiKit.label(t.desc, 18))
 	if t.has("move") and Game.style != "" and t.move in Rpg.STYLES[Game.style].signature:
 		dv.add_child(_small("You already know this from your style. It still counts toward deeper tiers.", 14, UiKit.MUTED, true))
@@ -1132,9 +1132,9 @@ static func _fill_detail(hud, panel: PanelContainer, dv: VBoxContainer, tid: Str
 		why = "Maxed out."
 		ok = true
 	elif not Game.talent_unlocked(tid):
-		why = "Locked: spend %d points in %s (you have %d)." % [Rpg.TIER_REQ[int(t.tier)], info.name, Game.tree_points(t.tree)]
+		why = Tx.f("Locked: spend %d points in %s (you have %d).", [Rpg.TIER_REQ[int(t.tier)], info.name, Game.tree_points(t.tree)])
 	elif Game.talent_points() <= 0:
-		why = "No talent points. Next one at level %d." % _next_tp_level()
+		why = Tx.f("No talent points. Next one at level %d.", _next_tp_level())
 	if why != "":
 		dv.add_child(_small(why, 15, UiKit.ACCENT if ok else Color(1.0, 0.55, 0.45), true))
 	else:
@@ -1161,7 +1161,7 @@ static func build_character_wow(hud) -> Control:
 	left.add_theme_constant_override("separation", 6)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.add_child(left)
-	var cls := "Level %d %s%s" % [Game.player_level(), (str(sp.name) + " ") if not sp.is_empty() else "", st.name]
+	var cls := Tx.f("Level %d %s%s", [Game.player_level(), (str(sp.name) + " ") if not sp.is_empty() else "", st.name])
 	left.add_child(Wow.label(cls, 15, Wow.GOLD, false, HORIZONTAL_ALIGNMENT_CENTER))
 	var doll := PanelContainer.new()
 	doll.add_theme_stylebox_override("panel", Wow.sb(Color(0.02, 0.03, 0.04, 0.9), Color(Wow.FRAME, 0.7), 3, 6))
@@ -1191,7 +1191,7 @@ static func build_character_wow(hud) -> Control:
 		if on:
 			kb.add_theme_stylebox_override("normal", Wow.button_box(Color(0.55, 0.4, 0.08), Wow.GOLD))
 			kb.add_theme_color_override("font_color", Wow.WHITE)
-		kb.tooltip_text = "Wear your %s kit. Only the worn kit's gear and set pieces count." % Gear.KIT_NAMES[k]
+		kb.tooltip_text = Tx.f("Wear your %s kit. Only the worn kit's gear and set pieces count.", Gear.KIT_NAMES[k])
 		kb.pressed.connect(func(): Game.set_kit(k))
 		kits.add_child(kb)
 	var rcol := VBoxContainer.new()
@@ -1208,7 +1208,7 @@ static func build_character_wow(hud) -> Control:
 	xb.step = 0.0
 	xb.value = 1.0 if Game.level_capped() else Game.level_progress()
 	left.add_child(xb)
-	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else "%d XP to level %d" % [Game.xp_level_need() - Game.xp_into_level(), lv + 1])
+	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else Tx.f("%d XP to level %d", [Game.xp_level_need() - Game.xp_into_level(), lv + 1]))
 	left.add_child(Wow.label(xt, 12, Wow.GREY, false, HORIZONTAL_ALIGNMENT_CENTER))
 	# stats column
 	var sc := ScrollContainer.new()
@@ -1231,7 +1231,7 @@ static func build_character_wow(hud) -> Control:
 	for k in Rpg.ATTR_ORDER:
 		v.add_child(_wow_attr_row(k, ap))
 	if ap > 0:
-		v.add_child(Wow.label("%d attribute point%s to spend" % [ap, "" if ap == 1 else "s"], 13, Wow.GREEN, false, HORIZONTAL_ALIGNMENT_CENTER))
+		v.add_child(Wow.label(Tx.f("%d attribute point%s to spend", [ap, "" if ap == 1 else "s"]), 13, Wow.GREEN, false, HORIZONTAL_ALIGNMENT_CENTER))
 	v.add_child(Wow.banner("Enhancements"))
 	var m := Game.mods()
 	var pct := func(x: float) -> String: return ("+%d%%" % roundi((x - 1.0) * 100.0)) if x >= 1.0 else ("%d%%" % roundi((x - 1.0) * 100.0))
@@ -1252,7 +1252,7 @@ static func build_character_wow(hud) -> Control:
 		losses += int(Game.losses[k])
 	var mc := Game.medal_counts()
 	v.add_child(Wow.stat_row("Wins / losses:", "%d / %d" % [wins, losses]))
-	v.add_child(Wow.stat_row("Medals:", "%d gold · %d silver · %d bronze" % [mc.gold, mc.silver, mc.bronze], Wow.GOLD))
+	v.add_child(Wow.stat_row("Medals:", Tx.f("%d gold · %d silver · %d bronze", [mc.gold, mc.silver, mc.bronze]), Wow.GOLD))
 	v.add_child(Wow.stat_row("Money:", "R$ %d" % Game.money, Wow.GOLD))
 	var c := Game.set_counts()
 	if not c.is_empty():
@@ -1262,7 +1262,7 @@ static func build_character_wow(hud) -> Control:
 			v.add_child(Wow.label("%s  %d/%d" % [sd.name, int(c[stid]), sd.pieces.size()], 14, Wow.GOLD))
 			for line in Gear.set_lines(stid):
 				var on := int(c[stid]) >= int(line[0])
-				v.add_child(Wow.label("(%d) %s" % [line[0], line[1]], 13, Wow.GREEN if on else Wow.GREY, true))
+				v.add_child(Wow.label(Tx.f("(%d) %s", [line[0], line[1]]), 13, Wow.GREEN if on else Wow.GREY, true))
 	v.add_child(Wow.banner("Style"))
 	v.add_child(Wow.label(st.passive, 13, Wow.GREEN, true))
 	return page
@@ -1271,9 +1271,9 @@ static func _wow_attr_row(k: String, ap: int) -> Control:
 	var a: Dictionary = Rpg.ATTRS[k]
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
-	h.tooltip_text = "%s\nBase %d · Training +%d · Style +%d · Points +%d · Gear +%d" % [a.desc, Rpg.ATTR_BASE, Game.train_bonus(k), int(Rpg.STYLES[Game.style].attrs.get(k, 0)), int(Game.attr_alloc.get(k, 0)), Game.gear_bonus(k)]
+	h.tooltip_text = Tx.f("%s\nBase %d · Training +%d · Style +%d · Points +%d · Gear +%d", [a.desc, Rpg.ATTR_BASE, Game.train_bonus(k), int(Rpg.STYLES[Game.style].attrs.get(k, 0)), int(Game.attr_alloc.get(k, 0)), Game.gear_bonus(k)])
 	h.mouse_filter = Control.MOUSE_FILTER_PASS
-	var nl := Wow.label(a.name + ":", 14, Wow.PALE)
+	var nl := Wow.label(Tx.s(a.name) + ":", 14, Wow.PALE)
 	nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(nl)
 	var gb := Game.gear_bonus(k)
@@ -1284,7 +1284,7 @@ static func _wow_attr_row(k: String, ap: int) -> Control:
 		var plus := Wow.button("+", Vector2(22, 20))
 		plus.add_theme_font_size_override("font_size", 13)
 		plus.disabled = Game.attr(k) >= Rpg.ATTR_CAP
-		plus.tooltip_text = "Raise %s" % a.name
+		plus.tooltip_text = Tx.f("Raise %s", a.name)
 		plus.pressed.connect(func(): Game.raise_attr(k))
 		h.add_child(plus)
 	return h
@@ -1302,9 +1302,9 @@ static func build_talents_wow(hud) -> Control:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_child(body)
 	var cls: Dictionary = Rpg.STYLES.get(Game.style, {})
-	body.add_child(_tree2(hud, "class", "%s" % str(cls.get("name", "Class")).to_upper(), Color(0.95, 0.7, 0.3), page))
+	body.add_child(_tree2(hud, "class", Tx.f("%s", Tx.s(str(cls.get("name", "Class"))).to_upper()), Color(0.95, 0.7, 0.3), page))
 	var sp := Specs.get_spec(Game.spec)
-	body.add_child(_tree2(hud, "spec", str(sp.get("name", "Specialization")).to_upper(), Color(0.7, 0.5, 1.0), page))
+	body.add_child(_tree2(hud, "spec", Tx.s(str(sp.get("name", "Specialization"))).to_upper(), Color(0.7, 0.5, 1.0), page))
 	# bottom bar
 	var bar := PanelContainer.new()
 	bar.add_theme_stylebox_override("panel", Wow.sb(Color(0.05, 0.04, 0.04, 0.95), Wow.FRAME, 3, 10))
@@ -1312,7 +1312,7 @@ static func build_talents_wow(hud) -> Control:
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 14)
 	bar.add_child(bh)
-	var lt := Wow.label("Click a glowing node to learn it  ·  octagons: pick one of two  ·  squares teach a technique  ·  next class point at level %d" % _next_tp_level(), 12, Wow.PALE)
+	var lt := Wow.label(Tx.f("Click a glowing node to learn it  ·  octagons: pick one of two  ·  squares teach a technique  ·  next class point at level %d", _next_tp_level()), 12, Wow.PALE)
 	lt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	bh.add_child(lt)
@@ -1340,9 +1340,9 @@ static func _tree2(hud, tree: String, title: String, col: Color, holder: Control
 	h.add_child(Wow.title(title, 18, Wow.WHITE))
 	var left := Game.points_left(tree)
 	h.add_child(Wow.title("%d" % left, 20, Wow.GREEN if left > 0 else Wow.GREY))
-	h.add_child(Wow.label("points  ·  %d spent" % Game.tree_points(tree), 12, Wow.PALE))
+	h.add_child(Wow.label(Tx.f("points  ·  %d spent", Game.tree_points(tree)), 12, Wow.PALE))
 	if tree == "spec" and Game.spec == "":
-		var msg := Wow.label("Pick a Specialization at level %d (Specialization tab) to open its tree." % Specs.UNLOCK_LEVEL, 14, Wow.GREY, true, HORIZONTAL_ALIGNMENT_CENTER)
+		var msg := Wow.label(Tx.f("Pick a Specialization at level %d (Specialization tab) to open its tree.", Specs.UNLOCK_LEVEL), 14, Wow.GREY, true, HORIZONTAL_ALIGNMENT_CENTER)
 		msg.custom_minimum_size = Vector2(300, 200)
 		msg.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		v.add_child(msg)
@@ -1435,9 +1435,9 @@ class TalentGraph extends Control:
 			draw_dashed_line(Vector2(4, y), Vector2(size.x - 4, y), lc, 1.5, 6.0)
 			if not open:
 				var f := Wow.body()
-				var txt := "%d more" % (need - Game.tree_points(tree))
-				draw_string_outline(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, 3, Color.BLACK)
-				draw_string(f, Vector2(size.x - 70, y + 13), txt, HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, Color(1, 0.55, 0.45))
+				var txt := Tx.f("%d more", (need - Game.tree_points(tree)))
+				draw_string_outline(f, Vector2(size.x - 70, y + 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, 3, Color.BLACK)
+				draw_string(f, Vector2(size.x - 70, y + 13), Tx.s(txt), HORIZONTAL_ALIGNMENT_RIGHT, 64, 11, Color(1, 0.55, 0.45))
 
 ## "Hand Fight deals 15% more damage per rank." at rank 2 -> "Hand Fight deals 30% more damage."
 static func rank_text(desc: String, r: int) -> String:
@@ -1481,7 +1481,7 @@ static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> v
 			Wow.tline(v, ("✓ " if mine else "") + str(o.name), Wow.GREEN if mine else Wow.WHITE, 14)
 			Wow.tline(v, str(o.desc), Wow.GOLD, 13, true)
 	else:
-		Wow.tline(v, "Rank %d/%d" % [rank, int(nd.max)], Wow.WHITE, 13)
+		Wow.tline(v, Tx.f("Rank %d/%d", [rank, int(nd.max)]), Wow.WHITE, 13)
 		Wow.tline(v, "Technique" if str(nd.get("kind", "")) == "active" else ("Capstone" if nd.get("capstone", false) else "Passive"), Wow.PALE, 12)
 		Wow.tgap(v, 3)
 		var mx := int(nd.max)
@@ -1502,7 +1502,7 @@ static func _talent_tip(n: Control, tid: String, on: bool, holder: Control) -> v
 	if full:
 		Wow.tline(v, "Click to change your pick" if choice else "Maxed", Wow.GREEN if choice else Wow.GOLD, 13)
 	elif Game.tree_points(tr) < TalentTrees.gate_need(tr, int(nd.row)):
-		Wow.tline(v, "Requires %d points spent in this tree" % TalentTrees.gate_need(tr, int(nd.row)), Wow.RED, 13, true)
+		Wow.tline(v, Tx.f("Requires %d points spent in this tree", TalentTrees.gate_need(tr, int(nd.row))), Wow.RED, 13, true)
 	elif not Game.talent_unlocked(tid):
 		Wow.tline(v, "Learn a connected talent above first", Wow.RED, 13, true)
 	elif Game.points_left(tr) <= 0:

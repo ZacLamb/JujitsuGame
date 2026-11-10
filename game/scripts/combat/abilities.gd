@@ -137,23 +137,23 @@ static func _spec_ability(s: Dictionary) -> Dictionary:
 	var m: Dictionary = Data.MOVES.get(str(s.move), {})
 	var t := str(m.get("type", "sub"))
 	var a := {"id": "spec", "type": t, "move": str(s.move), "name": str(m.get("name", s.name)), "cost": 30.0, "cd": 30.0,
-		"dmg": 1.6, "grip": 2, "text": "%s signature. Big damage and +2 Grip." % str(s.name)}
+		"dmg": 1.6, "grip": 2, "text": Tx.f("%s signature. Big damage and +2 Grip.", str(s.name))}
 	match t:
 		"sub":
 			a.merge({"finisher": true, "cast": 0.8, "dmg": 0.9, "per_grip": 0.75, "grip": 0,
-				"text": "%s signature finisher: a fast 0.8s cast that hits harder per Grip." % str(s.name)}, true)
+				"text": Tx.f("%s signature finisher: a fast 0.8s cast that hits harder per Grip.", str(s.name))}, true)
 		"takedown", "sweep":
 			a.merge({"effect": "down", "dur": 2.5}, true)
-			a.text = "%s signature: big damage, +2 Grip, Down for 2.5s." % str(s.name)
+			a.text = Tx.f("%s signature: big damage, +2 Grip, Down for 2.5s.", str(s.name))
 		"pass", "advance":
 			a.merge({"effect": "pin", "dur": 8.0}, true)
-			a.text = "%s signature: big damage, +2 Grip, Pinned for 8s." % str(s.name)
+			a.text = Tx.f("%s signature: big damage, +2 Grip, Pinned for 8s.", str(s.name))
 		"back":
 			a.merge({"effect": "expose", "dur": 10.0}, true)
-			a.text = "%s signature: big damage, +2 Grip, Exposed for 10s." % str(s.name)
+			a.text = Tx.f("%s signature: big damage, +2 Grip, Exposed for 10s.", str(s.name))
 		"escape":
 			a.merge({"harm": false, "effect": "escape", "dmg": 0.0, "gcd": false}, true)
-			a.text = "%s signature: break free and recover." % str(s.name)
+			a.text = Tx.f("%s signature: break free and recover.", str(s.name))
 	return a
 
 ## Enemy kit: a takedown-ish opener, a pressure move and a submission finisher (bosses get more).
@@ -182,16 +182,16 @@ static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 		var pi: Array = core.pos_info(u, t)
 		var here := CombatCore.pos_label(str(pi[0]), bool(pi[1]))
 		if mv == "":
-			out.append(["%s: nothing from %s" % [str(TEMPLATES.get(str(a.type), {}).get("label", a.type)), here], Wow.RED, 15])
+			out.append([Tx.f("%s: nothing from %s", [str(TEMPLATES.get(str(a.type), {}).get("label", a.type)), here]), Wow.RED, 15])
 		elif mv == "@stand":
 			out.append(["Scramble Up", Wow.WHITE, 16])
-			out.append(["From %s: back to your feet" % here, Wow.GREEN, 12])
+			out.append([Tx.f("From %s: back to your feet", here), Wow.GREEN, 12])
 		else:
 			var m: Dictionary = Data.MOVES[mv]
 			out.append([str(m.name), Wow.WHITE, 16])
 			var res = m.result
 			var to := "submission" if not res is Array else CombatCore.pos_label(str(res[0]), bool(res[1]))
-			out.append(["From %s  →  %s" % [here, to], Wow.GREEN, 12])
+			out.append([Tx.f("From %s  →  %s", [here, to]), Wow.GREEN, 12])
 	else:
 		out.append([str(a.get("name", "")), Wow.WHITE, 16])
 	var lab := str(TEMPLATES.get(str(a.get("type", "")), {}).get("label", str(a.get("type", "")).capitalize()))
@@ -200,13 +200,13 @@ static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 	out.append([lab, Wow.GOLD, 12])
 	var bits: Array = []
 	if float(a.get("cost", 0.0)) > 0.0:
-		bits.append("%d Gas" % int(a.cost))
+		bits.append(Tx.f("%d Gas", int(a.cost)))
 	if float(a.get("cast", 0.0)) > 0.0:
-		bits.append("%.1f sec cast" % float(a.cast))
+		bits.append(Tx.f("%.1f sec cast", float(a.cast)))
 	else:
 		bits.append("Instant")
 	if float(a.get("cd", 0.0)) > 0.0:
-		bits.append("%d sec cooldown" % int(a.cd))
+		bits.append(Tx.f("%d sec cooldown", int(a.cd)))
 	if bool(a.get("harm", true)):
 		bits.append("Melee range")
 	out.append([" · ".join(bits), Wow.PALE, 12])
@@ -214,9 +214,9 @@ static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 		var bonus: float = core._type_bonus(u, a) if core != null else 1.0
 		var lo := int(u.dmg * float(a.dmg) * bonus)
 		if bool(a.get("finisher", false)):
-			out.append(["Hits for %d, +%d per Grip (you have %d)." % [lo, int(u.dmg * float(a.get("per_grip", 0.9)) * bonus), u.grip], Wow.GREEN, 13])
+			out.append([Tx.f("Hits for %d, +%d per Grip (you have %d).", [lo, int(u.dmg * float(a.get("per_grip", 0.9)) * bonus), u.grip]), Wow.GREEN, 13])
 		else:
-			out.append(["Hits for about %d." % lo, Wow.GREEN, 13])
+			out.append([Tx.f("Hits for about %d.", lo), Wow.GREEN, 13])
 		if u.player:
 			out.append(["Grows with your level, Strength and gear.", Wow.GREY, 11])
 	out.append([str(a.get("text", "")), Wow.GOLD.lerp(Wow.WHITE, 0.6), 13])

@@ -121,7 +121,7 @@ func duel(npc: Npc) -> void:
 	u.hp = u.max_hp
 	target = u
 	engage_npc(npc)
-	Game.toast.emit("%s squares up!" % u.name, Color(1, 0.6, 0.4))
+	Game.toast.emit(Tx.f("%s squares up!", u.name), Color(1, 0.6, 0.4))
 
 func set_target_npc(npc: Npc) -> void:
 	target = unit_for(npc)
@@ -262,7 +262,7 @@ func _traits(npc: Npc, u: CombatCore.Unit) -> void:
 		npc.set_meta("called", true)
 		var f := _campmate(npc, 20.0)
 		if f:
-			_float(npc, "Ô, %s! Help!" % str(f.mob.name).split(" ")[0], Color(1, 0.6, 0.3), 0.8)
+			_float(npc, Tx.f("Ô, %s! Help!", str(f.mob.name).split(" ")[0]), Color(1, 0.6, 0.3), 0.8)
 			engage_npc(f)
 	if tr == "runner" and u.pct() < 0.2 and not npc.has_meta("ran") and u.gpos == "standing":
 		var f := _campmate(npc, 30.0)
@@ -715,7 +715,7 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 		if npc.mob.get("revenge", false):
 			var bonus := int(loot.xp) / 2 + 5
 			Game.add_xp(bonus)
-			Game.toast.emit("Revenge! +%d XP" % bonus, Color(1, 0.55, 0.3))
+			Game.toast.emit(Tx.f("Revenge! +%d XP", bonus), Color(1, 0.55, 0.3))
 		core.remove(victim)
 		_unit_of.erase(npc.get_instance_id())
 		_npc_of.erase(victim.id)
@@ -731,12 +731,12 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 
 func _reward_toasts(xp: int, money: int, items: Array) -> void:
 	if xp > 0:
-		Game.toast.emit("+%d XP" % xp, Color(0.6, 0.85, 1.0))
+		Game.toast.emit(Tx.f("+%d XP", xp), Color(0.6, 0.85, 1.0))
 	if money > 0:
-		Game.toast.emit("Looted R$ %d" % money, Color(1, 0.85, 0.3))
+		Game.toast.emit(Tx.f("Looted R$ %d", money), Color(1, 0.85, 0.3))
 	for it in items:
 		var info := Loot.item(str(it))
-		Game.toast.emit("Looted: %s" % str(info.get("name", it)), Loot.color(str(it)))
+		Game.toast.emit(Tx.f("Looted: %s", str(info.get("name", it))), Loot.color(str(it)))
 
 ## A named fighter's duel ended (won / lost / walked away).
 func _end_duel(npc: Npc, u: CombatCore.Unit, won: bool, walked := false, sub := "") -> void:
@@ -781,7 +781,7 @@ func start_raid(at: Vector3, kind := "") -> void:
 func _raid_tap(npc: Npc, victim: CombatCore.Unit) -> void:
 	var vr := npc.rig
 	if victim.ally:
-		_float(npc, "%s tapped!" % victim.name, Color(1, 0.5, 0.4), 0.8)
+		_float(npc, Tx.f("%s tapped!", victim.name), Color(1, 0.5, 0.4), 0.8)
 		core.remove(victim)
 		_unit_of.erase(npc.get_instance_id())
 		_npc_of.erase(victim.id)
@@ -934,7 +934,7 @@ func _player_tapped(by_name: String, winner: Npc = null) -> void:
 func _lesson(ab: Dictionary) -> String:
 	match str(ab.get("type", "")):
 		"sub":
-			return "Coach: \"Their %s has a cast bar under their name. Hit R to Frame it before it lands.\"" % str(ab.get("name", "submission"))
+			return Tx.f("Coach: \"Their %s has a cast bar under their name. Hit R to Frame it before it lands.\"", str(ab.get("name", "submission")))
 		"takedown", "sweep":
 			return "Coach: \"When they put you Down, Escape (it works while you're Down) and get your base back.\""
 		"pass":

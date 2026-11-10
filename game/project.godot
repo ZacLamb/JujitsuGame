@@ -12,6 +12,7 @@ boot_splash/show_image=false
 
 [autoload]
 
+Lang="*res://scripts/lang.gd"
 Data="*res://scripts/data.gd"
 Game="*res://scripts/game_state.gd"
 Sfx="*res://scripts/audio.gd"

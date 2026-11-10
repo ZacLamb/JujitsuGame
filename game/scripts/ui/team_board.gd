@@ -44,7 +44,7 @@ func rebuild() -> void:
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
 	head.add_child(_ring())
-	var sub := "%s  vs  %s   ·   winner stays on, stamina carries over, a draw eliminates both" % [Team.TEAM_NAMES[0], m.academy]
+	var sub := Tx.f("%s  vs  %s   ·   winner stays on, stamina carries over, a draw eliminates both", [Team.TEAM_NAMES[0], m.academy])
 	_body.add_child(CharSheet._small(sub, 15, UiKit.MUTED, true))
 	_body.add_child(_side(true))
 	_body.add_child(_matchup())
@@ -75,7 +75,7 @@ func _ring() -> Control:
 func _side(ours: bool) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
-	v.add_child(CharSheet._small(("YOUR TEAM  ·  %s" % Team.TEAM_NAMES[0]) if ours else ("%s" % m.academy.to_upper()), 14, UiKit.ACCENT if ours else Color(1, 0.6, 0.5)))
+	v.add_child(CharSheet._small((Tx.f("YOUR TEAM  ·  %s", Team.TEAM_NAMES[0])) if ours else (Tx.f("%s", Tx.s(m.academy).to_upper())), 14, UiKit.ACCENT if ours else Color(1, 0.6, 0.5)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	v.add_child(row)
@@ -112,7 +112,7 @@ func _card(f: Dictionary, ours: bool, k: int, idx: int) -> Control:
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nm.clip_text = true
 	top.add_child(nm)
-	v.add_child(CharSheet._small("%s  ·  Lv %d%s" % [role.name, Data.display_level(float(f.level)), "  ·  YOU" if f.get("player", false) else ""], 12, c.lightened(0.2)))
+	v.add_child(CharSheet._small(Tx.f("%s  ·  Lv %d%s", [role.name, Data.display_level(float(f.level)), "  ·  YOU" if f.get("player", false) else ""]), 12, c.lightened(0.2)))
 	if out:
 		v.add_child(CharSheet._head("OUT", 24, UiKit.RED))
 	elif on:
@@ -122,7 +122,7 @@ func _card(f: Dictionary, ours: bool, k: int, idx: int) -> Control:
 		bar.step = 0.0
 		bar.value = st
 		v.add_child(bar)
-		v.add_child(CharSheet._small("ON THE MAT  ·  %d%% gas" % int(st * 100), 12, UiKit.ACCENT))
+		v.add_child(CharSheet._small(Tx.f("ON THE MAT  ·  %d%% gas", int(st * 100)), 12, UiKit.ACCENT))
 	else:
 		v.add_child(CharSheet._small("#%d in line" % (k + 1), 12, UiKit.MUTED))
 	if ours and state == "lineup":
@@ -154,7 +154,7 @@ func _coach_card(ours: bool) -> Control:
 	p.add_child(v)
 	v.add_child(CharSheet._small("COACH (corner)", 12, UiKit.ACCENT))
 	v.add_child(CharSheet._small(str(c.get("name", "Nobody")), 15, UiKit.TEXT))
-	v.add_child(CharSheet._small("+%d gas between bouts" % int(Team.coach_heal(c) + Team.BETWEEN_REGEN), 12, UiKit.MUTED))
+	v.add_child(CharSheet._small(Tx.f("+%d gas between bouts", int(Team.coach_heal(c) + Team.BETWEEN_REGEN)), 12, UiKit.MUTED))
 	if ours and state == "lineup":
 		var ob := OptionButton.new()
 		ob.focus_mode = Control.FOCUS_NONE
@@ -166,7 +166,7 @@ func _coach_card(ours: bool) -> Control:
 			if cc.id in in_lineup:
 				continue
 			ids.append(cc.id)
-			ob.add_item("%s%s (+%d)" % [cc.name, " ★" if cc.get("boss", false) else "", int(Team.coach_heal(cc))])
+			ob.add_item(Tx.f("%s%s (+%d)", [cc.name, " ★" if cc.get("boss", false) else "", int(Team.coach_heal(cc))]))
 			if cc.id == str(m.coach.get("id", "")):
 				ob.select(ob.item_count - 1)
 		ob.item_selected.connect(func(ix: int):
@@ -190,17 +190,17 @@ func _matchup() -> Control:
 		return p
 	var a := m.current_ours()
 	var b := m.current_theirs()
-	h.add_child(CharSheet._head(str(a.name).to_upper(), 30, Team.ROLES[a.role].color.lightened(0.2)))
+	h.add_child(CharSheet._head(Tx.s(str(a.name)).to_upper(), 30, Team.ROLES[a.role].color.lightened(0.2)))
 	h.add_child(CharSheet._head("VS", 26, UiKit.MUTED))
-	h.add_child(CharSheet._head(str(b.name).to_upper(), 30, Team.ROLES[b.role].color.lightened(0.2)))
+	h.add_child(CharSheet._head(Tx.s(str(b.name)).to_upper(), 30, Team.ROLES[b.role].color.lightened(0.2)))
 	var e := Team.edge(str(a.role), str(b.role))
 	var et := "Even matchup"
 	var ec := UiKit.MUTED
 	if e > 0:
-		et = "EDGE: you (%s beats %s)" % [Team.ROLES[a.role].name, Team.ROLES[b.role].name]
+		et = Tx.f("EDGE: you (%s beats %s)", [Team.ROLES[a.role].name, Team.ROLES[b.role].name])
 		ec = Color(0.45, 1.0, 0.55)
 	elif e < 0:
-		et = "EDGE: them (%s beats %s)" % [Team.ROLES[b.role].name, Team.ROLES[a.role].name]
+		et = Tx.f("EDGE: them (%s beats %s)", [Team.ROLES[b.role].name, Team.ROLES[a.role].name])
 		ec = Color(1.0, 0.5, 0.45)
 	h.add_child(CharSheet._small(et, 15, ec))
 	return p
@@ -219,7 +219,7 @@ func _buttons() -> Control:
 				h.add_child(_btn("Take the mat (fight it yourself)", play_pressed, UiKit.ACCENT, 320))
 				h.add_child(_btn("Sim this bout", sim_pressed, Color(0.6, 0.85, 1), 200))
 			else:
-				h.add_child(_btn("Coach %s from the corner" % a.name, sim_pressed, UiKit.ACCENT, 320))
+				h.add_child(_btn(Tx.f("Coach %s from the corner", a.name), sim_pressed, UiKit.ACCENT, 320))
 			h.add_child(_btn("Forfeit", forfeit_pressed, UiKit.RED, 140))
 		"done":
 			h.add_child(_btn("Oss", close_pressed, UiKit.ACCENT, 200))

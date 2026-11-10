@@ -254,7 +254,7 @@ func _rival_process() -> void:
 		else:
 			var nm := str(best.char.get("name", "?"))
 			var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-			hud.prompt.text = "[E]  Duel %s  (%s, Lv %d)" % [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))]
+			hud.prompt.text = Tx.f("[E]  Duel %s  (%s, Lv %d)", [nm, str(Origins.faction(str(best.char.get("faction", ""))).long), int(best.char.get("level", 1))])
 			hud.touch.interact_btn.visible = true
 			hud.touch.interact_btn.text = "ROLL"
 
@@ -267,10 +267,10 @@ func rival_opponent(ch: Dictionary) -> Dictionary:
 	for mid in Data.MOVES:
 		if int(Data.MOVES[mid].rank) <= lv / 2 and int(Data.MOVES[mid].rank) != 99 and randf() < 0.3:
 			extras.append(mid)
-	return {"name": "%s's Shadow" % str(ch.get("name", "?")), "title": str(fac.long), "rank": clampi(int(ch.get("belt", 0)) * 5 + 2, 0, 24),
+	return {"name": Tx.f("%s's Shadow", str(ch.get("name", "?"))), "title": str(fac.long), "rank": clampi(int(ch.get("belt", 0)) * 5 + 2, 0, 24),
 		"level": 1.0 + float(lv - 1) * 0.55 / 2.0, "gi": gi, "skin": UiKit.skin_tone(float(ch.get("skin", 0.35))),
 		"body": str(ch.get("body", "male")), "style": styles.get(str(ch.get("style", "")), "balanced"), "extra": extras, "zone": "",
-		"intro": "For %s!" % fac.long, "win": "Not today. Tell your side.", "lose": "Oss. Your faction trains hard."}
+		"intro": Tx.f("For %s!", fac.long), "win": "Not today. Tell your side.", "lose": "Oss. Your faction trains hard."}
 
 # ------------------------------------------------------------ live duels (see Pvp)
 var pvp: Pvp = null
@@ -287,7 +287,7 @@ func _duel_menu(rp: RemotePlayer) -> void:
 	var other := str(ch.get("faction", "brasil")) != Game.faction()
 	var nm := str(ch.get("name", "?"))
 	var wait := int(_rival_cd.get(nm, 0)) + RIVAL_COOLDOWN - int(Time.get_unix_time_from_system())
-	var txt := "%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept)." % [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))]
+	var txt := Tx.f("%s  ·  %s, level %d.\n\nLive duel: a real roll against them, right now (they have to accept).", [nm, Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1))])
 	var no := "Not now"
 	if other:
 		txt += " A win counts for the Faction War (20 points)."
@@ -295,23 +295,23 @@ func _duel_menu(rp: RemotePlayer) -> void:
 			txt += "\n\nOr fight their shadow: an AI copy of their character, no need to ask."
 			no = "Fight their shadow"
 		else:
-			txt += "\n\n(Their shadow needs %d min to recover.)" % ceili(wait / 60.0)
+			txt += Tx.f("\n\n(Their shadow needs %d min to recover.)", ceili(wait / 60.0))
 	hud.open_dialogue("Duel", txt, "Challenge to a live duel", no)
 
 func ask_duel(ch: Dictionary) -> void:
 	_duel_ask = "incoming"
 	player.input_enabled = false
 	var other := str(ch.get("faction", "brasil")) != Game.faction()
-	hud.open_dialogue("Duel!", "%s (%s, level %d) challenges you to a live duel.%s" % [str(ch.get("name", "?")), Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1)),
-		"\n\nFor the Faction War: a win is worth 20 points." if other else ""], "Accept", "Decline")
+	hud.open_dialogue("Duel!", Tx.f("%s (%s, level %d) challenges you to a live duel.%s", [str(ch.get("name", "?")), Origins.faction(str(ch.get("faction", ""))).long, int(ch.get("level", 1)),
+		"\n\nFor the Faction War: a win is worth 20 points." if other else ""]), "Accept", "Decline")
 
 func _on_pvp_finished(won: bool, opp_name: String, cross: bool) -> void:
 	var xp := Game.record_pvp(won, cross)
 	await get_tree().create_timer(1.6).timeout
 	if won:
-		Game.toast.emit("You beat %s in a live duel!%s" % [opp_name, ("  +%d XP" % xp) if xp > 0 else ""], Wow.GOLD)
+		Game.toast.emit(Tx.f("You beat %s in a live duel!%s", [opp_name, ("  +%d XP" % xp) if xp > 0 else ""]), Wow.GOLD)
 	else:
-		Game.toast.emit("%s won the duel. Oss." % opp_name, Color(1, 0.7, 0.5))
+		Game.toast.emit(Tx.f("%s won the duel. Oss.", opp_name), Color(1, 0.7, 0.5))
 	hud.refresh()
 
 func _start_rival(rp: RemotePlayer) -> void:
@@ -321,7 +321,7 @@ func _start_rival(rp: RemotePlayer) -> void:
 	_rival_cd[nm] = int(Time.get_unix_time_from_system())
 	_rival = null
 	hud.set_prompt(null)
-	Game.toast.emit("Rival shadow: %s  (%s)" % [nm, Origins.faction(str(rp.char.get("faction", ""))).long], Color(1.0, 0.5, 0.4))
+	Game.toast.emit(Tx.f("Rival shadow: %s  (%s)", [nm, Origins.faction(str(rp.char.get("faction", ""))).long]), Color(1.0, 0.5, 0.4))
 	_bout(rival_opponent(rp.char), "rival", false)
 
 func _clear_remotes() -> void:
@@ -446,7 +446,7 @@ func _adapt_quality(delta: float) -> void:
 		Game.set_graphics_level(1, false)
 		if is_instance_valid(world):
 			world.apply_graphics()
-		hud.gfx_btn.text = "Gfx: high"
+		hud.gfx_btn.text = Tx.s("Gfx: high")
 		Game.toast.emit("Graphics lowered to High for smoother play", UiKit.MUTED)
 
 func _mouse_process() -> void:
@@ -463,10 +463,10 @@ func _mouse_process() -> void:
 		if h == null:
 			hud.set_hover("")
 		elif h.giver_id != "":
-			hud.set_hover("%s  ·  click to talk" % h.display_name)
+			hud.set_hover(Tx.f("%s  ·  click to talk", h.display_name))
 		else:
 			var o: Dictionary = Data.OPPONENTS[h.opp_id]
-			hud.set_hover("%s  ·  Lv %d  ·  click to roll" % [o.name, Data.display_level(float(o.level))])
+			hud.set_hover(Tx.f("%s  ·  Lv %d  ·  click to roll", [o.name, Data.display_level(float(o.level))]))
 	if _hover:
 		hud.place_hover(get_viewport().get_mouse_position())
 	# walking to a clicked NPC: interact on arrival
@@ -489,7 +489,7 @@ func _on_world_click(screen: Vector2) -> void:
 		_interact(n)
 	else:
 		player.walk_target = n
-		Game.toast.emit("Walking to %s..." % n.display_name, UiKit.MUTED)
+		Game.toast.emit(Tx.f("Walking to %s...", n.display_name), UiKit.MUTED)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _in_title or roll != null or Game.style == "":
@@ -548,11 +548,11 @@ func _make_world(z: String) -> void:
 	world.game_started = false
 	if not _in_title:
 		for tid in Game.expire_territories():
-			Game.toast.emit("%s fell to %s while you were away." % [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy], UiKit.RED)
+			Game.toast.emit(Tx.f("%s fell to %s while you were away.", [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy]), UiKit.RED)
 		world.refresh_flags()
 		for tid in Data.territories_in(z):
 			if Game.territory_state(tid) == "attacked":
-				Game.toast.emit("%s is attacking %s! Defend it within %dh." % [Data.TERRITORIES[tid].academy, Data.TERRITORIES[tid].name, maxi(1, Game.defend_left(tid) / 3600)], Color(1, 0.45, 0.35))
+				Game.toast.emit(Tx.f("%s is attacking %s! Defend it within %dh.", [Data.TERRITORIES[tid].academy, Data.TERRITORIES[tid].name, maxi(1, Game.defend_left(tid) / 3600)]), Color(1, 0.45, 0.35))
 	if not _in_title:
 		# let physics settle at the new spawn before landmarks/collectibles can trigger
 		get_tree().create_timer(0.6).timeout.connect(func(): if is_instance_valid(world): world.game_started = true)
@@ -599,13 +599,13 @@ func _travel(z: String, free := false) -> void:
 	# another continent: a flight
 	if Data.continent_of(z) != Data.continent_of(Game.zone) and not free:
 		if Game.money < Data.FLIGHT_COST:
-			Game.toast.emit("A flight to %s costs R$ %d." % [Data.CONTINENTS[Data.continent_of(z)], Data.FLIGHT_COST], Color(1.0, 0.5, 0.35))
+			Game.toast.emit(Tx.f("A flight to %s costs R$ %d.", [Data.CONTINENTS[Data.continent_of(z)], Data.FLIGHT_COST]), Color(1.0, 0.5, 0.35))
 			return
 		Game.money -= Data.FLIGHT_COST
-		Game.toast.emit("Flight booked: R$ %d. Passport out, gringo." % Data.FLIGHT_COST, Color(0.55, 0.85, 1.0))
+		Game.toast.emit(Tx.f("Flight booked: R$ %d. Passport out, gringo.", Data.FLIGHT_COST), Color(0.55, 0.85, 1.0))
 		Game.unlock("flight")
 	if Game.player_level() < lo - 2:
-		Game.toast.emit("Careful: %s is a level %s zone and you're level %d. Locals there hit hard." % [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()], Color(1.0, 0.5, 0.35))
+		Game.toast.emit(Tx.f("Careful: %s is a level %s zone and you're level %d. Locals there hit hard.", [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()]), Color(1.0, 0.5, 0.35))
 	Game.zone = z
 	Game.save_game()
 	_make_world(z)
@@ -614,13 +614,13 @@ func _travel(z: String, free := false) -> void:
 	hud.set_prompt(null)
 	hud.refresh()
 	var zd: Dictionary = Data.ZONES[z]
-	Game.toast.emit("%s  ·  %s  ·  %s" % [zd.name, zd.sub, Data.zone_levels(z)], UiKit.ACCENT)
+	Game.toast.emit(Tx.f("%s  ·  %s  ·  %s", [zd.name, zd.sub, Data.zone_levels(z)]), UiKit.ACCENT)
 	if z == "pantanal":
 		Game.unlock("travel")
 		if not Game.flags.get("pantanal_intro", false):
 			Game.flags["pantanal_intro"] = true
 			Game.save_game()
-			hud.open_dialogue("Pantanal Norte", "The world's biggest wetland. Jaguars, jacarés, and the toughest open mats in Mato Grosso. Mestre Jacaré runs the fazenda gym to the northeast. Beat %d locals to earn a roll with him." % Data.BOSS_REQUIRED_WINS, "", "Vamos")
+			hud.open_dialogue("Pantanal Norte", Tx.f("The world's biggest wetland. Jaguars, jacarés, and the toughest open mats in Mato Grosso. Mestre Jacaré runs the fazenda gym to the northeast. Beat %d locals to earn a roll with him.", Data.BOSS_REQUIRED_WINS), "", "Vamos")
 
 	if z == "socal" and not Game.flags.get("socal_intro", false):
 		Game.flags["socal_intro"] = true
@@ -628,20 +628,20 @@ func _travel(z: String, free := false) -> void:
 		if Game.faction() == "usa":
 			hud.open_dialogue("San Diego, California", "The end of the road west. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who've watched every instructional ever made. The Gold League's headquarters sits on the hill, and Coach Dale's Garage is the last holdout on the coast. Find Professor Rae by the shuttle stop.", "", "Let's roll")
 		else:
-			hud.open_dialogue("San Diego, California", "América do Norte. Here, you're the Brazilian. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who have watched every instructional ever made. Coach Dale runs The Garage up the hill. Beat %d locals first. And watch out for the gold gis: the Liga Ouro's money comes from here." % Data.BOSS_REQUIRED_WINS, "", "Let's roll")
+			hud.open_dialogue("San Diego, California", Tx.f("América do Norte. Here, you're the Brazilian. Surfers on the boardwalk, wrestlers in the garages, leg lock nerds who have watched every instructional ever made. Coach Dale runs The Garage up the hill. Beat %d locals first. And watch out for the gold gis: the Liga Ouro's money comes from here.", Data.BOSS_REQUIRED_WINS), "", "Let's roll")
 
 	if z == "everglades" and not Game.flags.get("everglades_intro", false):
 		Game.flags["everglades_intro"] = true
 		Game.save_game()
-		hud.open_dialogue("Saw Grass Landing, Florida", "The Everglades. Sawgrass to the horizon, airboats, pythons, and gators in every ditch. Captain Gator trains his crew in a tin shed called the Gator Pit, out east past the water. Beat %d locals to earn a roll with him." % Data.BOSS_REQUIRED_WINS, "", "Let's go")
+		hud.open_dialogue("Saw Grass Landing, Florida", Tx.f("The Everglades. Sawgrass to the horizon, airboats, pythons, and gators in every ditch. Captain Gator trains his crew in a tin shed called the Gator Pit, out east past the water. Beat %d locals to earn a roll with him.", Data.BOSS_REQUIRED_WINS), "", "Let's go")
 	if z == "sedona" and not Game.flags.get("sedona_intro", false):
 		Game.flags["sedona_intro"] = true
 		Game.save_game()
-		hud.open_dialogue("Red Rock, Arizona", "Red sandstone towers, juniper and sage, and crystal shops on every corner. Master Sol's Vortex Jiu-Jitsu sits at the foot of the mesas. He taught half the coaches in the country. Beat %d locals first." % Data.BOSS_REQUIRED_WINS, "", "Let's go")
+		hud.open_dialogue("Red Rock, Arizona", Tx.f("Red sandstone towers, juniper and sage, and crystal shops on every corner. Master Sol's Vortex Jiu-Jitsu sits at the foot of the mesas. He taught half the coaches in the country. Beat %d locals first.", Data.BOSS_REQUIRED_WINS), "", "Let's go")
 	if z == "rio" and not Game.flags.get("rio_intro", false):
 		Game.flags["rio_intro"] = true
 		Game.save_game()
-		hud.open_dialogue("Rio de Janeiro", "The city where jiu-jitsu grew up. Train on the sand at Copacabana, roll with the kids on the morro, and climb Corcovado if your legs still work. Grão-Mestre Leão gives black belts at his academia behind the beach. Beat %d locals first." % Data.BOSS_REQUIRED_WINS, "", "Oss")
+		hud.open_dialogue("Rio de Janeiro", Tx.f("The city where jiu-jitsu grew up. Train on the sand at Copacabana, roll with the kids on the morro, and climb Corcovado if your legs still work. Grão-Mestre Leão gives black belts at his academia behind the beach. Beat %d locals first.", Data.BOSS_REQUIRED_WINS), "", "Oss")
 
 func _on_nearby(npc: Npc) -> void:
 	hud.set_prompt(npc)
@@ -664,7 +664,7 @@ func _use_spot(spot: Dictionary) -> void:
 			var parts := str(spot.arg).split("|")
 			if parts[0] != Game.faction():
 				player.input_enabled = false
-				hud.open_dialogue(parts[1], "%s colours? Not at my table. Go earn your Honor with your own side." % Origins.faction(Game.faction()).long, "", "Fair enough")
+				hud.open_dialogue(parts[1], Tx.f("%s colours? Not at my table. Go earn your Honor with your own side.", Origins.faction(Game.faction()).long), "", "Fair enough")
 				return
 			hud.open_quartermaster(parts[1], parts[0])
 		"daily":
@@ -705,7 +705,7 @@ func _use_spot(spot: Dictionary) -> void:
 func _open_chest(id: String, spot: Dictionary) -> void:
 	var loot: Dictionary = world.chests.open(id)
 	if loot.is_empty():
-		Game.toast.emit("Empty. Someone beat you to it: it refills in %dh." % ceili(Chests.refill_left(id) / 3600.0), Wow.GREY)
+		Game.toast.emit(Tx.f("Empty. Someone beat you to it: it refills in %dh.", ceili(Chests.refill_left(id) / 3600.0)), Wow.GREY)
 		return
 	Sfx.play("collect", -4.0)
 	Game.money += int(loot.money)
@@ -714,13 +714,13 @@ func _open_chest(id: String, spot: Dictionary) -> void:
 		if Game.add_item(str(it)) == 0:
 			got.append(str(it))
 		else:
-			Game.toast.emit("Bags full: %s left in the chest." % str(Loot.item(str(it)).get("name", it)), UiKit.RED)
+			Game.toast.emit(Tx.f("Bags full: %s left in the chest.", str(Loot.item(str(it)).get("name", it))), UiKit.RED)
 	Game.toast.emit("%s! R$ %d" % ["Golden chest" if loot.golden else "Hidden chest", int(loot.money)], Color(1, 0.85, 0.35))
 	for it in got:
-		Game.toast.emit("Looted: %s" % str(Loot.item(it).get("name", it)), Loot.color(it))
+		Game.toast.emit(Tx.f("Looted: %s", str(Loot.item(it).get("name", it))), Loot.color(it))
 	if loot.first:
 		Game.add_xp(int(loot.xp))
-		Game.toast.emit("Discovered! +%d XP  ·  hidden chests in %s: %d/%d" % [int(loot.xp), Data.ZONES[world.zone].name, world.chests.found_count(), world.chests.chests.size()], UiKit.ACCENT)
+		Game.toast.emit(Tx.f("Discovered! +%d XP  ·  hidden chests in %s: %d/%d", [int(loot.xp), Data.ZONES[world.zone].name, world.chests.found_count(), world.chests.chests.size()]), UiKit.ACCENT)
 		Game.unlock("chest_first")
 		if world.chests.found_count() >= world.chests.chests.size():
 			Game.unlock("chest_zone")
@@ -745,17 +745,17 @@ func _open_quest(giver: String) -> void:
 		if Game.quest_ready(id):
 			var q: Dictionary = Data.QUESTS[id]
 			_quest_prompt = "turnin:" + id
-			hud.open_dialogue(g.name, "%s\n\n%s\n\nReward: %d XP" % [q.title.to_upper(), q.done, int(q.xp)], "Complete quest", "Later")
+			hud.open_dialogue(g.name, Tx.f("%s\n\n%s\n\nReward: %d XP", [Tx.s(q.title).to_upper(), q.done, int(q.xp)]), "Complete quest", "Later")
 			return
 	for id in ids:
 		if Game.quest_state(id) == "active":
 			var q: Dictionary = Data.QUESTS[id]
-			var lines: Array[String] = [q.title.to_upper(), ""]
+			var lines: Array[String] = [Tx.s(q.title).to_upper(), ""]
 			for i in q.obj.size():
 				var pr := Game.objective_progress(id, i)
 				lines.append("•  %s: %d/%d" % [q.obj[i].text, pr[0], pr[1]])
 			_quest_prompt = "info"
-			hud.open_dialogue(g.name, "\n".join(lines) + "\n\nCome back when it's done.", "", "Okay")
+			hud.open_dialogue(g.name, "\n".join(lines) + Tx.s("\n\nCome back when it's done."), "", "Okay")
 			return
 	for id in ids:
 		if Game.quest_available(id):
@@ -764,12 +764,12 @@ func _open_quest(giver: String) -> void:
 			for o in q.obj:
 				objs.append("•  " + str(o.text))
 			_quest_prompt = "offer:" + id
-			hud.open_dialogue(g.name, "%s\n\n%s\n\n%s\nReward: %d XP" % [q.title.to_upper(), q.offer, "\n".join(objs), int(q.xp)], "Accept", "Not now")
+			hud.open_dialogue(g.name, Tx.f("%s\n\n%s\n\n%s\nReward: %d XP", [Tx.s(q.title).to_upper(), q.offer, "\n".join(objs), int(q.xp)]), "Accept", "Not now")
 			return
 	for id in ids:
 		if Game.quest_locked_by_level(id):
 			_quest_prompt = "info"
-			hud.open_dialogue(g.name, "I might have something for you later. Come back at level %d." % int(Data.QUESTS[id].min_level), "", "Okay")
+			hud.open_dialogue(g.name, Tx.f("I might have something for you later. Come back at level %d.", int(Data.QUESTS[id].min_level)), "", "Okay")
 			return
 	_quest_prompt = "info"
 	hud.open_dialogue(g.name, "Obrigado for everything, gringo. Oss!", "", "Oss")
@@ -780,12 +780,12 @@ func _open_path_choice(speaker: String, qid: String, which: String) -> void:
 	for mid in p.moves:
 		names.append(str(Data.MOVES[mid].name))
 	_quest_prompt = "path_%s:%s" % [which, qid]
-	var body := "%s PATH  ·  %s\n\n%s\n\nSignature techniques (learned first, +%d%% damage in your path's kit):\n%s" % [
-		str(p.name).to_upper(), p.lineage, p.desc, int(Data.PATH_MASTERY * 100), ", ".join(names)]
+	var body := Tx.f("%s PATH  ·  %s\n\n%s\n\nSignature techniques (learned first, +%d%% damage in your path's kit):\n%s", [
+		Tx.s(str(p.name)).to_upper(), p.lineage, p.desc, int(Data.PATH_MASTERY * 100), ", ".join(names)])
 	if which == "gi":
-		hud.open_dialogue(speaker, body + "\n\nYou'll still train No-Gi; its signatures come about 10 levels later.", "Choose the Gi path", "Show me No-Gi")
+		hud.open_dialogue(speaker, body + Tx.s("\n\nYou'll still train No-Gi; its signatures come about 10 levels later."), "Choose the Gi path", "Show me No-Gi")
 	else:
-		hud.open_dialogue(speaker, body + "\n\nYou'll still train in the gi; its signatures come about 10 levels later.", "Choose the No-Gi path", "Not yet")
+		hud.open_dialogue(speaker, body + Tx.s("\n\nYou'll still train in the gi; its signatures come about 10 levels later."), "Choose the No-Gi path", "Not yet")
 
 # ------------------------------------------------------------ competitions
 var comp_run: Dictionary = {}   # the bracket in progress (see Data.comp_bracket)
@@ -794,17 +794,17 @@ var _comp_prompt := ""          # "enter" / "next" / "done" while a comp dialogu
 func _open_comp(comp_id: String) -> void:
 	var c: Dictionary = Data.COMPS[comp_id]
 	if Game.rank < int(c.min_rank):
-		hud.open_dialogue(c.name, "%s\n\nBlack belts only. Come back when Leão ties one around your waist." % c.blurb, "", "Okay")
+		hud.open_dialogue(c.name, Tx.f("%s\n\nBlack belts only. Come back when Leão ties one around your waist.", c.blurb), "", "Okay")
 		return
 	var nonce := int(Game.counters.get("comp_entries", 0))
 	comp_run = Data.comp_bracket(comp_id, Game.rank, Game.player_name, nonce)
 	var belt: String = Data.BELTS[comp_run.belt].name
 	var best := Game.best_medal(comp_id)
-	var lines: Array[String] = [c.blurb, "", "Division: %s Belt  ·  %d in the bracket" % [belt, comp_run.entries.size()]]
+	var lines: Array[String] = [c.blurb, "", Tx.f("Division: %s Belt  ·  %d in the bracket", [belt, comp_run.entries.size()])]
 	if best != "":
-		lines.append("Your best here at %s belt: %s" % [belt.to_lower(), best.capitalize()])
+		lines.append(Tx.f("Your best here at %s belt: %s", [belt.to_lower(), best.capitalize()]))
 	lines.append("")
-	lines.append("First round: %s (%s)" % [comp_run.path[0].name, comp_run.path[0].academy])
+	lines.append(Tx.f("First round: %s (%s)", [comp_run.path[0].name, comp_run.path[0].academy]))
 	lines.append("Lose once and you're out. Win the final for gold.")
 	_comp_prompt = "enter"
 	player.input_enabled = false
@@ -815,7 +815,7 @@ func _comp_start_match() -> void:
 		Game.counters["comp_entries"] = int(Game.counters.get("comp_entries", 0)) + 1
 	var rd: int = comp_run.round
 	var m := {"id": comp_run.id, "round_name": Data.round_name(comp_run.rounds, rd), "opp": comp_run.path[rd], "final": rd == comp_run.rounds - 1}
-	Game.toast.emit("%s: %s (%s)" % [m.round_name, m.opp.name, str(m.opp.get("academy", ""))], Color(1, 0.85, 0.35))
+	Game.toast.emit(Tx.f("%s: %s (%s)", [m.round_name, m.opp.name, str(m.opp.get("academy", ""))]), Color(1, 0.85, 0.35))
 	_bout(m.opp, "comp", bool(m.final))
 
 func _comp_after_match(result: Dictionary) -> void:
@@ -834,7 +834,7 @@ func _comp_after_match(result: Dictionary) -> void:
 		var nxt: Dictionary = comp_run.path[rd + 1]
 		_comp_prompt = "next"
 		player.input_enabled = false
-		hud.open_dialogue(c.name, "%s won!\n\nNext up, the %s: %s (%s), %s guy." % [Data.round_name(rounds, rd), Data.round_name(rounds, rd + 1).to_lower(), nxt.name, nxt.academy, nxt.style], "Next match", "Withdraw")
+		hud.open_dialogue(c.name, Tx.f("%s won!\n\nNext up, the %s: %s (%s), %s guy.", [Data.round_name(rounds, rd), Data.round_name(rounds, rd + 1).to_lower(), nxt.name, nxt.academy, nxt.style]), "Next match", "Withdraw")
 		return
 	var belt: int = comp_run.belt
 	var text := ""
@@ -842,10 +842,10 @@ func _comp_after_match(result: Dictionary) -> void:
 		var xp := Game.award_medal(comp_run.id, belt, medal)
 		Sfx.play("win" if medal == "gold" else "levelup")
 		var head: String = {"gold": "GOLD MEDAL! Campeão!", "silver": "SILVER MEDAL", "bronze": "BRONZE MEDAL"}[medal]
-		var body: String = {"gold": "Top of the podium at the %s. The whole academy is in the group chat." % c.name,
-			"silver": "Lost a tough final, but you're on the podium at the %s." % c.name,
-			"bronze": "Semifinal loss, but bronze at the %s is a real medal. Shake it off, oss." % c.name}[medal]
-		text = "%s\n\n%s\n\n+%d XP" % [head, body, xp]
+		var body: String = {"gold": Tx.f("Top of the podium at the %s. The whole academy is in the group chat.", c.name),
+			"silver": Tx.f("Lost a tough final, but you're on the podium at the %s.", c.name),
+			"bronze": Tx.f("Semifinal loss, but bronze at the %s is a real medal. Shake it off, oss.", c.name)}[medal]
+		text = Tx.f("%s\n\n%s\n\n+%d XP", [head, body, xp])
 	else:
 		text = "Out in the %s. It happens to everyone; the bracket resets next time you enter." % Data.round_name(rounds, rd).to_lower()
 	comp_run = {}
@@ -867,13 +867,13 @@ func _open_territory(tid: String) -> void:
 	match st:
 		"rival":
 			_territory_prompt = tid
-			hud.open_dialogue("Territory: %s" % t.name, "%s plant their flag here. Take it with a 3v3: their best three against your first three (set your lineup on any Team Challenge board).\n\nHold it for +10%% XP from rolls in %s. Rivals will come back for it." % [t.academy, Data.ZONES[t.zone].name], "Challenge for the flag", "Not now")
+			hud.open_dialogue(Tx.f("Territory: %s", t.name), Tx.f("%s plant their flag here. Take it with a 3v3: their best three against your first three (set your lineup on any Team Challenge board).\n\nHold it for +10%% XP from rolls in %s. Rivals will come back for it.", [t.academy, Data.ZONES[t.zone].name]), "Challenge for the flag", "Not now")
 		"attacked":
 			_territory_prompt = tid
-			hud.open_dialogue("Territory: %s" % t.name, "%s are back for %s! Defend it in a 3v3 within %dh or the flag falls." % [t.academy, t.name, maxi(1, Game.defend_left(tid) / 3600)], "Defend it", "Later")
+			hud.open_dialogue(Tx.f("Territory: %s", t.name), Tx.f("%s are back for %s! Defend it in a 3v3 within %dh or the flag falls.", [t.academy, t.name, maxi(1, Game.defend_left(tid) / 3600)]), "Defend it", "Later")
 		_:
 			var left := int(Game.territories[tid].attack_at) - Game.now()
-			hud.open_dialogue("Territory: %s" % t.name, "Gringo BJJ holds %s. Everything quiet: the rivals regroup for about %dh." % [t.name, maxi(1, left / 3600)], "", "Oss")
+			hud.open_dialogue(Tx.f("Territory: %s", t.name), Tx.f("Gringo BJJ holds %s. Everything quiet: the rivals regroup for about %dh.", [t.name, maxi(1, left / 3600)]), "", "Oss")
 
 func _territory_fight(tid: String) -> void:
 	var t: Dictionary = Data.TERRITORIES[tid]
@@ -919,7 +919,7 @@ func _team_sim() -> void:
 		ours = ours.duplicate()
 		ours["level"] = float(ours.get("level", 1.0)) + 0.35
 		stam = minf(1.0, stam + 0.25)
-		Game.toast.emit("Coaching %s from the corner" % str(ours.name), Team.ROLES.coach.color)
+		Game.toast.emit(Tx.f("Coaching %s from the corner", str(ours.name)), Team.ROLES.coach.color)
 	var r := Team.sim_bout(ours, team_match.current_theirs(), stam, team_match.stam_theirs)
 	_team_after(r, float(r.me_stam), float(r.them_stam))
 
@@ -940,7 +940,7 @@ func _team_after(result: Dictionary, me_stam: float, them_stam: float) -> void:
 			elif Game.territory_state(tid) == "attacked":
 				Game.lose_territory(tid)
 			world.refresh_flags()
-		team_board.result_text = ("%s beat %s, %d fighters left standing.  +%d XP" % [Team.TEAM_NAMES[0], team_match.academy, team_match.ours.size() - team_match.i, xp]) if won else ("%s win this one.  +%d XP" % [team_match.academy, xp])
+		team_board.result_text = (Tx.f("%s beat %s, %d fighters left standing.  +%d XP", [Team.TEAM_NAMES[0], team_match.academy, team_match.ours.size() - team_match.i, xp])) if won else (Tx.f("%s win this one.  +%d XP", [team_match.academy, xp]))
 		Sfx.play("win" if won else "lose")
 		team_board.show_match(team_match, "done")
 	else:
@@ -991,7 +991,7 @@ func _circuit_finish() -> void:
 	var wins := circuit_run.round
 	var champ := circuit_run.champion()
 	var xp := Game.record_circuit(wins, champ)
-	circuit_board.result_text = ("Five straight wins, the last against a master at full strength. +%d XP and the Circuito Champion Rashguard." % xp) if champ else ("%d win%s this run. +%d XP. The road resets every run; the cards will be different next time." % [wins, "" if wins == 1 else "s", xp])
+	circuit_board.result_text = (Tx.f("Five straight wins, the last against a master at full strength. +%d XP and the Circuito Champion Rashguard.", xp)) if champ else ("%d win%s this run. +%d XP. The road resets every run; the cards will be different next time." % [wins, "" if wins == 1 else "s", xp])
 	if not champ and not circuit_run.lost:
 		circuit_run.lost = true
 	Sfx.play("win" if champ else "levelup")
@@ -1009,7 +1009,7 @@ func _start_daily() -> void:
 		hud.toggle_journal()
 	var dc := Game.daily_challenge()
 	_daily_rule = str(dc.rule)
-	Game.toast.emit("Daily Challenge: %s" % str(dc.opp.name), Color(1, 0.85, 0.35))
+	Game.toast.emit(Tx.f("Daily Challenge: %s", str(dc.opp.name)), Color(1, 0.85, 0.35))
 	_bout(dc.opp, "daily", false)
 
 func _start_drill(attr: String) -> void:
@@ -1059,14 +1059,14 @@ func _interact(target: Npc = null) -> void:
 			hud.open_dialogue("Mestre Onça", "Blue belt suits you. The bus to the Pantanal leaves from the east gate. Want to roll anyway?")
 			return
 		if Game.town_wins() < Data.BOSS_REQUIRED_WINS:
-			hud.open_dialogue("Mestre Onça", "So you're the gringo everyone's talking about. Before you step on my mat, beat %d fighters around town. You have %d. Vai!" % [Data.BOSS_REQUIRED_WINS, Game.town_wins()], "", "Oss")
+			hud.open_dialogue("Mestre Onça", Tx.f("So you're the gringo everyone's talking about. Before you step on my mat, beat %d fighters around town. You have %d. Vai!", [Data.BOSS_REQUIRED_WINS, Game.town_wins()]), "", "Oss")
 			return
 		hud.open_dialogue("Mestre Onça", o.intro, "Oss! Roll with Mestre Onça")
 		return
 	if npc.opp_id == "jacare" and not Game.beaten("jacare"):
 		Game.flags["met_jacare"] = true
 		if Game.town_wins("pantanal") < Data.BOSS_REQUIRED_WINS:
-			hud.open_dialogue("Mestre Jacaré", "Onça's student, eh? Beat %d of my locals first. You have %d. The swamp will teach you." % [Data.BOSS_REQUIRED_WINS, Game.town_wins("pantanal")], "", "Oss")
+			hud.open_dialogue("Mestre Jacaré", Tx.f("Onça's student, eh? Beat %d of my locals first. You have %d. The swamp will teach you.", [Data.BOSS_REQUIRED_WINS, Game.town_wins("pantanal")]), "", "Oss")
 			return
 	if npc.opp_id in ["boone", "gator", "sol"] and not Game.beaten(npc.opp_id):
 		var zid := Data.zone_of(npc.opp_id)
@@ -1079,7 +1079,7 @@ func _interact(target: Npc = null) -> void:
 	var intro: String = o.intro
 	if Game.beaten(npc.opp_id):
 		intro = "Rematch? I've been drilling. (Reduced XP for rematches.)"
-	hud.open_dialogue("%s  ·  %s" % [o.name, Data.rank_name(int(o.rank))], intro)
+	hud.open_dialogue(Tx.f("%s  ·  %s", [o.name, Data.rank_name(int(o.rank))]), intro)
 
 func _on_dialogue_choice(accepted: bool) -> void:
 	if _duel_ask != "":
@@ -1167,7 +1167,7 @@ func _on_dialogue_choice(accepted: bool) -> void:
 			_comp_start_match()
 		else:
 			if what == "next":
-				Game.toast.emit("You withdraw from the %s." % Data.COMPS[comp_run.id].name, UiKit.MUTED)
+				Game.toast.emit(Tx.f("You withdraw from the %s.", Data.COMPS[comp_run.id].name), UiKit.MUTED)
 			comp_run = {}
 			player.input_enabled = true
 		return
@@ -1231,13 +1231,13 @@ func _queue_mob(npc: Npc) -> void:
 	npc.queue_at(at, c)
 	if roll:
 		roll.set_queue(_queue_names())
-		roll.announce("%s is waiting for the winner!" % npc.mob.name)
+		roll.announce(Tx.f("%s is waiting for the winner!", npc.mob.name))
 
 func _queue_names() -> Array:
 	var out: Array = []
 	for q in _mob_queue:
 		if is_instance_valid(q):
-			out.append("%s (Lv %d)" % [q.mob.name, Data.display_level(float(q.mob.level))])
+			out.append(Tx.f("%s (Lv %d)", [q.mob.name, Data.display_level(float(q.mob.level))]))
 	return out
 
 func _on_mob_engaged(npc: Npc) -> void:
@@ -1249,7 +1249,7 @@ func _on_mob_engaged(npc: Npc) -> void:
 		return
 	if roll != null or _in_title or hud.dialogue_open() or hud.journal.visible or hud.travel_open() or _drill != null or not player.input_enabled:
 		return
-	Game.toast.emit("%s wants to roll!" % npc.mob.name, Color(1, 0.6, 0.4))
+	Game.toast.emit(Tx.f("%s wants to roll!", npc.mob.name), Color(1, 0.6, 0.4))
 	_start_mob(npc)
 
 ## You tapped in the open world: no XP, a gloating winner, a coach's note, and a choice.
@@ -1258,9 +1258,9 @@ var _tap_prompt := false
 func _on_player_tapped(info: Dictionary) -> void:
 	_tap_prompt = true
 	player.input_enabled = false
-	var how := " with a %s" % str(info.how) if str(info.how) != "" else ""
-	hud.open_dialogue("You tapped to %s%s" % [str(info.by), how],
-		"No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure)." % str(info.lesson),
+	var how := Tx.f(" with a %s", str(info.how)) if str(info.how) != "" else ""
+	hud.open_dialogue(Tx.f("You tapped to %s%s", [str(info.by), how]),
+		Tx.f("No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure).", str(info.lesson)),
 		"Shake it off", "Back to the academy")
 
 # ------------------------------------------------------------ bicos (odd jobs around town)
@@ -1282,7 +1282,7 @@ func _open_job(id: String) -> void:
 		hud.open_dialogue(str(j.who), "Obrigado again for today! Come back tomorrow, there's always something.", "", "Oss")
 		return
 	_job_prompt = id
-	hud.open_dialogue("%s  ·  %s" % [str(j.who), str(j.name)], str(j.ask), "Help out", "Not now")
+	hud.open_dialogue(Tx.f("%s  ·  %s", [str(j.who), str(j.name)]), str(j.ask), "Help out", "Not now")
 
 func _start_job(id: String) -> void:
 	var j := _job(id)
@@ -1299,10 +1299,10 @@ func _start_job(id: String) -> void:
 		if ok:
 			Game.add_xp(int(j.xp))
 			Game.money += int(j.money)
-			Game.toast.emit("%s: +%d XP, R$ %d" % [str(j.name), int(j.xp), int(j.money)], Color(1, 0.85, 0.35))
+			Game.toast.emit(Tx.f("%s: +%d XP, R$ %d", [str(j.name), int(j.xp), int(j.money)]), Color(1, 0.85, 0.35))
 			if str(j.get("item", "")) != "":
 				Game.add_item(str(j.item))
-				Game.toast.emit("Received: %s" % str(Loot.item(str(j.item)).get("name", j.item)), Color(0.95, 0.9, 0.7))
+				Game.toast.emit(Tx.f("Received: %s", str(Loot.item(str(j.item)).get("name", j.item))), Color(0.95, 0.9, 0.7))
 			Game.bump("jobs_done")
 		Game.save_game()
 		hud.refresh())
@@ -1325,7 +1325,7 @@ func start_dungeon(id: String) -> void:
 		Game.toast.emit("Finish what you're doing first.", Color(1, 0.5, 0.4))
 		return
 	hud.close_finder()
-	Game.toast.emit("Entering %s..." % str(Raid.DUNGEONS[id].title).capitalize(), Color(1, 0.85, 0.4))
+	Game.toast.emit(Tx.f("Entering %s...", str(Raid.DUNGEONS[id].title).capitalize()), Color(1, 0.85, 0.4))
 	_start_raid(id)
 
 func _on_raid_over(won: bool) -> void:
@@ -1334,9 +1334,9 @@ func _on_raid_over(won: bool) -> void:
 	if Raid.DUNGEONS.has(_raid_kind):
 		var dd: Dictionary = Raid.DUNGEONS[_raid_kind]
 		if won:
-			hud.open_dialogue(str(dd.title).capitalize(), "%s\n\nYour loot is in your bags. Run it again any time from the Group Finder (K): it scales to your level." % str(dd.victory), "", "Oss")
+			hud.open_dialogue(str(dd.title).capitalize(), Tx.f("%s\n\nYour loot is in your bags. Run it again any time from the Group Finder (K): it scales to your level.", str(dd.victory)), "", "Oss")
 		else:
-			hud.open_dialogue("Wiped", "%s\n\nRead the cast bars: Sprawl (Q) takedown waves, Frame (R) his Second Breath, Defend (T) chokes aimed at you. Kill the adds before they reach your healer." % str(dd.wipe), "", "Oss")
+			hud.open_dialogue("Wiped", Tx.f("%s\n\nRead the cast bars: Sprawl (Q) takedown waves, Frame (R) his Second Breath, Defend (T) chokes aimed at you. Kill the adds before they reach your healer.", str(dd.wipe)), "", "Oss")
 		_raid_kind = ""
 		hud.refresh()
 		return
@@ -1387,13 +1387,13 @@ func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
 			var rx := Game.record_rival(res)
 			await get_tree().create_timer(1.6).timeout
 			if won:
-				Game.toast.emit("Shadow beaten! +%d XP for %s." % [rx, Origins.faction(Game.faction()).long], Wow.GOLD)
+				Game.toast.emit(Tx.f("Shadow beaten! +%d XP for %s.", [rx, Origins.faction(Game.faction()).long]), Wow.GOLD)
 		"daily":
 			var xp := Game.record_daily(res)
 			await get_tree().create_timer(1.6).timeout
 			player.input_enabled = false
 			if won:
-				hud.open_dialogue("Daily Challenge", "Won! Streak: %d day%s.\n\n+%d XP. Same time tomorrow." % [Game.daily_streak(), "" if Game.daily_streak() == 1 else "s", xp], "", "Oss")
+				hud.open_dialogue("Daily Challenge", Tx.f("Won! Streak: %d day%s.\n\n+%d XP. Same time tomorrow.", [Game.daily_streak(), "" if Game.daily_streak() == 1 else "s", xp]), "", "Oss")
 			else:
 				hud.open_dialogue("Daily Challenge", "Not today. The challenge stays open until midnight: rest, then run it back.", "", "Oss")
 	hud.refresh()
@@ -1477,7 +1477,7 @@ func _end_roll(opp_id: String, result: Dictionary, _xp: int) -> void:
 				next = q
 		if result.won and next != null:
 			next.mob["carry"] = clampf(float(result.get("me_stam", 1.0)) + 0.2, 0.25, 1.0)
-			Game.toast.emit("Next challenger: %s!" % next.mob.name, Color(1, 0.6, 0.4))
+			Game.toast.emit(Tx.f("Next challenger: %s!", next.mob.name), Color(1, 0.6, 0.4))
 			_start_mob.call_deferred(next)
 			return
 		if next:

@@ -42,7 +42,7 @@ class ItemSlot extends Control:
 		IconArt.draw(self, r, glyph, tint, col if Loot.color(id) != Color.WHITE else Color(0, 0, 0, 0), false, IconArt.item_key(id, it))
 		if n > 1:
 			var f := CombatUi.font()
-			draw_string(f, Vector2(size.x - 22, size.y - 6), str(n), HORIZONTAL_ALIGNMENT_RIGHT, 18, 14, Color.WHITE)
+			draw_string(f, Vector2(size.x - 22, size.y - 6), Tx.s(str(n)), HORIZONTAL_ALIGNMENT_RIGHT, 18, 14, Color.WHITE)
 	func _show_tip() -> void:
 		_hide_tip()
 		if id == "" or tip_holder == null:
@@ -74,30 +74,30 @@ static func tooltip(id: String, n := 1, price_mode := "") -> PanelContainer:
 	p.add_child(v)
 	v.add_child(MoveInfo._line(str(it.get("name", id)), 19, Loot.color(id)))
 	var kind := str(it.get("kind", ""))
-	var kline: String = {"junk": "Junk  ·  sell it to a vendor", "food": "Food & drink  ·  click to consume", "bag": "Bag  ·  %d slots  ·  click to equip" % int(it.get("slots", 0)), "gear": "Gear  ·  click to add to your wardrobe"}.get(kind, "")
+	var kline: String = {"junk": "Junk  ·  sell it to a vendor", "food": "Food & drink  ·  click to consume", "bag": Tx.f("Bag  ·  %d slots  ·  click to equip", int(it.get("slots", 0))), "gear": "Gear  ·  click to add to your wardrobe"}.get(kind, "")
 	v.add_child(MoveInfo._line(kline, 13, UiKit.MUTED))
 	if kind == "gear":
 		var gid := str(it.gear)
 		v.add_child(MoveInfo._line(Gear.ilvl_text(gid), 13, Color(1, 0.85, 0.35), true))
 		if Gear.class_of(gid) != "":
-			v.add_child(MoveInfo._line("Classes: " + Rpg.class_name_of(Gear.class_of(gid)), 13, Rpg.class_color(Gear.class_of(gid)) if Gear.class_ok(gid, Game.style) else UiKit.RED, true))
+			v.add_child(MoveInfo._line(Tx.s("Classes: ") + Tx.s(Rpg.class_name_of(Gear.class_of(gid))), 13, Rpg.class_color(Gear.class_of(gid)) if Gear.class_ok(gid, Game.style) else UiKit.RED, true))
 		v.add_child(MoveInfo._line(Gear.stat_text(gid), 14, Color(0.45, 1.0, 0.55), true))
 		if Game.has_item(gid):
 			v.add_child(MoveInfo._line("Already in your wardrobe", 13, UiKit.RED))
 		else:
 			var cur := str(Game.equipped.get(str(Gear.ITEMS[gid].slot), ""))
 			if cur == "" or Gear.score(gid) > Gear.score(cur):
-				v.add_child(MoveInfo._line("▲ Upgrade" + ("" if cur == "" else " over your %s (item level %d)" % [Gear.ITEMS[cur].name, Gear.ilvl(cur)]), 13, Color(0.45, 1.0, 0.55), true))
+				v.add_child(MoveInfo._line(Tx.s("▲ Upgrade") + ("" if cur == "" else Tx.f(" over your %s (item level %d)", [Gear.ITEMS[cur].name, Gear.ilvl(cur)])), 13, Color(0.45, 1.0, 0.55), true))
 			else:
-				v.add_child(MoveInfo._line("▼ Weaker than your %s (item level %d)" % [Gear.ITEMS[cur].name, Gear.ilvl(cur)], 13, UiKit.RED, true))
+				v.add_child(MoveInfo._line(Tx.f("▼ Weaker than your %s (item level %d)", [Gear.ITEMS[cur].name, Gear.ilvl(cur)]), 13, UiKit.RED, true))
 	if kind == "food":
-		v.add_child(MoveInfo._line("Use: " + str(it.desc), 14, Color(0.45, 1.0, 0.55), true))
+		v.add_child(MoveInfo._line(Tx.s("Use: ") + Tx.s(str(it.desc)), 14, Color(0.45, 1.0, 0.55), true))
 	elif str(it.get("desc", "")) != "":
-		v.add_child(MoveInfo._line("\"%s\"" % it.desc, 13, Color(1, 0.86, 0.55), true))
+		v.add_child(MoveInfo._line(Tx.f("\"%s\"", it.desc), 13, Color(1, 0.86, 0.55), true))
 	if price_mode == "buy":
-		v.add_child(MoveInfo._line("Price: R$ %d" % int(it.get("buy", 0)), 15, Color(1, 0.85, 0.35)))
+		v.add_child(MoveInfo._line(Tx.f("Price: R$ %d", int(it.get("buy", 0))), 15, Color(1, 0.85, 0.35)))
 	elif int(it.get("sell", 0)) > 0:
-		v.add_child(MoveInfo._line("Sells for: R$ %d%s" % [int(it.sell) * maxi(1, n), ("  (%d each)" % int(it.sell)) if n > 1 else ""], 14, Color(1, 0.85, 0.35)))
+		v.add_child(MoveInfo._line(Tx.f("Sells for: R$ %d%s", [int(it.sell) * maxi(1, n), ("  (%d each)" % int(it.sell)) if n > 1 else ""]), 14, Color(1, 0.85, 0.35)))
 	return p
 
 ## The bags window: backpack + equipped bags as one grid, bag bar, money.
@@ -179,7 +179,7 @@ class BagPanel extends PanelContainer:
 				var why := Game.unequip_bag(ix)
 				_msg.text = why)
 			_bagbar.add_child(bs)
-		_msg.text = "%d / %d free  ·  %s" % [Game.free_slots(), Game.bag_capacity(), "click to sell" if shop_mode else "click to use"]
+		_msg.text = Tx.f("%d / %d free  ·  %s", [Game.free_slots(), Game.bag_capacity(), "click to sell" if shop_mode else "click to use"])
 	func _clicked(k: int, _right: bool) -> void:
 		if Game.bag[k] == null:
 			return
@@ -187,7 +187,7 @@ class BagPanel extends PanelContainer:
 			var name_: String = Loot.item(str(Game.bag[k].id)).get("name", "")
 			var got := Game.sell_slot(k)
 			Sfx.play("click", -6.0)
-			_msg.text = "Sold %s for R$ %d" % [name_, got]
+			_msg.text = Tx.f("Sold %s for R$ %d", [name_, got])
 			return
 		var why := Game.use_slot(k)
 		if why != "":
@@ -231,7 +231,7 @@ class ShopPanel extends PanelContainer:
 		junk.add_theme_font_size_override("font_size", 16)
 		junk.pressed.connect(func():
 			var got := Game.sell_junk()
-			_msg.text = "Sold your junk for R$ %d" % got if got > 0 else "No junk to sell."
+			_msg.text = Tx.f("Sold your junk for R$ %d", got) if got > 0 else "No junk to sell."
 			Sfx.play("click", -6.0))
 		row.add_child(junk)
 		var close := Wow.button("Tchau!", Vector2(120, 44))
@@ -265,7 +265,7 @@ class ShopPanel extends PanelContainer:
 		return h
 	func _buy(id: String) -> void:
 		var why := Game.buy(id)
-		_msg.text = why if why != "" else "Bought %s." % Loot.item(id).name
+		_msg.text = why if why != "" else Tx.f("Bought %s.", Loot.item(id).name)
 		Sfx.play("click" if why == "" else "miss", -6.0)
 
 ## Small HUD widget: money, bag fill, active buff chips. Click to open the bags.
@@ -308,7 +308,7 @@ class Wallet extends VBoxContainer:
 			_t = 1.0
 			refresh()
 	func refresh() -> void:
-		_money.text = "R$ %d   ·   Bags %d/%d   [B]" % [Game.money, Game.bag_capacity() - Game.free_slots(), Game.bag_capacity()]
+		_money.text = Tx.f("R$ %d   ·   Bags %d/%d   [B]", [Game.money, Game.bag_capacity() - Game.free_slots(), Game.bag_capacity()])
 		for c in _buffs.get_children():
 			c.queue_free()
 		var active := Game.active_buffs()

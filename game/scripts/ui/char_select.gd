@@ -42,7 +42,7 @@ func _build() -> void:
 			_enter())
 		row.add_child(nb)
 	else:
-		row.add_child(UiKit.label("Character slots full (%d). Delete one to start fresh." % Game.MAX_CHARS, 15, UiKit.MUTED))
+		row.add_child(UiKit.label(Tx.f("Character slots full (%d). Delete one to start fresh.", Game.MAX_CHARS), 15, UiKit.MUTED))
 	add_child(UiKit.label("Every fighter starts at white belt. Earn every stripe.", 15, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 
 # ------------------------------------------------------------ account
@@ -59,7 +59,7 @@ func _account_row() -> void:
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF
 		return l
 	if Cloud.logged_in():
-		row.add_child(nowrap.call(UiKit.label("Signed in as %s" % Cloud.email, 16, Color(0.6, 1.0, 0.65))))
+		row.add_child(nowrap.call(UiKit.label(Tx.f("Signed in as %s", Cloud.email), 16, Color(0.6, 1.0, 0.65))))
 		if Cloud.status != "" and not Cloud.status.begins_with("Logged in"):
 			row.add_child(nowrap.call(UiKit.label("·  " + Cloud.status, 14, UiKit.MUTED)))
 		var lo := UiKit.button("Log out", Vector2(110, 36))
@@ -163,7 +163,7 @@ func _card(c: Dictionary) -> Control:
 	top.add_child(nv)
 	nv.add_child(_l(str(c.get("name", "Gringo")), 24, UiKit.TEXT))
 	var st: String = str(c.get("style", ""))
-	nv.add_child(_l("%s  ·  Level %d" % [Rpg.STYLES[st].name if Rpg.STYLES.has(st) else "?", int(c.get("level", 1))], 15, UiKit.MUTED))
+	nv.add_child(_l(Tx.f("%s  ·  Level %d", [Rpg.STYLES[st].name if Rpg.STYLES.has(st) else "?", int(c.get("level", 1))]), 15, UiKit.MUTED))
 	# belt bar with stripes
 	var belt_row := HBoxContainer.new()
 	belt_row.add_theme_constant_override("separation", 8)
@@ -174,7 +174,7 @@ func _card(c: Dictionary) -> Control:
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	belt_row.add_child(bar)
 	var stripes := rank % 5
-	belt_row.add_child(_l("%s belt%s" % [belt.name, ("  ·  %d stripe%s" % [stripes, "" if stripes == 1 else "s"]) if stripes > 0 else ""], 14, bc.lightened(0.2) if bc.get_luminance() < 0.3 else bc))
+	belt_row.add_child(_l(Tx.f("%s belt%s", [belt.name, ("  ·  %d stripe%s" % [stripes, "" if stripes == 1 else "s"]) if stripes > 0 else ""]), 14, bc.lightened(0.2) if bc.get_luminance() < 0.3 else bc))
 	var zn: String = str(c.get("zone", "caceres"))
 	v.add_child(_l(Data.ZONES[zn].name if Data.ZONES.has(zn) else zn, 13, UiKit.MUTED))
 	var btns := HBoxContainer.new()

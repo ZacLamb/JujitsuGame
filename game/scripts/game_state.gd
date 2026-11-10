@@ -348,7 +348,7 @@ func add_xp(amount: int) -> void:
 	while stripe_xp >= stripe_cost(rank) and not at_stripe_cap() and rank < 24:
 		stripe_xp -= stripe_cost(rank)
 		rank += 1
-		toast.emit("New stripe! %s" % Data.rank_name(rank), Data.BELTS[belt_index()].color)
+		toast.emit(Tx.f("New stripe! %s", Data.rank_name(rank)), Data.BELTS[belt_index()].color)
 		unlock("first_stripe")
 		_announce_new_moves(rank)
 	if at_stripe_cap():
@@ -364,9 +364,9 @@ func _announce_level(before: int) -> void:
 	if not test_mode:
 		Sfx.play("levelup")
 	var tal := after / Rpg.LEVELS_PER_TALENT_POINT - before / Rpg.LEVELS_PER_TALENT_POINT
-	var txt := "LEVEL %d!  +%d attribute point%s" % [after, after - before, "" if after - before == 1 else "s"]
+	var txt := Tx.f("LEVEL %d!  +%d attribute point%s", [after, after - before, "" if after - before == 1 else "s"])
 	if tal > 0:
-		txt += ", +%d talent point%s" % [tal, "" if tal == 1 else "s"]
+		txt += Tx.f(", +%d talent point%s", [tal, "" if tal == 1 else "s"])
 	toast.emit(txt, Color(0.75, 0.55, 1.0))
 	if before < Specs.UNLOCK_LEVEL and after >= Specs.UNLOCK_LEVEL and spec == "":
 		toast.emit("Specializations unlocked! Open the Journal (J) > Specs to choose your path.", Color(0.8, 0.6, 1.0))
@@ -379,7 +379,7 @@ func promote_belt(to_belt: int) -> void:
 	rank = to_belt * 5
 	stripe_xp = 0
 	var b: Dictionary = Data.BELTS[to_belt]
-	toast.emit("PROMOTED: %s Belt!" % b.name, b.color)
+	toast.emit(Tx.f("PROMOTED: %s Belt!", b.name), b.color)
 	unlock({1: "blue_belt", 2: "purple_belt", 3: "brown_belt", 4: "black_belt"}.get(to_belt, ""))
 	_announce_new_moves(rank)
 	_announce_level(lv_before)
@@ -393,7 +393,7 @@ func promote_to_blue() -> void:
 func _announce_new_moves(r: int) -> void:
 	for id in Data.MOVES:
 		if int(Data.MOVES[id].rank) == r:
-			toast.emit("Technique unlocked: %s" % Data.MOVES[id].name, Color(1, 0.85, 0.4))
+			toast.emit(Tx.f("Technique unlocked: %s", Data.MOVES[id].name), Color(1, 0.85, 0.4))
 
 func knows(move_id: String) -> bool:
 	if Data.MOVES[move_id].has("spec"):
@@ -629,13 +629,13 @@ func give_item(id: String, quiet := false) -> bool:
 	if it.rarity == "legendary":
 		unlock("legendary")
 	if not quiet:
-		toast.emit("LOOT: %s  (%s)" % [it.name, Gear.RARITY[it.rarity].name], Gear.rarity_color(id))
+		toast.emit(Tx.f("LOOT: %s  (%s)", [it.name, Gear.RARITY[it.rarity].name]), Gear.rarity_color(id))
 		Sfx.play("collect")
 	var cur := str(equipped.get(it.slot, ""))
 	if cur == "" or Gear.score(id) > Gear.score(cur):
 		equipped[it.slot] = id
 		if not quiet:
-			toast.emit("Equipped %s" % it.name, Gear.rarity_color(id))
+			toast.emit(Tx.f("Equipped %s", it.name), Gear.rarity_color(id))
 	# a gi jacket from a quest or medal comes with its pants
 	if it.slot == "jacket" and Gear.ITEMS.has(id + "_pants") and not it.has("set"):
 		give_item(id + "_pants", true)
@@ -764,20 +764,20 @@ func capture(tid: String) -> void:
 	var z: String = Data.TERRITORIES[tid].zone
 	if held_in(z) == Data.territories_in(z).size():
 		unlock("zone_owner")
-	toast.emit("%s is yours! +10%% XP in %s while you hold it." % [Data.TERRITORIES[tid].name, Data.ZONES[z].name], Data.YOUR_ACADEMY_COLOR.lightened(0.3))
+	toast.emit(Tx.f("%s is yours! +10%% XP in %s while you hold it.", [Data.TERRITORIES[tid].name, Data.ZONES[z].name]), Data.YOUR_ACADEMY_COLOR.lightened(0.3))
 	save_game()
 	progress_changed.emit()
 
 func defended(tid: String) -> void:
 	territories[tid].attack_at = now() + randi_range(8, 16) * 3600
 	unlock("flag_defended")
-	toast.emit("%s holds! The rivals back off for now." % Data.TERRITORIES[tid].name, Data.YOUR_ACADEMY_COLOR.lightened(0.3))
+	toast.emit(Tx.f("%s holds! The rivals back off for now.", Data.TERRITORIES[tid].name), Data.YOUR_ACADEMY_COLOR.lightened(0.3))
 	save_game()
 	progress_changed.emit()
 
 func lose_territory(tid: String) -> void:
 	territories.erase(tid)
-	toast.emit("%s fell back to %s." % [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy], UiKit.RED)
+	toast.emit(Tx.f("%s fell back to %s.", [Data.TERRITORIES[tid].name, Data.TERRITORIES[tid].academy]), UiKit.RED)
 	save_game()
 	progress_changed.emit()
 
@@ -894,7 +894,7 @@ func complete_drill(k: String) -> bool:
 	add_xp(5)
 	var gained := train_bonus(k) > before
 	if gained:
-		toast.emit("Training paid off: +1 %s" % Rpg.ATTRS[k].name, Color(0.6, 0.9, 1.0))
+		toast.emit(Tx.f("Training paid off: +1 %s", Rpg.ATTRS[k].name), Color(0.6, 0.9, 1.0))
 		if attr(k) >= 12:
 			unlock("peak")
 	save_game()
@@ -985,10 +985,10 @@ func learn(tid: String, choice := 0) -> bool:
 	var nd := TalentTrees.node(tid, spec)
 	if str(nd.get("kind", "")) == "choice":
 		talents[tid] = clampi(choice, 0, 1) + 1
-		toast.emit("Talent: %s" % str(nd.choice[choice].name), Color(0.75, 0.55, 1.0))
+		toast.emit(Tx.f("Talent: %s", str(nd.choice[choice].name)), Color(0.75, 0.55, 1.0))
 	else:
 		talents[tid] = talent_rank(tid) + 1
-		toast.emit("Talent: %s (%d/%d)" % [nd.name, talents[tid], int(nd.max)], Color(0.75, 0.55, 1.0))
+		toast.emit(Tx.f("Talent: %s (%d/%d)", [nd.name, talents[tid], int(nd.max)]), Color(0.75, 0.55, 1.0))
 	bump("talented")
 	if nd.get("capstone", false):
 		unlock("capstone")
@@ -1102,7 +1102,7 @@ func discover_landmark(id: String) -> bool:
 		return false
 	landmarks[id] = true
 	bump({"pantanal": "p_explorer", "chapada": "c_explorer", "rio": "r_explorer", "socal": "s_explorer", "texas": "x_explorer", "everglades": "e_explorer", "sedona": "d_explorer"}.get(Data.LANDMARKS[id].get("zone", "caceres"), "explorer"))
-	toast.emit("Discovered: %s" % Data.LANDMARKS[id].name, Color(0.6, 0.9, 1.0))
+	toast.emit(Tx.f("Discovered: %s", Data.LANDMARKS[id].name), Color(0.6, 0.9, 1.0))
 	save_game()
 	progress_changed.emit()
 	return true
@@ -1159,23 +1159,23 @@ func current_objective() -> String:
 	var zi := road.find(zone)
 	if zi >= 0 and zi < 3 and belt_index() > zi + 1:
 		var best: String = road[3] if rank >= 15 else (road[2] if rank >= 10 else road[1])
-		return "You've outgrown %s. Ride the bus to %s, or hunt quests and medals here." % [Data.ZONES[zone].name, Data.ZONES[best].name]
+		return Tx.f("You've outgrown %s. Ride the bus to %s, or hunt quests and medals here.", [Data.ZONES[zone].name, Data.ZONES[best].name])
 	if zone in ["texas", "everglades", "sedona"]:
 		var zd: Dictionary = Data.ZONES[zone]
 		var nxt: String = road[zi + 1]
 		if rank >= int(Data.ZONES[nxt].rank):
-			return "%s belt! Ride the bus to %s." % [Data.BELTS[belt_index()].name, Data.ZONES[nxt].name]
+			return Tx.f("%s belt! Ride the bus to %s.", [Data.BELTS[belt_index()].name, Data.ZONES[nxt].name])
 		if town_wins(zone) < Data.BOSS_REQUIRED_WINS:
-			return "Win rolls around %s (%d/%d)." % [zd.name, town_wins(zone), Data.BOSS_REQUIRED_WINS]
+			return Tx.f("Win rolls around %s (%d/%d).", [zd.name, town_wins(zone), Data.BOSS_REQUIRED_WINS])
 		var b: Dictionary = Data.OPPONENTS[zd.boss]
-		return "Challenge %s (%s)." % [b.name, b.title]
+		return Tx.f("Challenge %s (%s).", [b.name, b.title])
 	if zone == "socal":
 		if beaten("dale"):
 			if faction() == "usa" and player_level() >= 40:
 				return "Black belt. Fly south to Rio de Janeiro: there's a fifth stamp waiting."
 			return "The Garage is yours. Roll anyone on either continent."
 		if town_wins("socal") < Data.BOSS_REQUIRED_WINS:
-			return "Win rolls around San Diego (%d/%d)." % [town_wins("socal"), Data.BOSS_REQUIRED_WINS]
+			return Tx.f("Win rolls around San Diego (%d/%d).", [town_wins("socal"), Data.BOSS_REQUIRED_WINS])
 		return "Challenge Coach Dale at The Garage."
 	if zone == "rio":
 		if rank >= 20:
@@ -1183,13 +1183,13 @@ func current_objective() -> String:
 				return "Black belt. Fly north to San Diego: there's a fifth stamp waiting."
 			return "Black belt. Oss! Roll anyone, anywhere: the mat is yours."
 		if town_wins("rio") < Data.BOSS_REQUIRED_WINS:
-			return "Win rolls around Rio (%d/%d)." % [town_wins("rio"), Data.BOSS_REQUIRED_WINS]
+			return Tx.f("Win rolls around Rio (%d/%d).", [town_wins("rio"), Data.BOSS_REQUIRED_WINS])
 		return "Challenge Grão-Mestre Leão at his academia."
 	if zone == "chapada":
 		if rank >= 15:
 			return "Brown belt! Ride the bus to Rio de Janeiro."
 		if town_wins("chapada") < Data.BOSS_REQUIRED_WINS:
-			return "Win rolls in the Chapada (%d/%d)." % [town_wins("chapada"), Data.BOSS_REQUIRED_WINS]
+			return Tx.f("Win rolls in the Chapada (%d/%d).", [town_wins("chapada"), Data.BOSS_REQUIRED_WINS])
 		return "Challenge Mestre Cachoeira in the village."
 	if zone == "pantanal":
 		if rank >= 10:
@@ -1197,7 +1197,7 @@ func current_objective() -> String:
 		if not flags.get("met_jacare", false) and town_wins("pantanal") == 0:
 			return "Explore the Pantanal and roll with the locals."
 		if town_wins("pantanal") < Data.BOSS_REQUIRED_WINS:
-			return "Win rolls in the Pantanal (%d/%d)." % [town_wins("pantanal"), Data.BOSS_REQUIRED_WINS]
+			return Tx.f("Win rolls in the Pantanal (%d/%d).", [town_wins("pantanal"), Data.BOSS_REQUIRED_WINS])
 		return "Challenge Mestre Jacaré at the fazenda."
 	if rank >= 5:
 		return "Blue belt! Take the Pantanal gate east of town."
@@ -1206,14 +1206,14 @@ func current_objective() -> String:
 			return "Roll with Rafa in the town plaza."
 		return "Find the academia behind the cathedral."
 	if town_wins("caceres") < Data.BOSS_REQUIRED_WINS:
-		return "Win rolls around town (%d/%d)." % [town_wins("caceres"), Data.BOSS_REQUIRED_WINS]
+		return Tx.f("Win rolls around town (%d/%d).", [town_wins("caceres"), Data.BOSS_REQUIRED_WINS])
 	return "Challenge Mestre Onça at the academia."
 
 func side_objectives() -> Array:
 	var out: Array = []
 	var mc := medal_counts()
 	if mc.gold + mc.silver + mc.bronze > 0:
-		out.append("Competition medals: %d gold, %d silver, %d bronze" % [mc.gold, mc.silver, mc.bronze])
+		out.append(Tx.f("Competition medals: %d gold, %d silver, %d bronze", [mc.gold, mc.silver, mc.bronze]))
 	var z: Dictionary = Data.ZONES[zone]
 	out.append("%s: %d/%d" % [z.collect, collected_count(zone), Data.COLLECTIBLES[zone].size()])
 	var lms := Data.landmarks_in(zone)
@@ -1221,7 +1221,7 @@ func side_objectives() -> Array:
 	for id in lms:
 		if landmarks.has(id):
 			found += 1
-	out.append("Landmarks in %s: %d/%d" % [z.name, found, lms.size()])
+	out.append(Tx.f("Landmarks in %s: %d/%d", [z.name, found, lms.size()]))
 	var total := 0
 	var bt := 0
 	for id in Data.OPPONENTS:
@@ -1229,8 +1229,8 @@ func side_objectives() -> Array:
 			total += 1
 			if beaten(id):
 				bt += 1
-	out.append("Fighters beaten in %s: %d/%d" % [z.name, bt, total])
-	out.append("Drills: %s" % ("ready at the gym" if drills_ready else "roll once to refresh"))
+	out.append(Tx.f("Fighters beaten in %s: %d/%d", [z.name, bt, total]))
+	out.append(Tx.f("Drills: %s", ("ready at the gym" if drills_ready else "roll once to refresh")))
 	return out
 
 func _count_beaten() -> int:
@@ -1353,7 +1353,7 @@ func accept_quest(id: String) -> void:
 	if not quest_available(id):
 		return
 	quests[id] = {"state": "active", "count": {}}
-	toast.emit("Quest accepted: %s" % Data.QUESTS[id].title, Color(1, 0.85, 0.3))
+	toast.emit(Tx.f("Quest accepted: %s", Data.QUESTS[id].title), Color(1, 0.85, 0.3))
 	save_game()
 	progress_changed.emit()
 
@@ -1432,7 +1432,7 @@ func quest_event(kind: String, key := "") -> void:
 			quests[id].count[str(i)] = int(quests[id].count.get(str(i), 0)) + 1
 			changed = true
 			if quest_ready(id) and not was_ready:
-				toast.emit("%s: complete! Return to %s." % [Data.QUESTS[id].title, Data.QUEST_GIVERS[Data.QUESTS[id].giver].name], Color(1, 0.85, 0.3))
+				toast.emit(Tx.f("%s: complete! Return to %s.", [Data.QUESTS[id].title, Data.QUEST_GIVERS[Data.QUESTS[id].giver].name]), Color(1, 0.85, 0.3))
 			quest_progress.emit(id)
 	if changed:
 		save_game()
@@ -1443,7 +1443,7 @@ func complete_quest(id: String) -> int:
 		return 0
 	quests[id].state = "done"
 	var q: Dictionary = Data.QUESTS[id]
-	toast.emit("Quest complete: %s  (+%d XP)" % [q.title, int(q.xp)], Color(1, 0.85, 0.3))
+	toast.emit(Tx.f("Quest complete: %s  (+%d XP)", [q.title, int(q.xp)]), Color(1, 0.85, 0.3))
 	unlock("quest_1")
 	bump("quests_10")
 	bump("quests_all")
@@ -1451,7 +1451,7 @@ func complete_quest(id: String) -> int:
 	give_item(Gear.QUEST_LOOT.get(id, ""))
 	if q.has("stamp") and not stamps.has(str(q.stamp)):
 		stamps.append(str(q.stamp))
-		toast.emit("Passport stamped: %s  (%d/%d)" % [str(q.stamp), stamps.size(), Data.chapters_for(faction()).size()], Color(1, 0.8, 0.25))
+		toast.emit(Tx.f("Passport stamped: %s  (%d/%d)", [str(q.stamp), stamps.size(), Data.chapters_for(faction()).size()]), Color(1, 0.8, 0.25))
 		var conts := {}
 		for ch in Data.CHAPTERS:
 			if stamps.has(str(ch.stamp)):
@@ -1469,18 +1469,18 @@ func story_next() -> Array:
 			if str(q.get("chapter", "")) != ch.id or quest_state(id) == "done":
 				continue
 			var g: Dictionary = Data.QUEST_GIVERS[q.giver]
-			var where := "%s in %s" % [g.name, Data.ZONES[g.zone].name]
+			var where := Tx.f("%s in %s", [g.name, Data.ZONES[g.zone].name])
 			if quest_ready(id):
-				return [ch, "%s: return to %s." % [q.title, where]]
+				return [ch, Tx.f("%s: return to %s.", [q.title, where])]
 			if quest_state(id) == "active":
 				for i in q.obj.size():
 					var pr := objective_progress(id, i)
 					if int(pr[0]) < int(pr[1]):
 						return [ch, "%s: %s (%d/%d)." % [q.title, q.obj[i].text, pr[0], pr[1]]]
 			if quest_available(id):
-				return [ch, "%s: talk to %s." % [q.title, where]]
+				return [ch, Tx.f("%s: talk to %s.", [q.title, where])]
 			if quest_locked_by_level(id):
-				return [ch, "%s: reach level %d, then see %s." % [q.title, int(q.min_level), where]]
+				return [ch, Tx.f("%s: reach level %d, then see %s.", [q.title, int(q.min_level), where])]
 	return [{}, "Your passport is full. Oss! Roll anyone, on either continent."]
 
 ## Gi / No-Gi specialisation. Free the first time; retraining with a master costs R$.
@@ -1489,11 +1489,11 @@ func set_path(p: String) -> bool:
 		return false
 	if path != "":
 		if money < Data.PATH_RETRAIN_COST:
-			toast.emit("Retraining your path costs R$ %d." % Data.PATH_RETRAIN_COST, Color(1, 0.5, 0.4))
+			toast.emit(Tx.f("Retraining your path costs R$ %d.", Data.PATH_RETRAIN_COST), Color(1, 0.5, 0.4))
 			return false
 		money -= Data.PATH_RETRAIN_COST
 	path = p
-	toast.emit("Path chosen: %s. Its techniques come first and hit %d%% harder in its kit." % [Data.PATHS[p].name, int(Data.PATH_MASTERY * 100)], Color(1, 0.85, 0.3))
+	toast.emit(Tx.f("Path chosen: %s. Its techniques come first and hit %d%% harder in its kit.", [Data.PATHS[p].name, int(Data.PATH_MASTERY * 100)]), Color(1, 0.85, 0.3))
 	quest_event("path")
 	save_game()
 	progress_changed.emit()
@@ -1569,7 +1569,7 @@ func award_medal(comp_id: String, belt: int, medal: String) -> int:
 		medals[key] = medal
 	unlock("first_medal")
 	var xp_gain: int = {"gold": 260, "silver": 150, "bronze": 90}.get(medal, 0)
-	add_war({"gold": 20, "silver": 10, "bronze": 5}.get(medal, 0), "%s medal" % medal)
+	add_war({"gold": 20, "silver": 10, "bronze": 5}.get(medal, 0), Tx.f("%s medal", medal))
 	if medal == "gold":
 		unlock("first_gold")
 		give_item("tape_pro")
@@ -1730,7 +1730,7 @@ func use_slot(k: int) -> String:
 		"food":
 			buffs[id] = int(Time.get_unix_time_from_system()) + int(it.mins) * 60
 			_take(k)
-			toast.emit("%s: %s" % [it.name, it.desc], Loot.color(id))
+			toast.emit(Tx.f("%s: %s", [it.name, it.desc]), Loot.color(id))
 		"bag":
 			var free := bags.find("")
 			if free < 0:
@@ -1738,7 +1738,7 @@ func use_slot(k: int) -> String:
 			bags[free] = id
 			_take(k)
 			_fit_bag()
-			toast.emit("Equipped %s (+%d slots)" % [it.name, int(it.slots)], Loot.color(id))
+			toast.emit(Tx.f("Equipped %s (+%d slots)", [it.name, int(it.slots)]), Loot.color(id))
 		"gear":
 			var gid: String = it.gear
 			if has_item(gid):
@@ -1848,7 +1848,7 @@ func add_war(n: int, why := "") -> void:
 	war_mine += n
 	honor += n
 	if why != "":
-		toast.emit("+%d %s war points  (%s)" % [n, str(Origins.faction(faction()).name), why], Origins.faction(faction()).color.lightened(0.3))
+		toast.emit(Tx.f("+%d %s war points  (%s)", [n, str(Origins.faction(faction()).name), why]), Origins.faction(faction()).color.lightened(0.3))
 
 ## A rival faction player's shadow: XP like a strong roll, war points, an achievement.
 func record_rival(result: Dictionary) -> int:
@@ -1879,9 +1879,9 @@ func buy_honor(id: String) -> String:
 	if inventory.has(id):
 		return "You already own it."
 	if player_level() < Gear.HONOR_MIN_LEVEL:
-		return "Reach level %d first." % Gear.HONOR_MIN_LEVEL
+		return Tx.f("Reach level %d first.", Gear.HONOR_MIN_LEVEL)
 	if honor < price:
-		return "Not enough Honor (%d / %d)." % [honor, price]
+		return Tx.f("Not enough Honor (%d / %d).", [honor, price])
 	honor -= price
 	give_item(id)
 	unlock("honor_gear")
@@ -1967,17 +1967,17 @@ func choose_spec(id: String) -> String:
 	if Specs.style_of(id) != style:
 		return "That spec belongs to another class."
 	if not can_choose_spec():
-		return "Specs unlock at level %d." % Specs.UNLOCK_LEVEL
+		return Tx.f("Specs unlock at level %d.", Specs.UNLOCK_LEVEL)
 	if id == spec:
 		return ""
 	var cost := spec_cost(id)
 	if money < cost:
-		return "Changing spec costs R$ %d." % cost
+		return Tx.f("Changing spec costs R$ %d.", cost)
 	money -= cost
 	reset_talents("spec")
 	spec = id
 	var s := Specs.get_spec(id)
-	toast.emit("Specialization: %s. New %s: %s" % [s.name, "ability" if str(s.move) == "" else "technique", Specs.ADVICE_NAME if str(s.move) == "" else str(Data.MOVES[s.move].name)], Color(0.75, 0.55, 1.0))
+	toast.emit(Tx.f("Specialization: %s. New %s: %s", [s.name, "ability" if str(s.move) == "" else "technique", Specs.ADVICE_NAME if str(s.move) == "" else str(Data.MOVES[s.move].name)]), Color(0.75, 0.55, 1.0))
 	save_game()
 	progress_changed.emit()
 	return ""

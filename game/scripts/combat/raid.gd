@@ -138,7 +138,7 @@ func start(world_combat, at: Vector3, lvl: int, raid_kind := "sucuri") -> void:
 		ally_npcs.append(n)
 		wc.unit_for(n)
 		i += 1
-	warning.emit(str(cfg.title), str(cfg.intro) if not dungeon else "Clear the way: %d pulls, then %s." % [cfg.trash.size(), str(cfg.boss)])
+	warning.emit(str(cfg.title), str(cfg.intro) if not dungeon else Tx.f("Clear the way: %d pulls, then %s.", [cfg.trash.size(), str(cfg.boss)]))
 
 func _spawn_boss() -> void:
 	var cl: float = 1.0 + (level - 1) * 0.55 / 2.0
@@ -160,7 +160,7 @@ func _spawn_trash(i: int) -> void:
 	var names: Array = cfg.trash[i]
 	trash_npcs = []
 	for k in names.size():
-		var d := {"name": str(names[k]), "title": "Pull %d" % (i + 1), "level": cl - 0.15, "rank": Game.rank,
+		var d := {"name": str(names[k]), "title": Tx.f("Pull %d", (i + 1)), "level": cl - 0.15, "rank": Game.rank,
 			"style": ["pressure", "guard", "back", "submission"][k % 4], "gi": cfg.add_gi, "skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), randf()),
 			"body": "female" if randf() < 0.3 else "male"}
 		var n := _spawn(d, center + Vector3(-3.0 + k * 3.0, 0, -6))
@@ -168,7 +168,7 @@ func _spawn_trash(i: int) -> void:
 		var u = wc.unit_for(n, "mob")
 		u.max_hp *= 0.8
 		u.hp = u.max_hp
-	warning.emit("PULL %d / %d" % [i + 1, cfg.trash.size()], "Here they come!")
+	warning.emit(Tx.f("PULL %d / %d", [i + 1, cfg.trash.size()]), "Here they come!")
 	# engage on the next frame (allies are spawned after this the first time)
 	_engage_trash.call_deferred()
 
@@ -256,7 +256,7 @@ func _process(delta: float) -> void:
 				_spawn_trash(stage)
 			else:
 				_spawn_boss()
-				warning.emit(str(cfg.boss).to_upper(), str(cfg.intro))
+				warning.emit(Tx.s(str(cfg.boss)).to_upper(), str(cfg.intro))
 				# he walks in and the party goes straight at him
 				wc.core.engage(boss, wc.me)
 				boss.target = wc.me
@@ -369,8 +369,8 @@ func end(won: bool) -> void:
 			Game.bump("dungeons_all")
 		else:
 			Game.add_war(30, "raid")
-		Game.toast.emit("%s cleared! +%d XP, R$ %d" % ["Dungeon" if dungeon else "Raid", xp, (40 + 4 * level) if dungeon else (60 + 6 * level)], Color(1, 0.85, 0.35))
-		Game.toast.emit("Looted: %s" % str(Gear.ITEMS[gear_id].name), Gear.rarity_color(gear_id))
+		Game.toast.emit(Tx.f("%s cleared! +%d XP, R$ %d", ["Dungeon" if dungeon else "Raid", xp, (40 + 4 * level) if dungeon else (60 + 6 * level)]), Color(1, 0.85, 0.35))
+		Game.toast.emit(Tx.f("Looted: %s", str(Gear.ITEMS[gear_id].name)), Gear.rarity_color(gear_id))
 		Game.save_game()
 	for n in ally_npcs + add_npcs + trash_npcs + [boss_npc]:
 		if is_instance_valid(n):

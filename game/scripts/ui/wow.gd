@@ -99,7 +99,7 @@ static func tip_box(edge := TIP_EDGE) -> StyleBoxFlat:
 
 static func label(text: String, size := 15, color := WHITE, wrap := false, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
-	l.text = text
+	l.text = Tx.disp(text)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	if body():
@@ -155,9 +155,10 @@ class Banner extends Control:
 			draw_colored_polygon(pts, Wow.FRAME_HI)
 		var f: Font = Wow.body() if Wow.body() else ThemeDB.fallback_font
 		var fs := 15
-		var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string_outline(f, Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.9))
-		draw_string(f, Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Wow.WHITE)
+		var tt := Tx.s(text)
+		var w := f.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string_outline(f, Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.35), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.9))
+		draw_string(f, Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.35), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Wow.WHITE)
 
 static func banner(text: String) -> Control:
 	return Banner.new(text)

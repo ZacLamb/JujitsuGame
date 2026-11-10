@@ -120,7 +120,7 @@ func _on_msg(d: Dictionary) -> void:
 			status_changed.emit()
 			if zone != "":
 				_send({"t": "zone", "zone": zone})
-			chat.emit({"ch": "sys", "text": "Connected to the live world · %d online. Press Enter to chat, /help for commands." % online})
+			chat.emit({"ch": "sys", "text": Tx.f("Connected to the live world · %d online. Press Enter to chat, /help for commands.", online)})
 		"zone_list":
 			for p in d.get("players", []):
 				joined.emit(int(p.id), p)

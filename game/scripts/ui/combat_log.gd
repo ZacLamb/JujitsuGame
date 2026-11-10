@@ -137,12 +137,12 @@ func add_chat(m: Dictionary) -> void:
 	var body := ""
 	match ch:
 		"say":
-			body = "%s says: %s" % [who, text]
+			body = Tx.f("%s says: %s", [who, text])
 		"whisper":
 			if m.get("echo", false):
-				body = "To %s: %s" % [_esc(str(m.get("to", ""))), text]
+				body = Tx.f("To %s: %s", [_esc(str(m.get("to", ""))), text])
 			else:
-				body = "%s whispers: %s" % [who, text]
+				body = Tx.f("%s whispers: %s", [who, text])
 				Sfx.play("click", -10.0)
 		_:
 			body = "%s%s: %s" % [CH[ch].tag.replace("[", "[lb]"), who, text]
@@ -170,7 +170,7 @@ func close_input() -> void:
 func _set_channel(ch: String) -> void:
 	channel = ch
 	var n: String = CH_NAMES.get(ch, "Say")
-	_chan_lbl.text = ("To %s:" % whisper_to) if ch == "whisper" else n + ":"
+	_chan_lbl.text = (Tx.f("To %s:", whisper_to)) if ch == "whisper" else Tx.s(n) + ":"
 	_chan_lbl.add_theme_color_override("font_color", CH.get(ch, CH.say).color)
 
 ## WoW-style: typing "/z " or "/w name " switches the channel on the spot.
@@ -243,14 +243,14 @@ func _command(t: String) -> void:
 			gm_requested.emit()
 		"/ignore":
 			if rest == "":
-				add_chat({"ch": "sys", "text": "Ignoring: %s" % (", ".join(Net.ignored.keys()) if not Net.ignored.is_empty() else "no one")})
+				add_chat({"ch": "sys", "text": Tx.f("Ignoring: %s", (", ".join(Net.ignored.keys()) if not Net.ignored.is_empty() else "no one"))})
 				return
 			Net.set_ignored(parts[1], true)
-			add_chat({"ch": "sys", "text": "%s is now ignored. /unignore %s to undo." % [parts[1], parts[1]]})
+			add_chat({"ch": "sys", "text": Tx.f("%s is now ignored. /unignore %s to undo.", [parts[1], parts[1]])})
 		"/unignore":
 			if parts.size() > 1:
 				Net.set_ignored(parts[1], false)
-				add_chat({"ch": "sys", "text": "%s is no longer ignored." % parts[1]})
+				add_chat({"ch": "sys", "text": Tx.f("%s is no longer ignored.", parts[1])})
 		"/report":
 			if parts.size() < 2:
 				add_chat({"ch": "sys", "text": "Usage: /report Name reason"})

@@ -93,10 +93,10 @@ func war_sync() -> void:
 func authenticate(mode: String, e: String, pw: String, cb: Callable, optin := false) -> void:
 	_req(HTTPClient.METHOD_POST, "/api/" + mode, {"email": e, "password": pw, "optin": optin}, func(code: int, d: Dictionary):
 		if code != 200:
-			cb.call(str(d.get("error", "Couldn't reach the server (%d)." % code)))
+			cb.call(str(d.get("error", Tx.f("Couldn't reach the server (%d).", code))))
 			return
 		_set_auth(str(d.token), str(d.email))
-		status = "Logged in as %s" % email
+		status = Tx.f("Logged in as %s", email)
 		pull(true)
 		cb.call(""))
 
@@ -121,7 +121,7 @@ func push() -> void:
 			chars[id] = d
 	var body := {"data": {"index": idx, "chars": chars, "at": Time.get_unix_time_from_system()}}
 	_req(HTTPClient.METHOD_PUT, "/api/saves", body, func(code: int, d: Dictionary):
-		status = "Saved to your account" if code == 200 else str(d.get("error", "Cloud save failed (%d)" % code))
+		status = "Saved to your account" if code == 200 else str(d.get("error", Tx.f("Cloud save failed (%d)", code)))
 		changed.emit())
 
 ## Downloads your characters. After an explicit login (merge = true) local-only characters are kept

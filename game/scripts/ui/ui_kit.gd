@@ -72,7 +72,7 @@ static func box(c: Color, radius := 12, border := Color(0, 0, 0, 0), bw := 2) ->
 
 static func label(text: String, size := 22, color := TEXT, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var l := Label.new()
-	l.text = text
+	l.text = Tx.disp(text)
 	l.add_theme_font_size_override("font_size", size)
 	if size >= 30 and head_font():
 		l.add_theme_font_override("font", head_font())

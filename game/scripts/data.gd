@@ -260,8 +260,8 @@ static func rank_name(rank: int) -> String:
 	var s := stripes_of(rank)
 	var b: String = BELTS[belt_of(rank)].name
 	if s == 0:
-		return "%s Belt" % b
-	return "%s Belt, %d stripe%s" % [b, s, "" if s == 1 else "s"]
+		return Tx.f("%s Belt", b)
+	return Tx.f("%s Belt, %d stripe%s", [b, s, "" if s == 1 else "s"])
 
 # Combat level used by the timing formulas.
 static func rank_level(rank: int) -> float:
@@ -286,7 +286,7 @@ static func con_color(opp_lv: int, player_lv: int) -> Color:
 
 static func zone_levels(z: String) -> String:
 	var lv: Array = ZONES[z].levels
-	return "Lv %d–%d" % [lv[0], lv[1]]
+	return Tx.f("Lv %d–%d", [lv[0], lv[1]])
 
 const XP_PER_STRIPE := 100
 
@@ -600,7 +600,7 @@ static func daily_challenge(date_str: String, player_rank: int) -> Dictionary:
 		"gi": [Color(0.95, 0.95, 0.95), Color(0.15, 0.3, 0.75), Color(0.1, 0.1, 0.12)][rng.randi() % 3],
 		"skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), rng.randf()),
 		"style": styles[rng.randi() % styles.size()], "extra": extras, "zone": "",
-		"intro": "Today's challenge: %s. %s" % [DAILY_RULES[rule].name, DAILY_RULES[rule].desc],
+		"intro": Tx.f("Today's challenge: %s. %s", [DAILY_RULES[rule].name, DAILY_RULES[rule].desc]),
 		"win": "Oss. Same time tomorrow?", "lose": "Tomorrow's a new day. Oss."}
 	return {"date": date_str, "rule": rule, "opp": opp}
 
@@ -909,7 +909,7 @@ static func comp_bracket(comp_id: String, player_rank: int, player_name: String,
 			if rng.randf() < 0.12 + 0.1 * belt:
 				extras.append(s)
 		entries.append({"name": nm, "academy": ACADEMIES[rng.randi() % ACADEMIES.size()], "power": rng.randf(),
-			"opp": {"name": nm, "title": "%s Belt" % BELTS[belt].name, "rank": r, "level": 0.0,
+			"opp": {"name": nm, "title": Tx.f("%s Belt", BELTS[belt].name), "rank": r, "level": 0.0,
 				"gi": gis[rng.randi() % gis.size()], "skin": Color(0.96, 0.8, 0.68).lerp(Color(0.36, 0.22, 0.14), rng.randf()),
 				"style": styles[rng.randi() % styles.size()], "extra": extras, "zone": "",
 				"intro": "Oss. Good luck.", "win": "Good match. Go get that medal.", "lose": "Next time, gringo."}})

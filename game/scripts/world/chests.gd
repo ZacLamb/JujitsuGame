@@ -164,9 +164,9 @@ func refresh(id: String) -> void:
 	for sp in world.spots:
 		if sp.action == "chest" and sp.arg == id:
 			if full:
-				sp.label = "Open the %s" % ("golden chest" if c.golden else "hidden chest")
+				sp.label = Tx.f("Open the %s", ("golden chest" if c.golden else "hidden chest"))
 			else:
-				sp.label = "Empty chest  ·  refills in %dh" % ceili(refill_left(id) / 3600.0)
+				sp.label = Tx.f("Empty chest  ·  refills in %dh", ceili(refill_left(id) / 3600.0))
 
 func _process(delta: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0

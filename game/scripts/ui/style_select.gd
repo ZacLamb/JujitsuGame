@@ -91,7 +91,7 @@ func _ready() -> void:
 	left.add_child(Wow.title("ORIGIN", 16, Wow.GOLD))
 	for id in Origins.ORDER:
 		var o: Dictionary = Origins.ORIGINS[id]
-		var b := _choice_btn("%s   ·   %s" % [o.name, o.tag])
+		var b := _choice_btn(Tx.f("%s   ·   %s", [o.name, o.tag]))
 		b.pressed.connect(func(): _pick_origin(id))
 		if barber and id != _origin:
 			b.disabled = true   # origin is who you are: a new origin is a new character
@@ -105,7 +105,7 @@ func _ready() -> void:
 	right.add_child(Wow.title("CLASS", 16, Wow.GOLD))
 	for id in Rpg.STYLE_ORDER:
 		var st: Dictionary = Rpg.STYLES[id]
-		var b := _choice_btn("%s   ·   %s" % [st.name, st.tag])
+		var b := _choice_btn(Tx.f("%s   ·   %s", [st.name, st.tag]))
 		b.pressed.connect(func(): _pick_style(id))
 		if barber and id != _style:
 			b.disabled = true
@@ -290,7 +290,7 @@ func _line(v: VBoxContainer, text: String, col: Color, size := 13) -> void:
 func _pick_faction(fid: String) -> void:
 	_mark(_faction_btns, fid)
 	var fd := Origins.faction(fid)
-	_faction_info.text = "%s  %s" % [str(fd.tag), str(fd.desc)]
+	_faction_info.text = Tx.f("%s  %s", [str(fd.tag), str(fd.desc)])
 	for id in _origin_btns:
 		(_origin_btns[id] as Control).visible = Origins.faction_of(id) == fid
 	if Origins.faction_of(_origin) != fid:
@@ -312,10 +312,10 @@ func _pick_origin(id: String) -> void:
 	_line(_origin_info, str(o.desc), Wow.PALE)
 	var parts: Array = []
 	for k in o.attrs:
-		parts.append("+%d %s" % [int(o.attrs[k]), Rpg.ATTRS[k].name])
+		parts.append(Tx.f("+%d %s", [int(o.attrs[k]), Rpg.ATTRS[k].name]))
 	_line(_origin_info, ", ".join(parts), Color(0.55, 0.85, 1.0))
 	_line(_origin_info, str(o.passive), Wow.GREEN)
-	_line(_origin_info, "Racial [G]: %s. %s" % [str(o.racial.name), str(o.racial.text)], Wow.GOLD)
+	_line(_origin_info, Tx.f("Racial [G]: %s. %s", [str(o.racial.name), str(o.racial.text)]), Wow.GOLD)
 
 func _pick_style(id: String) -> void:
 	_style = id
@@ -329,14 +329,14 @@ func _pick_style(id: String) -> void:
 	var parts: Array = []
 	for k in Rpg.ATTR_ORDER:
 		if st.attrs.has(k):
-			parts.append("+%d %s" % [st.attrs[k], Rpg.ATTRS[k].name])
+			parts.append(Tx.f("+%d %s", [st.attrs[k], Rpg.ATTRS[k].name]))
 	_line(_class_info, ", ".join(parts), Color(0.55, 0.85, 1.0))
 	_line(_class_info, str(st.passive), Wow.GREEN)
 	var sig: Array = []
 	for mid in st.signature:
 		sig.append(Data.MOVES[mid].name)
-	_line(_class_info, "Signature: " + ", ".join(sig), Wow.GOLD)
-	_class_info.add_child(Wow.title("SPECIALIZATIONS (level %d)" % Specs.UNLOCK_LEVEL, 13, Wow.GOLD))
+	_line(_class_info, Tx.s("Signature: ") + ", ".join(sig.map(func(x): return Tx.s(x))), Wow.GOLD)
+	_class_info.add_child(Wow.title(Tx.f("SPECIALIZATIONS (level %d)", Specs.UNLOCK_LEVEL), 13, Wow.GOLD))
 	for sp in Specs.list(id):
 		var ri: Dictionary = ROLE_INFO.get(str(sp.role), ROLE_INFO.finisher)
 		var h := HBoxContainer.new()
@@ -354,7 +354,7 @@ func _pick_style(id: String) -> void:
 				ic.draw_circle(Vector2(15, 15), 13, col.darkened(0.55))
 				CharSheet.draw_glyph(ic, gl, Vector2(15, 15), 15, col))
 		h.add_child(ic)
-		var l := Wow.label("%s  ·  %s (%s)" % [str(sp.name), str(ri.name), str(ri.wow)], 13, col)
+		var l := Wow.label(Tx.f("%s  ·  %s (%s)", [str(sp.name), str(ri.name), str(ri.wow)]), 13, col)
 		h.add_child(l)
 		h.tooltip_text = str(sp.desc)
 		_class_info.add_child(h)
