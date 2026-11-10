@@ -133,7 +133,36 @@ def yucca(name="yucca", seed=69, height=0.38):
     T.finish(name, height)
 
 
+def cypress(name="tree_cypress", seed=81, height=1.45):
+    """Bald cypress: flared, buttressed base, tall straight trunk, a flat open crown of feathery
+    tiers, and grey Spanish moss hanging off the branches (moss uses the bark-light colour slot)."""
+    T.reset()
+    random.seed(seed)
+    moss = bpy.data.materials.new("moss")
+    # buttress: a short wide flare
+    T.trunk([Vector((0, 0, -0.2)), Vector((0, 0, 0.5)), Vector((0, 0, 1.2))], 0.6, 0.22, T.BARK, 9)
+    T.trunk([Vector((0, 0, 1.0)), Vector((0.05, 0, 3.0)), Vector((-0.05, 0.05, 5.0)), Vector((0, 0, 6.0))], 0.22, 0.08, T.BARK, 7)
+    for i in range(7):
+        z = 2.6 + i * 0.5
+        ang = i * 2.3
+        a = Vector((math.cos(ang), math.sin(ang), 0))
+        L = 1.6 - i * 0.12
+        tip = Vector((0, 0, z)) + a * L + Vector((0, 0, 0.25))
+        T.trunk([Vector((0, 0, z)), tip], 0.06, 0.03, T.BARK, 5)
+        T.blob(tip + Vector((0, 0, 0.25)), 0.75 - i * 0.04, seed + i * 3.3, T.LEAF, squash=0.4, detail=1)
+        # moss: a few thin hanging strands under each branch
+        for k in range(3):
+            p = Vector((0, 0, z)) + a * (L * (0.4 + 0.25 * k))
+            bpy.ops.mesh.primitive_cone_add(radius1=0.12, radius2=0.02, depth=0.9 + random.uniform(0, 0.5), location=p - Vector((0, 0, 0.45)), vertices=5, rotation=(math.pi, 0, 0))
+            bpy.context.object.data.materials.append(moss)
+    T.blob(Vector((0, 0, 6.1)), 0.8, seed + 40, T.LEAF, squash=0.45, detail=1)
+    T.finish(name, height)
+
+
 if __name__ == "__main__":
     T.OUT = "/home/claude/tatame/assets/models"
-    for f in (liveoak, mesquite, cedar, prickly_pear, yucca):
+    want = sys.argv[1:]
+    for f in (liveoak, mesquite, cedar, prickly_pear, yucca, cypress):
+        if want and f.__name__ not in want:
+            continue
         f()

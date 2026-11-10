@@ -97,3 +97,15 @@ n5 = tnoise(8, 5, 11)
 peb = tnoise(60, 1, 12)
 v = 0.8 + 0.12 * n5 - 0.15 * (peb > 0.8)
 save("caliche", np.stack([v * 0.9, v * 0.83, v * 0.7], -1))
+
+# thatch (palmetto fronds on a chickee roof): long overlapping straw strands in rows
+n6 = tnoise(4, 4, 13)
+strands = tnoise(90, 1, 14)
+rows = (y % 48) / 48.0
+v = 0.62 + 0.25 * strands - 0.25 * (rows > 0.85) + 0.08 * n6
+save("thatch", np.stack([v * 0.78, v * 0.66, v * 0.42], -1))
+
+# stucco: soft, lumpy plaster (tinted per building in game)
+n7 = tnoise(10, 5, 15)
+v = 0.88 + 0.08 * n7
+save("stucco", np.stack([v, v * 0.98, v * 0.95], -1))

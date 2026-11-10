@@ -62,6 +62,12 @@ static func _mat(kind: String) -> Material:
 			m.set_shader_parameter("tex", EnvShaders.env_tex("brick")); m.set_shader_parameter("scale", 0.32)
 		"stone":
 			m.set_shader_parameter("tex", EnvShaders.env_tex("limestone")); m.set_shader_parameter("scale", 0.22)
+		"stucco":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("stucco")); m.set_shader_parameter("tint", 1); m.set_shader_parameter("scale", 0.3)
+		"tile":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("roof")); m.set_shader_parameter("scale", 0.55)
+		"thatch":
+			m.set_shader_parameter("tex", EnvShaders.env_tex("thatch")); m.set_shader_parameter("scale", 0.45)
 		"tin":
 			m.set_shader_parameter("tex", EnvShaders.env_tex("tin")); m.set_shader_parameter("scale", 0.5); m.set_shader_parameter("rough", 0.55)
 		"glass":
@@ -94,7 +100,7 @@ static func mesh(kind: String) -> ArrayMesh:
 			nm = sm.resource_name
 		if src.get_surface_override_material(i):
 			nm = src.get_surface_override_material(i).resource_name
-		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron", "siding", "brick", "stone", "tin"] else "trim"))
+		m.surface_set_material(i, _mat(nm if nm in ["wall", "base", "trim", "roof", "wood", "glass", "iron", "siding", "brick", "stone", "tin", "stucco", "tile", "thatch"] else "trim"))
 	sc.free()
 	_meshes[kind] = m
 	return m

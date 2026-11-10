@@ -17,7 +17,7 @@ func _ready() -> void:
 		main.hud._close_dialogue(false)
 	print("zone=", main.world.zone, " money=", Game.money, " flight=", Game.unlocked.has("flight"), " mobs=", main.world.mobs.size(), " obj=", Game.current_objective())
 	var p: Player = main.player
-	var views := [["arrive", Vector3(-82, 0, 6), PI / 2, 9.0], ["boardwalk", Vector3(10, 0, 22), 0.6, 14.0], ["garage", Vector3(-18, 0, -20), 0.0, 12.0], ["cliffs", Vector3(-60, 0, 30), -0.8, 12.0], ["tacos", Vector3(30, 0, 4), 0.0, 11.0]]
+	var views := [["town", Vector3(-20, 0, 21), 0.0, 13.0], ["town2", Vector3(10, 0, 20), 0.5, 12.0], ["arrive", Vector3(-82, 0, 6), PI / 2, 9.0], ["boardwalk", Vector3(10, 0, 22), 0.6, 14.0], ["garage", Vector3(-18, 0, -20), 0.0, 12.0], ["cliffs", Vector3(-60, 0, 30), -0.8, 12.0], ["tacos", Vector3(30, 0, 4), 0.0, 11.0]]
 	for v in views:
 		p.teleport(Vector3(v[1].x, main.world.ground_y(v[1].x, v[1].z) + 0.3, v[1].z), 0.0)
 		p.cam_yaw = v[2]

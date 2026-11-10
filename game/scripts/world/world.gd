@@ -862,7 +862,7 @@ func _mango_tree(p: Vector3, s := 1.0, model := "tree_fat", tint := Color(0.18, 
 
 func _build_trees() -> void:
 	# CC0 models (Kenney Nature Kit), batched with MultiMesh to stay cheap on phones.
-	var xf := {"palm": [], "oak": [], "fat": [], "ipe": [], "liveoak": [], "cedar": [], "mesquite": []}
+	var xf := {"palm": [], "oak": [], "fat": [], "ipe": [], "liveoak": [], "cedar": [], "mesquite": [], "cypress": []}
 	var west := zone in ["texas", "sedona"]   # Hill Country / high desert: live oaks, cedars, mesquite
 	var placed := 0
 	var tries := 0
@@ -884,7 +884,22 @@ func _build_trees() -> void:
 			if absf(ground_y(x, z + 2.0) - gy) > 1.2 or absf(ground_y(x + 2.0, z) - gy) > 1.2 or gy < -0.3:
 				continue
 			d = 40.0
-		if zone == "pantanal" or zone == "everglades":
+		if zone == "everglades":
+			# cypress domes stand right in the water; palms and oaks only on dry ground
+			if gy < -0.85:
+				continue
+			var cb := Basis(Vector3.UP, _rng.randf() * TAU)
+			var r := _rng.randf()
+			var s := _rng.randf_range(0.8, 1.3)
+			if gy < -0.1 or r < 0.45:
+				xf.cypress.append(Transform3D(cb.scaled(Vector3.ONE * 5.4 * s), Vector3(x, gy - 0.1, z)))
+			elif r < 0.8:
+				xf.palm.append(Transform3D(cb.scaled(Vector3.ONE * 5.0 * s), Vector3(x, gy, z)))
+			else:
+				xf.liveoak.append(Transform3D(cb.scaled(Vector3.ONE * 4.4 * s), Vector3(x, gy, z)))
+			placed += 1
+			continue
+		if zone == "pantanal":
 			if gy < -0.15:
 				continue
 			d = 18.0 if _rng.randf() < (0.45 if zone == "pantanal" else 0.3) else 40.0  # carandá / cabbage palms
@@ -925,6 +940,18 @@ func _build_trees() -> void:
 					xf.mesquite.append(Transform3D(b.scaled(Vector3.ONE * 4.4 * s), base))
 			placed += 1
 			continue
+		if zone == "socal":
+			# coastal California: fan palms, coast live oaks, chaparral scrub trees, a few jacarandas
+			if kind < 0.35:
+				xf.palm.append(Transform3D(b.scaled(Vector3.ONE * 6.0 * s), base))
+			elif kind < 0.65:
+				xf.liveoak.append(Transform3D(b.scaled(Vector3.ONE * 4.2 * s), base))
+			elif kind < 0.88:
+				xf.mesquite.append(Transform3D(b.scaled(Vector3.ONE * 3.8 * s), base))
+			else:
+				xf.ipe.append(Transform3D(b.scaled(Vector3.ONE * 4.4 * s), base))
+			placed += 1
+			continue
 		if d < 22.0 or kind < 0.25:
 			xf.palm.append(Transform3D(b.scaled(Vector3.ONE * 5.4 * s), base))
 		elif kind > 0.85:
@@ -943,6 +970,13 @@ func _build_trees() -> void:
 		_mm("tree_mesquite", xf.mesquite, Color(0.4, 0.5, 0.24))
 		_west_flora()
 		return
+	if zone == "socal":
+		ipe_col = Color(0.58, 0.45, 0.85)   # jacaranda
+		_mm("tree_liveoak", xf.liveoak, Color(0.28, 0.38, 0.2))
+		_mm("tree_mesquite", xf.mesquite, Color(0.42, 0.46, 0.3))
+	if zone == "everglades":
+		_mm("tree_cypress", xf.cypress, Color(0.34, 0.44, 0.22))
+		_mm("tree_liveoak", xf.liveoak, Color(0.22, 0.36, 0.16))
 	_mm("tree_palm", xf.palm)
 	_mm("tree_oak", xf.oak)
 	_mm("tree_fat", xf.fat, Color(0.2, 0.42, 0.18))
@@ -981,7 +1015,7 @@ const PALETTE := {
 	"grass": Color(0.27, 0.47, 0.18), "leafsGreen": Color(0.24, 0.5, 0.2), "leafs": Color(0.24, 0.5, 0.2),
 	"woodBark": Color(0.42, 0.3, 0.2), "woodInner": Color(0.78, 0.66, 0.5), "dirt": Color(0.46, 0.37, 0.28),
 	"rock": Color(0.56, 0.53, 0.49), "rockTrack": Color(0.5, 0.47, 0.44), "stone": Color(0.56, 0.53, 0.49),
-	"crystal": Color(0.78, 0.68, 0.98), "colorRed": Color(0.86, 0.2, 0.24), "colorYellow": Color(0.98, 0.82, 0.2),
+	"crystal": Color(0.78, 0.68, 0.98), "moss": Color(0.5, 0.54, 0.46), "colorRed": Color(0.86, 0.2, 0.24), "colorYellow": Color(0.98, 0.82, 0.2),
 }
 
 ## Rock colour per zone (Hill Country limestone, red Sedona sandstone).
@@ -1265,6 +1299,9 @@ func _build_props() -> void:
 	if zone == "chapada":
 		want.rock_small = 110
 		want.rock_large = 60
+	if zone == "everglades":
+		want.bush = 70          # saw palmetto scrub
+		want.bush_large = 30
 	if zone in ["texas", "sedona"]:
 		want.bush = 50          # scrub, not jungle: the cactus, yucca and cedars do the rest
 		want.bush_large = 18
@@ -1291,7 +1328,7 @@ func _build_props() -> void:
 			var sc: float = scale_of[k] * _rng.randf_range(0.8, 1.25)
 			lists[k].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * sc), Vector3(x, gy - 0.05, z)))
 			n += 1
-	var scrub := Color(0.4, 0.44, 0.22) if zone in ["texas", "sedona"] else Color(0, 0, 0, 0)
+	var scrub := Color(0.4, 0.44, 0.22) if zone in ["texas", "sedona", "socal"] else (Color(0.2, 0.34, 0.16) if zone == "everglades" else Color(0, 0, 0, 0))
 	for k in lists:
 		_mm(k, lists[k], scrub if k.begins_with("bush") else Color(0, 0, 0, 0), k.begins_with("rock") or k == "log")
 	# big rocks get collision
@@ -3221,32 +3258,31 @@ func _s_boardwalk() -> void:
 
 ## Beach bungalows and a few two-storey shops between the hills and the highway.
 func _s_town() -> void:
+	# beach bungalows, Spanish-revival shops and a surf shop facing the ocean (tools/westbuild/coastal.py)
 	var cols := [Color(0.96, 0.94, 0.88), Color(0.62, 0.8, 0.86), Color(0.98, 0.84, 0.66), Color(0.86, 0.92, 0.84), Color(0.95, 0.7, 0.6), Color(0.78, 0.84, 0.96)]
-	var x := -60.0
+	var stucco := [Color(0.97, 0.95, 0.9), Color(0.96, 0.88, 0.76), Color(0.93, 0.8, 0.72), Color(0.95, 0.93, 0.85)]
+	var wood := [Color(0.35, 0.5, 0.6), Color(0.45, 0.32, 0.22), Color(0.3, 0.55, 0.5), Color(0.42, 0.36, 0.3)]
+	var pool := ["sd_bungalow", "sd_spanish", "sd_bungalow", "sd_spanish_house", "sd_surfshop", "sd_bungalow", "sd_spanish", "sd_spanish_house"]
+	var items: Array = []
+	var x := -58.0
 	var i := 0
-	while x < 36.0:
-		var w := _rng.randf_range(6.5, 8.0)
-		var two := i % 3 == 1
-		var hh := 6.4 if two else 3.4
-		var gy := ground_y(x, 11.0)
-		var col: Color = cols[i % cols.size()]
-		_box(Vector3(w, hh, 7), Vector3(x, gy + hh / 2.0, 11.0), col)
-		# flat roof lip + windows facing the ocean
-		_box(Vector3(w + 0.4, 0.3, 7.4), Vector3(x, gy + hh + 0.15, 11.0), col.darkened(0.2), false)
-		_box(Vector3(w * 0.7, 1.2, 0.1), Vector3(x, gy + 1.9, 14.55), Color(0.2, 0.32, 0.42), false)
-		if two:
-			_box(Vector3(w * 0.7, 1.2, 0.1), Vector3(x, gy + 4.9, 14.55), Color(0.2, 0.32, 0.42), false)
-			_box(Vector3(w + 0.3, 0.7, 1.4), Vector3(x, gy + 3.3, 15.2), [Color(0.2, 0.55, 0.6), Color(0.9, 0.35, 0.3), Color(0.95, 0.8, 0.25)][i % 3], false)
-		else:
-			_box(Vector3(1.0, 1.9, 0.1), Vector3(x + w * 0.3, gy + 0.95, 14.55), Color(0.4, 0.28, 0.18), false)
-		# a picket fence + surfboard leaning on every other bungalow
-		if not two and i % 2 == 0:
-			var sb := _box(Vector3(0.55, 2.2, 0.1), Vector3(x - w * 0.35, gy + 1.1, 14.9), cols[(i + 2) % cols.size()], false)
-			sb.rotation.x = -0.2
-		x += w + _rng.randf_range(1.6, 3.0)
+	while x < 34.0:
+		var kind: String = pool[i % pool.size()]
+		var ab := TownKit.mesh(kind).get_aabb()
+		var w := ab.size.x
+		if x + w > 34.0:
+			break   # leave the east end open (fighters stand there)
+		x += w * 0.5
+		var zc := 15.2 - ab.end.z
+		var pal: Array = cols if kind == "sd_bungalow" else stucco
+		_town_building(items, Vector3(x, 0, zc), Vector3(0, 0, 1), pal, kind, 0.0, wood)
+		if kind == "sd_surfshop":
+			_label("SURF SHOP", Vector3(x, ground_y(x, zc) + 4.75, zc + 4.2), 64, Color(0.1, 0.45, 0.6))
+		x += w * 0.5 + _rng.randf_range(1.6, 3.0)
 		if i % 4 == 3:
 			x += 6.0   # side street up to the hills
 		i += 1
+	TownKit.build(self, items)
 	_label("OCEAN BEACH", Vector3(-20, ground_y(-20, 16) + 8.5, 16), 100, Color(1, 0.92, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _s_beach() -> void:
@@ -3261,16 +3297,12 @@ func _s_beach() -> void:
 		_cyl(0.0, 1.35, 0.5, Vector3(x, gy + 2.2, z), cols[i % cols.size()], 10)
 		if i % 3 == 0:
 			_box(Vector3(0.8, 0.05, 1.8), Vector3(x + 1.2, gy + 0.05, z + 0.3), cols[(i + 2) % cols.size()], false, _rng.randf())
-	# lifeguard tower (Kim's post)
-	var t := Vector3(37, ground_y(37, 40), 40)
-	for sx in [-1.0, 1.0]:
-		for sz in [-1.0, 1.0]:
-			_cyl(0.08, 0.08, 2.4, t + Vector3(sx, 1.2, sz), Color(0.92, 0.92, 0.9), 6)
-	_box(Vector3(2.8, 1.8, 2.6), t + Vector3(0, 3.3, 0), Color(0.3, 0.62, 0.82))
-	_box(Vector3(3.2, 0.2, 3.0), t + Vector3(0, 4.3, 0), Color(0.95, 0.95, 0.92), false)
-	var ramp := _box(Vector3(1.0, 0.12, 3.4), t + Vector3(0, 1.2, -2.6), Color(0.85, 0.8, 0.7), false)
-	ramp.rotation.x = -0.75
-	_label("LIFEGUARD", t + Vector3(0, 3.3, 1.35), 50, Color(1, 0.3, 0.25))
+	# lifeguard towers (Kim's post is the one by the pier)
+	var towers: Array = []
+	for p in [Vector3(37, 0, 40), Vector3(-30, 0, 41), Vector3(80, 0, 42)]:
+		_town_building(towers, p, Vector3(0, 0, 1), [Color(0.3, 0.62, 0.82)], "sd_lifeguard", 0.0, [Color(0.85, 0.8, 0.7)])
+	TownKit.build(self, towers)
+	_label("LIFEGUARD", Vector3(37, ground_y(37, 40) + 3.95, 40 + 1.0), 44, Color(1, 0.3, 0.25))
 	# Tyler's sand mats + surf rack
 	_box(Vector3(6, 0.12, 6), Vector3(22, ground_y(22, 42) + 0.06, 42), Color(0.12, 0.2, 0.45), false)
 	_animal("crab", Vector3(-20, ground_y(-20, 52), 52), 0.4, 0.3)
@@ -3761,19 +3793,12 @@ func _gl_dock() -> void:
 		_box(Vector3(3.0, 0.25, 2.2), Vector3(c.x, 0.1, c.z - 2.0 - k * 2.2), Color(0.5, 0.4, 0.3))
 		for sx in [-1.4, 1.4]:
 			_cyl(0.12, 0.12, 1.6, Vector3(c.x + sx, -0.6, c.z - 2.0 - k * 2.2), Color(0.35, 0.28, 0.2), 6)
-	for k in 2:
-		var b := Vector3(c.x + (-3.5 if k == 0 else 3.5), -0.2, c.z - 6.0 - k * 3.0)
-		_box(Vector3(2.0, 0.4, 4.2), b, Color(0.85, 0.85, 0.82), false)
-		var ring := MeshInstance3D.new()
-		var tm := TorusMesh.new()
-		tm.inner_radius = 0.9
-		tm.outer_radius = 1.05
-		ring.mesh = tm
-		ring.material_override = _mat(Color(0.2, 0.2, 0.22))
-		ring.position = b + Vector3(0, 1.3, 2.0)
-		ring.rotation.x = PI / 2
-		add_child(ring)
-		_box(Vector3(0.6, 1.0, 0.6), b + Vector3(0, 0.7, 0.6), Color(0.3, 0.3, 0.32), false)
+	var boats: Array = []
+	for k in 3:
+		var b := Vector3(c.x + (-3.6 if k % 2 == 0 else 3.6), -0.42, c.z - 4.0 - k * 3.4)
+		boats.append({"kind": "gl_airboat", "xform": Transform3D(Basis(Vector3.UP, PI + (k - 1) * 0.08), b), "wall": Color.WHITE,
+			"wood": [Color(0.75, 0.2, 0.15), Color(0.2, 0.45, 0.7), Color(0.9, 0.75, 0.2)][k]})
+	TownKit.build(self, boats)
 	_label("AIRBOAT TOURS", c + Vector3(0, 3.0, 1.0), 70, Color(1, 0.9, 0.5)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 ## The Gold Compound: Gunnar Sterling's gated training camp in the swamp (raid entrance).
@@ -3789,28 +3814,22 @@ func _gl_compound() -> void:
 
 func _gl_fishcamp() -> void:
 	var c := Vector3(-40, ground_y(-40, 26), 26)
-	var cols := [Color(0.55, 0.68, 0.7), Color(0.85, 0.82, 0.7), Color(0.6, 0.45, 0.35)]
+	var items: Array = []
+	var cols := [Color(0.55, 0.68, 0.7), Color(0.85, 0.82, 0.7), Color(0.62, 0.74, 0.62)]
 	for k in 3:
-		var p := c + Vector3(-8 + k * 8, 0, -6 + (k % 2) * 10)
-		for sx in [-1.3, 1.3]:
-			for sz in [-1.3, 1.3]:
-				_cyl(0.12, 0.12, 1.4, p + Vector3(sx, 0.7, sz), Color(0.35, 0.28, 0.2), 6)
-		_box(Vector3(3.4, 2.6, 3.4), p + Vector3(0, 2.7, 0), cols[k])
-		var rf := _box(Vector3(4.0, 0.15, 4.0), p + Vector3(0, 4.1, 0), Color(0.45, 0.47, 0.5), false)
-		rf.rotation.x = 0.12
+		var p := c + Vector3(-9 + k * 9, 0, -7 + (k % 2) * 12)
+		_town_building(items, p, Vector3(0, 0, 1) if k % 2 == 0 else Vector3(0, 0, -1), [cols[k]], "gl_shack", 0.0, [Color(0.4, 0.3, 0.22)])
+	_town_building(items, c + Vector3(9, 0, 9), Vector3(-1, 0, 0), [Color.WHITE], "gl_chickee", 0.0, [Color(0.4, 0.3, 0.22)])
+	TownKit.build(self, items)
 	_place_model("campfire", c + Vector3(0, 0, 2), 3.0)
-	_place_model("tent", c + Vector3(8, 0, 8), 4.0, 0.6, Vector3(3.0, 2.2, 2.6))
-	_label("FISH CAMP", c + Vector3(0, 5.2, 0), 80, Color(1, 0.9, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label("FISH CAMP", c + Vector3(0, 6.2, 0), 80, Color(1, 0.9, 0.6)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _gl_ranger() -> void:
 	var c := Vector3(-18, ground_y(-18, -50), -50)
-	for sx in [-2.0, 2.0]:
-		for sz in [-2.0, 2.0]:
-			_cyl(0.15, 0.15, 2.4, c + Vector3(sx, 1.2, sz), Color(0.4, 0.32, 0.22), 6)
-	_box(Vector3(5, 3, 5), c + Vector3(0, 3.9, 0), Color(0.42, 0.5, 0.36))
-	_box(Vector3(5.8, 0.3, 5.8), c + Vector3(0, 5.5, 0), Color(0.35, 0.28, 0.2), false)
-	_box(Vector3(1.2, 0.15, 4.0), c + Vector3(0, 1.3, 4.0), Color(0.45, 0.35, 0.25), false).rotation.x = 0.55
-	_label("RANGER STATION", c + Vector3(0, 6.4, 0), 70, Color(0.85, 1, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	var items: Array = []
+	_town_building(items, Vector3(-18, 0, -50), Vector3(0, 0, 1), [Color(0.45, 0.55, 0.4)], "gl_ranger", 0.0, [Color(0.35, 0.26, 0.18)])
+	TownKit.build(self, items)
+	_label("RANGER STATION", c + Vector3(0, 7.0, -1), 70, Color(0.85, 1, 0.75)).billboard = BaseMaterial3D.BILLBOARD_ENABLED
 
 func _gl_hammock() -> void:
 	var c := Vector2(10, 20)
@@ -3820,7 +3839,13 @@ func _gl_hammock() -> void:
 		var r := _rng.randf_range(2.0, 9.0)
 		var p := Vector3(c.x + cos(a) * r, 0, c.y + sin(a) * r)
 		xf.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(5.0, 6.5)), Vector3(p.x, ground_y(p.x, p.z), p.z)))
-	_mm("tree_fat", xf, Color(0.18, 0.32, 0.14))
+	_mm("tree_liveoak", xf, Color(0.2, 0.34, 0.15))
+	# chickees along the trail, Miccosukee-style rest stops
+	var items: Array = []
+	for p in [Vector3(-60, 0, 6), Vector3(22, 0, 6), Vector3(70, 0, -14)]:
+		if not _is_blocked(p.x, p.z, 2.0):
+			_town_building(items, p, Vector3(0, 0, -1), [Color.WHITE], "gl_chickee", 0.0, [Color(0.4, 0.3, 0.22)])
+	TownKit.build(self, items)
 
 # ---------------------------------------------------------------- Red Rock, Sedona (Lv 21-30)
 const SD_GYM := Vector2(46, -6)
