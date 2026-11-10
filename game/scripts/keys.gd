@@ -12,7 +12,7 @@ const LIST := [
 	["ab_5", "Move 6"], ["ab_6", "Move 7"], ["ab_7", "Move 8"], ["ab_8", "Move 9"], ["ab_9", "Move 10"],
 	["ab_base", "Sprawl / Base"], ["ab_frame", "Frame"], ["ab_defend", "Defend"], ["ab_breathe", "Breathe"], ["ab_racial", "Origin racial"],
 	["character", "Character"], ["talents", "Talents"], ["spellbook", "Moves"], ["bags", "Bags"], ["journal", "Quest log"],
-	["map", "World map"], ["finder", "Group finder"], ["arena", "Ranked arena"], ["fullscreen", "Full screen"],
+	["map", "World map"], ["finder", "Group finder"], ["arena", "Ranked arena"], ["academy", "Academy"], ["fullscreen", "Full screen"],
 ]
 ## Fight-pad directions follow the movement keys.
 const MIRROR := {"move_forward": "dir_up", "move_back": "dir_down", "move_left": "dir_left", "move_right": "dir_right"}

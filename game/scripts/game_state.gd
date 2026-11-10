@@ -49,6 +49,7 @@ var train := {}            # attribute -> drill successes
 var drills_ready := true   # drills refresh after every roll
 var daily := {}            # {"last_win": date, "last_try": date, "streak": n, "best": n}
 var login := {}            # Mat Days: {"last": date, "streak": n, "best": n}
+var academy := {}          # your academy (player guild) as the server last reported it: {id, name, tag}
 var money := 0           # Reais (R$)
 var honor := 0           # faction war currency: earned with war points, spent at your faction's quartermaster
 var bag: Array = []       # slot -> {"id": item id, "n": count} or null; size = bag_capacity()
@@ -211,6 +212,7 @@ func reset_state() -> void:
 	drills_ready = true
 	daily = {}
 	login = {}
+	academy = {}
 	medals = {}
 	quests = {}
 	path = ""
@@ -243,7 +245,7 @@ func save_game() -> void:
 		"unlocked": unlocked, "counters": counters, "landmarks": landmarks,
 		"cups": cups, "flags": flags, "name": player_name,
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
-		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "login": login, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
+		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "login": login, "academy": academy, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
@@ -288,6 +290,7 @@ func load_game() -> void:
 	drills_ready = bool(parsed.get("drills_ready", true))
 	daily = parsed.get("daily", {})
 	login = parsed.get("login", {})
+	academy = parsed.get("academy", {})
 	medals = parsed.get("medals", {})
 	quests = parsed.get("quests", {})
 	path = str(parsed.get("path", ""))
@@ -1989,10 +1992,14 @@ func record_pvp(won: bool, cross: bool) -> int:
 func war_spoils() -> bool:
 	return str(war.get("last", {}).get("winner", "")) == faction()
 
+const ACADEMY_XP := 0.05   # training with an academy: +5% XP
+
 func xp_mult() -> float:
 	var x := 1.0 + float(Origins.get_origin(origin).mods.get("xp_bonus", 0.0))
 	if war_spoils():
 		x += WAR_SPOILS
+	if not academy.is_empty():
+		x += ACADEMY_XP
 	for id in active_buffs():
 		x += float(Loot.item(id).get("effect", {}).get("xp", 0.0))
 	return x

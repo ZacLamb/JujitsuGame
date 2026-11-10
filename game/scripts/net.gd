@@ -117,6 +117,7 @@ func _on_msg(d: Dictionary) -> void:
 			my_id = int(d.id)
 			online = int(d.get("online", 1))
 			gm = bool(d.get("gm", false))
+			_set_academy(d.get("academy"))
 			connected = true
 			_backoff = 2.0
 			status_changed.emit()
@@ -153,12 +154,26 @@ func _on_msg(d: Dictionary) -> void:
 		"party":
 			if d.get("d") is Dictionary:
 				party_msg.emit(int(d.get("from", 0)), d.d, str(d.get("zone", "")))
+		"academy":
+			_set_academy(d.get("academy"))
+			Cloud.academy_call("")   # refresh the roster / window
 		"gm_list":
 			gm_data.emit("list", d)
 		"gm_reports":
 			gm_data.emit("reports", d)
 		"gm_goto":
 			gm_data.emit("goto", d)
+
+## The server says which academy you're in (on connect, and when you join / leave / get removed).
+func _set_academy(a) -> void:
+	var now := {}
+	if a is Dictionary:
+		now = {"id": int(a.get("id", 0)), "tag": str(a.get("tag", "")), "name": str(Game.academy.get("name", ""))}
+	if int(now.get("id", 0)) != int(Game.academy.get("id", 0)):
+		if now.is_empty() and not Game.academy.is_empty():
+			chat.emit({"ch": "sys", "text": Tx.f("You are no longer in %s.", str(Game.academy.get("name", "your academy")))})
+		Game.academy = now
+		Game.save_game()
 
 func _send(m: Dictionary) -> void:
 	if ws and ws.get_ready_state() == WebSocketPeer.STATE_OPEN:

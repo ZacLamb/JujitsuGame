@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const world = require('./world');
+const { clean } = world;
 const isGmEmail = (e) => (process.env.GM_EMAILS || '').split(',').map((x) => x.trim().toLowerCase()).includes(String(e || '').toLowerCase());
 
 const app = express();
@@ -63,6 +64,30 @@ async function migrate() {
       char JSONB, claimed BOOLEAN NOT NULL DEFAULT false,
       updated_at TIMESTAMPTZ DEFAULT now(),
       PRIMARY KEY (week, player_id)
+    );
+    CREATE TABLE IF NOT EXISTS academies (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      motto TEXT NOT NULL DEFAULT '',
+      faction TEXT NOT NULL,
+      leader_id INT REFERENCES players(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS academies_name ON academies (lower(name));
+    CREATE UNIQUE INDEX IF NOT EXISTS academies_tag ON academies (lower(tag));
+    CREATE TABLE IF NOT EXISTS academy_members (
+      player_id INT PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+      academy_id INT NOT NULL REFERENCES academies(id) ON DELETE CASCADE,
+      name TEXT, style TEXT, level INT NOT NULL DEFAULT 1,
+      rank TEXT NOT NULL DEFAULT 'student',
+      joined_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS academy_points (
+      week TEXT NOT NULL,
+      academy_id INT NOT NULL REFERENCES academies(id) ON DELETE CASCADE,
+      points INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (week, academy_id)
     );
     CREATE TABLE IF NOT EXISTS gm_log (
       id SERIAL PRIMARY KEY,
@@ -269,6 +294,11 @@ app.post('/api/war', needDb, auth, async (req, res) => {
          ON CONFLICT (week, player_id, faction) DO UPDATE SET points = war.points + EXCLUDED.points, name = EXCLUDED.name`,
         [week, req.player.id, faction, name, pts]);
       warCache = null;
+      await pool.query(
+        `INSERT INTO academy_points (week, academy_id, points)
+         SELECT $1, academy_id, $3 FROM academy_members WHERE player_id = $2
+         ON CONFLICT (week, academy_id) DO UPDATE SET points = academy_points.points + EXCLUDED.points`,
+        [week, req.player.id, pts]).catch((e) => console.error('academy points', e.message));
     }
     const mine = await pool.query('SELECT COALESCE(SUM(points),0)::int AS p FROM war WHERE week = $1 AND player_id = $2', [week, req.player.id]);
     res.json({ ok: true, added: pts, mine: mine.rows[0].p, war: await warState() });
@@ -277,6 +307,134 @@ app.post('/api/war', needDb, auth, async (req, res) => {
     res.status(500).json({ error: 'Something went wrong.' });
   }
 });
+
+// ------------------------------------------------------------------ academies (player guilds)
+// One academy per account, one side of the war (Brasil / USA). Founder = leader; the leader can
+// make members professors (who can remove students). Members' faction-war points also count for
+// the academy's weekly total. The live world shows <TAG> on name plates and runs /a chat.
+const ACADEMY_MAX = 50;
+const ACADEMY_COST = 250;   // R$, charged by the game client once the server says yes
+const okAcademyName = (n) => typeof n === 'string' && /^[\p{L}\p{N} '&.-]{3,28}$/u.test(n.trim());
+const okTag = (t) => typeof t === 'string' && /^[A-Za-z0-9]{2,4}$/.test(t.trim());
+const memberChar = (b) => ({ name: String(b.name || 'Gringo').slice(0, 16), style: String(b.style || '').slice(0, 16), level: Math.max(1, Math.min(99, b.level | 0)) });
+async function academyOf(pid) {
+  const r = await pool.query('SELECT a.*, m.rank AS my_rank FROM academy_members m JOIN academies a ON a.id = m.academy_id WHERE m.player_id = $1', [pid]);
+  return r.rows[0] || null;
+}
+async function academyView(pid) {
+  const a = await academyOf(pid);
+  const week = isoWeek();
+  const top = (await pool.query(
+    `SELECT a.id, a.name, a.tag, a.faction, (SELECT count(*)::int FROM academy_members m WHERE m.academy_id = a.id) AS members,
+            COALESCE(p.points, 0)::int AS points
+     FROM academies a LEFT JOIN academy_points p ON p.academy_id = a.id AND p.week = $1
+     ORDER BY points DESC, members DESC, a.id ASC LIMIT 20`, [week])).rows;
+  if (!a) return { mine: null, top, cost: ACADEMY_COST, week };
+  const members = (await pool.query(
+    'SELECT player_id AS id, name, style, level, rank FROM academy_members WHERE academy_id = $1 ORDER BY (rank = \'leader\') DESC, (rank = \'professor\') DESC, joined_at ASC', [a.id])).rows;
+  const online = live ? live.onlineIds() : new Set();
+  for (const m of members) m.online = online.has(m.id);
+  const pts = (await pool.query('SELECT points FROM academy_points WHERE week = $1 AND academy_id = $2', [week, a.id])).rows[0];
+  return {
+    mine: { id: a.id, name: a.name, tag: a.tag, motto: a.motto, faction: a.faction, my_rank: a.my_rank, me: pid, points: pts ? pts.points : 0, members },
+    top, cost: ACADEMY_COST, week,
+  };
+}
+const academyAct = (fn) => async (req, res) => {
+  try { await fn(req, res); } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'That name or tag is taken.' });
+    console.error(e); res.status(500).json({ error: 'Something went wrong.' });
+  }
+};
+const pushTag = async (pid) => { if (live) { const a = await academyOf(pid); live.setAcademy(pid, a ? { id: a.id, tag: a.tag } : null); } };
+
+app.get('/api/academy', needDb, auth, academyAct(async (req, res) => res.json(await academyView(req.player.id))));
+app.post('/api/academy/create', needDb, auth, academyAct(async (req, res) => {
+  const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
+  const tag = String(req.body.tag || '').trim().toUpperCase();
+  const motto = clean(String(req.body.motto || '')).slice(0, 60);
+  const faction = FACTIONS.includes(req.body.faction) ? req.body.faction : 'brasil';
+  if (!okAcademyName(name)) return res.status(400).json({ error: 'Names are 3-28 letters, numbers and spaces.' });
+  if (!okTag(tag)) return res.status(400).json({ error: 'Tags are 2-4 letters or numbers.' });
+  if (clean(name) !== name || clean(tag) !== tag) return res.status(400).json({ error: 'Pick a different name.' });
+  if (await academyOf(req.player.id)) return res.status(400).json({ error: 'Leave your academy first.' });
+  const a = (await pool.query('INSERT INTO academies (name, tag, motto, faction, leader_id) VALUES ($1, $2, $3, $4, $5) RETURNING id', [name, tag, motto, faction, req.player.id])).rows[0];
+  const mc = memberChar(req.body.char || {});
+  await pool.query('INSERT INTO academy_members (player_id, academy_id, name, style, level, rank) VALUES ($1, $2, $3, $4, $5, $6)', [req.player.id, a.id, mc.name, mc.style, mc.level, 'leader']);
+  await pushTag(req.player.id);
+  res.json(await academyView(req.player.id));
+}));
+app.post('/api/academy/join', needDb, auth, academyAct(async (req, res) => {
+  if (await academyOf(req.player.id)) return res.status(400).json({ error: 'Leave your academy first.' });
+  const a = (await pool.query('SELECT id, faction, (SELECT count(*)::int FROM academy_members WHERE academy_id = academies.id) AS n FROM academies WHERE id = $1', [req.body.id | 0])).rows[0];
+  if (!a) return res.status(404).json({ error: 'That academy is gone.' });
+  if (a.faction !== req.body.faction) return res.status(400).json({ error: 'That academy fights for the other side.' });
+  if (a.n >= ACADEMY_MAX) return res.status(400).json({ error: 'That academy is full.' });
+  const mc = memberChar(req.body.char || {});
+  await pool.query('INSERT INTO academy_members (player_id, academy_id, name, style, level) VALUES ($1, $2, $3, $4, $5)', [req.player.id, a.id, mc.name, mc.style, mc.level]);
+  await pushTag(req.player.id);
+  if (live) live.academySys(a.id, `${mc.name} joined the academy. Oss!`);
+  res.json(await academyView(req.player.id));
+}));
+async function leaveAcademy(pid) {
+  const a = await academyOf(pid);
+  if (!a) return;
+  await pool.query('DELETE FROM academy_members WHERE player_id = $1', [pid]);
+  if (a.my_rank === 'leader') {
+    // hand the academy to the longest-serving professor, else member; empty academies close
+    const next = (await pool.query("SELECT player_id FROM academy_members WHERE academy_id = $1 ORDER BY (rank = 'professor') DESC, joined_at ASC LIMIT 1", [a.id])).rows[0];
+    if (next) {
+      await pool.query("UPDATE academy_members SET rank = 'leader' WHERE player_id = $1", [next.player_id]);
+      await pool.query('UPDATE academies SET leader_id = $1 WHERE id = $2', [next.player_id, a.id]);
+    } else {
+      await pool.query('DELETE FROM academies WHERE id = $1', [a.id]);
+    }
+  }
+  await pushTag(pid);
+  return a;
+}
+app.post('/api/academy/leave', needDb, auth, academyAct(async (req, res) => {
+  const a = await leaveAcademy(req.player.id);
+  if (a && live) live.academySys(a.id, `${memberChar(req.body.char || {}).name} left the academy.`);
+  res.json(await academyView(req.player.id));
+}));
+app.post('/api/academy/rank', needDb, auth, academyAct(async (req, res) => {
+  // {id, op: "kick" | "professor" | "student" | "leader"}
+  const a = await academyOf(req.player.id);
+  const target = req.body.id | 0;
+  const op = String(req.body.op || '');
+  if (!a || target === req.player.id) return res.status(400).json({ error: 'You can\'t do that.' });
+  const t = (await pool.query('SELECT rank, name FROM academy_members WHERE player_id = $1 AND academy_id = $2', [target, a.id])).rows[0];
+  if (!t) return res.status(404).json({ error: 'They are not in your academy.' });
+  const lead = a.my_rank === 'leader';
+  const prof = a.my_rank === 'professor';
+  if (op === 'kick' && (lead || (prof && t.rank === 'student'))) {
+    await pool.query('DELETE FROM academy_members WHERE player_id = $1', [target]);
+    await pushTag(target);
+    if (live) live.academySys(a.id, `${t.name} was removed from the academy.`);
+  } else if ((op === 'professor' || op === 'student') && lead) {
+    await pool.query('UPDATE academy_members SET rank = $1 WHERE player_id = $2', [op, target]);
+    if (live) live.academySys(a.id, `${t.name} is now a ${op}.`);
+  } else if (op === 'leader' && lead) {
+    await pool.query("UPDATE academy_members SET rank = 'professor' WHERE player_id = $1", [req.player.id]);
+    await pool.query("UPDATE academy_members SET rank = 'leader' WHERE player_id = $1", [target]);
+    await pool.query('UPDATE academies SET leader_id = $1 WHERE id = $2', [target, a.id]);
+    if (live) live.academySys(a.id, `${t.name} now leads the academy.`);
+  } else return res.status(403).json({ error: 'Only the leader (or a professor, for students) can do that.' });
+  res.json(await academyView(req.player.id));
+}));
+app.post('/api/academy/motto', needDb, auth, academyAct(async (req, res) => {
+  const a = await academyOf(req.player.id);
+  if (!a || a.my_rank !== 'leader') return res.status(403).json({ error: 'Only the leader can change the motto.' });
+  await pool.query('UPDATE academies SET motto = $1 WHERE id = $2', [clean(String(req.body.motto || '')).slice(0, 60), a.id]);
+  res.json(await academyView(req.player.id));
+}));
+// keep the roster's name/level fresh (sent by the game when you open the window)
+app.post('/api/academy/me', needDb, auth, academyAct(async (req, res) => {
+  const mc = memberChar(req.body.char || {});
+  await pool.query('UPDATE academy_members SET name = $1, style = $2, level = $3 WHERE player_id = $4', [mc.name, mc.style, mc.level, req.player.id]);
+  res.json(await academyView(req.player.id));
+}));
 
 // ------------------------------------------------------------------ ranked arena
 // Weekly ladder of shadow fights: the server picks an opponent near your rating (another

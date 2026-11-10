@@ -61,6 +61,7 @@ func _ready() -> void:
 	gm_panel.main = self
 	hud.root.add_child(gm_panel)
 	hud.combat_log.gm_requested.connect(gm_panel.toggle)
+	hud.combat_log.academy_requested.connect(hud.toggle_academy)
 	if OS.get_cmdline_user_args().has("--autoplay") or Game.boot_into:
 		Game.boot_into = false
 		_start_game.call_deferred()
@@ -153,7 +154,7 @@ func _register_inputs() -> void:
 		"ab_6": [KEY_7], "ab_7": [KEY_8], "ab_8": [KEY_9], "ab_9": [KEY_0],
 		"ab_base": [KEY_Q], "ab_frame": [KEY_R], "ab_defend": [KEY_T], "ab_breathe": [KEY_F], "ab_racial": [KEY_G], "character": [KEY_C], "talents": [KEY_N], "spellbook": [KEY_P], "confirm": [KEY_SPACE, KEY_ENTER], "bags": [KEY_B, KEY_I],
 		"dir_up": [KEY_UP, KEY_W], "dir_down": [KEY_DOWN, KEY_S], "dir_left": [KEY_LEFT, KEY_A], "dir_right": [KEY_RIGHT, KEY_D],
-		"pause": [KEY_ESCAPE], "finder": [KEY_K], "arena": [KEY_H], "fullscreen": [KEY_F11],
+		"pause": [KEY_ESCAPE], "finder": [KEY_K], "arena": [KEY_H], "academy": [KEY_O], "fullscreen": [KEY_F11],
 	}
 	for action in map:
 		if not InputMap.has_action(action):
@@ -715,6 +716,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.toggle_finder(self)
 	elif event.is_action_pressed("arena") and not hud.dialogue_open():
 		hud.toggle_arena()
+	elif event.is_action_pressed("academy") and not hud.dialogue_open():
+		hud.toggle_academy()
 	elif event.is_action_pressed("character") and not hud.dialogue_open():
 		hud.open_window("character")
 	elif event.is_action_pressed("bags") and not hud.dialogue_open() and not hud.journal.visible:

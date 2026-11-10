@@ -125,6 +125,35 @@ func arena_live(duel_id: String, won: bool, cb: Callable) -> void:
 func arena_claim(cb: Callable) -> void:
 	_req(HTTPClient.METHOD_POST, "/api/arena/claim", {}, cb)
 
+# ------------------------------------------------------------ academies (player guilds)
+var academy_view := {}   # last /api/academy answer: {mine, top, cost, week}
+signal academy_changed
+
+func academy_char() -> Dictionary:
+	return {"name": Game.player_name, "style": Game.style, "level": Game.player_level()}
+
+## GET the academy view, or POST an action ("create", "join", "leave", "rank", "motto", "me").
+## cb(code, d). Keeps Game.academy in step so the XP perk and tag work offline too.
+func academy_call(action: String, body := {}, cb := Callable()) -> void:
+	var done := func(code: int, d: Dictionary):
+		if code == 200 and d.has("top"):
+			academy_view = d
+			var mine = d.get("mine")
+			var was := Game.academy.duplicate()
+			Game.academy = {"id": int(mine.id), "name": str(mine.name), "tag": str(mine.tag)} if mine is Dictionary else {}
+			if was != Game.academy:
+				Game.save_game()
+			academy_changed.emit()
+		if cb.is_valid():
+			cb.call(code, d)
+	if action == "":
+		_req(HTTPClient.METHOD_GET, "/api/academy", null, done)
+	else:
+		var b := body.duplicate()
+		b["char"] = academy_char()
+		b["faction"] = Game.faction()
+		_req(HTTPClient.METHOD_POST, "/api/academy/" + action, b, done)
+
 # ------------------------------------------------------------ account
 ## mode: "login" or "register". cb(error_text) ("" = ok).
 func authenticate(mode: String, e: String, pw: String, cb: Callable, optin := false) -> void:

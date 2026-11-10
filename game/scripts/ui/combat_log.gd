@@ -12,10 +12,12 @@ const CH := {
 	"world": {"tag": "[World] ", "color": Color(1.0, 0.86, 0.5)},
 	"whisper": {"tag": "", "color": Color(1.0, 0.5, 1.0)},
 	"party": {"tag": "[Party] ", "color": Color(0.55, 0.78, 1.0)},
+	"academy": {"tag": "[Academy] ", "color": Color(0.25, 1.0, 0.25)},
 	"sys": {"tag": "", "color": Color(1.0, 0.95, 0.35)},
 	"announce": {"tag": "[Game Master] ", "color": Color(0.4, 0.75, 1.0)},
 }
-const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper", "party": "Party"}
+const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper", "party": "Party", "academy": "Academy"}
+signal academy_requested
 
 signal emote_requested(id: String)
 static var typing := false
@@ -132,6 +134,9 @@ func add_chat(m: Dictionary) -> void:
 	if ch == "announce":
 		_line("[color=#66bfff][Game Master] %s[/color]" % text)
 		return
+	if ch == "academy" and m.get("sys", false):
+		_line("[color=#%s]%s%s[/color]" % [cc.to_html(false), Tx.s("[Academy] ").replace("[", "[lb]"), text])
+		return
 	var nm := str(m.get("from", "?"))
 	var who := "[color=#%s]%s[/color]" % [Rpg.class_color(str(m.get("style", ""))).to_html(false), _esc(nm)]
 	if m.get("gm", false):
@@ -179,7 +184,7 @@ func _set_channel(ch: String) -> void:
 
 ## WoW-style: typing "/z " or "/w name " switches the channel on the spot.
 func _on_typed(t: String) -> void:
-	var sw := {"/p ": "party", "/party ": "party", "/s ": "say", "/say ": "say", "/z ": "zone", "/zone ": "zone", "/g ": "world", "/world ": "world", "/1 ": "world"}
+	var sw := {"/p ": "party", "/party ": "party", "/s ": "say", "/say ": "say", "/z ": "zone", "/zone ": "zone", "/g ": "world", "/world ": "world", "/1 ": "world", "/a ": "academy", "/gu ": "academy"}
 	for k in sw:
 		if t.to_lower() == k:
 			_set_channel(sw[k])
@@ -254,6 +259,15 @@ func _command(t: String) -> void:
 			_set_channel("whisper")
 			if rest != "":
 				Net.send_chat("whisper", rest, whisper_to)
+		"/a", "/gu", "/guild":
+			if Game.academy.is_empty():
+				add_chat({"ch": "sys", "text": "You are not in an academy. Press O to find one."})
+				return
+			_set_channel("academy")
+			if rest != "":
+				Net.send_chat("academy", rest)
+		"/academy":
+			academy_requested.emit()
 		"/who":
 			Net.who()
 		"/p", "/party":
@@ -293,7 +307,7 @@ func _command(t: String) -> void:
 				return
 			Net.report(parts[1], rest.substr(parts[1].length()).strip_edges())
 		_:
-			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /oss /wave /dance (/e for all) · /who · /ignore Name · /report Name reason"})
+			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /a academy · /invite Name · /leave · /trade Name · /oss /wave /dance (/e for all) · /who · /ignore Name · /report Name reason"})
 
 func _process(delta: float) -> void:
 	_idle += delta

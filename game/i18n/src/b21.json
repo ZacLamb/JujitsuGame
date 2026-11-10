@@ -493,5 +493,230 @@
 "Log in 30 days in a row.",
 "Entre 30 dias seguidos.",
 "Entra 30 días seguidos."
+],
+[
+"ACADEMY",
+"ACADEMIA",
+"ACADEMIA"
+],
+[
+"Academy (O)",
+"Academia (O)",
+"Academia (O)"
+],
+[
+"Academy",
+"Academia",
+"Academia"
+],
+[
+"Academies live on the server. Log in from the title screen to found or join one.",
+"Academias ficam no servidor. Entre na sua conta na tela inicial para fundar ou entrar em uma.",
+"Las academias viven en el servidor. Inicia sesión en la pantalla de título para fundar o unirte a una."
+],
+[
+"Loading...",
+"Carregando...",
+"Cargando..."
+],
+[
+"Working...",
+"Processando...",
+"Procesando..."
+],
+[
+"Couldn't reach the server.",
+"Não foi possível falar com o servidor.",
+"No se pudo conectar con el servidor."
+],
+[
+"Train with a crew. Members get +5% XP, an <ACADEMY> tag over their name, academy chat (/a) and a shared weekly score from the faction war.",
+"Treine com uma equipe. Membros ganham +5% de XP, a tag <ACADEMIA> sobre o nome, chat da academia (/a) e uma pontuação semanal da guerra de facções.",
+"Entrena con un equipo. Los miembros obtienen +5% de XP, la etiqueta <ACADEMIA> sobre su nombre, chat de academia (/a) y una puntuación semanal de la guerra de facciones."
+],
+[
+"Found an academy",
+"Fundar uma academia",
+"Fundar una academia"
+],
+[
+"Join one",
+"Entrar em uma",
+"Unirse a una"
+],
+[
+"Name",
+"Nome",
+"Nombre"
+],
+[
+"Tag",
+"Tag",
+"Etiqueta"
+],
+[
+"Motto",
+"Lema",
+"Lema"
+],
+[
+"Found it (R$ %d)",
+"Fundar (R$ %d)",
+"Fundar (R$ %d)"
+],
+[
+"You have R$ %d.",
+"Você tem R$ %d.",
+"Tienes R$ %d."
+],
+[
+"You founded %s. Oss!",
+"Você fundou %s. Oss!",
+"Fundaste %s. ¡Oss!"
+],
+[
+"Join",
+"Entrar",
+"Unirse"
+],
+[
+"%d members · %d pts",
+"%d membros · %d pts",
+"%d miembros · %d pts"
+],
+[
+"No academies on your side yet. Found the first one!",
+"Ainda não há academias do seu lado. Funde a primeira!",
+"Aún no hay academias de tu lado. ¡Funda la primera!"
+],
+[
+"Leader",
+"Líder",
+"Líder"
+],
+[
+"Professor",
+"Professor",
+"Profesor"
+],
+[
+"Student",
+"Aluno",
+"Alumno"
+],
+[
+"This week: %d points",
+"Esta semana: %d pontos",
+"Esta semana: %d puntos"
+],
+[
+"#%d of all academies",
+"#%d entre todas as academias",
+"#%d de todas las academias"
+],
+[
+"%d / %d online",
+"%d / %d online",
+"%d / %d en línea"
+],
+[
+"Perk: +5% XP from everything. Talk to everyone with /a.",
+"Bônus: +5% de XP em tudo. Fale com todos usando /a.",
+"Ventaja: +5% de XP en todo. Habla con todos con /a."
+],
+[
+"Roster",
+"Membros",
+"Miembros"
+],
+[
+"Lv %d",
+"Nv %d",
+"Nv %d"
+],
+[
+"Demote",
+"Rebaixar",
+"Degradar"
+],
+[
+"Lead",
+"Liderar",
+"Liderar"
+],
+[
+"Remove",
+"Remover",
+"Expulsar"
+],
+[
+"Make %s the leader? You become a professor.",
+"Tornar %s o líder? Você vira professor.",
+"¿Hacer líder a %s? Tú pasas a ser profesor."
+],
+[
+"Remove %s from the academy?",
+"Remover %s da academia?",
+"¿Expulsar a %s de la academia?"
+],
+[
+"New motto",
+"Novo lema",
+"Nuevo lema"
+],
+[
+"Set motto",
+"Definir lema",
+"Fijar lema"
+],
+[
+"Leave academy",
+"Sair da academia",
+"Salir de la academia"
+],
+[
+"Leave your academy?",
+"Sair da sua academia?",
+"¿Salir de tu academia?"
+],
+[
+"You're the leader: it passes to your longest-serving professor (or closes if you're the last one).",
+"Você é o líder: a liderança passa para o professor mais antigo (ou a academia fecha se você for o último).",
+"Eres el líder: pasa a tu profesor más antiguo (o se cierra si eres el último)."
+],
+[
+"Yes",
+"Sim",
+"Sí"
+],
+[
+"Cancel",
+"Cancelar",
+"Cancelar"
+],
+[
+"Top academies this week",
+"Melhores academias da semana",
+"Mejores academias de la semana"
+],
+[
+"%d pts",
+"%d pts",
+"%d pts"
+],
+[
+"[Academy] ",
+"[Academia] ",
+"[Academia] "
+],
+[
+"You are not in an academy. Press O to find one.",
+"Você não está em uma academia. Aperte O para encontrar uma.",
+"No estás en una academia. Pulsa O para encontrar una."
+],
+[
+"You are no longer in %s.",
+"Você não está mais em %s.",
+"Ya no estás en %s."
 ]
 ]

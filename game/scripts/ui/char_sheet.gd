@@ -894,6 +894,11 @@ static func draw_glyph(ci: CanvasItem, kind: String, c: Vector2, s: float, col: 
 				var t := i / 40.0 * TAU
 				pts.append(c + Vector2(16 * pow(sin(t), 3), -(13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t))) * s * 0.028)
 			ci.draw_colored_polygon(pts, col)
+		"flag":
+			# academy banner: a pole and a swallow-tailed pennant
+			ci.draw_line(c + Vector2(-s * 0.3, -s * 0.5), c + Vector2(-s * 0.3, s * 0.5), col, w, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.26, -s * 0.46), c + Vector2(s * 0.42, -s * 0.36), c + Vector2(s * 0.2, -s * 0.16),
+				c + Vector2(s * 0.42, s * 0.04), c + Vector2(-s * 0.26, s * 0.04)]), col)
 		"lock":
 			ci.draw_arc(c + Vector2(0, -s * 0.15), s * 0.28, PI, TAU, 12, col, maxf(1.5, s * 0.12), true)
 			ci.draw_rect(Rect2(c + Vector2(-s * 0.4, -s * 0.12), Vector2(s * 0.8, s * 0.6)), col)

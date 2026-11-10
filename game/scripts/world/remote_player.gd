@@ -90,6 +90,9 @@ func refresh_plate() -> void:
 	var fid := str(char.get("faction", "brasil"))
 	var fname := str(Origins.faction(fid).name)
 	plate.text = Tx.f("%s%s\n<Level %d%s · %s>", ["⚔ " if _combat else "", str(char.get("name", "?")), int(char.get("level", 1)), (" " + cls) if cls != "" else "", fname])
+	var tag := str(char.get("tag", ""))
+	if tag != "":
+		plate.text += "\n<%s>" % tag
 	# WoW-style: your own faction reads friendly blue, the other side reads red
 	plate.modulate = Color(0.55, 0.8, 1.0) if fid == Game.faction() else Color(1.0, 0.45, 0.4)
 

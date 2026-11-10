@@ -5,7 +5,7 @@
 //   {t:"zone", zone}                    entered a zone (the client rebuilds its world)
 //   {t:"pos", x, y, z, yaw, s, air, c}  ~8/s; s = speed 0..1, c = in combat
 //   {t:"char", char}                    look / level changed
-//   {t:"chat", ch, text, to?}           ch: say | zone | world | whisper
+//   {t:"chat", ch, text, to?}           ch: say | zone | world | whisper | academy
 //   {t:"report", name, reason}
 //   {t:"party", to: id | [ids] | name, d}   party relay (any zone)
 // Server -> client:
@@ -107,7 +107,10 @@ function attach(server, pool, isReady) {
       return send(c, { ...msg, to: to.char.name, echo: true });
     }
     let targets;
-    if (m.ch === 'world') targets = [...clients.values()].filter((o) => o.ok);
+    if (m.ch === 'academy') {
+      if (!c.academy) return send(c, { t: 'sys', text: 'You are not in an academy. Open the Academy window to find one.' });
+      targets = [...clients.values()].filter((o) => o.ok && o.academy && o.academy.id === c.academy.id);
+    } else if (m.ch === 'world') targets = [...clients.values()].filter((o) => o.ok);
     else if (m.ch === 'zone') targets = inZone(c.zone).concat([c]);
     else {
       msg.ch = 'say';
@@ -220,8 +223,11 @@ function attach(server, pool, isReady) {
         c.id = nextId++;
         c.ok = true;
         c.char = sanitizeChar(m.char);
+        const ar = await pool.query('SELECT a.id, a.tag FROM academy_members m JOIN academies a ON a.id = m.academy_id WHERE m.player_id = $1', [c.pid]).catch(() => ({ rows: [] }));
+        c.academy = ar.rows[0] || null;
+        if (c.academy) c.char.tag = c.academy.tag;
         clients.set(c.id, c);
-        send(c, { t: 'welcome', id: c.id, gm: c.gm, online: [...clients.values()].filter((o) => o.ok).length });
+        send(c, { t: 'welcome', id: c.id, gm: c.gm, online: [...clients.values()].filter((o) => o.ok).length, academy: c.academy });
         return;
       }
       switch (m.t) {
@@ -234,10 +240,11 @@ function attach(server, pool, isReady) {
           break;
         case 'char':
           c.char = sanitizeChar(m.char);
+          if (c.academy) c.char.tag = c.academy.tag;   // the tag comes from the server, never the client
           for (const o of inZone(c.zone, c)) send(o, { t: 'char', id: c.id, char: c.char });
           break;
         case 'chat':
-          if (['say', 'zone', 'world', 'whisper'].includes(m.ch)) chat(c, m);
+          if (['say', 'zone', 'world', 'whisper', 'academy'].includes(m.ch)) chat(c, m);
           break;
         case 'who': {
           const list = [...clients.values()].filter((o) => o.ok).slice(0, 40).map((o) => `${o.char.name} (${o.char.level} ${o.char.style || '?'}, ${o.zone || '...'})`);
@@ -329,7 +336,23 @@ function attach(server, pool, isReady) {
     }
   }, 30000);
 
-  return { online: () => [...clients.values()].filter((c) => c.ok).length };
+  return {
+    online: () => [...clients.values()].filter((c) => c.ok).length,
+    onlineIds: () => new Set([...clients.values()].filter((c) => c.ok && !c.invisible).map((c) => c.pid)),
+    // academy joined / left / kicked: update the live tag and tell the zone
+    setAcademy(pid, a) {
+      for (const c of clients.values()) {
+        if (!c.ok || c.pid !== pid) continue;
+        c.academy = a;
+        if (a) c.char.tag = a.tag; else delete c.char.tag;
+        send(c, { t: 'academy', academy: a });
+        for (const o of inZone(c.zone, c)) send(o, { t: 'char', id: c.id, char: c.char });
+      }
+    },
+    academySys(id, text) {
+      for (const c of clients.values()) if (c.ok && c.academy && c.academy.id === id) send(c, { t: 'chat', ch: 'academy', sys: true, text });
+    },
+  };
 }
 
 module.exports = { attach, clean };

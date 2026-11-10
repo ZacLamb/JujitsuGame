@@ -199,7 +199,7 @@ func _build_status() -> void:
 	for e in [["shield", "Character (C)", func(): open_window("character")], ["star", "Specs, Talents & Moves (N)", func(): open_window("talents")],
 			["lock", "Bags (B)", toggle_bag], ["link", "Quest Log (L)", func(): open_window("journal")],
 			["triangle", "Group Finder: dungeons (K)", func(): toggle_finder(get_parent())],
-			["bolt", "Ranked Arena (H)", func(): toggle_arena()],
+			["bolt", "Ranked Arena (H)", func(): toggle_arena()], ["flag", "Academy (O)", func(): toggle_academy()],
 			["wave", "World Map (M)", func(): minimap.toggle_big()], ["loop", "Game Menu (Esc)", toggle_settings]]:
 		var mb := MicroButton.new()
 		mb.glyph = e[0]
@@ -283,7 +283,8 @@ func apply_layout() -> void:
 	var hud_top := vs.y + lvl_label.offset_top    # everything along the bottom sits below this line
 	_win_bottom = hud_top - 4.0
 	# micro menu + wallet: bottom-right beside the bar when there's room (desktop), otherwise up top
-	var mw := 8 * 29.0 + 7 * 2.0
+	var nb := _micro.get_child_count()
+	var mw := nb * 29.0 + (nb - 1) * 2.0
 	if not is_touch and vs.x - bar_r - 14.0 >= mw + 8.0:
 		_micro.custom_minimum_size = Vector2(mw, 0)
 		_set_corner(_micro, 1.0, 1.0, -14.0 - mw, -50.0, -14.0, -14.0)
@@ -297,7 +298,7 @@ func apply_layout() -> void:
 		_set_corner(wallet, 1.0, 1.0, -14.0 - 260.0, b - 80.0, -16.0, b - 40.0)
 	else:
 		# touch: top centre (landscape) or top-right in two rows (portrait), clear of the thumbs
-		var cols := 8 if not portrait else 4
+		var cols := nb if not portrait else ceili(nb / 2.0)
 		var w2 := cols * 29.0 + (cols - 1) * 2.0
 		_micro.custom_minimum_size = Vector2(w2, 0)
 		if portrait:
@@ -519,6 +520,16 @@ var party: Party = null
 var trade_panel: TradePanel = null
 var arena_panel: ArenaPanel = null
 signal arena_requested   # "Find a ranked match"
+
+var academy_panel: AcademyPanel
+
+func toggle_academy() -> void:
+	if academy_panel and is_instance_valid(academy_panel):
+		academy_panel.queue_free()
+		academy_panel = null
+		return
+	academy_panel = AcademyPanel.new()
+	root.add_child(academy_panel)
 
 func toggle_arena() -> void:
 	if arena_panel and is_instance_valid(arena_panel):
