@@ -33,6 +33,8 @@ static func move_key(mid: String) -> String:
 
 ## Key for a bag item: its id if painted, else its icon, else its kind.
 static func item_key(id: String, it: Dictionary) -> String:
+	if it.has("gear") and tex(gear_key(str(it.gear))) != null:
+		return gear_key(str(it.gear))
 	for k in [id, str(it.get("icon", "")), str(it.get("kind", ""))]:
 		if tex(k) != null:
 			return k
@@ -155,3 +157,7 @@ static func talent_key(nd: Dictionary, spec_id := "") -> String:
 	if fx.has("second_wind") or fx.has("tap_heal") or fx.has("tap_gas") or fx.has("tap_reset"):
 		return "t_secondwind"
 	return "t_damage"
+
+## Photographed gear icon (tools/icon_studio): g_<gear id>.
+static func gear_key(gid: String) -> String:
+	return "g_" + gid

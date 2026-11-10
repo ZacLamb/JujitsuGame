@@ -624,7 +624,12 @@ func _qm_fill() -> void:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 8)
 		list.add_child(h)
-		var nm := Wow.label("%s\n%s" % [it.name, Gear.stat_text(id)], 14, Gear.rarity_color(id))
+		var ic := CharSheet.SlotIcon.new()
+		ic.kind = str(it.slot)
+		ic.gear_id = id
+		ic.custom_minimum_size = Vector2(48, 48)
+		h.add_child(ic)
+		var nm := Wow.label(Tx.f("%s\n%s", [it.name, Gear.stat_text(id)]), 14, Gear.rarity_color(id))
 		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(nm)
@@ -893,7 +898,8 @@ func _wardrobe_item(id: String, slot: String, worn: bool) -> Control:
 	b.modulate = Color(1, 1, 1, 1.0 if have else 0.45)
 	var ic := CharSheet.SlotIcon.new()
 	ic.kind = slot
-	ic.empty = not have
+	ic.gear_id = id
+	ic.empty = not have and IconArt.tex(IconArt.gear_key(id)) == null   # photographed: show it dimmed
 	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if have:
 		var lk := Gear.look(id)
