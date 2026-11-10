@@ -279,6 +279,14 @@ function attach(server, pool, isReady) {
           for (const o of targets) send(o, { t: 'party', from: c.id, zone: c.zone, d });
           break;
         }
+        case 'emote': {
+          // /oss, /wave...: everyone in the zone sees the pose (one per second)
+          const now = Date.now();
+          if (now - (c.emoteAt || 0) < 1000 || !/^[a-z]{2,10}$/.test(String(m.e || ''))) break;
+          c.emoteAt = now;
+          for (const o of inZone(c.zone, c)) send(o, { t: 'emote', id: c.id, e: m.e });
+          break;
+        }
         case 'gm':
           if (c.gm) gm(c, m);
           else send(c, { t: 'sys', text: 'Unknown command.' });

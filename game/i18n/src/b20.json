@@ -1,0 +1,22 @@
+[
+["You bow. Oss!", "Você se curva. Oss!", "Haces una reverencia. ¡Oss!"],
+["%s bows. Oss!", "%s se curva. Oss!", "%s hace una reverencia. ¡Oss!"],
+["You wave.", "Você acena.", "Saludas con la mano."],
+["%s waves.", "%s acena.", "%s saluda con la mano."],
+["You cheer!", "Você comemora!", "¡Celebras!"],
+["%s cheers!", "%s comemora!", "¡%s celebra!"],
+["You flex. Strong.", "Você mostra o muque. Forte.", "Sacas músculo. Fuerte."],
+["%s flexes.", "%s mostra o muque.", "%s saca músculo."],
+["You sit down on the mat.", "Você senta no tatame.", "Te sientas en el tatami."],
+["%s sits down on the mat.", "%s senta no tatame.", "%s se sienta en el tatami."],
+["You stretch it out.", "Você se alonga.", "Estiras."],
+["%s stretches.", "%s se alonga.", "%s estira."],
+["You dance. Ginga!", "Você dança. Ginga!", "Bailas. ¡Ginga!"],
+["%s dances.", "%s dança.", "%s baila."],
+["You tap the mat. Respect.", "Você bate no tatame. Respeito.", "Golpeas el tatami. Respeto."],
+["%s taps the mat.", "%s bate no tatame.", "%s golpea el tatami."],
+["You drill a shrimp.", "Você treina a fuga de quadril.", "Practicas la gamba."],
+["%s drills a shrimp.", "%s treina a fuga de quadril.", "%s practica la gamba."],
+["Emotes: %s", "Emotes: %s", "Gestos: %s"],
+["Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /oss /wave /dance (/e for all) · /who · /ignore Name · /report Name reason", "Chat: Enter para digitar. /s falar (perto, balão) · /z zona · /g mundo · /w Nome sussurrar · /r responder · /p grupo · /invite Nome · /leave · /trade Nome · /oss /wave /dance (/e para todos) · /who · /ignore Nome · /report Nome motivo", "Chat: Enter para escribir. /s decir (cerca, bocadillo) · /z zona · /g mundo · /w Nombre susurrar · /r responder · /p grupo · /invite Nombre · /leave · /trade Nombre · /oss /wave /dance (/e para todos) · /who · /ignore Nombre · /report Nombre motivo"]
+]

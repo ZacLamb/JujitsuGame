@@ -15,6 +15,7 @@ var arm: SpringArm3D
 var cam: Camera3D
 
 var input_enabled := false
+var emoting := false   # an emote is playing (moving cancels it)
 var rooted := false   # knocked down / finishing in combat: no walking
 var touch_move := Vector2.ZERO   # from virtual joystick, -1..1
 var touch_sprint := false
@@ -231,6 +232,11 @@ func _physics_process(delta: float) -> void:
 	# moving against the way the body faces (backpedal, or strafing back with the mouse held)
 	var fwd := Vector3(-sin(rig.rotation.y), 0, -cos(rig.rotation.y))
 	rig.move_back = hspeed > 0.2 and Vector3(velocity.x, 0, velocity.z).normalized().dot(fwd) < -0.3
+	if emoting and hspeed > 0.5 and rig.in_action():   # walking off cancels an emote
+		emoting = false
+		rig.release()
+	if emoting and not rig.in_action():
+		emoting = false
 	rig.animate_locomotion(delta, clampf(hspeed / RUN, 0.0, 1.0), not is_on_floor() and not swimming)
 	# footsteps
 	if is_on_floor() and hspeed > 1.0:

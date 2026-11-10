@@ -109,3 +109,9 @@ func _process(delta: float) -> void:
 		_bubble_t -= delta
 		if _bubble_t <= 0.0:
 			bubble.visible = false
+
+## Another player's emote (Emotes): the pose, plus a line in chat if they're close.
+func emote(e: String) -> void:
+	if rig == null or not Emotes.LIST.has(e):
+		return
+	rig.action(Emotes.frames(e, rig.rotation.y))

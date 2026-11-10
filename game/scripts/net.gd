@@ -10,6 +10,7 @@ signal chat(m: Dictionary)                  # {ch, from, fid, style, text, to?, 
 signal status_changed
 signal gm_data(kind: String, d: Dictionary)   # GM: "list" / "reports" / "goto"
 signal duel_msg(from: int, d: Dictionary)     # live duel relay (see Pvp)
+signal emote(id: int, e: String)   # another player's /oss, /wave...
 signal party_msg(from: int, d: Dictionary, zone: String)   # party relay (see Party / Coop)
 
 var gm := false   # the server confirmed this account is a Game Master
@@ -147,6 +148,8 @@ func _on_msg(d: Dictionary) -> void:
 		"duel":
 			if d.get("d") is Dictionary:
 				duel_msg.emit(int(d.get("from", 0)), d.d)
+		"emote":
+			emote.emit(int(d.get("id", 0)), str(d.get("e", "")))
 		"party":
 			if d.get("d") is Dictionary:
 				party_msg.emit(int(d.get("from", 0)), d.d, str(d.get("zone", "")))
@@ -186,6 +189,9 @@ func send_chat(ch: String, text: String, to := "") -> void:
 
 func send_duel(to: int, d: Dictionary) -> void:
 	_send({"t": "duel", "to": to, "d": d})
+
+func send_emote(e: String) -> void:
+	_send({"t": "emote", "e": e})
 
 ## Party relay: to one id, a list of ids, or (name != "") the player with that name.
 func send_party(to, d: Dictionary, name_ := "") -> void:

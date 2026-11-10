@@ -17,6 +17,7 @@ const CH := {
 }
 const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper", "party": "Party"}
 
+signal emote_requested(id: String)
 static var typing := false
 var party: Party = null   # set by Main
 var trade: Trade = null   # set by Main
@@ -214,6 +215,16 @@ func _submit(t: String) -> void:
 func _command(t: String) -> void:
 	var parts := t.split(" ", false)
 	var cmd := parts[0].to_lower()
+	var emo := Emotes.from_cmd(cmd)
+	if emo != "":
+		emote_requested.emit(emo)
+		return
+	if cmd == "/e" or cmd == "/emotes":
+		var all: Array = []
+		for id in Emotes.LIST:
+			all.append(str(Emotes.LIST[id].cmds[0]))
+		add_chat({"ch": "sys", "text": Tx.f("Emotes: %s", "  ".join(all))})
+		return
 	var rest := t.substr(parts[0].length()).strip_edges()
 	match cmd:
 		"/s", "/say":
@@ -282,7 +293,7 @@ func _command(t: String) -> void:
 				return
 			Net.report(parts[1], rest.substr(parts[1].length()).strip_edges())
 		_:
-			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /who · /ignore Name · /report Name reason"})
+			add_chat({"ch": "sys", "text": "Chat: Enter to type. /s say (nearby, speech bubble) · /z zone · /g world · /w Name whisper · /r reply · /p party · /invite Name · /leave · /trade Name · /oss /wave /dance (/e for all) · /who · /ignore Name · /report Name reason"})
 
 func _process(delta: float) -> void:
 	_idle += delta

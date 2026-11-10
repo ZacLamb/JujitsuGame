@@ -429,6 +429,23 @@ func _duel_menu(rp: RemotePlayer) -> void:
 	opts.append([Tx.s("Whisper"), func(): hud.combat_log.open_input("/w %s " % nm)])
 	hud.player_menu(nm, txt, opts)
 
+## /oss, /wave...: your fighter does it, and everyone in the zone sees it.
+func do_emote(id: String) -> void:
+	if combat.me.in_combat or player.rooted or (player.rig.in_action() and not player.emoting):
+		return
+	player.rig.action(Emotes.frames(id, player.rig.rotation.y))
+	player.emoting = true
+	Net.send_emote(id)
+	hud.combat_log.add_chat({"ch": "sys", "text": Tx.s(str(Emotes.LIST[id].you))})
+
+func _on_net_emote(id: int, e: String) -> void:
+	var rp = remotes.get(id)
+	if rp == null or not is_instance_valid(rp) or not Emotes.LIST.has(e):
+		return
+	rp.emote(e)
+	if rp.global_position.distance_to(player.global_position) < 40.0:
+		hud.combat_log.add_chat({"ch": "sys", "text": Tx.f(str(Emotes.LIST[e].them), str(rp.char.get("name", "?")))})
+
 func _on_player_menu(open: bool) -> void:
 	if not open and not hud.dialogue_open():
 		player.input_enabled = true
@@ -753,6 +770,8 @@ func _make_world(z: String) -> void:
 		if hud and hud.combat_log:
 			hud.combat_log.party = party
 			hud.combat_log.trade = trade
+			hud.combat_log.emote_requested.connect(do_emote)
+		Net.emote.connect(_on_net_emote)
 		if hud:
 			hud.set_party(party)
 		combat.raid_over.connect(_on_raid_over)
