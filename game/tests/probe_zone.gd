@@ -3,6 +3,9 @@ extends Node
 const VIEWS := {
 	"texas": [["arrive", Vector3(0, 0, 26), 0.0, 13.0], ["main", Vector3(-30, 0, -7), -PI / 2, 9.0], ["square", Vector3(4, 0, 12), 0.3, 9.0], ["creek", Vector3(-50, 0, 24), 0.58, 12.0], ["chapel", Vector3(-30, 0, -54), 0.2, 14.0], ["ranch", Vector3(16, 0, 56), PI, 16.0]],
 	"everglades": [["arrive", Vector3(-82, 0, -4), PI / 2, 10.0], ["trail", Vector3(0, 0, -4), PI / 2, 14.0], ["pit", Vector3(60, 0, 32), PI, 13.0], ["dock", Vector3(26, 0, -40), -PI / 2, 12.0], ["dock2", Vector3(38, 0, -26), 0.0, 5.0], ["fishcamp", Vector3(-40, 0, 10), PI, 12.0]],
+	"pantanal": [["fazenda", Vector3(56, 0, 44), 0.6, 16.0], ["ranch", Vector3(-40, 0, 12), PI, 12.0]],
+	"chapada": [["village", Vector3(40, 0, 32), PI, 16.0]],
+	"rio": [["beach", Vector3(-10, 0, 30), 0.0, 18.0], ["morro", Vector3(36, 0, -24), 0.0, 16.0]],
 	"sedona": [["ghost", Vector3(-64, 0, -40), 0.0, 14.0], ["arrive", Vector3(-80, 0, 40), PI / 2, 10.0], ["bell", Vector3(10, 0, 8), 0.0, 16.0], ["gym", Vector3(46, 0, 12), 0.0, 12.0], ["uptown", Vector3(42, 0, 34), PI, 13.0], ["cathedral", Vector3(-34, 0, -28), 0.0, 16.0], ["mesa", Vector3(30, 0, -48), 0.0, 14.0]],
 }
 func _ready() -> void:
@@ -14,6 +17,7 @@ func _ready() -> void:
 	Game.set_identity(org, "male", 0.4)
 	Game.choose_style("passer", "Tex", 0)
 	Game.set_level(int(Data.ZONES[z].levels[0]))
+	Game.flags["pantanal_intro"] = true
 	Game.zone = z
 	var main: Node = load("res://main.tscn").instantiate()
 	add_child(main)

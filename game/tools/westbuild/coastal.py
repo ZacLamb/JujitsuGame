@@ -295,7 +295,102 @@ def pueblo(name="az_pueblo", Wd=10.0, D=9.0):
     finish(name)
 
 
-ALL = {"adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
+# ================================================================== Brazil
+def galpao(name="br_galpao", Wd=14.0, D=12.0, H=4.0):
+    """Pantanal fazenda shed: rough log posts, beams, and a steep sapé (thatch) gable roof. Open
+    sides so the mats underneath stay playable."""
+    reset()
+    for x in (-Wd / 2, 0.0, Wd / 2):
+        for y in (-D / 2, D / 2):
+            cyl(0.22, H, (x, y, H / 2), "wood", 8)
+    for y in (-D / 2, D / 2):
+        beam((-Wd / 2 - 0.3, y, H), (Wd / 2 + 0.3, y, H), 0.24, "wood")
+    for x in (-Wd / 2, 0.0, Wd / 2):
+        beam((x, -D / 2, H), (x, D / 2, H), 0.2, "wood")
+        beam((x, -D / 2, H), (x, 0, H + 3.0), 0.16, "wood")
+        beam((x, D / 2, H), (x, 0, H + 3.0), 0.16, "wood")
+    gable(Wd, D, H + 0.1, 3.0, 0.9, "thatch", along_x=True)
+    finish(name)
+
+
+def predio(name="br_predio", Wd=8.0, D=10.0, floors=10):
+    """Copacabana apartment block: pilotis at street level, a balcony and glass band on every floor,
+    a roof edge and water tanks on top. Front faces the beach."""
+    reset()
+    FH = 3.0
+    H = floors * FH
+    box((Wd, D, H - 3.0), (0, 0, 3.0 + (H - 3.0) / 2), "stucco")
+    for x in (-Wd / 2 + 0.4, 0.0, Wd / 2 - 0.4):          # pilotis
+        for y in (-D / 2 + 0.4, D / 2 - 0.4):
+            box((0.5, 0.5, 3.0), (x, y, 1.5), "trim")
+    box((Wd - 2.0, D - 2.5, 2.8), (0, 0.5, 1.4), "glass")  # lobby
+    fy = -D / 2
+    for f in range(1, floors):
+        z = f * FH
+        box((Wd + 0.3, 1.2, 0.18), (0, fy - 0.55, z + 0.1), "trim")              # balcony slab
+        box((Wd + 0.3, 0.05, 0.9), (0, fy - 1.12, z + 0.6), "glass")             # glass rail
+        box((Wd * 0.9, 0.05, 2.0), (0, fy + 0.02, z + 1.3), "glass")             # window band
+        for x in (-Wd / 2, Wd / 2):
+            box((0.08, 1.2, 0.9), (x + (0.1 if x < 0 else -0.1), fy - 0.55, z + 0.6), "trim")
+        for k in (-1, 1):
+            side_window(Wd / 2, z + 1.4, k * D * 0.25, w=1.4, h=1.4)
+            side_window(-Wd / 2, z + 1.4, k * D * 0.25, w=1.4, h=1.4)
+    box((Wd + 0.3, D + 0.3, 0.4), (0, 0, H + 0.2), "trim")
+    box((2.4, 2.0, 1.6), (Wd * 0.2, D * 0.15, H + 1.2), "stucco")                # machine room
+    cyl(0.7, 1.2, (-Wd * 0.25, D * 0.2, H + 1.0), "iron", 12)                    # water tank
+    finish(name)
+
+
+def favela(name="br_casa_morro", Wd=3.4, D=3.4, H=2.8, upper=False):
+    """Hillside house: exposed brick, a plastered front, a flat concrete slab (laje) with rebar
+    sticking up, a blue water tank; optionally a second floor built later."""
+    reset()
+    box((Wd, D, H), (0, 0, H / 2), "brick")
+    fy = -D / 2
+    box((Wd + 0.02, 0.06, H), (0, fy - 0.02, H / 2), "stucco")                 # painted front
+    box((0.06, D * 0.6, H), (Wd / 2 + 0.02, -D * 0.2, H / 2), "stucco")          # and part of one side
+    box((0.8, 0.08, 1.9), (-Wd * 0.2, fy - 0.05, 0.95), "wood")
+    window(Wd * 0.22, 1.6, fy, w=0.7, h=0.7, panes=True, cap=False)
+    box((Wd + 0.2, D + 0.2, 0.18), (0, 0, H + 0.09), "trim")                      # laje
+    z0 = H + 0.18
+    if upper:
+        box((Wd * 0.85, D * 0.85, 2.4), (0.15, 0.15, z0 + 1.2), "brick")
+        window(0.4, z0 + 1.3, -D * 0.425 + 0.15, w=0.7, h=0.7, cap=False)
+        box((Wd * 0.85 + 0.2, D * 0.85 + 0.2, 0.15), (0.15, 0.15, z0 + 2.45), "trim")
+        z0 += 2.55
+    for x in (-Wd / 2 + 0.2, Wd / 2 - 0.2):
+        for y in (-D / 2 + 0.2, D / 2 - 0.2):
+            cyl(0.02, 0.7, (x, y, z0 + 0.35), "iron", 4)                          # rebar
+    cyl(0.45, 0.8, (Wd * 0.2, D * 0.15, z0 + 0.4), "tin", 12)                    # caixa d'água
+    finish(name)
+
+
+def zebu(name="br_cow"):
+    """Nelore zebu: long body, a shoulder hump, droopy ears, short horns, a dewlap and a tail."""
+    reset()
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, 0, 1.15), segments=12, ring_count=8)
+    b = bpy.context.object; b.scale = (0.42, 0.95, 0.45); bpy.ops.object.transform_apply(scale=True)
+    b.data.materials.append(W["M"]["siding"])
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.28, location=(0, -0.45, 1.6), segments=10, ring_count=6)
+    bpy.context.object.data.materials.append(W["M"]["siding"])                    # hump
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=(0, -1.15, 1.35), segments=10, ring_count=6)
+    h = bpy.context.object; h.scale = (0.18, 0.32, 0.2); bpy.ops.object.transform_apply(scale=True)
+    h.data.materials.append(W["M"]["siding"])
+    beam((0, -0.85, 1.45), (0, -1.0, 1.4), 0.24, "siding")                          # neck
+    for s in (-1, 1):
+        o = box((0.06, 0.14, 0.28), (s * 0.2, -1.05, 1.42), "siding", rot=(0, s * 0.6, 0))     # ears
+        cyl(0.03, 0.15, (s * 0.1, -1.0, 1.58), "base", 5, rot=(0, s * 0.4, 0))                  # horns
+    for x in (-0.22, 0.22):
+        for y in (-0.6, 0.6):
+            cyl(0.07, 0.95, (x, y, 0.47), "siding", 6)
+            cyl(0.075, 0.08, (x, y, 0.04), "base", 6)
+    beam((0, 0.92, 1.2), (0, 1.0, 0.55), 0.04, "siding")
+    beam((0, -0.9, 1.0), (0, -0.7, 0.85), 0.12, "siding")                           # dewlap
+    finish(name)
+
+
+ALL = {"galpao": galpao, "predio": predio, "predio_low": lambda: predio("br_predio_low", floors=5), "predio_tall": lambda: predio("br_predio_tall", Wd=9.0, floors=14),
+       "casa_morro": favela, "casa_morro2": lambda: favela("br_casa_morro2", Wd=3.6, D=3.2, upper=True), "cow": zebu, "adobe": adobe, "adobe_small": lambda: adobe("az_adobe_small", Wd=5.5, D=5.5, H=3.2, portal=False), "pueblo": pueblo, "shack": stilt_shack, "chickee": chickee, "ranger": ranger, "airboat": airboat,
        "bungalow": bungalow, "spanish": spanish, "spanish_house": lambda: spanish("sd_spanish_house", Wd=9.0, D=8.0, H=3.6, shop=False),
        "lifeguard": lifeguard, "surfshop": surf_shop}
 

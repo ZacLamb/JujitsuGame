@@ -2173,33 +2173,26 @@ func _p_bus_stop(at := Vector3(-82, 0, -4), title := "TRANSPANTANEIRA") -> void:
 
 func _p_fazenda() -> void:
 	var c := Vector3(64, ground_y(64, 58), 58)
-	# open-air mat pavilion with a thatched roof
-	for x in [-6.0, 6.0]:
-		for z in [-5.0, 5.0]:
-			_box(Vector3(0.4, 4.0, 0.4), c + Vector3(x, 2.0, z), Color(0.4, 0.28, 0.18))
-	var roof := MeshInstance3D.new()
-	var rm := PrismMesh.new()
-	rm.size = Vector3(14, 2.2, 12)
-	roof.mesh = rm
-	roof.material_override = _mat(Color(0.72, 0.6, 0.35))
-	roof.position = c + Vector3(0, 5.1, 0)
-	add_child(roof)
+	# open-air mat shed with a sapé roof (tools/westbuild/coastal.py), open on all sides
+	TownKit.build(self, [{"kind": "br_galpao", "xform": Transform3D(Basis.IDENTITY, c), "wall": Color.WHITE, "wood": Color(0.45, 0.32, 0.2)}])
+	for x in [-7.0, 0.0, 7.0]:
+		for z in [-6.0, 6.0]:
+			var cs := CollisionShape3D.new()
+			var sh := CylinderShape3D.new()
+			sh.radius = 0.25
+			sh.height = 4.0
+			cs.shape = sh
+			cs.position = c + Vector3(x, 2.0, z)
+			_static.add_child(cs)
 	for x in 6:
 		for z in 5:
 			var col := Color(0.13, 0.38, 0.26) if (x + z) % 2 == 0 else Color(0.78, 0.62, 0.22)
 			_box(Vector3(1.96, 0.1, 1.96), c + Vector3(-5 + x * 2, 0.25, -4 + z * 2), col, false)
-	_label("FAZENDA JACARÉ", c + Vector3(0, 6.6, 6.2), 120, Color(0.98, 0.82, 0.3))
-	# ranch house
-	var h := Vector3(74, ground_y(74, 70), 70)
-	_box(Vector3(10, 3.6, 7), h + Vector3(0, 1.8, 0), Color(0.97, 0.95, 0.9))
-	var hr := MeshInstance3D.new()
-	var hpm := PrismMesh.new()
-	hpm.size = Vector3(11, 1.8, 8)
-	hr.mesh = hpm
-	hr.material_override = _mat(Color(0.72, 0.33, 0.2))
-	hr.position = h + Vector3(0, 4.5, 0)
-	add_child(hr)
-	_box(Vector3(1.2, 2.2, 0.1), h + Vector3(0, 1.1, -3.55), Color(0.35, 0.22, 0.12), false)
+	_label("FAZENDA JACARÉ", c + Vector3(0, 7.8, 6.2), 120, Color(0.98, 0.82, 0.3))
+	# the sede: a white farmhouse with a veranda
+	var items: Array = []
+	_town_building(items, Vector3(74, 0, 71), Vector3(0, 0, -1), [Color(0.97, 0.95, 0.9)], "casa_varanda", 9.0, [Color(0.2, 0.4, 0.6)])
+	TownKit.build(self, items)
 	# drill stations along the pavilion's west side
 	var zs := [-7.0, -3.5, 0.0, 3.5, 7.0]
 	for i in Rpg.ATTR_ORDER.size():
@@ -2218,18 +2211,14 @@ func _p_ranch() -> void:
 		var nxt := c + Vector3(cos(a + TAU / 28.0) * 11.0, 0, sin(a + TAU / 28.0) * 11.0)
 		var rail := _box(Vector3(0.12, 0.12, p.distance_to(nxt)), (p + nxt) / 2.0 + Vector3(0, 1.0, 0), Color(0.55, 0.4, 0.25), false)
 		rail.look_at(nxt + Vector3(0, 1.0, 0), Vector3.UP)
-	for i in 5:
+	# Nelore cattle (white zebu, a few greyer) in the corral
+	var cows: Array = []
+	for i in 7:
 		var cp := c + Vector3(_rng.randf_range(-7, 7), 0, _rng.randf_range(-7, 7))
-		var cow := _box(Vector3(0.8, 0.8, 1.8), cp + Vector3(0, 0.9, 0), Color(0.95, 0.93, 0.88), false, _rng.randf() * TAU)
-		var head := _box(Vector3(0.45, 0.45, 0.5), Vector3(0, 0.25, -1.05), Color(0.9, 0.88, 0.82), false)
-		remove_child(head)
-		cow.add_child(head)
-		head.position = Vector3(0, 0.25, -1.05)
-		for k in 4:
-			var leg := _box(Vector3(0.15, 0.6, 0.15), Vector3(0.28 * (1 if k % 2 == 0 else -1), -0.6, 0.6 * (1 if k < 2 else -1)), Color(0.85, 0.83, 0.78), false)
-			remove_child(leg)
-			cow.add_child(leg)
-			leg.position = Vector3(0.28 * (1 if k % 2 == 0 else -1), -0.6, 0.6 * (1 if k < 2 else -1))
+		var gy := ground_y(cp.x, cp.z)
+		cows.append({"kind": "br_cow", "xform": Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * _rng.randf_range(0.9, 1.1)), Vector3(cp.x, gy, cp.z)),
+			"wall": [Color(0.95, 0.94, 0.9), Color(0.85, 0.84, 0.82), Color(0.75, 0.74, 0.72)][i % 3], "wood": Color(0.3, 0.28, 0.26)})
+	TownKit.build(self, cows)
 
 func _p_tower() -> void:
 	var c := Vector3(-18, ground_y(-18, -50), -50)
@@ -2549,19 +2538,14 @@ func _c_village() -> void:
 	_challenge_board(g + Vector3(-12, 0, -9))
 	_comp_board(g + Vector3(12, 0, -9), "chapada_open")
 	var palette := [Color(0.97, 0.85, 0.35), Color(0.95, 0.55, 0.6), Color(0.98, 0.95, 0.88), Color(0.95, 0.6, 0.3), Color(0.55, 0.8, 0.5)]
+	var items: Array = []
 	for i in 6:
 		var a := -0.3 + i * 0.55
 		var p := Vector3(42 + cos(a) * 15.0, 0, 40 + sin(a) * -15.0)
-		var gy := ground_y(p.x, p.z)
-		var col: Color = palette[i % palette.size()]
-		_box(Vector3(5, 3.5, 5), Vector3(p.x, gy + 1.75, p.z), col)
-		var roof := MeshInstance3D.new()
-		var pm := PrismMesh.new()
-		pm.size = Vector3(5.6, 1.5, 5.6)
-		roof.mesh = pm
-		roof.material_override = _mat(Color(0.72, 0.33, 0.2))
-		roof.position = Vector3(p.x, gy + 4.25, p.z)
-		add_child(roof)
+		var toward := (Vector3(42, 0, 40) - p).normalized()
+		var front := Vector3(signf(toward.x), 0, 0) if absf(toward.x) > absf(toward.z) else Vector3(0, 0, signf(toward.z))
+		_town_building(items, p, front, palette, ["casa_a", "casa_b", "casa_varanda", "casa_c", "casa_d", "casa_a"][i], 6.4)
+	TownKit.build(self, items)
 	# crystal shop stand for Joaquim
 	var cs := Vector3(50, ground_y(50, 34), 34)
 	_box(Vector3(3, 1, 1.2), cs + Vector3(0, 0.5, 0), Color(0.45, 0.32, 0.2))
@@ -2920,29 +2904,26 @@ func _r_calcadao() -> void:
 
 ## High-rises facing the beach, like the Avenida Atlântica skyline.
 func _r_buildings() -> void:
-	var cols := [Color(0.88, 0.84, 0.74), Color(0.86, 0.72, 0.56), Color(0.66, 0.76, 0.8), Color(0.92, 0.72, 0.62), Color(0.74, 0.8, 0.68), Color(0.85, 0.85, 0.82), Color(0.95, 0.85, 0.55)]
+	# Copacabana: modernist apartment blocks on pilotis, balconies facing the beach (coastal.py)
+	var cols := [Color(0.92, 0.9, 0.84), Color(0.9, 0.8, 0.66), Color(0.76, 0.84, 0.86), Color(0.95, 0.8, 0.72), Color(0.82, 0.86, 0.76), Color(0.9, 0.9, 0.88), Color(0.96, 0.88, 0.64)]
+	var items: Array = []
 	var x := -60.0
 	var i := 0
 	while x < 70.0:
-		var w := _rng.randf_range(7.0, 8.6)
-		var h := _rng.randf_range(12.0, 30.0)
-		var gy := ground_y(x, 9.0)
-		var col: Color = cols[i % cols.size()]
-		_box(Vector3(w, h, 10), Vector3(x, gy + h / 2.0, 9.0), col)
-		# balconies + dark glass bands on the beach side
-		var y := 3.0
-		while y < h - 1.0:
-			_box(Vector3(w * 0.92, 1.1, 0.12), Vector3(x, gy + y + 0.7, 14.05), Color(0.2, 0.3, 0.38), false)
-			_box(Vector3(w + 0.4, 0.18, 0.9), Vector3(x, gy + y, 14.4), col.darkened(0.08), false)
-			y += 3.2
-		_box(Vector3(w + 0.2, 0.5, 10.2), Vector3(x, gy + h + 0.25, 9.0), col.darkened(0.2), false)
-		# shorter block behind
-		var h2 := _rng.randf_range(6.0, 14.0)
-		_box(Vector3(w, h2, 7), Vector3(x, gy + h2 / 2.0, -6.0), cols[(i + 3) % cols.size()].darkened(0.05))
-		x += w + _rng.randf_range(1.2, 2.6)
+		var kind: String = ["br_predio", "br_predio_tall", "br_predio_low", "br_predio", "br_predio_tall"][i % 5]
+		var ab := TownKit.mesh(kind).get_aabb()
+		x += ab.size.x * 0.5
+		_town_building(items, Vector3(x, 0, 14.4 - ab.end.z), Vector3(0, 0, 1), cols, kind, 0.0, [Color(0.3, 0.3, 0.32)])
+		# a lower block behind, on the next street
+		var kb := "br_predio_low"
+		var ab2 := TownKit.mesh(kb).get_aabb()
+		if absf(x) > 4.0 and absf(x - 24.0) > 9.0:   # the quartermaster stands behind the block at x 24
+			_town_building(items, Vector3(x, 0, -6.0 - ab2.get_center().z), Vector3(0, 0, 1), cols, kb, 0.0, [Color(0.3, 0.3, 0.32)])
+		x += ab.size.x * 0.5 + _rng.randf_range(1.2, 2.6)
 		if i % 3 == 2:
 			x += 7.0  # cross street down to the beach
 		i += 1
+	TownKit.build(self, items)
 
 func _r_beach_life() -> void:
 	var cols := [Color(0.95, 0.3, 0.25), Color(0.98, 0.8, 0.2), Color(0.2, 0.55, 0.9), Color(0.3, 0.75, 0.4), Color(0.95, 0.55, 0.75), Color(1, 1, 1)]
@@ -2998,6 +2979,7 @@ func _r_morro() -> void:
 	var cols := [Color(0.95, 0.45, 0.3), Color(0.98, 0.8, 0.3), Color(0.35, 0.65, 0.85), Color(0.5, 0.8, 0.45), Color(0.95, 0.6, 0.75), Color(0.92, 0.92, 0.88), Color(0.85, 0.55, 0.35)]
 	var n := 0
 	var tries := 0
+	var morro: Array = []
 	while n < 46 and tries < 600:
 		tries += 1
 		var a := _rng.randf() * TAU
@@ -3007,15 +2989,20 @@ func _r_morro() -> void:
 		if absf(x - 36.0) < 3.5 or Vector2(x, z).distance_to(Vector2(36, -42)) < 6.0 or z > -26.0:
 			continue
 		var gy := minf(minf(ground_y(x - 1.4, z - 1.4), ground_y(x + 1.4, z + 1.4)), minf(ground_y(x + 1.4, z - 1.4), ground_y(x - 1.4, z + 1.4)))
-		var hh := _rng.randf_range(2.4, 3.2)
 		var rot := _rng.randf_range(-0.3, 0.3)
-		_box(Vector3(3.0, hh + 1.0, 3.0), Vector3(x, gy + (hh + 1.0) / 2.0 - 0.5, z), cols[n % cols.size()], true, rot)
-		_box(Vector3(0.7, 1.2, 0.05), Vector3(x, gy + 0.6, z + 1.53), Color(0.25, 0.18, 0.12), false, rot)
-		if _rng.randf() < 0.45:
-			_box(Vector3(2.6, 2.2, 2.6), Vector3(x + 0.2, gy + hh + 1.6, z - 0.2), cols[(n + 3) % cols.size()], true, rot + 0.1)
-		if _rng.randf() < 0.5:
-			_cyl(0.5, 0.5, 0.8, Vector3(x + 0.8, gy + hh + 0.9, z + 0.8), Color(0.2, 0.35, 0.75), 8)  # water tank
+		var kind := "br_casa_morro2" if _rng.randf() < 0.45 else "br_casa_morro"
+		morro.append({"kind": kind, "xform": Transform3D(Basis(Vector3.UP, rot), Vector3(x, gy - 0.4, z)), "wall": cols[n % cols.size()],
+			"wood": cols[(n + 3) % cols.size()].darkened(0.3)})
+		var cs := CollisionShape3D.new()
+		var sh := BoxShape3D.new()
+		sh.size = Vector3(3.0, 4.0, 3.0)
+		cs.shape = sh
+		cs.position = Vector3(x, gy + 1.6, z)
+		cs.rotation.y = rot
+		_static.add_child(cs)
+		_kit_footprints.append([Rect2(x - 1.5, z - 1.5, 3.0, 3.0), Color(0.75, 0.45, 0.35)])
 		n += 1
+	TownKit.build(self, morro)
 	# Tatu's free class: mats in a cleared square
 	var mc := Vector3(36, ground_y(36, -42), -42)
 	_box(Vector3(7, 0.3, 7), mc + Vector3(0, 0.05, 0), Color(0.6, 0.55, 0.5))
