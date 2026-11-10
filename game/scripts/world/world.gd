@@ -272,16 +272,21 @@ func _build_zone_roads() -> void:
 			var px := s * (x + 3.0)
 			_box(Vector3(6.2, 0.14, 5.0), Vector3(px, ground_y(px, zc) + 0.05, zc), Color(0.52, 0.46, 0.38), false)
 			x += 6.0
-		var sp := Vector3(s * 66.0, 0, zc - 4.2)
+		var sp := Vector3(s * 66.0, 0, zc - 4.4)
 		var gy := ground_y(sp.x, sp.z)
-		_box(Vector3(0.22, 3.2, 0.22), Vector3(sp.x, gy + 1.6, sp.z), Color(0.4, 0.3, 0.2))
-		var arrow := _box(Vector3(2.8, 0.7, 0.12), Vector3(sp.x + s * 1.2, gy + 2.7, sp.z), Color(0.86, 0.78, 0.6), false)
+		_box(Vector3(0.26, 4.4, 0.26), Vector3(sp.x, gy + 2.2, sp.z), Color(0.4, 0.3, 0.2))
+		_box(Vector3(4.6, 1.5, 0.14), Vector3(sp.x + s * 1.9, gy + 3.5, sp.z), Color(0.86, 0.78, 0.6), false)
+		_box(Vector3(4.8, 0.12, 0.18), Vector3(sp.x + s * 1.9, gy + 4.3, sp.z), Color(0.4, 0.3, 0.2), false)
 		var zd: Dictionary = Data.ZONES[to]
 		var txt := "%s  %s\n%s" % [Tx.s(str(zd.name)).to_upper(), "→" if s > 0 else "←", Data.zone_levels(to)]
-		var l := _label(txt, Vector3(sp.x + s * 1.2, gy + 2.7, sp.z + 0.08), 40, Color(0.2, 0.14, 0.08))
-		l.rotation.y = 0.0
-		var l2 := _label(txt, Vector3(sp.x + s * 1.2, gy + 2.7, sp.z - 0.08), 40, Color(0.2, 0.14, 0.08))
-		l2.rotation.y = PI
+		for face in [1.0, -1.0]:
+			var l := _label(txt, Vector3(sp.x + s * 1.9, gy + 3.5, sp.z + face * 0.09), 64, Color(0.2, 0.14, 0.08))
+			l.rotation.y = 0.0 if face > 0 else PI
+			l.outline_size = 0
+		# and a floating name over the road, readable from across the zone
+		var far := _label(Tx.s(str(zd.name)).to_upper(), Vector3(s * 88.0, ground_y(s * 88.0, zc) + 5.5, zc), 120, Color(1, 0.9, 0.6))
+		far.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		far.outline_size = 14
 		# a faint glow where the road leaves the map, so the way out reads from afar
 		var glow := _label("· · ·", Vector3(s * 94.0, ground_y(s * 94.0, zc) + 1.6, zc), 90, Color(1, 0.9, 0.6, 0.6))
 		glow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -4020,7 +4025,8 @@ func _sd_uptown() -> void:
 		_town_building(items, Vector3(x, 0, zc), Vector3(0, 0, -1), cols, kind, 0.0, trims)
 		var wall_d: float = {"az_adobe": 3.5, "az_pueblo": 4.5, "az_adobe_small": 2.75}[kind]
 		var hh: float = {"az_adobe": 3.6, "az_pueblo": 3.4, "az_adobe_small": 3.2}[kind]
-		_label(shops[k], Vector3(x, ground_y(x, zc) + hh + 0.25, zc - wall_d - 0.2), 44, Color(1, 0.94, 0.82), PI)
+		var sl := _label(shops[k], Vector3(x, ground_y(x, zc) + hh + 0.45, zc - wall_d - 0.25), 72, Color(1, 0.94, 0.82), PI)
+		sl.outline_size = 12
 	TownKit.build(self, items)
 	# turquoise trim shop with crystals out front
 	for k in 5:

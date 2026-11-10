@@ -886,7 +886,7 @@ const TAB_SPELLBOOK := 6
 const TAB_FIGHTERS := 7
 const TAB_TEAM := 8
 const WINDOWS := {
-	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(880, 560), "at": "left", "glyph": "shield"},
+	"character": {"tabs": [0, 2], "names": ["Character", "Wardrobe"], "size": Vector2(1040, 560), "at": "left", "glyph": "shield"},
 	"talents": {"tabs": [3, 1, 6], "names": ["Specialization", "Talents", "Moves"], "size": Vector2(1180, 660), "at": "center", "glyph": "star"},
 	"journal": {"tabs": [4, 5, 7, 8], "names": ["Quests", "Achievements", "Fighters", "Team"], "size": Vector2(920, 600), "at": "center", "glyph": "link"},
 }
@@ -1285,6 +1285,7 @@ func _build_title() -> void:
 			cb.visible = Cloud.community_url != "")
 
 func _process(_d: float) -> void:
+	_zone_banner_tick(_d)
 	# no action bar / combat frames behind the title screen
 	if combat_hud:
 		var host := get_parent()
@@ -1302,6 +1303,47 @@ func hide_title() -> void:
 
 func set_exploring(on: bool) -> void:
 	root.visible = on
+
+# ------------------------------------------------------------ zone banner
+## WoW-style zone name across the top of the screen when you arrive: green for your faction's
+## land, red for the other side's.
+var _zb: VBoxContainer
+var _zb_t := 0.0
+func zone_banner(title_: String, sub: String, friendly: bool) -> void:
+	if _zb == null:
+		_zb = VBoxContainer.new()
+		_zb.anchor_left = 0.5
+		_zb.anchor_right = 0.5
+		_zb.offset_left = -500
+		_zb.offset_right = 500
+		_zb.offset_top = 222   # below the toasts
+		_zb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_zb.add_theme_constant_override("separation", 0)
+		root.add_child(_zb)
+		for k in 2:
+			var l := Wow.title("", 54 if k == 0 else 22, Wow.GOLD)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			l.add_theme_constant_override("outline_size", 10 if k == 0 else 6)
+			l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+			_zb.add_child(l)
+	var t := _zb.get_child(0) as Label
+	var u := _zb.get_child(1) as Label
+	t.text = Tx.s(title_).to_upper()
+	u.text = sub
+	t.add_theme_color_override("font_color", Color(1.0, 0.86, 0.35) if friendly else Color(1.0, 0.42, 0.32))
+	u.add_theme_color_override("font_color", Color(0.95, 0.92, 0.82))
+	_zb_t = 5.0
+	_zb.modulate.a = 0.0
+	_zb.visible = true
+
+func _zone_banner_tick(delta: float) -> void:
+	if _zb == null or _zb_t <= 0.0:
+		return
+	_zb_t -= delta
+	var a := clampf((5.0 - _zb_t) / 0.6, 0.0, 1.0) * clampf(_zb_t / 1.2, 0.0, 1.0)
+	_zb.modulate.a = a
+	if _zb_t <= 0.0:
+		_zb.visible = false
 
 # ------------------------------------------------------------ settings (Esc)
 signal quit_to_title

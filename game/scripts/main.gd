@@ -563,6 +563,10 @@ func open_barber() -> void:
 
 func _begin_play() -> void:
 	player.input_enabled = true
+	if Data.ZONES.has(Game.zone):
+		var zd: Dictionary = Data.ZONES[Game.zone]
+		hud.zone_banner(str(zd.name), "%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(Game.zone)], true)
+		_note_visit(Game.zone, false)
 	if Game.flags.get("spec_reset", false):
 		Game.flags.erase("spec_reset")
 		Game.save_game()
@@ -788,6 +792,28 @@ func _make_world(z: String) -> void:
 	if not _in_title:
 		Net.enter(z)
 
+## Zone visits for the travel achievements (WoW's explorer feats).
+func _note_visit(z: String, walked: bool) -> void:
+	var seen: Array = Game.flags.get("visited", [])
+	var mine_start: String = Origins.faction(Game.faction()).start
+	if not seen.has(mine_start):
+		seen.append(mine_start)   # you started there
+	Game.flags["visited"] = seen
+	if not seen.has(z):
+		seen.append(z)
+		if walked:
+			Game.unlock("on_foot")
+	for fid in Origins.FACTIONS:
+		var path: Array = Origins.FACTIONS[fid].path
+		if path.all(func(q): return seen.has(q)):
+			Game.unlock("road_brasil" if fid == "brasil" else "road_usa")
+	var conts := {}
+	for q in seen:
+		conts[Data.continent_of(q)] = true
+	if conts.size() >= 2:
+		Game.unlock("two_continents")
+	Game.save_game()
+
 ## Walked off the map along a zone road: load the neighbour, arriving on its matching road.
 var _zone_line_cd := 0.0
 func _check_zone_line(delta: float) -> void:
@@ -828,7 +854,8 @@ func _travel(z: String, free := false, arrive := "") -> void:
 	hud.set_prompt(null)
 	hud.refresh()
 	var zd: Dictionary = Data.ZONES[z]
-	Game.toast.emit(Tx.f("%s  ·  %s  ·  %s", [zd.name, zd.sub, Data.zone_levels(z)]), UiKit.ACCENT)
+	hud.zone_banner(str(zd.name), "%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(z)], Origins.faction_of_zone(z) == Game.faction())
+	_note_visit(z, arrive != "")
 	if z == "pantanal":
 		Game.unlock("travel")
 		if not Game.flags.get("pantanal_intro", false):

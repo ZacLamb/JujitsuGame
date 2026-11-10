@@ -1187,7 +1187,7 @@ static func build_character_wow(hud) -> Control:
 	lcol.add_theme_constant_override("separation", 6)
 	mid.add_child(lcol)
 	for slot in Gear.DOLL_LEFT:
-		lcol.add_child(_slot_square(hud, slot, 46.0))
+		lcol.add_child(_slot_square(hud, slot, 56.0))
 	var centre := VBoxContainer.new()
 	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.add_child(centre)
@@ -1211,7 +1211,7 @@ static func build_character_wow(hud) -> Control:
 	rcol.add_theme_constant_override("separation", 6)
 	mid.add_child(rcol)
 	for slot in Gear.DOLL_RIGHT:
-		rcol.add_child(_slot_square(hud, slot, 46.0))
+		rcol.add_child(_slot_square(hud, slot, 56.0))
 	# xp bar
 	var lv := Game.player_level()
 	var xb := UiKit.bar(Color(0.55, 0.3, 0.9), Vector2(0, 10))
@@ -1224,17 +1224,27 @@ static func build_character_wow(hud) -> Control:
 	var xt := "Max level" if lv >= Game.MAX_LEVEL else ("Belt cap: beat the zone boss to keep levelling" if Game.level_capped() else Tx.f("%d XP to level %d", [Game.xp_level_need() - Game.xp_into_level(), lv + 1]))
 	left.add_child(Wow.label(xt, 12, Wow.GREY, false, HORIZONTAL_ALIGNMENT_CENTER))
 	# stats column
+	# two stat columns (belt, attributes, record | enhancements, sets, style) so it all fits
+	# without scrolling; the scroll stays as a fallback for very short screens
 	var sc := ScrollContainer.new()
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.custom_minimum_size = Vector2(320, 0)
+	sc.custom_minimum_size = Vector2(520, 0)
 	page.add_child(sc)
-	var inset := PanelContainer.new()
-	inset.add_theme_stylebox_override("panel", Wow.sb(Color(0.03, 0.03, 0.04, 0.9), Color(Wow.FRAME, 0.7), 3, 10))
-	inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sc.add_child(inset)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 3)
-	inset.add_child(v)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 8)
+	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(cols)
+	var insets: Array = []
+	for k in 2:
+		var inset := PanelContainer.new()
+		inset.add_theme_stylebox_override("panel", Wow.sb(Color(0.03, 0.03, 0.04, 0.9), Color(Wow.FRAME, 0.7), 3, 10))
+		inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cols.add_child(inset)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 3)
+		inset.add_child(col)
+		insets.append(col)
+	var v: VBoxContainer = insets[0]
 	v.add_child(Wow.banner("Belt"))
 	var belt: Dictionary = Data.BELTS[Game.belt_index()]
 	v.add_child(Wow.title(Data.rank_name(Game.rank), 18, (belt.color as Color).lightened(0.15) if (belt.color as Color).get_luminance() < 0.35 else belt.color))
@@ -1245,17 +1255,18 @@ static func build_character_wow(hud) -> Control:
 		v.add_child(_wow_attr_row(k, ap))
 	if ap > 0:
 		v.add_child(Wow.label(Tx.f("%d attribute point%s to spend", [ap, "" if ap == 1 else "s"]), 13, Wow.GREEN, false, HORIZONTAL_ALIGNMENT_CENTER))
-	v.add_child(Wow.banner("Enhancements"))
+	var v2: VBoxContainer = insets[1]
+	v2.add_child(Wow.banner("Enhancements"))
 	var m := Game.mods()
 	var pct := func(x: float) -> String: return ("+%d%%" % roundi((x - 1.0) * 100.0)) if x >= 1.0 else ("%d%%" % roundi((x - 1.0) * 100.0))
-	v.add_child(Wow.stat_row("Stamina:", str(int(m.stamina_max)), Wow.WHITE, "Gas tank for a roll. Cardio raises it."))
-	v.add_child(Wow.stat_row("Recovery:", pct.call(float(m.regen)), Wow.WHITE, "Stamina regained while you're not casting."))
-	v.add_child(Wow.stat_row("Technique cost:", pct.call(float(m.cost)), Wow.WHITE, "Stamina each technique costs."))
-	v.add_child(Wow.stat_row("Reaction time:", pct.call(float(m.defense)), Wow.WHITE, "How long their casts take. IQ raises it."))
-	v.add_child(Wow.stat_row("Cast speed:", pct.call(float(m.decision)), Wow.WHITE, "How fast your techniques cast."))
-	v.add_child(Wow.stat_row("Squeeze:", pct.call(float(m.struggle_atk)), Wow.WHITE, "Finishing power on submissions."))
-	v.add_child(Wow.stat_row("Escape:", pct.call(float(m.struggle_def)), Wow.WHITE, "How fast you break out of submissions."))
-	v.add_child(Wow.stat_row("Sub depth:", "+%d%%" % roundi(float(m.sub_start) * 100.0), Wow.WHITE, "How deep your submissions start."))
+	v2.add_child(Wow.stat_row("Stamina:", str(int(m.stamina_max)), Wow.WHITE, "Gas tank for a roll. Cardio raises it."))
+	v2.add_child(Wow.stat_row("Recovery:", pct.call(float(m.regen)), Wow.WHITE, "Stamina regained while you're not casting."))
+	v2.add_child(Wow.stat_row("Technique cost:", pct.call(float(m.cost)), Wow.WHITE, "Stamina each technique costs."))
+	v2.add_child(Wow.stat_row("Reaction time:", pct.call(float(m.defense)), Wow.WHITE, "How long their casts take. IQ raises it."))
+	v2.add_child(Wow.stat_row("Cast speed:", pct.call(float(m.decision)), Wow.WHITE, "How fast your techniques cast."))
+	v2.add_child(Wow.stat_row("Squeeze:", pct.call(float(m.struggle_atk)), Wow.WHITE, "Finishing power on submissions."))
+	v2.add_child(Wow.stat_row("Escape:", pct.call(float(m.struggle_def)), Wow.WHITE, "How fast you break out of submissions."))
+	v2.add_child(Wow.stat_row("Sub depth:", "+%d%%" % roundi(float(m.sub_start) * 100.0), Wow.WHITE, "How deep your submissions start."))
 	v.add_child(Wow.banner("Record"))
 	var wins := 0
 	for k in Game.wins:
@@ -1269,15 +1280,15 @@ static func build_character_wow(hud) -> Control:
 	v.add_child(Wow.stat_row("Money:", "R$ %d" % Game.money, Wow.GOLD))
 	var c := Game.set_counts()
 	if not c.is_empty():
-		v.add_child(Wow.banner("Set Bonuses"))
+		v2.add_child(Wow.banner("Set Bonuses"))
 		for stid in c:
 			var sd: Dictionary = Gear.SETS[stid]
-			v.add_child(Wow.label("%s  %d/%d" % [sd.name, int(c[stid]), sd.pieces.size()], 14, Wow.GOLD))
+			v2.add_child(Wow.label("%s  %d/%d" % [sd.name, int(c[stid]), sd.pieces.size()], 14, Wow.GOLD))
 			for line in Gear.set_lines(stid):
 				var on := int(c[stid]) >= int(line[0])
-				v.add_child(Wow.label(Tx.f("(%d) %s", [line[0], line[1]]), 13, Wow.GREEN if on else Wow.GREY, true))
-	v.add_child(Wow.banner("Style"))
-	v.add_child(Wow.label(st.passive, 13, Wow.GREEN, true))
+				v2.add_child(Wow.label(Tx.f("(%d) %s", [line[0], line[1]]), 13, Wow.GREEN if on else Wow.GREY, true))
+	v2.add_child(Wow.banner("Style"))
+	v2.add_child(Wow.label(st.passive, 13, Wow.GREEN, true))
 	return page
 
 static func _wow_attr_row(k: String, ap: int) -> Control:

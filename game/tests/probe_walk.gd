@@ -20,10 +20,11 @@ func _ready() -> void:
 	for i in 30: await get_tree().process_frame
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/walk_road.png")
 	main.player.teleport(Vector3(93, w.ground_y(93, zc) + 0.5, zc), -PI / 2)
-	for i in 30: await get_tree().process_frame
+	for i in 20: await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png("/home/claude/shots/walk_banner.png")
 	main.hud._close_dialogue(false)
 	for i in 30: await get_tree().process_frame
-	print("after walk: zone=", main.world.zone, " pos=", main.player.global_position)
+	print("after walk: zone=", main.world.zone, " pos=", main.player.global_position, " ach=", Game.unlocked.has("on_foot"))
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/walk_arrive.png")
 	var p: Vector3 = main.player.global_position
 	main.player.teleport(Vector3(-93, main.world.ground_y(-93, p.z) + 0.5, p.z), PI / 2)
