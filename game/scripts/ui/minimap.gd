@@ -11,6 +11,8 @@ var world: World
 var player: Player
 var tex: ImageTexture
 var big := false              # full-screen world map
+var world_view := false       # zoomed out to both continents (scroll out / the World button, like WoW)
+var _btn_rect := Rect2()
 var _t := 0.0
 
 func _ready() -> void:
@@ -47,6 +49,7 @@ static func _render_terrain(w: World) -> ImageTexture:
 
 func toggle_big() -> void:
 	big = not big
+	world_view = false
 	mouse_filter = Control.MOUSE_FILTER_STOP if big else Control.MOUSE_FILTER_IGNORE
 	queue_redraw()
 
@@ -126,7 +129,32 @@ func _draw_mini() -> void:
 		draw_arc(np, 9, 0, TAU, 20, Wow.FRAME_HI, 1.5, true)
 		draw_string(f, np + Vector2(-9, 5), Tx.s("N"), HORIZONTAL_ALIGNMENT_CENTER, 18, 13, Wow.WHITE)
 
+func _gui_input(e: InputEvent) -> void:
+	if not big:
+		return
+	if e is InputEventMouseButton and e.pressed:
+		if e.button_index == MOUSE_BUTTON_WHEEL_DOWN and not world_view:
+			world_view = true
+		elif e.button_index == MOUSE_BUTTON_WHEEL_UP and world_view:
+			world_view = false
+		elif e.button_index == MOUSE_BUTTON_LEFT and _btn_rect.has_point(e.position):
+			world_view = not world_view
+			Sfx.play("click", -10.0)
+		accept_event()
+		queue_redraw()
+
+func _map_button(r: Rect2, text: String) -> void:
+	var f := Wow.body()
+	_btn_rect = Rect2(Vector2(r.end.x - 170, r.position.y - 44), Vector2(170, 32))
+	var sb := Wow.button_box(Color(0.14, 0.1, 0.08), Wow.FRAME_HI)
+	draw_style_box(sb, _btn_rect)
+	if f:
+		draw_string(f, _btn_rect.position + Vector2(0, 22), Tx.s(text), HORIZONTAL_ALIGNMENT_CENTER, _btn_rect.size.x, 16, Wow.GOLD)
+
 func _draw_big() -> void:
+	if world_view:
+		_draw_world()
+		return
 	var vs := get_viewport_rect().size
 	draw_rect(Rect2(Vector2.ZERO, vs), Color(0, 0, 0, 0.72))
 	var s := minf(vs.x, vs.y) - 120.0
@@ -144,8 +172,148 @@ func _draw_big() -> void:
 		draw_string(f, Vector2(r.position.x, r.position.y - 16), Tx.s(t), HORIZONTAL_ALIGNMENT_LEFT, -1, 40, UiKit.ACCENT)
 	var bf := Wow.body()
 	if bf:
-		var legend := "! quest  ·  ? turn in  ·  dots: fighters  ·  flags: territories (green yours, red under attack)  ·  star: objective  ·  M closes"
+		var legend := "! quest  ·  ? turn in  ·  dots: fighters  ·  flags: territories (green yours, red under attack)  ·  star: objective  ·  scroll out: world  ·  M closes"
 		draw_string(bf, Vector2(r.position.x, r.end.y + 30), Tx.s(legend), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, UiKit.MUTED)
+	_map_button(r, "World map")
+
+# ------------------------------------------------------------ the world (both continents)
+## Stylised continents (0..1 of the map frame): North America top-left, South America
+## bottom-right, an ocean between them, each zone a coloured region with its level range.
+const NA := [Vector2(0.05, 0.18), Vector2(0.1, 0.08), Vector2(0.22, 0.05), Vector2(0.36, 0.06), Vector2(0.47, 0.1), Vector2(0.52, 0.16),
+	Vector2(0.49, 0.22), Vector2(0.5, 0.28), Vector2(0.53, 0.36), Vector2(0.56, 0.46), Vector2(0.52, 0.47), Vector2(0.48, 0.39),
+	Vector2(0.42, 0.37), Vector2(0.37, 0.41), Vector2(0.34, 0.47), Vector2(0.3, 0.52), Vector2(0.26, 0.5), Vector2(0.22, 0.43),
+	Vector2(0.15, 0.38), Vector2(0.09, 0.32), Vector2(0.06, 0.26)]
+const SA := [Vector2(0.57, 0.5), Vector2(0.66, 0.47), Vector2(0.76, 0.5), Vector2(0.86, 0.55), Vector2(0.94, 0.6), Vector2(0.93, 0.68),
+	Vector2(0.86, 0.75), Vector2(0.8, 0.83), Vector2(0.74, 0.9), Vector2(0.69, 0.97), Vector2(0.65, 0.95), Vector2(0.66, 0.86),
+	Vector2(0.63, 0.76), Vector2(0.59, 0.66), Vector2(0.55, 0.58)]
+const ZONE_AT := {
+	"socal": Vector2(0.1, 0.29), "sedona": Vector2(0.21, 0.25), "texas": Vector2(0.33, 0.3), "everglades": Vector2(0.5, 0.38),
+	"caceres": Vector2(0.67, 0.6), "pantanal": Vector2(0.69, 0.76), "chapada": Vector2(0.79, 0.58), "rio": Vector2(0.84, 0.7),
+}
+const ZONE_TINT := {
+	"caceres": Color(0.36, 0.62, 0.3), "pantanal": Color(0.3, 0.55, 0.45), "chapada": Color(0.8, 0.45, 0.28), "rio": Color(0.3, 0.6, 0.5),
+	"texas": Color(0.8, 0.68, 0.36), "everglades": Color(0.4, 0.55, 0.3), "sedona": Color(0.8, 0.38, 0.22), "socal": Color(0.85, 0.75, 0.5),
+}
+
+static func _smooth(pts: Array, r: Rect2, steps := 6) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var n := pts.size()
+	for i in n:
+		var p0: Vector2 = pts[(i - 1 + n) % n]
+		var p1: Vector2 = pts[i]
+		var p2: Vector2 = pts[(i + 1) % n]
+		var p3: Vector2 = pts[(i + 2) % n]
+		for k in steps:
+			var t := float(k) / steps
+			var t2 := t * t
+			var t3 := t2 * t
+			var q := 0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3)
+			out.append(r.position + q * r.size)
+	return out
+
+func _draw_world() -> void:
+	var vs := get_viewport_rect().size
+	draw_rect(Rect2(Vector2.ZERO, vs), Color(0, 0, 0, 0.75))
+	var h := vs.y - 150.0
+	var w := minf(vs.x - 80.0, h * 1.45)
+	var r := Rect2(Vector2((vs.x - w) * 0.5, 84.0), Vector2(w, h))
+	# ocean with soft wave bands
+	draw_rect(r, Color(0.12, 0.28, 0.4))
+	for k in 18:
+		var y := r.position.y + (k + 0.5) * r.size.y / 18.0
+		var pts := PackedVector2Array()
+		for i in 41:
+			var x := r.position.x + i * r.size.x / 40.0
+			pts.append(Vector2(x, y + sin(i * 0.7 + k * 1.3 + _t * 0.4) * 3.0))
+		draw_polyline(pts, Color(0.2, 0.4, 0.52, 0.5), 1.0, true)
+	# continents: a dark rim, then the land
+	for shape in [NA, SA]:
+		var poly := _smooth(shape, r)
+		var rim := PackedVector2Array()
+		var ctr := Vector2.ZERO
+		for p in poly:
+			ctr += p
+		ctr /= poly.size()
+		for p in poly:
+			rim.append(ctr + (p - ctr) * 1.025)
+		draw_colored_polygon(rim, Color(0.75, 0.7, 0.55))
+		draw_colored_polygon(poly, Color(0.46, 0.5, 0.34))
+		var loop := poly.duplicate()
+		loop.append(poly[0])
+		draw_polyline(loop, Color(0.2, 0.18, 0.12), 2.0, true)
+	var f := Wow.body()
+	var tf := Wow.title_font()
+	var plv := Game.player_level()
+	var mine: String = Game.faction()
+	var path: Array = Origins.faction(mine).path
+	# roads: the bus line along each faction's path, and the flight across the sea
+	for fid in Origins.FACTIONS:
+		var fp: Array = Origins.FACTIONS[fid].path
+		for i in fp.size() - 1:
+			var a: Vector2 = r.position + ZONE_AT[fp[i]] * r.size
+			var b: Vector2 = r.position + ZONE_AT[fp[i + 1]] * r.size
+			draw_dashed_line(a, b, Color(0.95, 0.88, 0.6, 0.8), 2.0, 8.0)
+	var fa: Vector2 = r.position + ZONE_AT["rio"] * r.size
+	var fb: Vector2 = r.position + ZONE_AT["socal"] * r.size
+	var arc := PackedVector2Array()
+	for i in 33:
+		var t := i / 32.0
+		var mid := fa.lerp(fb, t) + Vector2(0, -sin(t * PI) * r.size.y * 0.18) + Vector2(sin(t * PI) * r.size.x * 0.12, 0)
+		arc.append(mid)
+	for i in range(0, arc.size() - 1, 2):
+		draw_line(arc[i], arc[i + 1], Color(0.7, 0.85, 1.0, 0.7), 2.0, true)
+	if f:
+		var mp := arc[16]
+		draw_string_outline(f, mp + Vector2(8, 0), Tx.s("Flights between continents"), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color(0, 0, 0, 0.9))
+		draw_string(f, mp + Vector2(8, 0), Tx.s("Flights between continents"), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.75, 0.88, 1.0))
+	# zones
+	for z in ZONE_AT:
+		var c: Vector2 = r.position + ZONE_AT[z] * r.size
+		var rad := r.size.x * 0.034
+		var blob := PackedVector2Array()
+		for i in 24:
+			var a := TAU * i / 24.0
+			var wob := 1.0 + 0.12 * sin(a * 3.0 + c.x * 0.05) + 0.08 * sin(a * 5.0 + c.y * 0.07)
+			blob.append(c + Vector2(cos(a), sin(a) * 0.8) * rad * wob)
+		var ours: bool = z in path
+		var tint: Color = ZONE_TINT.get(z, Color(0.5, 0.5, 0.4))
+		draw_colored_polygon(blob, tint if ours else tint.darkened(0.45))
+		var loop2 := blob.duplicate()
+		loop2.append(blob[0])
+		var here: bool = world != null and world.zone == z
+		draw_polyline(loop2, Wow.GOLD if here else Color(0, 0, 0, 0.7), 3.0 if here else 1.5, true)
+		if here:
+			var pulse := 0.5 + 0.5 * sin(_t * 4.0)
+			draw_arc(c, rad * (1.15 + 0.1 * pulse), 0, TAU, 40, Color(1, 0.85, 0.3, 0.4 + 0.4 * pulse), 2.5, true)
+			var pts := PackedVector2Array([c + Vector2(0, -9), c + Vector2(7, 6), c + Vector2(0, 2), c + Vector2(-7, 6)])
+			draw_colored_polygon(pts, Color(1, 0.88, 0.3))
+		if f:
+			var zd: Dictionary = Data.ZONES[z]
+			var nm := Tx.s(str(zd.name))
+			var lv := Tx.s(Data.zone_levels(z))
+			var lo := int(zd.levels[0])
+			var hi := int(zd.levels[1])
+			var lc := Wow.GREY if plv > hi + 3 else (Data.con_color((lo + hi) / 2, plv) if ours else Color(0.95, 0.45, 0.4))
+			var above: bool = z in ["sedona", "chapada"]   # labels above where neighbours sit close below
+			var y0 := c.y - rad * 0.8 - 22 if above else c.y + rad * 0.8 + 16
+			draw_string_outline(f, Vector2(c.x - 110, y0), nm, HORIZONTAL_ALIGNMENT_CENTER, 220, 16, 5, Color(0, 0, 0, 0.95))
+			draw_string(f, Vector2(c.x - 110, y0), nm, HORIZONTAL_ALIGNMENT_CENTER, 220, 16, Wow.WHITE if ours else Color(0.8, 0.78, 0.74))
+			var sub := lv if ours else Tx.f("%s  ·  %s", [lv, Tx.s(str(Origins.faction(Origins.faction_of_zone(z)).long))])
+			draw_string_outline(f, Vector2(c.x - 110, y0 + 16), sub, HORIZONTAL_ALIGNMENT_CENTER, 220, 12, 4, Color(0, 0, 0, 0.95))
+			draw_string(f, Vector2(c.x - 110, y0 + 16), sub, HORIZONTAL_ALIGNMENT_CENTER, 220, 12, lc)
+	# continent names
+	if tf:
+		for cn in [["AMÉRICA DO NORTE", Vector2(0.29, 0.13)], ["AMÉRICA DO SUL", Vector2(0.84, 0.92)]]:
+			var p: Vector2 = r.position + cn[1] * r.size
+			draw_string_outline(tf, p - Vector2(160, 0), str(cn[0]), HORIZONTAL_ALIGNMENT_CENTER, 320, 22, 6, Color(0, 0, 0, 0.8))
+			draw_string(tf, p - Vector2(160, 0), str(cn[0]), HORIZONTAL_ALIGNMENT_CENTER, 320, 22, Color(0.95, 0.88, 0.65))
+		draw_string_outline(tf, Vector2(r.position.x, r.position.y - 16), Tx.s("THE WORLD"), HORIZONTAL_ALIGNMENT_LEFT, -1, 40, 8, Color(0, 0, 0))
+		draw_string(tf, Vector2(r.position.x, r.position.y - 16), Tx.s("THE WORLD"), HORIZONTAL_ALIGNMENT_LEFT, -1, 40, UiKit.ACCENT)
+	draw_rect(r.grow(5), Wow.FRAME, false, 5.0)
+	if f:
+		var legend := "Your faction's zones in colour, the other side's darker  ·  dashed: bus routes  ·  scroll in: this zone  ·  M closes"
+		draw_string(f, Vector2(r.position.x, r.end.y + 30), Tx.s(legend), HORIZONTAL_ALIGNMENT_LEFT, r.size.x, 15, UiKit.MUTED)
+	_map_button(r, "This zone")
 
 func _draw_player(at: Vector2, k: float) -> void:
 	# arrow points where the character faces; a faint cone shows the camera

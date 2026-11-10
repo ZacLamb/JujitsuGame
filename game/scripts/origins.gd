@@ -20,6 +20,12 @@ const FACTIONS := {
 static func faction_of(id: String) -> String:
 	return str(get_origin(id).get("faction", "brasil"))
 
+static func faction_of_zone(z: String) -> String:
+	for fid in FACTIONS:
+		if z in FACTIONS[fid].path:
+			return fid
+	return "brasil"
+
 static func faction(id: String) -> Dictionary:
 	return FACTIONS.get(id, FACTIONS.brasil)
 
