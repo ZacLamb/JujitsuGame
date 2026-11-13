@@ -154,6 +154,12 @@ func target_next() -> void:
 func press(slot_id: String) -> void:
 	if me == null or me.dead or _finishing:
 		return
+	# the finish: every press squeezes (or fights the squeeze)
+	if core.in_struggle(me):
+		core.struggle_press(me)
+		Sfx.play("squeeze", -14.0, randf_range(1.1, 1.4))
+		UiKit.buzz(12)
+		return
 	var a := core.ability(me, slot_id)
 	if a.is_empty():
 		_error("Not learned yet")
@@ -504,6 +510,21 @@ func _show_sub_setup(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void
 		var r: Transform3D = rig.current_root().interpolate_with(local, 0.65)
 		rig.action([[p, r, 0.5]], true)
 
+## The finish pose itself (the struggle): both bodies all the way into the submission.
+func _show_sub_full(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void:
+	var ar := _rig_of(u)
+	var dr := _rig_of(t)
+	if ar == null or dr == null or not Data.MOVES.has(mv):
+		return
+	var e := t if u.player else u
+	var pr := RollPoses.sub_pair(mv, e.gpos, true)
+	var anchor := Transform3D(Basis(Vector3.UP, _yaw_to(u, t) + PI), t.pos)
+	for side in [[ar, pr.atk], [dr, pr.def]]:
+		var rig: BodyRig = side[0]
+		var fin: Array = side[1]
+		var parent := rig.get_parent() as Node3D
+		rig.action([[fin[0], parent.global_transform.affine_inverse() * anchor * fin[1], 0.35]], true)
+
 func _rig_of(u: CombatCore.Unit) -> BodyRig:
 	if u == null:
 		return null
@@ -649,6 +670,21 @@ func _on_event(e: Dictionary) -> void:
 				_float(n, str(e.text), Color(0.4, 1, 0.6))
 		"tap":
 			_on_tap(u, e.get("by"), str(e.get("sub", "")))
+		"struggle":
+			var tg: CombatCore.Unit = e.target
+			if bool(e.on):
+				# both bodies lock into the finish
+				_fx_stop(u, true)
+				_show_sub_full(u, tg, str(e.ab.get("_mv", e.ab.get("move", ""))))
+				Sfx.play("squeeze", -4.0, 0.8)
+				_hitstop(0.08, 0.2)
+				if u.player or tg.player:
+					player.add_shake(0.4)
+			elif not bool(e.get("tapped", false)):
+				var eu: CombatCore.Unit = tg if not tg.player else u
+				if eu and not eu.player:
+					_show_position(eu)
+				Sfx.play("perfect" if tg.player else "miss", -4.0)
 		"combat":
 			if u.player:
 				if bool(e.on):

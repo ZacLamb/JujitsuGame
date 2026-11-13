@@ -1769,6 +1769,12 @@ func _build_settings() -> void:
 		ui_scale_changed.emit())
 	_slider_row(lc, "Mouse sensitivity", float(Sfx.pref("mouse", 1.0)), 0.3, 2.5, func(x): Sfx.set_pref("mouse", x))
 	_slider_row(lc, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
+	var hints := CheckButton.new()
+	hints.text = "Button hints in fights"
+	hints.button_pressed = bool(Sfx.pref("hints", Game.player_level() < 15))
+	hints.focus_mode = Control.FOCUS_NONE
+	hints.toggled.connect(func(on): Sfx.set_pref("hints", on))
+	lc.add_child(hints)
 	var inv := CheckButton.new()
 	inv.text = "Invert camera up/down"
 	inv.button_pressed = bool(Sfx.pref("invert_y", false))

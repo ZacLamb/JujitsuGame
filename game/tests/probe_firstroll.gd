@@ -47,6 +47,13 @@ func _ready() -> void:
 		var tg = c.target
 		if tg == null or c._finishing:
 			break
+		if c.core.in_struggle(c.me):
+			_shot("f_squeeze")
+			for k in 3:
+				c.press("sub")
+			continue
+		if not main.hud.combat_hud._hints.is_empty():
+			_shot("g_hint")
 		if not tg.cast.is_empty():
 			_shot("b_read")
 			var key := str(tg.cast.ab.get("id", "")) + str(tg.cast.get("dur", 0))

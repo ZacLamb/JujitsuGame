@@ -785,11 +785,6 @@
 "2 lleva la pelea al suelo contigo arriba. La posición importa: sube de guardia, media guardia, control lateral, montada hasta la espalda y golpeas más fuerte."
 ],
 [
-"3 is how a roll ends. Wear them down until their bar is empty, then submit. Only a submission makes someone tap; more Grip makes it go deeper.",
-"3 é como o rola termina. Desgaste o adversário até a barra dele zerar e finalize. Só finalização faz alguém bater; mais Pegada deixa ela mais profunda.",
-"3 es cómo termina el combate. Desgástalo hasta vaciar su barra y somételo. Solo una sumisión hace que alguien se rinda; más Agarre la hace más profunda."
-],
-[
 "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment.",
 "Quando ele entrar numa queda, SPRAWL! aparece no meio da tela. Aperte Q a tempo: ele para e fica desequilibrado. Chutou errado (ou ficou apertando) e suas defesas travam por um instante.",
 "Cuando intente un derribo, ¡SPRAWL! aparece en el centro de la pantalla. Pulsa Q a tiempo: queda frenado y desequilibrado. Si adivinas mal (o lo machacas), tus defensas se bloquean un momento."
@@ -858,5 +853,35 @@
 "Coach: \"Wear them down, then FINISH: only a submission makes them tap. And watch the middle of the screen: when SPRAWL, FRAME or DEFEND flashes, that's your read.\"",
 "Técnico: \"Desgaste, depois FINALIZE: só finalização faz bater. E fique de olho no meio da tela: quando SPRAWL, FRAME ou DEFENDA aparecer, essa é a sua leitura.\"",
 "Entrenador: \"Desgástalo y luego TERMINA: solo una sumisión hace que se rinda. Y mira el centro de la pantalla: cuando aparezca SPRAWL, FRAME o DEFIENDE, esa es tu lectura.\""
+],
+[
+"SQUEEZE!",
+"APERTA!",
+"¡APRIETA!"
+],
+[
+"ESCAPE!",
+"ESCAPA!",
+"¡ESCAPA!"
+],
+[
+"mash [%s]",
+"martele [%s]",
+"machaca [%s]"
+],
+[
+"Escaped!",
+"Escapou!",
+"¡Escapó!"
+],
+[
+"Button hints in fights",
+"Dicas de botões nas lutas",
+"Pistas de botones en los combates"
+],
+[
+"3 is how a roll ends. Wear them down until their bar is empty, then submit. When it locks in, mash 3 to SQUEEZE until they tap. Only a submission makes someone tap; more Grip makes it go deeper.",
+"3 é como o rola termina. Desgaste o adversário até a barra dele zerar e finalize. Quando encaixar, martele 3 para APERTAR até ele bater. Só finalização faz alguém bater; mais Pegada deixa ela mais profunda.",
+"3 es cómo termina el combate. Desgástalo hasta vaciar su barra y somételo. Cuando encaje, machaca 3 para APRETAR hasta que se rinda. Solo una sumisión hace que alguien se rinda; más Agarre la hace más profunda."
 ]
 ]

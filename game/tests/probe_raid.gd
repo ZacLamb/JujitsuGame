@@ -52,6 +52,10 @@ func _ready() -> void:
 		await get_tree().create_timer(0.2).timeout
 		if c.raid == null:
 			break
+		if c.core.in_struggle(c.me):
+			c.press("sub")
+			c.press("sub")
+			continue
 		var tg = c.target if c.target and not c.target.dead else c.raid.boss
 		c.target = tg
 		# walk to melee range of the target

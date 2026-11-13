@@ -123,6 +123,14 @@ func _on_ev(e: Dictionary, st: Dictionary, me) -> void:
 		"tap":
 			if e.by == me and str(e.get("sub", "")) != "":
 				st.sub_kill += 1
+		"struggle":
+			if not e.on:
+				var mine: bool = e.u == me
+				st["struggles"] = float(st.get("struggles", 0.0)) + 1.0
+				if mine and not e.tapped:
+					st["escaped_from_me"] = float(st.get("escaped_from_me", 0.0)) + 1.0
+				if not mine and not e.tapped:
+					st["i_escaped"] = float(st.get("i_escaped", 0.0)) + 1.0
 
 func _try(core: CombatCore, me, id: String, st: Dictionary) -> bool:
 	var a := core.ability(me, id)
@@ -152,6 +160,12 @@ func _counter(core: CombatCore, me, rng: RandomNumberGenerator, pol: String, st:
 	return false
 
 func _act(core: CombatCore, me, rng: RandomNumberGenerator, pol: String, st: Dictionary) -> void:
+	if core.in_struggle(me):
+		# the finish: everyone but the 1-spammer mashes (one press per input step)
+		if pol != "spam1":
+			core.struggle_press(me)
+			st["struggle_presses"] = float(st.get("struggle_presses", 0.0)) + 1.0
+		return
 	match pol:
 		"spam1":
 			_try(core, me, "handfight", st)

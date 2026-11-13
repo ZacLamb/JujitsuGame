@@ -41,7 +41,7 @@ const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F",
 const TUTORIAL := {
 	"handfight": "Target someone (Tab or click) and press 1 to fight for grips. It wears them down and builds Grip (the red dots under your bars).",
 	"takedown": "2 takes the fight to the ground with you on top. Positions matter: climb guard, half, side, mount, back and you hit harder.",
-	"sub": "3 is how a roll ends. Wear them down until their bar is empty, then submit. Only a submission makes someone tap; more Grip makes it go deeper.",
+	"sub": "3 is how a roll ends. Wear them down until their bar is empty, then submit. When it locks in, mash 3 to SQUEEZE until they tap. Only a submission makes someone tap; more Grip makes it go deeper.",
 	"base": "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment.",
 	"defend": "When they lock a submission, DEFEND! flashes: hit T. Get worn down and they WILL go for the finish, so watch for it.",
 	"breathe": "F recovers Gas. Out of combat it also restores Composure.",

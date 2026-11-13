@@ -121,7 +121,8 @@ var _read_kind := ""
 var _read_frac := 0.0
 var _read_col := Color.WHITE
 var _read_t := 0.0
-const READ_COL := {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35), "sub": Color(0.45, 1.0, 0.5)}
+const READ_COL := {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35), "sub": Color(0.45, 1.0, 0.5),
+	"squeeze": Color(0.45, 1.0, 0.5), "escape": Color(1, 0.35, 0.35)}
 
 func _build_read() -> void:
 	_read_btn = Button.new()
@@ -140,7 +141,9 @@ func _build_read() -> void:
 	_read_btn.add_theme_color_override("font_outline_color", Color.BLACK)
 	_read_btn.visible = false
 	_read_btn.pressed.connect(func():
-		if _read_kind != "":
+		if _read_kind in ["squeeze", "escape"]:
+			combat.press("sub")
+		elif _read_kind != "":
 			combat.press(_read_kind))
 	add_child(_read_btn)
 
@@ -151,13 +154,67 @@ func _key_for(id: String) -> String:
 	var i := Game.bar_layout.find(id)
 	return Keys.label("ab_%d" % i) if i >= 0 else "?"
 
+## Beginner hints: a soft pulse on the one or two buttons that make sense right now (from where
+## you are in the fight). On until level 15; Esc > Controls turns them off (or on for good).
+var _hints: Array = []
+const HINT_UNTIL := 15
+
+func _hints_on() -> bool:
+	var pref = Sfx.pref("hints", null)
+	if pref != null:
+		return bool(pref)
+	return Game.player_level() < HINT_UNTIL
+
+func _usable(id: String, t: CombatCore.Unit) -> bool:
+	var a := combat.core.ability(combat.me, id)
+	if a.is_empty():
+		return false
+	var why := combat.core.block_reason(combat.me, a, t)
+	return why == "" or why == "gcd"
+
+func _compute_hints() -> Array:
+	var me: CombatCore.Unit = combat.me
+	var core: CombatCore = combat.core
+	var t: CombatCore.Unit = combat.target
+	if not _hints_on() or t == null or t.dead or not t.in_combat or not me.cast.is_empty() or core.in_struggle(me):
+		return []
+	if t.has("worn"):
+		return ["sub"] if _usable("sub", t) else []
+	if me.down():
+		return ["escape"] if _usable("escape", t) else []
+	var pi: Array = core.pos_info(me, t)
+	var out: Array = []
+	var order: Array
+	if str(pi[0]) == "standing":
+		order = ["takedown"]
+	elif bool(pi[1]):
+		order = ["back", "advance", "pass"]
+	else:
+		order = ["sweep", "escape", "back"]
+	for id in order:
+		if _usable(id, t):
+			out.append(id)
+			break
+	if me.grip >= 3 and _usable("sub", t):
+		out.append("sub")
+	if out.is_empty() and _usable("handfight", t):
+		out.append("handfight")
+	return out
+
 func _update_read(delta: float) -> void:
+	_hints = _compute_hints()
 	var me: CombatCore.Unit = combat.me
 	var core: CombatCore = combat.core
 	var kind := ""
 	var text := ""
 	var frac := 0.0
-	if me.in_combat and not me.dead:
+	if core.in_struggle(me):
+		var att: bool = core.struggle.atk == me
+		kind = "squeeze" if att else "escape"
+		text = (Tx.s("SQUEEZE!") if att else Tx.s("ESCAPE!")) + "  " + Tx.f("mash [%s]", _key_for("sub") if att else _key_for("defend") if not core.ability(me, "defend").is_empty() else _key_for("sub"))
+		var m := float(core.struggle.meter)
+		frac = m if att else 1.0 - m
+	elif me.in_combat and not me.dead:
 		var c: CombatCore.Unit = core._caster_at(me)
 		var t: CombatCore.Unit = combat.target
 		if c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
@@ -195,6 +252,8 @@ func _update_read(delta: float) -> void:
 		_read_btn.scale = Vector2(1.18, 1.18)
 		_read_btn.create_tween().tween_property(_read_btn, "scale", Vector2.ONE, 0.14)
 	_read_frac = frac
+	if kind in ["squeeze", "escape"]:
+		_read_btn.scale = Vector2.ONE * (1.0 + 0.04 * sin(_read_t * 22.0))
 	# worn-down calls pulse
 	if frac < 0.0:
 		_read_btn.modulate.a = 0.75 + 0.25 * sin(_read_t * 8.0)
@@ -475,6 +534,12 @@ func _draw_slot(b: Button, i: int) -> void:
 	# finisher / advance ready glow
 	if why == "" and (bool(a.get("finisher", false)) and me.grip >= 3 or str(a.get("needs", "")) == "control"):
 		b.draw_rect(r.grow(-1), Color(1, 0.85, 0.3, 0.85), false, 2.0)
+	if str(a.id) in _hints:
+		# beginner hint: the button glows and breathes
+		var hp := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 150.0)
+		b.draw_rect(inner, Color(0.55, 1.0, 0.6, 0.12 + 0.18 * hp))
+		b.draw_rect(r.grow(-1.5), Color(0.55, 1.0, 0.6, 0.65 + 0.35 * hp), false, 3.5)
+		b.draw_rect(r.grow(-5.0), Color(1, 1, 1, 0.25 * hp), false, 1.5)
 	var key := slot_key(i)
 	b.draw_string_outline(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
 	b.draw_string(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.85, 0.85))

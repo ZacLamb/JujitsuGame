@@ -224,6 +224,7 @@ func engage(a: Unit, b: Unit) -> void:
 
 func leave_combat(u: Unit) -> void:
 	u.ooc_t = 0.0
+	_escapes.erase(u.id)
 	if u.in_combat:
 		u.in_combat = false
 		u.cast = {}
@@ -336,6 +337,8 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "You tapped"
 	if u.down() and str(a.type) != "escape" and not str(a.get("effect", "")) in ["jeitinho", "advice"]:
 		return "You're down!"
+	if in_struggle(u):
+		return "Busy"
 	if not u.cast.is_empty():
 		return "Busy"
 	if float(u.cds.get(a.id, 0.0)) > 0.0:
@@ -724,6 +727,10 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 	var duel := pm(t) or pm(src)   # the rule is about YOUR rolls (raid partners and adds go down normally)
 	if not duel:
 		pass
+	elif fin and not _resolving and (t.has("worn") or t.hp - amount < 1.0) and struggle.is_empty() and not t.dead:
+		# the finish: a short squeeze-and-tap struggle instead of an instant tap
+		_start_struggle(src, t, a)
+		return
 	elif fin and t.has("worn"):
 		amount = maxf(amount, t.hp)
 	elif not fin and t.hp - amount < 1.0:
@@ -782,10 +789,98 @@ func _check_ooc(p: Unit) -> void:
 func tick(delta: float) -> void:
 	if puppet:
 		return
+	if not struggle.is_empty():
+		_tick_struggle(delta)
 	for u in units.duplicate():
 		if u.dead:
 			continue
+		if not struggle.is_empty() and (u == struggle.atk or u == struggle.def):
+			continue   # locked together in the finish
 		_tick_unit(u, delta)
+
+# ------------------------------------------------------------ the finish (squeeze / escape)
+## A submission that would end the roll becomes a short struggle. `meter` is how deep the
+## submission is (0 = they escaped, 1 = tap). The attacker squeezes (mash), the defender fights
+## it (mash); time running out goes to whoever is ahead. A player squeezing a normal enemy taps
+## them even without mashing (easy to learn); elites and bosses fight back, so mash. When YOU are
+## caught, mash to escape: you get out, heal a little and they're thrown off-balance.
+var struggle := {}            # {atk, def, ab, meter, t, dur}
+var _resolving := false       # applying a struggle's tap (don't start another)
+var _escapes := {}            # unit id -> escapes this fight (reset when they leave combat)
+const STRUGGLE_DUR := 3.0
+const SQUEEZE_PRESS := 0.1    # meter per press (player squeezing)
+const ESCAPE_PRESS := 0.065   # meter per press (player escaping)
+
+func _start_struggle(atk: Unit, def: Unit, a: Dictionary) -> void:
+	# every escape in the same fight makes the next one harder (you're tiring)
+	var tired := int(_escapes.get(def.id, 0))
+	var start := 0.4 + 0.04 * float(atk.grip) + 0.15 * tired
+	struggle = {"atk": atk, "def": def, "ab": a, "meter": clampf(start, 0.3, 0.85), "t": 0.0, "dur": STRUGGLE_DUR, "tired": tired}
+	atk.cast = {}
+	def.cast = {}
+	emit({"t": "struggle", "u": atk, "target": def, "ab": a, "on": true})
+
+## The defender's / attacker's automatic pressure per second (the side that isn't you).
+func _struggle_rates() -> Vector2:
+	var atk: Unit = struggle.atk
+	var def: Unit = struggle.def
+	var fill := 0.15                       # a submission sinks in on its own
+	var drain := 0.0
+	if pm(atk) and not pm(def):
+		drain = 0.22 if def.boss else (0.13 if def.elite else 0.0)
+	elif pm(def) and not pm(atk):
+		fill = (0.42 if atk.boss else (0.34 if atk.elite else 0.27)) * (1.0 + 0.25 * float(struggle.get("tired", 0)))
+	return Vector2(fill, drain)
+
+## A press from a unit in the struggle (squeeze if attacking, fight it if defending).
+func struggle_press(u: Unit) -> void:
+	if struggle.is_empty():
+		return
+	if u == struggle.atk:
+		struggle.meter = minf(1.0, float(struggle.meter) + SQUEEZE_PRESS)
+	elif u == struggle.def:
+		struggle.meter = maxf(0.0, float(struggle.meter) - ESCAPE_PRESS)
+
+func in_struggle(u: Unit) -> bool:
+	return not struggle.is_empty() and (u == struggle.atk or u == struggle.def)
+
+func _tick_struggle(delta: float) -> void:
+	var atk: Unit = struggle.atk
+	var def: Unit = struggle.def
+	if atk.dead or def.dead or not units.has(atk) or not units.has(def):
+		struggle = {}
+		return
+	var r := _struggle_rates()
+	struggle.t = float(struggle.t) + delta
+	struggle.meter = clampf(float(struggle.meter) + (r.x - r.y) * delta, 0.0, 1.0)
+	var m := float(struggle.meter)
+	var over := float(struggle.t) >= float(struggle.dur)
+	if m >= 1.0 or (over and m >= 0.5):
+		_end_struggle(true)
+	elif m <= 0.0 or over:
+		_end_struggle(false)
+
+func _end_struggle(tapped: bool) -> void:
+	var atk: Unit = struggle.atk
+	var def: Unit = struggle.def
+	var a: Dictionary = struggle.ab
+	struggle = {}
+	emit({"t": "struggle", "u": atk, "target": def, "ab": a, "on": false, "tapped": tapped})
+	if tapped:
+		atk.last_sub = str(a.get("_mv", a.get("move", "sub")))
+		def.auras.erase("worn")
+		def.hp = 1.0
+		_resolving = true
+		_damage(atk, def, 1.0, false, a)
+		_resolving = false
+	else:
+		# they fought it off: a breath back, and the attacker is off-balance
+		def.auras.erase("worn")
+		emit({"t": "aura_off", "u": def, "aura": "worn"})
+		_escapes[def.id] = int(_escapes.get(def.id, 0)) + 1
+		_heal(def, def.max_hp * 0.08, def)
+		_aura(atk, "down", 1.2, def)
+		emit({"t": "proc", "u": def, "text": "Escaped!"})
 
 func _tick_unit(u: Unit, delta: float) -> void:
 	u.gcd = maxf(0.0, u.gcd - delta)
