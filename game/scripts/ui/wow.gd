@@ -189,10 +189,32 @@ static func tip(width := 300.0, edge := TIP_EDGE) -> Array:
 	return [p, v]
 
 static func tline(v: Control, text: String, color := WHITE, size := 14, wrap := false) -> Label:
-	var l := label(text, size, color, wrap)
+	var l := label(text, size, color, false)
 	l.add_theme_constant_override("outline_size", 2)
+	if wrap:
+		# break the lines ourselves: an auto-wrapping label inside a popup tooltip has no width yet
+		# when the popup is sized, so it reports itself as one word per line and the box comes out
+		# a full screen tall
+		hard_wrap(l, maxf(120.0, v.custom_minimum_size.x), size)
 	v.add_child(l)
 	return l
+
+## Insert line breaks so the label fits `width` without auto-wrap.
+static func hard_wrap(l: Label, width: float, size: int) -> void:
+	var f: Font = body() if body() else l.get_theme_default_font()
+	var out: Array = []
+	for para in l.text.split("\n"):
+		var line := ""
+		for word in para.split(" "):
+			var trial: String = word if line == "" else line + " " + word
+			if line != "" and f.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+				out.append(line)
+				line = word
+			else:
+				line = trial
+		out.append(line)
+	l.text = "\n".join(out)
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
 
 static func tpair(v: Control, a: String, b: String, color := WHITE) -> void:
 	var h := HBoxContainer.new()
