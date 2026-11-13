@@ -56,6 +56,9 @@ class Unit:
 	var rank := 0
 	var seen := {}                 # enemies: how often the player went for each technique type
 	var last_type := ""            # enemies: the player's last technique type against them
+	var boss_id := ""              # zone bosses (Data.BOSS): signature + second phase
+	var sig_t := 9.0               # seconds until the signature is ready
+	var phase := 1
 	var _stall := 0                # enemies: AI ticks with nothing to do from this position
 	var rival := false             # a named fighter who has rolled with you before (remembers your game)
 
@@ -118,6 +121,7 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	u.rank = int(d.get("rank", 0))
 	u.elite = bool(d.get("elite", false)) or kind != "mob"
 	u.boss = kind == "boss" or bool(d.get("rare", false))
+	u.boss_id = str(d.get("boss_id", ""))
 	# normal mobs last long enough for a few reads (see tests/audit_core.gd); raid units keep the
 	# numbers the raid was tuned with
 	var raid_unit := bool(d.get("raid", false))
@@ -468,6 +472,9 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		u.cds[a.id] = cd
 	var eff := str(a.get("effect", ""))
 	emit({"t": "use", "u": u, "ab": a, "target": t})
+	if bool(a.get("sig", false)) and t != null and not t.dead:
+		_aura(t, "rattled", 8.0, u)
+		emit({"t": "sig_hit", "u": u, "target": t, "ab": a})
 	if a.has("heal") and t != null and not t.dead:
 		_heal(t, t.max_hp * float(a.heal), u)
 		return
@@ -661,10 +668,17 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 		if pm(u) and u.mods.get("base_grip", false):
 			u.grip = mini(u.max_grip, u.grip + 2)
 			u.gas = minf(u.max_gas, u.gas + 30.0)
+	if bool(ab.get("sig", false)):
+		# you read the signature: they're wide open
+		_aura(t, "down", 3.2, u)
+		_aura(t, "exposed", 8.0, u)
+		u.grip = mini(u.max_grip, u.grip + 2)
+		u.gas = minf(u.max_gas, u.gas + 25.0)
+		emit({"t": "sig_read", "u": u, "target": t, "ab": ab})
 	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "kind": kind, "text": "%s!" % Tx.s(counter_verb(ab))})
 	emit({"t": "cast_stop", "u": t})
 	# counter-to-counter: elites and bosses read your counter and flow into the next attack
-	if not t.player and (t.elite or t.boss) and rng.randf() < (0.35 if t.boss else 0.2):
+	if not t.player and (t.elite or t.boss) and not bool(ab.get("sig", false)) and rng.randf() < (0.35 if t.boss else 0.2):
 		var re := _recounter_move(t, str(ab.get("_mv", "")))
 		if re != "":
 			t.auras.erase("down")
@@ -1074,6 +1088,8 @@ func _end_struggle(tapped: bool) -> void:
 		emit({"t": "proc", "u": def, "text": "Escaped!"})
 
 func _tick_unit(u: Unit, delta: float) -> void:
+	if u.boss_id != "" and u.in_combat:
+		u.sig_t = maxf(0.0, u.sig_t - delta)
 	u.gcd = maxf(0.0, u.gcd - delta)
 	for k in u.cds.keys():
 		u.cds[k] = float(u.cds[k]) - delta
@@ -1207,6 +1223,9 @@ func _ai(u: Unit, delta: float) -> void:
 	if bool(u.data.get("practice", false)):
 		_practice_ai(u, t)
 		return
+	if u.boss_id != "" and t.player:
+		if _boss_turn(u, t):
+			return
 	var pace: Vector2 = (AI_PACE_RAID if bool(u.data.get("raid", false)) and not u.boss else AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0)) * float(arch_of(u).get("pace", 1.0))
 	# grappling the player: real techniques from this position
 	if t.player and (t.target == u or u.gpos != "standing"):
@@ -1235,6 +1254,59 @@ func _ai(u: Unit, delta: float) -> void:
 	u._stall = 0
 	use(u, str(ready[rng.randi() % ready.size()].id), t)
 	u.ai_t = rng.randf_range(pace.x, pace.y)
+
+## ------------------------------------------------------------ zone bosses
+const SIG_CD := 20.0
+const SIG_CAST := 2.6
+const SIG_DMG := 2.4
+
+## Phase two at half composure, and the signature technique. Returns true if the boss acted.
+func _boss_turn(u: Unit, t: Unit) -> bool:
+	var b: Dictionary = Data.BOSS.get(u.boss_id, {})
+	if b.is_empty() or in_struggle(u):
+		return false
+	if u.phase == 1 and u.pct() <= 0.5:
+		u.phase = 2
+		for k in ["down", "pinned", "exposed", "expect"]:
+			if u.auras.has(k):
+				u.auras.erase(k)
+				emit({"t": "aura_off", "u": u, "aura": k})
+		stand_up(u)                       # they shake you off: back to the feet
+		_heal(u, u.max_hp * 0.12, u)
+		_aura(u, "rush", 12.0, u)
+		u.grip = mini(u.max_grip, u.grip + 2)
+		u.sig_t = 2.5
+		u.ai_t = 2.0
+		emit({"t": "phase", "u": u, "target": t, "text": str(b.get("phase", ""))})
+		return true
+	if u.sig_t > 0.0 or t.has("worn"):
+		return false
+	var mv := str(b.get("sig", ""))
+	if not Data.MOVES.has(mv):
+		return false
+	# the signature starts from wherever its technique lives: the boss resets the position to get there
+	var m: Dictionary = Data.MOVES[mv]
+	if str(m.pos) != u.gpos or (u.gpos != "standing" and str(m.role) != "any" and str(m.role) != ("bottom" if u.ptop else "top")):
+		if str(m.pos) == "standing":
+			stand_up(u)
+		else:
+			u.gpos = str(m.pos)
+			u.ptop = str(m.role) == "bottom"      # player on top when the boss attacks from the bottom
+			emit({"t": "position", "e": u, "pos": u.gpos, "ptop": u.ptop, "by": u, "pts": 0, "move": ""})
+	var a := move_ability(mv)
+	a["name"] = str(b.get("sig_name", a.name))
+	a["cast"] = SIG_CAST / (1.15 if u.phase == 2 else 1.0)
+	a["dmg"] = SIG_DMG
+	a["sig"] = true
+	a["_nofeint"] = true
+	if str(a.get("type", "")) == "sub":
+		a["finisher"] = false             # a signature choke hurts and rattles; the tap still has to be earned
+	u.sig_t = SIG_CD * (0.75 if u.phase == 2 else 1.0)
+	u.cast = {"ab": a, "t": 0.0, "dur": float(a.cast), "target": t, "_nofeint": true}
+	u.ai_t = rng.randf_range(AI_PACE_BOSS.x, AI_PACE_BOSS.y)
+	emit({"t": "signature", "u": u, "target": t, "ab": a})
+	emit({"t": "cast", "u": u, "ab": a, "target": t, "dur": float(a.cast)})
+	return true
 
 ## Fighting styles: every enemy style has habits you learn to read. Weights multiply how often
 ## they go for each kind of technique; the target frame shows the name and a tip.

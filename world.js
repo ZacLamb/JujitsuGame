@@ -246,6 +246,16 @@ function attach(server, pool, isReady) {
         case 'chat':
           if (['say', 'zone', 'world', 'whisper', 'academy'].includes(m.ch)) chat(c, m);
           break;
+        case 'promo': {
+          // a belt promotion: one line to everyone online (at most one a minute per player)
+          const belts = { 1: 'Blue', 2: 'Purple', 3: 'Brown', 4: 'Black' };
+          const now = Date.now();
+          if (!belts[m.belt | 0] || (c.promoAt && now - c.promoAt < 60000)) break;
+          c.promoAt = now;
+          const text = `★ ${c.char.name} was just promoted to ${belts[m.belt | 0]} Belt. Oss! ★`;
+          for (const o of clients.values()) if (o.ok && o !== c) send(o, { t: 'sys', text });
+          break;
+        }
         case 'who': {
           const list = [...clients.values()].filter((o) => o.ok).slice(0, 40).map((o) => `${o.char.name} (${o.char.level} ${o.char.style || '?'}, ${o.zone || '...'})`);
           send(c, { t: 'sys', text: `${list.length} online: ${list.join(', ')}` });

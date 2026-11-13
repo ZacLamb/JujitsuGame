@@ -193,6 +193,11 @@ func update(p: Vector3, yaw: float, speed01: float, air: bool, in_combat: bool, 
 	_last_pos = row
 	_send({"t": "pos", "x": row[0], "y": row[1], "z": row[2], "yaw": row[3], "s": row[4], "air": air, "c": in_combat})
 
+## Tell the whole server about a belt promotion (the server writes the line and rate-limits it).
+func send_promo(belt: int) -> void:
+	if connected:
+		_send({"t": "promo", "belt": belt})
+
 func send_chat(ch: String, text: String, to := "") -> void:
 	if not connected:
 		chat.emit({"ch": "sys", "text": "Log in (title screen) to chat with other players."})

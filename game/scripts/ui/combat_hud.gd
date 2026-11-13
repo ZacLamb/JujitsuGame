@@ -118,6 +118,7 @@ func _ready() -> void:
 ## worn down it says finish it (SUBMIT! [3]). Everything a new player needs, in one place.
 var _read_btn: Button
 var _read_kind := ""
+var _read_sig := false     # a boss signature is coming: gold, two lines
 var _read_frac := 0.0
 var _read_col := Color.WHITE
 var _read_t := 0.0
@@ -217,11 +218,15 @@ func _update_read(delta: float) -> void:
 		var m := float(core.struggle.meter)
 		frac = m if att else 1.0 - m
 	elif me.in_combat and not me.dead:
+		_read_sig = false
 		var c: CombatCore.Unit = core._caster_at(me)
 		var t: CombatCore.Unit = combat.target
 		if c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
 			kind = CombatCore.counter_kind(c.cast.ab)
 			text = "%s!  [%s]" % [Tx.s(CombatCore.counter_verb(c.cast.ab)).to_upper(), _key_for(kind)]
+			if bool(c.cast.ab.get("sig", false)):
+				text = "★ %s ★\n%s" % [str(c.cast.ab.get("name", "")).to_upper(), text]
+				_read_sig = true
 			frac = 1.0 - float(c.cast.t) / maxf(0.01, float(c.cast.dur))
 		elif t != null and not t.dead and t.has("worn"):
 			kind = "sub"
@@ -243,7 +248,11 @@ func _update_read(delta: float) -> void:
 	_read_btn.offset_bottom = -95.0 if tall else -165.0
 	_read_btn.offset_left = -minf(190.0, vs.x * 0.5 - 8.0)
 	_read_btn.offset_right = -_read_btn.offset_left
-	_read_btn.add_theme_font_size_override("font_size", 26 if tall else 34)
+	var two := text.contains("\n")
+	_read_btn.add_theme_font_size_override("font_size", (20 if tall else 25) if two else (26 if tall else 34))
+	if two:
+		_read_btn.offset_top -= 14.0
+		_read_btn.offset_bottom += 14.0
 	_read_btn.visible = text != ""
 	if text == "":
 		_read_kind = ""
@@ -251,7 +260,7 @@ func _update_read(delta: float) -> void:
 	if _read_kind != kind or _read_btn.text != text:
 		_read_kind = kind
 		_read_btn.text = text
-		_read_col = READ_COL.get(kind, Color(1, 0.45, 0.35))
+		_read_col = Color(1.0, 0.82, 0.25) if _read_sig and kind in CombatCore.COUNTER_IDS else READ_COL.get(kind, Color(1, 0.45, 0.35))
 		var box := Wow.sb(Color(0.04, 0.03, 0.03, 0.88), _read_col, 8, 10, 4)
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			_read_btn.add_theme_stylebox_override(st, box)

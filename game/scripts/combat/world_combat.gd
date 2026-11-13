@@ -91,6 +91,8 @@ func unit_for(npc: Npc, kind := "") -> CombatCore.Unit:
 	_npc_of[u.id] = npc
 	if npc.opp_id != "" and npc.mob.is_empty():
 		_rival_setup(npc.opp_id, u)
+		if Data.BOSS.has(npc.opp_id) and u.boss:
+			u.boss_id = npc.opp_id
 	return u
 
 # ------------------------------------------------------------ rivals
@@ -615,6 +617,7 @@ func _yaw_to(u: CombatCore.Unit, t: CombatCore.Unit) -> float:
 # ------------------------------------------------------------ roll report
 ## Per-fight stats for the report card: how you read them, how you finished.
 signal roll_report(rep: Dictionary)
+signal boss_moment(kind: String, boss: CombatCore.Unit, text: String)   # "signature" / "sig_read" / "phase"
 var _rep := {}
 
 func _track(e: Dictionary) -> void:
@@ -899,6 +902,31 @@ func _on_event(e: Dictionary) -> void:
 				_float(n, str(e.text), Color(0.4, 1, 0.6))
 		"tap":
 			_on_tap(u, e.get("by"), str(e.get("sub", "")))
+		"signature":
+			if e.target and e.target.player:
+				Sfx.play("feint", 0.0, 0.7)
+				Sfx.play("squeeze", -8.0, 0.6)
+				player.add_shake(0.5)
+				player.punch(7.0)
+				_hitstop(0.14, 0.05)
+				boss_moment.emit("signature", u, str(e.ab.get("name", "")))
+		"sig_read":
+			if u.player:
+				Sfx.play("perfect", -2.0)
+				_hitstop(0.2, 0.05)
+				player.punch(9.0)
+				boss_moment.emit("sig_read", e.target, str(e.ab.get("name", "")))
+				Game.unlock("sig_read")
+		"sig_hit":
+			if e.target and e.target.player:
+				player.add_shake(0.9)
+				Sfx.play("land", 0.0, 0.8)
+				UiKit.buzz(80)
+		"phase":
+			Sfx.play("levelup", -6.0, 0.7)
+			player.add_shake(0.6)
+			_hitstop(0.25, 0.05)
+			boss_moment.emit("phase", u, str(e.get("text", "")))
 		"feint":
 			# the cast changes under you: restart its effect and make some noise
 			_fx_cast(u, e.ab, 1.0, e.target)

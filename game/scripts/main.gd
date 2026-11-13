@@ -5,6 +5,8 @@ var world: World
 var player: Player
 var hud: Hud
 var roll: RollScene
+var scenes: Scenes        # staged moments: opening, boss entrances, promotions
+var _promo := {}          # a belt promotion waiting for the fight to finish
 var combat: WorldCombat   # WoW-style open-world fights (mobs, named fighters)
 var _talking_to: Npc
 var _title_cam: Camera3D
@@ -193,6 +195,7 @@ func _process(delta: float) -> void:
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
 	_mouse_process()
+	_promo_process()
 	_check_zone_line(delta)
 	_rival_process()
 	if hud and combat and hud.combat_hud == null:
@@ -203,6 +206,53 @@ func _process(delta: float) -> void:
 		var hs := Vector2(player.velocity.x, player.velocity.z).length()
 		Net.update(player.global_position, player.rig.rotation.y, clampf(hs / Player.RUN, 0.0, 1.0), not player.is_on_floor(),
 			combat != null and combat.me != null and combat.me.in_combat, delta)
+
+# ------------------------------------------------------------ staged moments
+func _hook_scenes() -> void:
+	if scenes != null:
+		return
+	scenes = Scenes.new(self)
+	add_child(scenes)
+	Game.belt_promoted.connect(func(to_belt: int, old_belt: int):
+		_promo = {"to": to_belt, "old": Data.BELTS[old_belt].color, "t": 0.0})
+	Game.stripe_earned.connect(func(r: int):
+		_stripe_t = 1.2
+		_stripe_rank = r)
+
+var _stripe_t := -1.0
+var _stripe_rank := 0
+
+## The promotion waits until the tap has played out and nothing else is on screen.
+func _promo_process() -> void:
+	if scenes == null or _in_title or roll != null or combat == null or combat.me == null:
+		return
+	var free: bool = not combat.me.in_combat and not combat._finishing and not combat.tap_pending and not hud.dialogue_open() and not scenes.busy and player.get_parent() == world
+	var dt := get_process_delta_time()
+	if _stripe_t > 0.0 and free:
+		_stripe_t -= dt
+		if _stripe_t <= 0.0 and _promo.is_empty():
+			scenes.stripe(_stripe_rank)
+	if _promo.is_empty() or not free:
+		return
+	_promo.t = float(_promo.t) + dt
+	if float(_promo.t) < 1.6:
+		return
+	var pr := _promo
+	_promo = {}
+	var boss_id := ""
+	for id in Data.BOSS:
+		if Data.zone_of(id) == Game.zone:
+			boss_id = id
+	scenes.promotion(int(pr.to), boss_id, pr.old)
+
+func _on_boss_moment(kind: String, boss: CombatCore.Unit, text: String) -> void:
+	match kind:
+		"signature":
+			pass   # the read call itself turns gold and names it
+		"sig_read":
+			hud.flash_message(Tx.s("SIGNATURE READ!"), Tx.s("They're wide open: climb and finish"))
+		"phase":
+			hud.flash_message(Tx.f("%s digs deep", boss.name), "\"%s\"" % Tx.s(text))
 
 # ------------------------------------------------------------ live world: other players + chat
 var remotes := {}   # net id -> RemotePlayer
@@ -581,7 +631,12 @@ func _begin_play() -> void:
 		Game.flags.erase("spec_reset")
 		Game.save_game()
 		hud.open_dialogue("Professor Gil", "Coaching is a Guard Player and Judoka thing now: those are the only classes that can take the Professor spec. Your spec has been reset, so pick a new one from the Talents window (N). No charge.", "", "Oss")
-	if Game.xp == 0 and not Game.flags.get("intro_seen", false) and Game.faction() == "usa":
+	_hook_scenes()
+	if Game.xp == 0 and not Game.flags.get("intro_seen", false) and not Game.test_mode:
+		Game.flags["intro_seen"] = true
+		Game.save_game()
+		scenes.opening.call_deferred()
+	elif Game.xp == 0 and not Game.flags.get("intro_seen", false) and Game.faction() == "usa":
 		Game.flags["intro_seen"] = true
 		Game.save_game()
 		hud.open_dialogue("Dry Creek, Texas",
@@ -781,6 +836,7 @@ func _make_world(z: String) -> void:
 		combat.setup(world, player)
 		combat.player_tapped.connect(_on_player_tapped)
 		combat.duel_over.connect(_after_duel)
+		combat.boss_moment.connect(_on_boss_moment)
 		combat.bout_over.connect(_on_bout_over)
 		pvp = Pvp.new()
 		add_child(pvp)
@@ -1463,7 +1519,11 @@ func _on_dialogue_choice(accepted: bool) -> void:
 		return
 	if accepted and _talking_to != null:
 		player.input_enabled = true
-		combat.duel(_talking_to)
+		var foe := _talking_to
+		if Data.BOSS.has(foe.opp_id) and scenes != null:
+			scenes.boss_entrance(foe, func(): combat.duel(foe))
+		else:
+			combat.duel(foe)
 	else:
 		player.input_enabled = true
 	_talking_to = null

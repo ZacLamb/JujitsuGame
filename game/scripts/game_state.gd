@@ -4,6 +4,8 @@ extends Node
 signal achievement_unlocked(id: String)
 signal toast(text: String, color: Color)
 signal progress_changed
+signal belt_promoted(to_belt: int, old_belt: int)   # a zone boss gave you the next belt
+signal stripe_earned(new_rank: int)
 signal saved   # a save hit disk (Cloud syncs it when you're logged in)
 
 const LEGACY_SAVE := "user://tatame_save.json"   # single-character saves from before character slots
@@ -356,6 +358,7 @@ func add_xp(amount: int) -> void:
 		rank += 1
 		toast.emit(Tx.f("New stripe! %s", Data.rank_name(rank)), Data.BELTS[belt_index()].color)
 		unlock("first_stripe")
+		stripe_earned.emit(rank)
 		_announce_new_moves(rank)
 	if at_stripe_cap():
 		stripe_xp = mini(stripe_xp, stripe_cost(rank) - 1)
@@ -382,6 +385,7 @@ func promote_belt(to_belt: int) -> void:
 	if belt_index() >= to_belt:
 		return
 	var lv_before := player_level()
+	var old_belt := belt_index()
 	rank = to_belt * 5
 	stripe_xp = 0
 	var b: Dictionary = Data.BELTS[to_belt]
@@ -392,6 +396,7 @@ func promote_belt(to_belt: int) -> void:
 	give_item(Gear.PROMOTION_LOOT.get(to_belt, ""))
 	save_game()
 	progress_changed.emit()
+	belt_promoted.emit(to_belt, old_belt)
 
 func promote_to_blue() -> void:
 	promote_belt(1)

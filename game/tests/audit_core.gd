@@ -121,6 +121,10 @@ func _on_ev(e: Dictionary, st: Dictionary, me) -> void:
 				st.countered += 1
 		"position":
 			st.pos_changes += 1
+		"signature":
+			st["sigs"] = float(st.get("sigs", 0.0)) + 1.0
+		"phase":
+			st["phases"] = float(st.get("phases", 0.0)) + 1.0
 		"stuffed":
 			st["stuffed"] = float(st.get("stuffed", 0.0)) + 1.0
 		"switch":

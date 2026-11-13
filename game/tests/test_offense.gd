@@ -121,5 +121,28 @@ func _ready() -> void:
 		e4.grip = 3
 		for i in 60:
 			check(not core4._ai_move(e4, me4) in Data.GI_ONLY, "enemy used a gi choke in no-gi")
+	# --- zone bosses: the signature fires, phase two happens, a good reader still wins
+	var aud = load("res://tests/audit_core.gd").new()
+	bal._build("guard", 10)
+	var o: Dictionary = Data.OPPONENTS["onca"].duplicate()
+	o["boss_id"] = "onca"
+	var bw := {"expert": 0.0, "mash": 0.0}
+	var sigs := 0.0
+	var phases := 0.0
+	var bt := 0.0
+	for pol in ["expert", "mash"]:
+		for sd in 8:
+			cnt = {}
+			var r: Dictionary = aud._fight(10, [o], 900 + sd, pol, "boss")
+			bw[pol] += float(r.won)
+			if pol == "expert":
+				bt += float(r.t)
+				sigs += float(r.get("sigs", 0.0))
+				phases += float(r.get("phases", 0.0))
+	print("boss onca L10: expert %d/8 mash %d/8, signatures %.1f/fight, phase two in %d/8, %.0fs" % [bw.expert, bw.mash, sigs / 8.0, phases, bt / 8.0])
+	check(bw.expert >= 6, "an expert reader can't beat the zone boss")
+	check(bw.mash <= bw.expert, "mashing beats the boss as well as reading")
+	check(sigs >= 8, "the boss signature rarely fires")
+	check(phases >= 6, "phase two rarely happens")
 	print("PASS (0 failures)" if fails == 0 else "FAILED (%d failures)" % fails)
 	get_tree().quit()

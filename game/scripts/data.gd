@@ -91,6 +91,19 @@ const CHAINS := {"guard_armbar": "triangle", "triangle": "omoplata", "omoplata":
 static func class_ok(move_id: String, style: String) -> bool:
 	return not CLASS_MOVES.has(move_id) or style in CLASS_MOVES[move_id]
 
+## Zone bosses: an entrance line, a signature technique (a slow, heavy version of a real move, with
+## its own warning) and a second phase when they're half worn down.
+const BOSS := {
+	"onca": {"sig": "arm_drag_back", "sig_name": "Bote da Onça", "sig_en": "The Jaguar's Pounce", "phase": "Good. Now I stop playing with my food."},
+	"jacare": {"sig": "smash_pass", "sig_name": "Giro da Morte", "sig_en": "The Death Roll", "phase": "The swamp is patient. I am not. Again!"},
+	"cachoeira": {"sig": "flower_sweep", "sig_name": "Queda d'Água", "sig_en": "The Waterfall", "phase": "Water finds every gap. Let's see yours."},
+	"leao": {"sig": "cross_collar", "sig_name": "Mordida do Leão", "sig_en": "The Lion's Bite", "phase": "Fifty years on this mat. You think I tire?"},
+	"boone": {"sig": "blast_double", "sig_name": "Lone Star Blast", "sig_en": "Lone Star Blast", "phase": "Alright, kid. Now we wrestle."},
+	"gator": {"sig": "smash_pass", "sig_name": "Swamp Roll", "sig_en": "Swamp Roll", "phase": "Hundred degrees in here and you're the one sweating."},
+	"sol": {"sig": "flower_sweep", "sig_name": "Vortex Sweep", "sig_en": "Vortex Sweep", "phase": "Breathe. The second half is where it begins."},
+	"dale": {"sig": "guillotine", "sig_name": "Garage Door", "sig_en": "The Garage Door", "phase": "Thirty years in this garage. Round two."},
+}
+
 const MOVES := {
 	# --- standing
 	"double_leg": {"name": "Double-Leg Takedown", "pos": "standing", "role": "any", "result": ["guard", true], "pts": 2, "diff": 1, "cost": 14, "type": "takedown", "rank": 0},
@@ -842,6 +855,7 @@ const ACHIEVEMENTS := [
 	{"id": "escapes_5", "name": "Houdini", "desc": "Escape 5 finishes.", "goal": 5},
 	{"id": "feint_read", "name": "Not Fooled", "desc": "Counter a feint."},
 	{"id": "grade_s", "name": "Flawless Roll", "desc": "Earn an S on a roll report."},
+	{"id": "sig_read", "name": "Saw It Coming", "desc": "Read a zone boss's signature technique."},
 	{"id": "practice_90", "name": "Drilled", "desc": "Score 90% or better in a practice drill."},
 	{"id": "mat_days_30", "name": "Lives at the Academy", "desc": "Log in 30 days in a row.", "goal": 30},
 	{"id": "terere", "name": "Tereré Time", "desc": "Find all 6 tereré cups.", "goal": 6},
