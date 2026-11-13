@@ -176,6 +176,8 @@ func _compute_hints() -> Array:
 	var me: CombatCore.Unit = combat.me
 	var core: CombatCore = combat.core
 	var t: CombatCore.Unit = combat.target
+	if not combat.practice.is_empty():
+		return []
 	if not _hints_on() or t == null or t.dead or not t.in_combat or not me.cast.is_empty() or core.in_struggle(me):
 		return []
 	if t.has("worn"):
@@ -234,6 +236,14 @@ func _update_read(delta: float) -> void:
 			text = Tx.s("WORN DOWN: escape or defend the finish!")
 			frac = -1.0
 	_read_t += delta
+	# phones held upright: drop the call below the minimap / chat, just above the fighters
+	var vs := get_viewport().get_visible_rect().size
+	var tall := vs.y > vs.x * 1.2
+	_read_btn.offset_top = -150.0 if tall else -235.0
+	_read_btn.offset_bottom = -95.0 if tall else -165.0
+	_read_btn.offset_left = -minf(190.0, vs.x * 0.5 - 8.0)
+	_read_btn.offset_right = -_read_btn.offset_left
+	_read_btn.add_theme_font_size_override("font_size", 26 if tall else 34)
 	_read_btn.visible = text != ""
 	if text == "":
 		_read_kind = ""
@@ -422,6 +432,14 @@ func _draw() -> void:
 		draw_rect(rr.grow(1), Color(0, 0, 0, 0.85))
 		draw_rect(Rect2(rr.position, Vector2(rr.size.x * _read_frac, rr.size.y)), _read_col)
 	_draw_ladder()
+	# reads drill counter
+	if not combat.practice.is_empty():
+		var line := Tx.f("DRILL  ·  Reads %d / %d  ·  Streak %d", [int(combat.practice.reads), int(combat.practice.total), int(combat.practice.streak)])
+		var fnt := Wow.title_font()
+		var w := fnt.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+		var pos := Vector2((size.x - w) / 2.0, size.y / 2.0 - 260.0)
+		draw_string_outline(fnt, pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 5, Color.BLACK)
+		draw_string(fnt, pos, line, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.6, 1.0, 0.7))
 	# player cast bar (above the action bar)
 	if not me.cast.is_empty():
 		var w := 300.0

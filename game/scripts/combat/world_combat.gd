@@ -156,7 +156,10 @@ func press(slot_id: String) -> void:
 		return
 	# the finish: every press squeezes (or fights the squeeze)
 	if core.in_struggle(me):
-		core.struggle_press(me)
+		if pvp and pvp.is_guest():
+			pvp.guest_squeeze()
+		else:
+			core.struggle_press(me)
 		Sfx.play("squeeze", -14.0, randf_range(1.1, 1.4))
 		UiKit.buzz(12)
 		return
@@ -231,6 +234,7 @@ func _process(delta: float) -> void:
 		return
 	error_t = maxf(0.0, error_t - delta)
 	_frame_camera(delta)
+	_tick_practice()
 	me.pos = player.global_position
 	for u in core.units.duplicate():
 		if u.player:
@@ -639,6 +643,7 @@ func _finish_report() -> void:
 
 func _on_event(e: Dictionary) -> void:
 	_track(e)
+	_track_practice(e)
 	var u: CombatCore.Unit = e.get("u")
 	match str(e.t):
 		"position":
@@ -1058,8 +1063,53 @@ func start_bout(opp: Dictionary, tag: String, elite := false) -> Npc:
 	me.grip = 0
 	target = u
 	engage_npc(npc)
-	_float(npc, "FIGHT!", Color(1, 0.85, 0.35), 1.3)
+	if bool(m.get("practice", false)):
+		practice = {"npc": npc, "u": u, "casts": 0, "reads": 0, "streak": 0, "best": 0, "total": int(m.get("reps", 20))}
+		_float(npc, "DRILL!", Color(0.6, 1.0, 0.7), 1.3)
+	else:
+		_float(npc, "FIGHT!", Color(1, 0.85, 0.35), 1.3)
 	return npc
+
+# ------------------------------------------------------------ practice partner (academy drill)
+## Reads drill: the partner throws `total` techniques; you counter them. Nobody gets hurt.
+var practice := {}
+
+func _track_practice(e: Dictionary) -> void:
+	if practice.is_empty():
+		return
+	var u: CombatCore.Unit = e.get("u")
+	var pu: CombatCore.Unit = practice.u
+	match str(e.t):
+		"cast":
+			if u == pu:
+				practice.casts += 1
+		"interrupt":
+			if u == me and e.get("target") == pu:
+				practice.reads += 1
+				practice.streak += 1
+				practice.best = maxi(int(practice.best), int(practice.streak))
+		"miss":
+			if u == me and e.get("whiff", false):
+				practice.streak = 0
+		"use":
+			if u == pu and e.get("target") == me:
+				practice.streak = 0
+
+func _tick_practice() -> void:
+	if practice.is_empty():
+		return
+	var npc: Npc = practice.npc
+	var pu: CombatCore.Unit = practice.u
+	if not is_instance_valid(npc) or not core.units.has(pu):
+		practice = {}
+		return
+	if int(practice.casts) >= int(practice.total) and pu.cast.is_empty():
+		var res := practice.duplicate()
+		res.erase("npc")
+		res.erase("u")
+		practice = {}
+		npc.mob["practice_result"] = res
+		_finish_bout(npc, pu, true)
 
 func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit := false) -> void:
 	if npc.has_meta("bout_done"):
@@ -1067,6 +1117,11 @@ func _finish_bout(npc: Npc, u: CombatCore.Unit, won: bool, sub := "", forfeit :=
 	npc.set_meta("bout_done", true)
 	var tag := str(npc.mob.bout)
 	var info := {"sub": sub, "gas": me.gas / maxf(1.0, me.max_gas), "their_hp": u.pct(), "forfeit": forfeit}
+	if npc.mob.has("practice_result"):
+		info["practice"] = npc.mob.practice_result
+	elif tag == "practice":
+		info["practice"] = practice.duplicate()
+		practice = {}
 	core.remove(u)
 	_unit_of.erase(npc.get_instance_id())
 	_npc_of.erase(u.id)

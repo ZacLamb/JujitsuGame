@@ -1444,6 +1444,13 @@ func _process(_d: float) -> void:
 	# the "[E] Attack ..." prompt has no business on screen mid-fight
 	if prompt and combat_hud and combat_hud.combat and combat_hud.combat.me:
 		prompt.visible = not combat_hud.combat.me.in_combat
+		# upright phone: the menu icons share the top-right with the opponent's frame, so they step aside mid-fight
+		var vs := get_viewport().get_visible_rect().size
+		var crowded: bool = touch_mode and vs.y > vs.x * 1.2 and combat_hud.combat.me.in_combat
+		if _micro and _micro.visible == crowded:
+			_micro.visible = not crowded
+			if wallet:
+				wallet.visible = not crowded and not bag_panel.visible and not (title != null and title.visible)
 	# no action bar / combat frames behind the title screen
 	if combat_hud:
 		var host := get_parent()
@@ -1510,6 +1517,8 @@ func _zone_banner_tick(delta: float) -> void:
 		return
 	_zb_t -= delta
 	var a := clampf((5.0 - _zb_t) / 0.6, 0.0, 1.0) * clampf(_zb_t / 1.2, 0.0, 1.0)
+	if combat_hud and combat_hud.combat and combat_hud.combat.me and combat_hud.combat.me.in_combat:
+		a = 0.0   # a fight's read calls own the middle of the screen
 	_zb.modulate.a = a
 	if _zb_t <= 0.0:
 		_zb.visible = false

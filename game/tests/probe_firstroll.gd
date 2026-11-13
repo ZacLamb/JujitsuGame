@@ -7,8 +7,18 @@ func _shot(n: String) -> void:
 	if shots.has(n):
 		return
 	shots[n] = true
-	get_viewport().get_texture().get_image().save_png("/home/claude/shots/fr_%s.png" % n)
+	get_viewport().get_texture().get_image().save_png("/home/claude/shots/fr%s_%s.png" % [tag, n])
+var tag := ""
 func _ready() -> void:
+	var touch := false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("w="):
+			get_window().size = Vector2i(int(a.substr(2)), get_window().size.y)
+		if a.begins_with("h="):
+			get_window().size = Vector2i(get_window().size.x, int(a.substr(2)))
+		if a == "touch":
+			touch = true
+			tag = "_t"
 	Game.test_mode = true
 	Game.reset()
 	Game.choose_style("guard", "Gringo", 0)
@@ -18,6 +28,10 @@ func _ready() -> void:
 	main._start_game()
 	for i in 10: await get_tree().process_frame
 	main.hud._close_dialogue(false)
+	if touch:
+		main.hud.touch_mode = true
+		main.hud.touch.visible = true
+		main._fit_screen()
 	var w: World = main.world
 	var c: WorldCombat = main.combat
 	var rafa: Npc = null

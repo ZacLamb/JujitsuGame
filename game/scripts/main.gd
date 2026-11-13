@@ -935,6 +935,8 @@ func _use_spot(spot: Dictionary) -> void:
 				hud.open_dialogue(parts[1], Tx.f("%s colours? Not at my table. Go earn your Honor with your own side.", Origins.faction(Game.faction()).long), "", "Fair enough")
 				return
 			hud.open_quartermaster(parts[1], parts[0])
+		"reads":
+			_start_practice()
 		"daily":
 			_start_daily()
 		"comp":
@@ -1652,7 +1654,39 @@ func _bout(opp: Dictionary, tag: String, elite := false) -> void:
 	hud.minimap.visible = true
 	combat.start_bout(opp, tag, elite)
 
+## Academy practice partner: a no-risk reads drill (20 techniques, you counter them).
+func _start_practice() -> void:
+	var speed := 1.0 if Game.player_level() < 8 else 0.85
+	_bout({"name": "Training Partner", "title": "Practice", "style": "balanced", "level": 1.0, "practice": true,
+		"reps": 15, "speed": speed, "intro": "Oss.", "win": "Again tomorrow?", "lose": "Good reads!"}, "practice", false)
+	Game.toast.emit(Tx.s("Practice: counter each technique as the call comes up. 15 reps, nobody gets hurt."), Color(0.6, 1.0, 0.7))
+
+func _practice_over(info: Dictionary) -> void:
+	var r: Dictionary = info.get("practice", {})
+	if r.is_empty():
+		return
+	var total := maxi(1, int(r.get("casts", 0)))
+	var reads := int(r.get("reads", 0))
+	var pct := int(round(100.0 * reads / total))
+	var best_before := int(Game.flags.get("practice_best", 0))
+	var best_streak := int(r.get("best", 0))
+	var lines := Tx.f("Reads: %d / %d  (%d%%)", [reads, total, pct]) + "\n" + Tx.f("Best streak: %d", best_streak)
+	if pct > best_before:
+		Game.flags["practice_best"] = pct
+		lines += "\n" + Tx.s("New personal best!")
+	else:
+		lines += "\n" + Tx.f("Personal best: %d%%", best_before)
+	if pct >= 90:
+		Game.unlock("practice_90")
+	Game.save_game()
+	await get_tree().create_timer(1.2).timeout
+	player.input_enabled = false
+	hud.open_dialogue("Training Partner", lines, "", "Oss")
+
 func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
+	if tag == "practice":
+		_practice_over(info)
+		return
 	var res := {"won": won, "by_sub": not bool(info.get("forfeit", false)), "sub": str(info.get("sub", "")) if won else "tap",
 		"signature": false, "min_stamina": float(info.get("gas", 1.0))}
 	match tag:

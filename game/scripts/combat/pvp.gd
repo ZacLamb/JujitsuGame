@@ -109,6 +109,10 @@ func _on_msg(from: int, d: Dictionary) -> void:
 				var why: String = wc.core.use_ab(opp, a, wc.me)
 				if why != "" and why != "gcd":
 					Net.send_duel(peer, {"k": "err", "text": why})
+		"sq":
+			# the guest mashing in a finish (squeezing or escaping)
+			if state == "host" and opp != null and wc.core.in_struggle(opp):
+				wc.core.struggle_press(opp)
 		"err":
 			if state == "guest":
 				wc._error(str(d.get("text", "")))
@@ -246,7 +250,15 @@ static func _ser_unit(u: CombatCore.Unit) -> Dictionary:
 		"dead": u.dead, "ic": u.in_combat}
 
 func _snapshot() -> Dictionary:
-	return {"k": "s", "h": _ser_unit(wc.me), "g": _ser_unit(opp), "pos": opp.gpos, "ptop": opp.ptop}
+	var snap := {"k": "s", "h": _ser_unit(wc.me), "g": _ser_unit(opp), "pos": opp.gpos, "ptop": opp.ptop}
+	var st: Dictionary = wc.core.struggle
+	if not st.is_empty() and _tag(st.atk) != "" and _tag(st.def) != "":
+		snap["st"] = {"atk": _tag(st.atk), "m": float(st.meter)}
+	return snap
+
+## Guest: a press during the finish goes straight to the host.
+func guest_squeeze() -> void:
+	Net.send_duel(peer, {"k": "sq"})
 
 ## Host side: the guest is "g", the host is "h" (the guest maps them back to its own units).
 func _tag(u) -> String:
@@ -258,7 +270,7 @@ func _tag(u) -> String:
 		return "g"
 	return ""
 
-const KEYS := ["ab", "amount", "crit", "aura", "dur", "fresh", "pos", "ptop", "pts", "move", "text", "sub", "on"]
+const KEYS := ["ab", "amount", "crit", "aura", "dur", "fresh", "pos", "ptop", "pts", "move", "text", "sub", "on", "tapped", "kind", "whiff"]
 
 func _forward(e: Dictionary) -> void:
 	if state != "host":
@@ -307,6 +319,14 @@ func _apply_snapshot(d: Dictionary) -> void:
 	_apply_unit(opp, d.get("h", {}), wc.me)
 	opp.gpos = str(d.get("pos", "standing"))
 	opp.ptop = not bool(d.get("ptop", false))
+	# mirror the finish so the guest sees SQUEEZE / ESCAPE and its meter
+	var st: Dictionary = d.get("st", {})
+	if st.is_empty():
+		wc.core.struggle = {}
+	else:
+		var atk: CombatCore.Unit = _unit(str(st.atk))
+		var def: CombatCore.Unit = wc.me if atk == opp else opp
+		wc.core.struggle = {"atk": atk, "def": def, "ab": {}, "meter": float(st.m), "t": 0.0, "dur": CombatCore.STRUGGLE_DUR}
 
 func _replay(e: Dictionary) -> void:
 	if opp == null or _ended:

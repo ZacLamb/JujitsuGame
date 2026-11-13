@@ -1098,5 +1098,70 @@
 "Earn an S on a roll report.",
 "Tire S no resumo de um rola.",
 "Saca una S en el resumen de un combate."
+],
+[
+"Practice Partner",
+"Parceiro de Treino",
+"Compañero de Práctica"
+],
+[
+"Reads drill",
+"Treino de leitura",
+"Práctica de lectura"
+],
+[
+"Practice reads with a partner (no risk)",
+"Treinar leituras com um parceiro (sem risco)",
+"Practicar lecturas con un compañero (sin riesgo)"
+],
+[
+"Practice: counter each technique as the call comes up. 15 reps, nobody gets hurt.",
+"Treino: defenda cada técnica quando o aviso aparecer. 15 repetições, ninguém se machuca.",
+"Práctica: contrarresta cada técnica cuando aparezca el aviso. 15 repeticiones, nadie sale herido."
+],
+[
+"Reads: %d / %d  (%d%%)",
+"Leituras: %d / %d  (%d%%)",
+"Lecturas: %d / %d  (%d%%)"
+],
+[
+"Best streak: %d",
+"Melhor sequência: %d",
+"Mejor racha: %d"
+],
+[
+"New personal best!",
+"Novo recorde pessoal!",
+"¡Nuevo récord personal!"
+],
+[
+"Personal best: %d%%",
+"Recorde pessoal: %d%%",
+"Récord personal: %d%%"
+],
+[
+"DRILL  ·  Reads %d / %d  ·  Streak %d",
+"TREINO  ·  Leituras %d / %d  ·  Sequência %d",
+"PRÁCTICA  ·  Lecturas %d / %d  ·  Racha %d"
+],
+[
+"Training Partner",
+"Parceiro de Treino",
+"Compañero de Práctica"
+],
+[
+"Drilled",
+"Treinado",
+"Entrenado"
+],
+[
+"Score 90% or better in a practice drill.",
+"Faça 90% ou mais num treino de leitura.",
+"Saca un 90% o más en una práctica."
+],
+[
+"Good reads!",
+"Boas leituras!",
+"¡Buenas lecturas!"
 ]
 ]

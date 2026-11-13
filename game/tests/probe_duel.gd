@@ -49,6 +49,7 @@ func _ready() -> void:
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 	print(role, " duel state=", main.pvp.state)
+	main.combat.core.event.connect(_dbg)
 	main.player.cam_dist = 7.0
 	if role == "host" and main.pvp.opp:
 		main.pvp.opp.hp = 60.0   # speed the test up: the guest is nearly done
@@ -61,14 +62,28 @@ func _ready() -> void:
 		var c = main.combat
 		if c.me == null or c.me.dead:
 			continue
-		for k in Game.bar_layout + keys:
+		if main.pvp.opp != null and c.core.dist(c.me, main.pvp.opp) > 2.0:
+			var op: Vector3 = main.pvp.opp.pos
+			var dir: Vector3 = (main.player.global_position - op)
+			dir.y = 0
+			main.player.global_position = op + dir.normalized() * 1.5
+		var plan: Array = Game.bar_layout + keys
+		if main.pvp.opp != null and main.pvp.opp.has("worn"):
+			plan = ["sub", "takedown", "pass", "sub"]
+		for k in plan:
 			if str(k) != "":
 				c.press(str(k))
 		if int(ft) % 6 == 0 and shots < 4 and main.pvp.opp != null:
 			get_viewport().get_texture().get_image().save_png("/home/claude/shots/duel_%s_%d.png" % [role, shots])
 			print(role, " t=", int(ft), " me=", int(c.me.hp), "/", int(c.me.max_hp), " opp=", int(main.pvp.opp.hp), "/", int(main.pvp.opp.max_hp), " pos=", main.pvp.opp.gpos, " top=", main.pvp.opp.ptop)
 			shots += 1
+			print(role, " why=", c.core.block_reason(c.me, c.core.ability(c.me, "handfight"), main.pvp.opp), " dist=", snappedf(c.core.dist(c.me, main.pvp.opp), 0.1), " tgt=", c.target == main.pvp.opp, " ic=", c.me.in_combat, " gcd=", snappedf(c.me.gcd, 0.1))
 	await get_tree().create_timer(3.0).timeout
 	get_viewport().get_texture().get_image().save_png("/home/claude/shots/duel_%s_end.png" % role)
 	print(role, " END done=", done, " record=", Game.pvp_record)
 	get_tree().quit()
+
+func _dbg(e: Dictionary) -> void:
+	var t := str(e.t)
+	if t in ["struggle", "tap", "proc"]:
+		print(role, " EV ", t, " u=", e.u.name if e.get("u") else "", " on=", e.get("on", ""), " tapped=", e.get("tapped", ""), " text=", e.get("text", ""), " st=", main.combat.core.struggle.get("meter", -1))

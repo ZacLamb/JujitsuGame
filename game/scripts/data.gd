@@ -842,6 +842,7 @@ const ACHIEVEMENTS := [
 	{"id": "escapes_5", "name": "Houdini", "desc": "Escape 5 finishes.", "goal": 5},
 	{"id": "feint_read", "name": "Not Fooled", "desc": "Counter a feint."},
 	{"id": "grade_s", "name": "Flawless Roll", "desc": "Earn an S on a roll report."},
+	{"id": "practice_90", "name": "Drilled", "desc": "Score 90% or better in a practice drill."},
 	{"id": "mat_days_30", "name": "Lives at the Academy", "desc": "Log in 30 days in a row.", "goal": 30},
 	{"id": "terere", "name": "Tereré Time", "desc": "Find all 6 tereré cups.", "goal": 6},
 	{"id": "nest", "name": "Tuiuiú Spotter", "desc": "Find the tuiuiú nest high above the river."},

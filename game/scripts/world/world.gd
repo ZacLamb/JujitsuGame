@@ -2017,6 +2017,13 @@ func _drill_station(k: String, pos: Vector3) -> void:
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.pixel_size = 0.0055
 	_spot(base, 1.9, Tx.f("Drill: %s (%s)", [Rpg.DRILLS[k].name, Rpg.ATTRS[k].name]), "drill", k)
+	if k == "iq":
+		# the practice partner stands by the Fight IQ dummy: a no-risk reads drill
+		var pp := base + Vector3(2.4, 0, 0)
+		var pl := _label(Tx.s("Practice Partner") + "\n" + Tx.s("Reads drill"), pp + Vector3(0, 2.1, 0), 40, Color(0.6, 1.0, 0.7))
+		pl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		pl.pixel_size = 0.0055
+		_spot(pp, 1.6, Tx.s("Practice reads with a partner (no risk)"), "reads")
 
 ## Barbearia do Seu Zé: a little open-air barbershop (pole, chair, mirror, Seu Zé). Talking to him
 ## opens the Barber screen to restyle your fighter.

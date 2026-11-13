@@ -113,7 +113,10 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	u.rank = int(d.get("rank", 0))
 	u.elite = bool(d.get("elite", false)) or kind != "mob"
 	u.boss = kind == "boss" or bool(d.get("rare", false))
-	var hm := MOB_HP   # normal mobs last long enough for a few reads (see tests/audit_core.gd)
+	# normal mobs last long enough for a few reads (see tests/audit_core.gd); raid units keep the
+	# numbers the raid was tuned with
+	var raid_unit := bool(d.get("raid", false))
+	var hm := 1.0 if raid_unit else MOB_HP
 	var dm := 1.0
 	if bool(d.get("rare", false)):
 		hm = 2.3
@@ -136,7 +139,7 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 	# the player multiplicatively; see tests/test_balance.gd)
 	var lvf := float(u.level - 1)
 	# past the first few levels a player's talents and gear outgrow plain mobs; keep them honest
-	if kind == "mob" and not u.elite:
+	if kind == "mob" and not u.elite and not raid_unit:
 		var over := maxf(0.0, float(u.level) - 3.0)
 		hm *= 1.0 + 0.025 * over
 		dm *= 1.0 + 0.035 * over
@@ -700,6 +703,9 @@ static var gm_god := false   # Game Master test tool: the player takes no damage
 func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> void:
 	if gm_god and t.player:
 		amount = 0.0
+	if bool(t.data.get("practice", false)) or bool(src.data.get("practice", false)):
+		emit({"t": "dmg", "u": src, "target": t, "amount": 0.0, "crit": false, "ab": a})
+		return   # drilling: nobody gets hurt
 	var dm := dom(src, t)
 	if dm != 0:
 		amount *= 1.0 + DOM_STEP * dm if dm > 0 else 1.0 / (1.0 - DOM_STEP * dm)
@@ -806,7 +812,7 @@ const FEINT_CHANCE := 0.3
 const FEINT_CHANCE_BOSS := 0.4
 
 func _maybe_feint(u: Unit, c: Dictionary) -> void:
-	if u.player or c.has("feinted") or c.has("_nofeint") or not (u.elite or u.boss):
+	if u.player or c.has("feinted") or c.has("_nofeint") or not (u.elite or u.boss or bool(u.data.get("practice", false))):
 		return
 	var t: Unit = c.target
 	if t == null or not t.player or float(c.t) < float(c.dur) * 0.45:
@@ -1057,7 +1063,10 @@ func _ai(u: Unit, delta: float) -> void:
 	u.ai_t -= delta
 	if u.ai_t > 0.0 or dist(u, t) > MELEE:
 		return
-	var pace: Vector2 = (AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0)) * float(arch_of(u).get("pace", 1.0))
+	if bool(u.data.get("practice", false)):
+		_practice_ai(u, t)
+		return
+	var pace: Vector2 = (AI_PACE_RAID if bool(u.data.get("raid", false)) and not u.boss else AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0)) * float(arch_of(u).get("pace", 1.0))
 	# grappling the player: real techniques from this position
 	if t.player and (t.target == u or u.gpos != "standing"):
 		var mv := _ai_move(u, t)
@@ -1094,6 +1103,35 @@ static func arch_of(u: Unit) -> Dictionary:
 const AI_PACE := Vector2(2.3, 3.3)
 const AI_PACE_ELITE := Vector2(2.2, 3.2)
 const AI_PACE_BOSS := Vector2(1.8, 2.8)
+const AI_PACE_RAID := Vector2(3.0, 5.0)   # raid adds: the party's job is the boss
+
+## The academy practice partner: techniques you can read, one every couple of seconds, any kind
+## you know the counter for (and feints once you know all three).
+func _practice_ai(u: Unit, t: Unit) -> void:
+	if u.gpos != "standing":
+		stand_up(u)   # reset between reps
+	var kinds: Array = []
+	for k in COUNTER_IDS:
+		if not ability(t, k).is_empty():
+			kinds.append(k)
+	if kinds.is_empty():
+		return
+	var want: String = kinds[rng.randi() % kinds.size()]
+	var opts: Array = []
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		if m.has("spec") or not str(m.type) in POSITIONAL or str(m.type) == "escape" or int(m.get("rank", 0)) > 10:
+			continue
+		var ab := move_ability(mv)
+		if counter_kind(ab) == want:
+			opts.append(ab)
+	if opts.is_empty():
+		return
+	var ab: Dictionary = opts[rng.randi() % opts.size()]
+	ab["cast"] = float(ab.cast) * float(u.data.get("speed", 1.0))
+	u.cast = {"ab": ab, "t": 0.0, "dur": float(ab.cast), "target": t}
+	emit({"t": "cast", "u": u, "ab": ab, "target": t, "dur": float(ab.cast)})
+	u.ai_t = rng.randf_range(0.7, 1.2)
 
 ## Easy to learn: a normal enemy only casts techniques the player has the counter for (a level 1
 ## player only ever has to Sprawl). Bosses, rares and other players use everything. A worn-down
