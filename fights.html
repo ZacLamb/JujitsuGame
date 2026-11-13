@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tatame Fight Stats</title>
+<style>
+  :root { --bg:#14110e; --panel:#1f1a15; --line:#3a3128; --ink:#efe6d8; --dim:#a39684; --gold:#e8b44a; --good:#7fd18b; --bad:#e8735a; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; color: var(--gold); }
+  h2 { font-size: 15px; margin: 28px 0 10px; color: var(--gold); text-transform: uppercase; letter-spacing: .06em; }
+  p.sub { margin: 0 0 18px; color: var(--dim); }
+  .tiles { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border:1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .tile b { display:block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--dim); font-size: 13px; }
+  table { width:100%; border-collapse: collapse; background: var(--panel); border:1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  tr:last-child td { border-bottom: 0; }
+  .wrap { overflow-x: auto; }
+  form { display:flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+  input, select, button { font: inherit; padding: 8px 10px; border-radius: 6px; border:1px solid var(--line); background:#0f0d0b; color: var(--ink); }
+  button { background: var(--gold); color:#1a1309; border:0; font-weight: 700; cursor: pointer; }
+  .err { color: var(--bad); }
+  .bar { height: 8px; background: var(--gold); border-radius: 4px; }
+  .note { color: var(--dim); font-size: 13px; margin-top: 6px; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tatame fight stats</h1>
+  <p class="sub">Anonymous play data from the game: one row per fight and per play day. Game Master login.</p>
+  <form id="login">
+    <input id="email" type="email" placeholder="GM email" autocomplete="username" required>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button>Log in</button>
+    <span id="lerr" class="err"></span>
+  </form>
+  <div id="out" hidden>
+    <form id="range"><select id="days"><option value="7">Last 7 days</option><option value="14" selected>Last 14 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select><button>Refresh</button><button type="button" id="logout">Log out</button></form>
+    <div class="tiles" id="tiles"></div>
+    <h2>Retention</h2>
+    <div class="tiles" id="ret"></div>
+    <p class="note">Day 1 = came back the next day. Day 7 = came back 6–8 days after their first day. Counted per device.</p>
+    <div class="cols">
+      <div><h2>By level</h2><div class="wrap" id="lvl"></div></div>
+      <div><h2>By opponent type</h2><div class="wrap" id="kind"></div></div>
+    </div>
+    <div class="cols">
+      <div><h2>Grades (wins)</h2><div class="wrap" id="grades"></div></div>
+      <div><h2>Last fight of the day</h2><div class="wrap" id="last"></div><p class="note">If many play days end on a loss, losing is sending people home.</p></div>
+    </div>
+    <h2>Where players stop (highest level reached)</h2><div class="wrap" id="stop"></div>
+    <h2>Hardest opponents (5+ fights)</h2><div class="wrap" id="hard"></div>
+    <h2>Daily</h2><div class="wrap" id="daily"></div>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let token = '';
+try { token = localStorage.getItem('tt_gm') || ''; } catch (e) {}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pct = (a, b) => (b ? Math.round(100 * a / b) + '%' : '–');
+function table(rows, cols) {
+  if (!rows || !rows.length) return '<p class="note">No data yet.</p>';
+  return '<table><tr>' + cols.map((c) => `<th>${esc(c[1])}</th>`).join('') + '</tr>' +
+    rows.map((r) => '<tr>' + cols.map((c) => `<td>${c[2] ? c[2](r) : esc(r[c[0]] ?? '–')}</td>`).join('') + '</tr>').join('') + '</table>';
+}
+function tile(v, label) { return `<div class="tile"><b>${esc(v ?? '–')}</b><span>${esc(label)}</span></div>`; }
+async function load() {
+  const r = await fetch('/api/t/report?days=' + $('days').value, { headers: { Authorization: 'Bearer ' + token } });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401 || r.status === 403) { $('out').hidden = true; $('login').hidden = false; $('lerr').textContent = d.error || 'Log in with a Game Master account.'; return; }
+  $('login').hidden = true; $('out').hidden = false;
+  const f = d.fights || {};
+  $('tiles').innerHTML = tile(d.players?.devices, 'players (devices)') + tile(f.n, 'fights') + tile(d.fights_per_day, 'fights per play day') +
+    tile(f.avg_secs != null ? f.avg_secs + 's' : '–', 'avg fight length') + tile(f.win_pct != null ? f.win_pct + '%' : '–', 'won') +
+    tile(f.left_pct != null ? f.left_pct + '%' : '–', 'walked away mid-fight') + tile(f.read_pct != null ? f.read_pct + '%' : '–', 'enemy techniques read') + tile(f.chains, 'chains per fight');
+  const t = d.retention || {};
+  $('ret').innerHTML = tile(pct(t.back_d1, t.cohort_d1), `day 1 (${t.back_d1 || 0}/${t.cohort_d1 || 0})`) + tile(pct(t.back_d7, t.cohort_d7), `day 7 (${t.back_d7 || 0}/${t.cohort_d7 || 0})`) + tile(pct(t.ever_back, t.all_devices), `ever came back (${t.ever_back || 0}/${t.all_devices || 0})`);
+  $('lvl').innerHTML = table(d.by_level, [['band', 'Levels'], ['players', 'Players'], ['fights', 'Fights'], ['avg_secs', 'Avg s'], ['win_pct', 'Win %'], ['read_pct', 'Read %']]);
+  $('kind').innerHTML = table(d.by_kind, [['kind', 'Type'], ['fights', 'Fights'], ['avg_secs', 'Avg s'], ['win_pct', 'Win %']]);
+  const gt = (d.grades || []).reduce((a, g) => a + g.n, 0);
+  $('grades').innerHTML = table(d.grades, [['grade', 'Grade'], ['n', 'Wins'], ['', 'Share', (g) => `${pct(g.n, gt)} <div class="bar" style="width:${gt ? Math.round(100 * g.n / gt) : 0}%"></div>`]]);
+  $('last').innerHTML = table(d.last_fight, [['outcome', 'Outcome'], ['n', 'Play days']]);
+  $('stop').innerHTML = table(d.stop_level, [['level', 'Level'], ['players', 'Players']]);
+  $('hard').innerHTML = table(d.hardest, [['foe', 'Opponent'], ['fights', 'Fights'], ['win_pct', 'Player win %']]);
+  $('daily').innerHTML = table(d.daily, [['day', 'Day'], ['players', 'Players'], ['new_players', 'New'], ['fights', 'Fights']]);
+}
+$('login').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('lerr').textContent = '';
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: $('email').value, password: $('pw').value }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { $('lerr').textContent = d.error || 'Login failed.'; return; }
+  token = d.token; try { localStorage.setItem('tt_gm', token); } catch (e) {}
+  load();
+});
+$('range').addEventListener('submit', (e) => { e.preventDefault(); load(); });
+$('logout').addEventListener('click', () => { token = ''; try { localStorage.removeItem('tt_gm'); } catch (e) {} $('out').hidden = true; $('login').hidden = false; });
+if (token) load();
+</script>
+</body>
+</html>

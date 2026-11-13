@@ -572,6 +572,7 @@ func open_barber() -> void:
 
 func _begin_play() -> void:
 	player.input_enabled = true
+	Telemetry.session()
 	if Data.ZONES.has(Game.zone):
 		var zd: Dictionary = Data.ZONES[Game.zone]
 		hud.zone_banner(str(zd.name), "%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(Game.zone)], true)

@@ -54,6 +54,9 @@ class Unit:
 	var gpos := "standing"         # enemy units: the grappling position with the player
 	var ptop := false              # enemy units: is the player the one on top
 	var rank := 0
+	var seen := {}                 # enemies: how often the player went for each technique type
+	var last_type := ""            # enemies: the player's last technique type against them
+	var rival := false             # a named fighter who has rolled with you before (remembers your game)
 
 	func has(a: String) -> bool:
 		return auras.has(a)
@@ -278,6 +281,24 @@ const DOM_STEP := 0.12   # damage per step of dominance (back on top: +48%)
 const DOM := {"standing": 0, "guard": 1, "half": 1, "side": 2, "mount": 3, "back": 4}
 const KIND_KEY := {"base": "Q", "frame": "R", "defend": "T"}
 const KIND_VERB := {"base": "Sprawl", "frame": "Frame", "defend": "Defend"}
+## What the counter is actually called for this technique: you sprawl on a shot, but you can't
+## sprawl inside a guard (there you base out against the sweep); you frame a pass, hand-fight a
+## back take, hip-escape a mount climb, and defend a submission.
+static func counter_verb(a: Dictionary) -> String:
+	match str(a.get("type", "")):
+		"takedown":
+			return "Sprawl"
+		"sweep":
+			return "Base out"
+		"sub":
+			return "Defend"
+		"back":
+			return "Hand fight"
+		"advance":
+			return "Hip escape"
+		"guard":
+			return "Posture"
+	return "Frame"
 
 ## [position, is u on top] for u fighting t (one of them must be the player).
 func pos_info(u: Unit, t: Unit) -> Array:
@@ -389,6 +410,26 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		elif mv != "":
 			a = a.duplicate()
 			a["_mv"] = mv
+	# the mind game goes both ways: they may be waiting for exactly this
+	var tp := str(a.get("type", ""))
+	var switched := ""
+	if u.player and t != null and not t.player and tp in READ_BACK_TYPES:
+		if t.has("expect"):
+			var ex := str(t.auras.expect.get("type", ""))
+			t.auras.erase("expect")
+			emit({"t": "aura_off", "u": t, "aura": "expect"})
+			if ex == tp and not (tp == "sub" and t.has("worn")):
+				_stuffed(u, t, a)
+				return ""
+			if ex != tp:
+				switched = ex
+		_note_habit(u, t, tp)
+	if switched != "":
+		a = a.duplicate()
+		a["dmg"] = float(a.get("dmg", 0.0)) * SWITCH_DMG
+		emit({"t": "proc", "u": u, "text": Tx.f("Switch! They bit on the %s", Tx.s(str(Abilities.TEMPLATES.get(switched, {}).get("label", switched))))})
+		emit({"t": "switch", "u": u, "target": t, "was": switched})
+		_flow(u)
 	var chained := false
 	if u.has("chain") and str(a.get("_mv", "")) != "" and str(a.get("_mv", "")) == str(u.auras.chain.get("next", "")):
 		chained = true
@@ -486,6 +527,13 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		mult += float(a.get("per_grip", 0.9)) * u.grip
 		if pm(u):
 			mult *= 1.0 + float(u.mods.get("sub_start", 0.0)) + float(u.mods.get("sub_start_move", {}).get(str(a.get("move", "")), 0.0))
+		if u.player and u.has("flow"):
+			var fl := int(u.auras.flow.get("n", 1))
+			mult *= 1.0 + FLOW_SUB * fl
+			a = a.duplicate()
+			a["flow"] = fl
+			u.auras.erase("flow")
+			emit({"t": "aura_off", "u": u, "aura": "flow"})
 		u.last_sub = str(a.get("_mv", a.get("move", "sub"))) if not u.player else str(a.get("move", "sub"))
 		u.grip = 0
 	if mult > 0.0:
@@ -535,7 +583,10 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		"expose":
 			_aura(t, "exposed", float(a.get("dur", 8.0)) + _extra(u, "exposed"), u)
 	if not t.dead:
+		var before := dom(u, t) if u.player else 0
 		_transition(u, t, str(a.get("_mv", "")), a)
+		if u.player and dom(u, t) > before:
+			_flow(u)
 
 ## The counter for a technique: sprawl / base on takedowns and sweeps, frame on passes and
 ## positional moves, defend on submissions.
@@ -577,10 +628,13 @@ func _read(u: Unit, kind: String) -> void:
 	for id in COUNTER_IDS:
 		u.cds[id] = maxf(float(u.cds.get(id, 0.0)), WHIFF_LOCK)
 	u.gas = maxf(0.0, u.gas - WHIFF_GAS)
+	if u.has("flow"):
+		u.auras.erase("flow")
+		emit({"t": "aura_off", "u": u, "aura": "flow"})
 	var txt := "Whiff!"
 	if t != null:
 		var right := counter_kind(t.cast.ab)
-		txt = Tx.f("Wrong read: %s it! [%s]", [KIND_VERB[right], KIND_KEY[right]])
+		txt = Tx.f("Wrong read: %s! [%s]", [Tx.s(counter_verb(t.cast.ab)), KIND_KEY[right]])
 		# a wrong guess lets their technique in faster
 		t.cast.t = maxf(float(t.cast.t), float(t.cast.dur) - 0.35)
 	emit({"t": "miss", "u": u, "target": t, "text": txt, "whiff": true})
@@ -601,7 +655,7 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 		if pm(u) and u.mods.get("base_grip", false):
 			u.grip = mini(u.max_grip, u.grip + 2)
 			u.gas = minf(u.max_gas, u.gas + 30.0)
-	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "kind": kind, "text": "%s!" % KIND_VERB[kind]})
+	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "kind": kind, "text": "%s!" % Tx.s(counter_verb(ab))})
 	emit({"t": "cast_stop", "u": t})
 	# counter-to-counter: elites and bosses read your counter and flow into the next attack
 	if not t.player and (t.elite or t.boss) and rng.randf() < (0.35 if t.boss else 0.2):
@@ -615,6 +669,81 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 			t.cast = {"ab": ra, "t": 0.0, "dur": float(ra.cast), "target": u}
 			emit({"t": "proc", "u": t, "text": "Re-counter!"})
 			emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
+
+## ------------------------------------------------------------ your offense
+## FLOW: every technique that improves your position (or a switch that catches them guessing)
+## within a few seconds of the last one stacks up, to 3. A submission spends it: harder, and the
+## squeeze starts deeper. A technique of theirs landing, or a whiff, breaks it. Spamming one button
+## never builds flow; climbing does.
+const FLOW_DUR := 7.0
+const FLOW_MAX := 3
+const FLOW_SUB := 0.15        # submission damage per stack
+## READ BACK: opponents notice what you keep going for. Repeat a technique type and they may get
+## ready for it (shown on their frame: "Expecting: Pass"). Go for it anyway and it's stuffed; go
+## for anything else and they bit on the wrong thing: a SWITCH (+damage, +flow).
+const READ_BACK_TYPES := ["takedown", "sweep", "pass", "advance", "back", "sub"]
+const SWITCH_DMG := 1.3
+const READ_BACK_LEVEL := 6    # normal mobs start reading you once you have options to switch to
+
+func _flow(u: Unit) -> void:
+	var n := 1
+	if u.has("flow"):
+		n = mini(FLOW_MAX, int(u.auras.flow.get("n", 1)) + 1)
+	_aura(u, "flow", FLOW_DUR, u)
+	u.auras.flow["n"] = n
+	if n >= 2:
+		emit({"t": "proc", "u": u, "text": Tx.f("Flow x%d", n)})
+		emit({"t": "chain", "u": u, "n": n})
+
+## How likely t is to get ready for a technique you repeat (0 = never reads you).
+func read_back_chance(t: Unit, u: Unit) -> float:
+	if bool(t.data.get("practice", false)) or bool(t.data.get("tutor", false)) or bool(t.data.get("raid", false)):
+		return 0.0
+	if t.boss:
+		return 0.9
+	if t.rival:
+		return 0.85
+	if t.elite:
+		return 0.6
+	return 0.4 if u.level >= READ_BACK_LEVEL else 0.0
+
+func _note_habit(u: Unit, t: Unit, tp: String) -> void:
+	t.seen[tp] = int(t.seen.get(tp, 0)) + 1
+	var repeat := t.last_type == tp or int(t.seen[tp]) >= 3
+	t.last_type = tp
+	if not repeat or t.has("expect") or tp == "sub" and t.has("worn"):
+		return
+	# rivals come in already knowing your favourite (see habit_prior)
+	if rng.randf() >= read_back_chance(t, u):
+		return
+	_aura(t, "expect", 14.0, u)
+	t.auras.expect["type"] = tp
+	emit({"t": "expect", "u": t, "target": u, "type": tp})
+	emit({"t": "proc", "u": t, "text": Tx.f("Reading you: %s", Tx.s(str(Abilities.TEMPLATES.get(tp, {}).get("label", tp))))})
+
+## A rival who remembers how you beat them starts the fight already waiting for it.
+func expect_now(t: Unit, tp: String) -> void:
+	if tp == "" or not tp in READ_BACK_TYPES:
+		return
+	_aura(t, "expect", 14.0, player)
+	t.auras.expect["type"] = tp
+	emit({"t": "expect", "u": t, "target": player, "type": tp})
+
+## They were ready for it: your technique is stuffed, you pay for it and they get a grip.
+func _stuffed(u: Unit, t: Unit, a: Dictionary) -> void:
+	u.gas = maxf(0.0, u.gas - cost_of(u, a))
+	if bool(a.get("gcd", true)):
+		u.gcd = GCD / haste(u)
+	var cd := cd_of(u, a)
+	if cd > 0.0:
+		u.cds[a.id] = cd
+	t.grip = mini(t.max_grip, t.grip + 1)
+	_aura(u, "down", 0.9, t)
+	if u.has("flow"):
+		u.auras.erase("flow")
+		emit({"t": "aura_off", "u": u, "aura": "flow"})
+	emit({"t": "miss", "u": u, "target": t, "text": Tx.s("Stuffed! They saw it coming"), "stuffed": true, "ab": a})
+	emit({"t": "stuffed", "u": t, "target": u, "ab": a})
 
 ## A submission that didn't end it opens the next link of its chain for a few seconds.
 func _start_chain(u: Unit, a: Dictionary) -> void:
@@ -745,6 +874,9 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 			_aura(t, "worn", 9999.0, src)
 			emit({"t": "proc", "u": t, "text": "Worn down!"})
 	t.hp -= amount
+	if t.player and t.has("flow") and str(a.get("type", "")) in POSITIONAL:
+		t.auras.erase("flow")
+		emit({"t": "aura_off", "u": t, "aura": "flow"})
 	if not friendly(t) and friendly(src):
 		t.threat[src.id] = float(t.threat.get(src.id, 0.0)) + amount * (3.0 if src.role == "tank" else 1.0)
 	engage(src, t)
@@ -864,7 +996,7 @@ const ESCAPE_PRESS := 0.065   # meter per press (player escaping)
 func _start_struggle(atk: Unit, def: Unit, a: Dictionary) -> void:
 	# every escape in the same fight makes the next one harder (you're tiring)
 	var tired := int(_escapes.get(def.id, 0))
-	var start := 0.4 + 0.04 * float(atk.grip) + 0.15 * tired
+	var start := 0.4 + 0.04 * float(atk.grip) + 0.15 * tired + 0.07 * float(a.get("flow", 0))
 	struggle = {"atk": atk, "def": def, "ab": a, "meter": clampf(start, 0.3, 0.85), "t": 0.0, "dur": STRUGGLE_DUR, "tired": tired}
 	atk.cast = {}
 	def.cast = {}

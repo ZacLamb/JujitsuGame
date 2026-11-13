@@ -30,6 +30,10 @@ func _ready() -> void:
 		elif str(e.t) == "cast" and str(e.ab.get("type", "")) == "sub" and not ground_shot.has("sub"):
 			ground_shot["sub"] = true
 			_later_shot("s_sub_" + str(e.ab.get("_mv", "")))
+		elif str(e.t) in ["expect", "chain", "stuffed", "switch"] and not ground_shot.has(str(e.t)):
+			ground_shot[str(e.t)] = true
+			_later_shot("x_" + str(e.t))
+			log_lines.append("EV " + str(e.t))
 		elif str(e.t) == "proc":
 			log_lines.append("PROC %s: %s" % [e.u.name, str(e.text)])
 		elif str(e.t) in ["tap", "interrupt"]:

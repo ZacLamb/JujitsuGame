@@ -1163,5 +1163,110 @@
 "Good reads!",
 "Boas leituras!",
 "¡Buenas lecturas!"
+],
+[
+"Skill bonus +%d XP",
+"Bônus de técnica +%d XP",
+"Bono de técnica +%d XP"
+],
+[
+"Read streak %d",
+"Sequência de leituras %d",
+"Racha de lecturas %d"
+],
+[
+"Chains %d",
+"Encadeamentos %d",
+"Cadenas %d"
+],
+[
+"Flow x%d",
+"Fluxo x%d",
+"Flujo x%d"
+],
+[
+"FLOW x%d",
+"FLUXO x%d",
+"FLUJO x%d"
+],
+[
+"submit now for a deeper finish",
+"finalize agora para um aperto mais fundo",
+"finaliza ahora para un cierre más profundo"
+],
+[
+"Expecting your %s: switch it up!",
+"Esperando seu %s: mude o jogo!",
+"Esperando tu %s: ¡cambia el juego!"
+],
+[
+"Reading you: %s",
+"Lendo você: %s",
+"Leyéndote: %s"
+],
+[
+"Switch! They bit on the %s",
+"Troca! Caiu na finta do %s",
+"¡Cambio! Mordió el anzuelo del %s"
+],
+[
+"Stuffed! They saw it coming",
+"Travado! Ele viu chegando",
+"¡Frenado! Lo vio venir"
+],
+[
+"Remembers your %s",
+"Lembra do seu %s",
+"Recuerda tu %s"
+],
+[
+"Rival",
+"Rival",
+"Rival"
+],
+[
+"Coach: \"They're reading you. When they're expecting something, give them something else.\"",
+"Professor: \"Estão lendo você. Quando esperarem uma coisa, dê outra.\"",
+"Profesor: \"Te están leyendo. Cuando esperen algo, dales otra cosa.\""
+],
+[
+"Coach: \"Chain it: climb, climb, submit, fast. Flow makes the finish deeper.\"",
+"Professor: \"Encadeie: suba, suba, finalize, rápido. O fluxo deixa a finalização mais funda.\"",
+"Profesor: \"Encadena: sube, sube, finaliza, rápido. El flujo hace el cierre más profundo.\""
+],
+[
+"4 passes their guard: you climb to side control and they're Pinned (they hit 25% softer). Climb again within a few seconds and you build FLOW: your next submission goes in deeper.",
+"4 passa a guarda: você sobe para os cem quilos e ele fica Imobilizado (bate 25% mais fraco). Suba de novo em poucos segundos e você cria FLUXO: sua próxima finalização entra mais fundo.",
+"4 pasa la guardia: subes al control lateral y queda Inmovilizado (pega 25% más flojo). Sube otra vez en pocos segundos y creas FLUJO: tu próxima finalización entra más profundo."
+],
+[
+"7 takes the back: +2 Grip and they're Exposed (you crit them more). The best place to finish from. From now on opponents notice your habits: when their frame says Expecting, that button is crossed out. Do something else and they bite on the wrong thing.",
+"7 pega as costas: +2 Pegada e ele fica Exposto (você acerta mais críticos). O melhor lugar para finalizar. A partir de agora os oponentes notam seus hábitos: quando o quadro deles diz Esperando, aquele botão fica riscado. Faça outra coisa e eles caem na finta.",
+"7 toma la espalda: +2 Agarre y queda Expuesto (le das más críticos). El mejor lugar para finalizar. Desde ahora los rivales notan tus hábitos: cuando su marco dice Esperando, ese botón queda tachado. Haz otra cosa y muerden el anzuelo."
+],
+[
+"Base out",
+"Faça base",
+"Haz base"
+],
+[
+"Hand fight",
+"Brigue pelas mãos",
+"Pelea las manos"
+],
+[
+"Hip escape",
+"Fuga de quadril",
+"Escape de cadera"
+],
+[
+"Posture",
+"Postura",
+"Postura"
+],
+[
+"Wrong read: %s! [%s]",
+"Leitura errada: %s! [%s]",
+"Lectura errónea: ¡%s! [%s]"
 ]
 ]

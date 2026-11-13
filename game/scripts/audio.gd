@@ -44,6 +44,10 @@ func _ready() -> void:
 	_music_b.bus = "Music"
 	add_child(_music_a)
 	add_child(_music_b)
+	# web: the default "sample" playback ignores volume changes after play(), so music that fades
+	# in from silence stayed silent. Streams honour the fades.
+	for pl2 in [_music_a, _music_b, _amb_day, _amb_night]:
+		pl2.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	_load_settings()
 
 func _load_settings() -> void:

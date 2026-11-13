@@ -88,6 +88,18 @@ var shake := 0.0   # camera shake (landings, crits, taps); decays
 func add_shake(amount: float) -> void:
 	shake = maxf(shake, amount)
 
+## A quick zoom-in punch on the big moments (a read, a switch, the finish locking in).
+var _punch_tw: Tween
+func punch(amount := 5.0) -> void:
+	if cam == null or Game.test_mode:
+		return
+	if _punch_tw and _punch_tw.is_valid():
+		_punch_tw.kill()
+	cam.fov = 62.0
+	_punch_tw = create_tween()
+	_punch_tw.tween_property(cam, "fov", 62.0 - amount, 0.05).set_ease(Tween.EASE_OUT)
+	_punch_tw.tween_property(cam, "fov", 62.0, 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
 func refresh_look() -> void:
 	var key := Game.look_key()
 	if key == _look_key:

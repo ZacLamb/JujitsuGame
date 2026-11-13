@@ -67,6 +67,21 @@ static func recoil(yaw: float) -> Array:
 	var hit := _m(s, {"spine": Vector3(0.15, 0, 0), "neck": Vector3(-0.3, 0, 0), "hip_h": 0.88})
 	return [[hit, _root(yaw, -0.18), 0.08, Tween.EASE_OUT], [s, _root(yaw), 0.22]]
 
+## A sprawl: hips drop, legs shoot back, chest drives down onto their shot (then back to stance).
+static func sprawl(yaw: float) -> Array:
+	var s := stance()
+	var sp := _m(s, {"hip_h": 0.5, "spine": Vector3(-0.95, 0, 0), "neck": Vector3(0.6, 0, 0),
+		"l_hip": Vector3(-0.55, 0, -0.15), "r_hip": Vector3(-0.5, 0, 0.15), "l_kn": Vector3(-0.25, 0, 0), "r_kn": Vector3(-0.3, 0, 0),
+		"l_sh": Vector3(1.1, 0, 0.45), "r_sh": Vector3(1.1, 0, -0.45), "l_el": Vector3(1.2, 0, 0), "r_el": Vector3(1.2, 0, 0)})
+	return [[sp, _root(yaw, -0.35), 0.1, Tween.EASE_OUT], [sp, _root(yaw, -0.35), 0.28], [s, _root(yaw), 0.3]]
+
+## A frame: arms extend, posture braces back (then back to stance).
+static func brace(yaw: float) -> Array:
+	var s := stance()
+	var fr := _m(s, {"spine": Vector3(0.25, 0, 0), "l_sh": Vector3(1.45, 0, 0.25), "r_sh": Vector3(1.45, 0, -0.25),
+		"l_el": Vector3(0.15, 0, 0), "r_el": Vector3(0.15, 0, 0), "hip_h": 0.88})
+	return [[fr, _root(yaw, 0.12), 0.08, Tween.EASE_OUT], [fr, _root(yaw, 0.12), 0.22], [s, _root(yaw), 0.25]]
+
 ## Knocked down: fall onto the back and hold (released with getup()).
 static func fall(yaw: float) -> Array:
 	var down: Dictionary = RollPoses.get_pair("guard").bottom[0]

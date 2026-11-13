@@ -89,6 +89,21 @@ async function migrate() {
       points INT NOT NULL DEFAULT 0,
       PRIMARY KEY (week, academy_id)
     );
+    CREATE TABLE IF NOT EXISTS t_days (
+      device TEXT NOT NULL,
+      day DATE NOT NULL DEFAULT current_date,
+      level INT, style TEXT,
+      PRIMARY KEY (device, day)
+    );
+    CREATE TABLE IF NOT EXISTS t_fights (
+      id BIGSERIAL PRIMARY KEY,
+      device TEXT NOT NULL,
+      level INT, zone TEXT, outcome TEXT, secs REAL, grade TEXT,
+      reads INT, caught INT, whiffs INT, escapes INT, feints INT, chains INT,
+      hp REAL, foe TEXT, kind TEXT, bonus INT, style TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS t_fights_dev ON t_fights (device, created_at);
     CREATE TABLE IF NOT EXISTS gm_log (
       id SERIAL PRIMARY KEY,
       gm_id INT REFERENCES players(id) ON DELETE SET NULL,
@@ -168,6 +183,88 @@ app.get('/api/stats', needDb, auth, async (req, res) => {
     online: live ? live.online() : 0,
   });
 });
+
+// ------------------------------------------------------------------ play telemetry (anonymous)
+// One row per fight + one per device per play day. No accounts, names or chat: a random device id.
+const tLimit = new Map();   // device -> [timestamps] : 300 rows / hour max
+function tOk(d) {
+  if (typeof d !== 'string' || !/^[0-9a-f]{8,40}$/.test(d)) return false;
+  const now = Date.now();
+  const a = (tLimit.get(d) || []).filter((t) => now - t < 3600000);
+  a.push(now);
+  tLimit.set(d, a);
+  if (tLimit.size > 50000) tLimit.clear();
+  return a.length <= 300;
+}
+const tStr = (v, n = 40) => String(v == null ? '' : v).slice(0, n);
+const tNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+app.post('/api/t/session', needDb, async (req, res) => {
+  const b = req.body || {};
+  if (!tOk(b.d)) return res.status(429).json({});
+  await pool.query(`INSERT INTO t_days (device, level, style) VALUES ($1, $2, $3)
+    ON CONFLICT (device, day) DO UPDATE SET level = GREATEST(t_days.level, EXCLUDED.level)`, [b.d, tNum(b.lv), tStr(b.st, 20)]);
+  res.json({ ok: true });
+});
+app.post('/api/t/fight', needDb, async (req, res) => {
+  const b = req.body || {};
+  if (!tOk(b.d)) return res.status(429).json({});
+  const o = ['won', 'lost', 'left'].includes(b.o) ? b.o : 'left';
+  await pool.query(`INSERT INTO t_fights (device, level, zone, outcome, secs, grade, reads, caught, whiffs, escapes, feints, chains, hp, foe, kind, bonus, style)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+    [b.d, tNum(b.lv), tStr(b.z, 30), o, Math.min(9999, tNum(b.s)), tStr(b.g, 2), tNum(b.r), tNum(b.c), tNum(b.w), tNum(b.e), tNum(b.f), tNum(b.ch),
+      tNum(b.hp), tStr(b.foe), tStr(b.k, 10), tNum(b.b), tStr(b.st, 20)]);
+  await pool.query(`INSERT INTO t_days (device, level, style) VALUES ($1, $2, $3)
+    ON CONFLICT (device, day) DO UPDATE SET level = GREATEST(t_days.level, EXCLUDED.level)`, [b.d, tNum(b.lv), tStr(b.st, 20)]);
+  res.json({ ok: true });
+});
+// Game Master: the fight report (also shown at /fights)
+app.get('/api/t/report', needDb, auth, async (req, res) => {
+  if (req.player.role !== 'gm') return res.status(403).json({ error: 'Game Masters only.' });
+  const days = Math.max(1, Math.min(90, parseInt(req.query.days, 10) || 14));
+  const rows = async (sql, p = []) => (await pool.query(sql, p)).rows;
+  const since = `now() - interval '${days} days'`;
+  const out = {};
+  out.players = (await rows(`SELECT count(DISTINCT device)::int AS devices, count(*)::int AS play_days FROM t_days WHERE day > current_date - $1::int`, [days]))[0];
+  out.daily = await rows(`SELECT d.day::text AS day, count(*)::int AS players,
+      count(*) FILTER (WHERE f.first = d.day)::int AS new_players,
+      COALESCE((SELECT count(*) FROM t_fights x WHERE x.created_at::date = d.day), 0)::int AS fights
+    FROM t_days d JOIN (SELECT device, min(day) AS first FROM t_days GROUP BY device) f USING (device)
+    WHERE d.day > current_date - $1::int GROUP BY d.day ORDER BY d.day DESC`, [days]);
+  out.retention = (await rows(`WITH f AS (SELECT device, min(day) AS first FROM t_days GROUP BY device)
+    SELECT count(*) FILTER (WHERE f.first <= current_date - 1)::int AS cohort_d1,
+      count(*) FILTER (WHERE f.first <= current_date - 1 AND EXISTS (SELECT 1 FROM t_days t WHERE t.device = f.device AND t.day = f.first + 1))::int AS back_d1,
+      count(*) FILTER (WHERE f.first <= current_date - 7)::int AS cohort_d7,
+      count(*) FILTER (WHERE f.first <= current_date - 7 AND EXISTS (SELECT 1 FROM t_days t WHERE t.device = f.device AND t.day BETWEEN f.first + 6 AND f.first + 8))::int AS back_d7,
+      count(*) FILTER (WHERE EXISTS (SELECT 1 FROM t_days t WHERE t.device = f.device AND t.day > f.first))::int AS ever_back,
+      count(*)::int AS all_devices
+    FROM f WHERE f.first > current_date - $1::int`, [days]))[0];
+  out.fights = (await rows(`SELECT count(*)::int AS n, round(avg(secs)::numeric, 1)::float AS avg_secs,
+      round(100.0 * avg((outcome = 'won')::int), 1)::float AS win_pct, round(100.0 * avg((outcome = 'left')::int), 1)::float AS left_pct,
+      round(100.0 * sum(reads) / NULLIF(sum(reads + caught), 0), 1)::float AS read_pct,
+      round(avg(whiffs)::numeric, 2)::float AS whiffs, round(avg(chains)::numeric, 2)::float AS chains
+    FROM t_fights WHERE created_at > ${since}`))[0];
+  out.grades = await rows(`SELECT grade, count(*)::int AS n FROM t_fights WHERE created_at > ${since} AND outcome = 'won' GROUP BY grade ORDER BY grade`);
+  out.by_level = await rows(`SELECT CASE WHEN level <= 3 THEN '01-03' WHEN level <= 7 THEN '04-07' WHEN level <= 10 THEN '08-10' WHEN level <= 20 THEN '11-20' ELSE '21+' END AS band,
+      count(*)::int AS fights, count(DISTINCT device)::int AS players, round(avg(secs)::numeric, 1)::float AS avg_secs,
+      round(100.0 * avg((outcome = 'won')::int), 1)::float AS win_pct,
+      round(100.0 * sum(reads) / NULLIF(sum(reads + caught), 0), 1)::float AS read_pct
+    FROM t_fights WHERE created_at > ${since} GROUP BY band ORDER BY band`);
+  out.by_kind = await rows(`SELECT kind, count(*)::int AS fights, round(avg(secs)::numeric, 1)::float AS avg_secs,
+      round(100.0 * avg((outcome = 'won')::int), 1)::float AS win_pct
+    FROM t_fights WHERE created_at > ${since} GROUP BY kind ORDER BY fights DESC`);
+  // the last fight of each play day: did people leave after losing?
+  out.last_fight = await rows(`SELECT outcome, count(*)::int AS n FROM (
+      SELECT DISTINCT ON (device, created_at::date) outcome FROM t_fights WHERE created_at > ${since}
+      ORDER BY device, created_at::date, created_at DESC) x GROUP BY outcome`);
+  // where people stop: highest level ever seen per device
+  out.stop_level = await rows(`SELECT top AS level, count(*)::int AS players FROM (SELECT device, max(level) AS top FROM t_days GROUP BY device) x
+    GROUP BY top ORDER BY top`);
+  out.fights_per_day = (await rows(`SELECT round(avg(n)::numeric, 1)::float AS avg FROM (SELECT count(*) AS n FROM t_fights WHERE created_at > ${since} GROUP BY device, created_at::date) x`))[0].avg;
+  out.hardest = await rows(`SELECT foe, count(*)::int AS fights, round(100.0 * avg((outcome = 'won')::int), 1)::float AS win_pct
+    FROM t_fights WHERE created_at > ${since} AND foe <> '' GROUP BY foe HAVING count(*) >= 5 ORDER BY win_pct ASC LIMIT 10`);
+  res.json(out);
+});
+app.get('/fights', (_req, res) => res.sendFile(path.join(__dirname, 'fights.html')));
 
 // ------------------------------------------------------------------ account
 app.post('/api/register', needDb, async (req, res) => {

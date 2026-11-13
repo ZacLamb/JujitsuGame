@@ -88,7 +88,57 @@ func unit_for(npc: Npc, kind := "") -> CombatCore.Unit:
 	u.pos = npc.global_position
 	_unit_of[key] = u
 	_npc_of[u.id] = npc
+	if npc.opp_id != "" and npc.mob.is_empty():
+		_rival_setup(npc.opp_id, u)
 	return u
+
+# ------------------------------------------------------------ rivals
+## Named fighters remember how you rolled with them. Beat someone with the same pass every time and
+## next time they're ready for it from the first grip (their frame says so), and they read your
+## repeats far more often than a stranger would. Mix your game up and they're guessing again.
+func _rival_setup(opp: String, u: CombatCore.Unit) -> void:
+	var h: Dictionary = Game.flags.get("habits", {}).get(opp, {})
+	if h.is_empty():
+		return
+	u.rival = true
+	var fav := rival_fav(h)
+	if fav != "":
+		u.seen[fav] = 1
+		u.last_type = fav
+		core.expect_now(u, fav)
+		var nm := Tx.s(str(Abilities.TEMPLATES.get(fav, {}).get("label", fav)))
+		core.emit({"t": "proc", "u": u, "text": Tx.f("Remembers your %s", nm)})
+
+## Their read on you: the technique you leaned on most, if you leaned on one at all.
+static func rival_fav(h: Dictionary) -> String:
+	var best := ""
+	var bn := 0.0
+	var total := 0.0
+	for k in h:
+		if str(k).begins_with("_"):
+			continue
+		total += float(h[k])
+		if float(h[k]) > bn:
+			bn = float(h[k])
+			best = str(k)
+	return best if bn >= 2.0 and bn >= total * 0.34 else ""
+
+## After a roll with a named fighter: what you went for is what they'll study.
+func _rival_remember(opp: String, u: CombatCore.Unit, won: bool) -> void:
+	if u.seen.is_empty():
+		return
+	var all: Dictionary = Game.flags.get("habits", {})
+	var h: Dictionary = all.get(opp, {})
+	var nh := {}
+	for k in h:
+		if not str(k).begins_with("_"):
+			nh[k] = float(h[k]) * 0.5     # older rolls fade
+	for k in u.seen:
+		nh[k] = float(nh.get(k, 0.0)) + float(u.seen[k])
+	nh["_rolls"] = int(h.get("_rolls", 0)) + 1
+	nh["_won"] = int(h.get("_won", 0)) + (1 if won else 0)
+	all[opp] = nh
+	Game.flags["habits"] = all
 
 func npc_of(u: CombatCore.Unit) -> Npc:
 	var n = _npc_of.get(u.id if u else -1)
@@ -479,7 +529,13 @@ func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) ->
 		var parent := rig.get_parent() as Node3D
 		var local: Transform3D = parent.global_transform.affine_inverse() * anchor * xf
 		if fl.is_empty() or actor_rig == null:
-			rig.action([[pose, local, 0.45]], true)
+			# no arc for this move: still lift through the middle so bodies don't slide through each other
+			var cur_p := rig.current_pose()
+			var lift_p := BodyRig.lerp_pose(cur_p, pose, 0.5)
+			lift_p["hip_h"] = maxf(float(lift_p.get("hip_h", 0.5)), float(cur_p.get("hip_h", 0.5))) + 0.12
+			var lift_r: Transform3D = rig.current_root().interpolate_with(local, 0.5)
+			lift_r.origin.y += 0.1
+			rig.action([[lift_p, lift_r, 0.2, Tween.EASE_OUT], [pose, local, 0.32]], true)
 			continue
 		var partner: BodyRig = bot_rig if rig == top_rig else top_rig
 		var toward: Vector3 = parent.global_transform.basis.inverse() * (partner.global_position - rig.global_position)
@@ -560,7 +616,8 @@ func _track(e: Dictionary) -> void:
 		"combat":
 			if u.player and bool(e.on):
 				_rep = {"t0": Time.get_ticks_msec(), "foe": "", "reads": 0, "caught": 0, "whiffs": 0, "escapes": 0,
-					"best": 0, "best_pos": "", "finish": "", "won": false, "lost": false, "feints": 0}
+					"best": 0, "best_pos": "", "finish": "", "won": false, "lost": false, "feints": 0,
+					"streak": 0, "best_streak": 0, "xp": 0, "chains": 0, "level": me.level, "zone": str(world.zone)}
 			elif u.player and not bool(e.on) and not _rep.is_empty():
 				_finish_report()
 		"cast":
@@ -569,6 +626,8 @@ func _track(e: Dictionary) -> void:
 		"interrupt":
 			if u.player and not _rep.is_empty():
 				_rep.reads += 1
+				_rep.streak += 1
+				_rep.best_streak = maxi(int(_rep.best_streak), int(_rep.streak))
 				if _rep.foe == "" and e.get("target"):
 					_rep.foe = e.target.name
 				Game.bump("reads_25")
@@ -586,6 +645,26 @@ func _track(e: Dictionary) -> void:
 			if not u.player and e.get("target") == me and not _rep.is_empty() and (str(e.ab.get("_mv", "")) != "" or str(e.ab.get("type", "")) in ["takedown", "sub"]):
 				_rep.caught += 1
 				_streak_break()
+		"chain":
+			if u.player and not _rep.is_empty():
+				_rep.chains += 1
+			if u.player:
+				Sfx.play("pass", -4.0)
+		"switch":
+			if u.player:
+				Sfx.play("read", -6.0)
+				_hitstop(0.06, 0.2)
+				player.punch(4.0)
+				if not _rep.is_empty():
+					_rep["switches"] = int(_rep.get("switches", 0)) + 1
+		"stuffed":
+			if e.get("target") == me:
+				Sfx.play("whiff", -4.0)
+				if not _rep.is_empty():
+					_rep["stuffed"] = int(_rep.get("stuffed", 0)) + 1
+		"expect":
+			if e.get("target") == me:
+				Sfx.play("feint", -10.0)
 		"struggle":
 			if not bool(e.on) and not _rep.is_empty() and e.target == me and not bool(e.get("tapped", false)):
 				_rep.escapes += 1
@@ -600,6 +679,10 @@ func _track(e: Dictionary) -> void:
 			if _rep.is_empty():
 				return
 			var by: CombatCore.Unit = e.get("by")
+			var foe_u: CombatCore.Unit = u if not u.player else by
+			if foe_u:
+				_rep.kind = "boss" if foe_u.boss else ("raid" if bool(foe_u.data.get("raid", false)) else ("elite" if foe_u.elite else ("pvp" if foe_u.player else "mob")))
+				_rep.foe_style = str(foe_u.data.get("style", ""))
 			if by == me and not u.player:
 				_rep.won = true
 				_rep.foe = u.name
@@ -612,6 +695,8 @@ func _track(e: Dictionary) -> void:
 
 func _streak_break() -> void:
 	Game.counters["read_streak_10"] = 0
+	if not _rep.is_empty():
+		_rep.streak = 0
 
 ## A = reads and health; S needs both near perfect.
 static func grade(rep: Dictionary, hp_frac: float) -> String:
@@ -634,12 +719,37 @@ func _finish_report() -> void:
 	var rep := _rep
 	_rep = {}
 	if not bool(rep.won) and not bool(rep.lost):
+		rep["secs"] = (Time.get_ticks_msec() - int(rep.t0)) / 1000.0
+		if float(rep.secs) > 2.0:
+			Telemetry.fight(rep, me.pct())   # a fight that ended without a tap (ran, reset, died to a second mob…)
 		return   # walked away / reset: no card
 	rep["secs"] = (Time.get_ticks_msec() - int(rep.t0)) / 1000.0
 	rep["grade"] = grade(rep, me.pct())
 	if rep.grade == "S":
 		Game.unlock("grade_s")
+	# fighting well is the fastest way to level: the grade multiplies what the fight paid
+	if bool(rep.won):
+		var b := skill_bonus(rep)
+		if b > 0:
+			Game.add_xp(b)
+			Game.toast.emit(Tx.f("Skill bonus +%d XP", b), Color(0.55, 1.0, 0.6))
+		rep["bonus"] = b
+	Telemetry.fight(rep, me.pct())
 	roll_report.emit(rep)
+
+const GRADE_MULT := {"S": 0.6, "A": 0.3, "B": 0.1, "C": 0.0}
+## Extra XP for how the fight was won: a grade share of what the fight paid, plus read-streak,
+## flow-chain and clean-roll bonuses. Mashing (C) earns none of it.
+static func skill_bonus(rep: Dictionary) -> int:
+	var base := float(rep.get("xp", 0))
+	var b := base * float(GRADE_MULT.get(str(rep.get("grade", "C")), 0.0))
+	b += base * 0.04 * maxf(0.0, float(rep.get("best_streak", 0)) - 2.0)   # 3+ reads in a row
+	b += base * 0.08 * float(rep.get("chains", 0))
+	if int(rep.get("caught", 0)) == 0 and int(rep.get("whiffs", 0)) == 0 and int(rep.get("reads", 0)) > 0:
+		b += base * 0.15   # clean: nothing landed on you, no wrong reads
+	if str(rep.get("grade", "C")) == "C":
+		b = 0.0
+	return int(round(b))
 
 func _on_event(e: Dictionary) -> void:
 	_track(e)
@@ -750,12 +860,21 @@ func _on_event(e: Dictionary) -> void:
 					r.release(CombatAnim.getup(r.rotation.y))
 		"interrupt":
 			if u.player:
-				_hitstop(0.09)
+				_hitstop(0.12, 0.05)
 				Sfx.play("read", -3.0)
 				if str(e.get("kind", "")) == "base":
 					Sfx.play("sprawl", -2.0)
-				player.add_shake(0.35)
+				player.add_shake(0.45)
+				player.punch(6.0)
 				UiKit.buzz(30)
+				# your body answers the read when you're on your feet
+				if not _grounded(u) and not is_inf(player.rig._action_until):
+					var yaw := _yaw_to(u, e.target)
+					var k := str(e.get("kind", ""))
+					if k == "base":
+						player.rig.action(CombatAnim.sprawl(yaw))
+					elif k == "frame":
+						player.rig.action(CombatAnim.brace(yaw))
 			var n := _node_of(e.target)
 			_fx_stop(e.target, false)
 			if n:
@@ -789,6 +908,7 @@ func _on_event(e: Dictionary) -> void:
 				_hitstop(0.08, 0.2)
 				if u.player or tg.player:
 					player.add_shake(0.4)
+					player.punch(5.0)
 			elif not bool(e.get("tapped", false)):
 				var eu: CombatCore.Unit = tg if not tg.player else u
 				if eu and not eu.player:
@@ -920,6 +1040,8 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	if not npc.mob.is_empty():
 		var loot := Game.record_mob({"won": true, "by_sub": true, "sub": sub_id}, npc.mob)
 		_reward_toasts(int(loot.xp), int(loot.money), loot.items)
+		if not _rep.is_empty():
+			_rep.xp = int(_rep.xp) + int(loot.xp)
 		if npc.mob.get("revenge", false):
 			var bonus := int(loot.xp) / 2 + 5
 			Game.add_xp(bonus)
@@ -959,9 +1081,12 @@ func _end_duel(npc: Npc, u: CombatCore.Unit, won: bool, walked := false, sub := 
 	npc.rig.release()
 	if walked:
 		return
+	_rival_remember(opp, u, won)
 	var xp := Game.record_roll(opp, {"won": won, "by_sub": true, "sub": sub if won else "tap", "signature": false, "min_stamina": 0.0})
 	if won:
 		_reward_toasts(xp, 0, [])
+		if not _rep.is_empty():
+			_rep.xp = int(_rep.xp) + xp
 	npc.refresh_tag()
 	duel_over.emit(opp, won)
 
@@ -1199,6 +1324,7 @@ func _player_tapped(by_name: String, winner: Npc = null) -> void:
 		var npc := npc_of(u)
 		if npc and u.in_combat:
 			if npc.opp_id != "" and npc.mob.is_empty():
+				_rival_remember(npc.opp_id, u, false)
 				Game.record_roll(npc.opp_id, {"won": false, "by_sub": true, "sub": "tap"})
 				npc.refresh_tag()
 				_end_duel(npc, u, false, true)

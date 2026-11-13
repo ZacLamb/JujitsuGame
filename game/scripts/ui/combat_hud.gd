@@ -221,7 +221,7 @@ func _update_read(delta: float) -> void:
 		var t: CombatCore.Unit = combat.target
 		if c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
 			kind = CombatCore.counter_kind(c.cast.ab)
-			text = "%s!  [%s]" % [Tx.s(CombatCore.KIND_VERB[kind]).to_upper(), _key_for(kind)]
+			text = "%s!  [%s]" % [Tx.s(CombatCore.counter_verb(c.cast.ab)).to_upper(), _key_for(kind)]
 			frac = 1.0 - float(c.cast.t) / maxf(0.01, float(c.cast.dur))
 		elif t != null and not t.dead and t.has("worn"):
 			kind = "sub"
@@ -312,6 +312,15 @@ func show_report(rep: Dictionary) -> void:
 	v.add_child(Wow.label(stat, 13, Wow.WHITE))
 	if str(rep.get("best_pos", "")) != "":
 		v.add_child(Wow.label(Tx.f("Best position: %s", Tx.s(str(rep.best_pos))), 13, Wow.WHITE))
+	var extra := []
+	if int(rep.get("best_streak", 0)) >= 3:
+		extra.append(Tx.f("Read streak %d", int(rep.best_streak)))
+	if int(rep.get("chains", 0)) > 0:
+		extra.append(Tx.f("Chains %d", int(rep.chains)))
+	if int(rep.get("bonus", 0)) > 0:
+		extra.append(Tx.f("Skill bonus +%d XP", int(rep.bonus)))
+	if not extra.is_empty():
+		v.add_child(Wow.label("   ·   ".join(extra), 13, Color(0.55, 1.0, 0.6)))
 	v.add_child(Wow.label(_coach_line(rep), 13, Color(1.0, 0.82, 0.45), true))
 	var g := str(rep.get("grade", ""))
 	var gl := Wow.title(g if g != "" else "×", 54, GRADE_COL.get(g, Color(1, 0.4, 0.35)))
@@ -327,6 +336,8 @@ func show_report(rep: Dictionary) -> void:
 		Sfx.play("levelup", -6.0)
 
 func _coach_line(rep: Dictionary) -> String:
+	if int(rep.get("stuffed", 0)) >= 2:
+		return Tx.s("Coach: \"They're reading you. When they're expecting something, give them something else.\"")
 	if int(rep.caught) > int(rep.reads):
 		return Tx.s("Coach: \"Watch the middle of the screen. When the call comes up, that's your read.\"")
 	if int(rep.whiffs) >= 2:
@@ -337,6 +348,8 @@ func _coach_line(rep: Dictionary) -> String:
 		return Tx.s("Coach: \"Good escape. Never give up the finish.\"")
 	if bool(rep.get("lost", false)):
 		return Tx.s("Coach: \"Wear them down, then finish. And read their attacks.\"")
+	if int(rep.get("chains", 0)) == 0 and Game.player_level() >= 3:
+		return Tx.s("Coach: \"Chain it: climb, climb, submit, fast. Flow makes the finish deeper.\"")
 	return Tx.s("Coach: \"Clean roll. Oss!\"")
 
 func _tick_report(delta: float) -> void:
@@ -510,10 +523,26 @@ func _draw_ladder() -> void:
 	var ar := CombatCore.arch_of(t)
 	if not ar.is_empty() and not t.player:
 		var line := Tx.s(str(ar.name))
+		if t.rival:
+			line = Tx.s("Rival") + "  ·  " + line
 		if _hints_on():
 			line += "  ·  " + Tx.s(str(ar.tip))
 		draw_string_outline(f, Vector2(310, y + 32), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
 		draw_string(f, Vector2(310, y + 32), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.82, 0.45))
+	if t.has("expect"):
+		var tp := str(t.auras.expect.get("type", ""))
+		var lbl := Tx.s(str(Abilities.TEMPLATES.get(tp, {}).get("label", tp)))
+		var el := Tx.f("Expecting your %s: switch it up!", lbl)
+		var ep := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 140.0)
+		draw_string_outline(f, Vector2(310, y + 50), el, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color.BLACK)
+		draw_string(f, Vector2(310, y + 50), el, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.4, 0.3, ep))
+	var me2: CombatCore.Unit = combat.me
+	if me2 != null and me2.has("flow"):
+		var n := int(me2.auras.flow.get("n", 1))
+		var fl := Tx.f("FLOW x%d", n) + ("  ·  " + Tx.s("submit now for a deeper finish") if n >= 2 and _hints_on() else "")
+		var fy := y + (68 if t.has("expect") else 50)
+		draw_string_outline(f, Vector2(310, fy), fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color.BLACK)
+		draw_string(f, Vector2(310, fy), fl, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.45, 0.9, 1.0))
 	if here != "standing":
 		var who := Tx.s("you on top") if top else Tx.s("you underneath")
 		draw_string_outline(f, Vector2(x + 4, y + 12), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
@@ -646,6 +675,13 @@ func _draw_slot(b: Button, i: int) -> void:
 		b.draw_rect(inner, Color(0.55, 1.0, 0.6, 0.12 + 0.18 * hp))
 		b.draw_rect(r.grow(-1.5), Color(0.55, 1.0, 0.6, 0.65 + 0.35 * hp), false, 3.5)
 		b.draw_rect(r.grow(-5.0), Color(1, 1, 1, 0.25 * hp), false, 1.5)
+	# they're waiting for this one: a red cross over the button
+	var tg: CombatCore.Unit = combat.target
+	if tg != null and tg.has("expect") and str(tg.auras.expect.get("type", "")) == t and not (t == "sub" and tg.has("worn")):
+		var ep := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 110.0)
+		b.draw_rect(inner, Color(0.9, 0.15, 0.1, 0.25 + 0.15 * ep))
+		b.draw_line(inner.position, inner.end, Color(1, 0.3, 0.2, 0.85), 3.0)
+		b.draw_line(Vector2(inner.end.x, inner.position.y), Vector2(inner.position.x, inner.end.y), Color(1, 0.3, 0.2, 0.85), 3.0)
 	var key := slot_key(i)
 	b.draw_string_outline(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
 	b.draw_string(Wow.body(), Vector2(4, 13), key, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.85, 0.85))

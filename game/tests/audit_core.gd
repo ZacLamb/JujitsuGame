@@ -50,6 +50,7 @@ func _ready() -> void:
 					line += " | idle %2d%%" % int(100.0 * agg.idle / maxf(1.0, agg.ticks))
 					line += " | taps by sub %2d%%" % int(100.0 * agg.sub_kill / maxf(1.0, agg.won))
 					line += " | down %4.1fs" % (agg.down_t / n)
+					line += " | stuffed %.1f switch %.1f chains %.1f" % [float(agg.get("stuffed", 0.0)) / n, float(agg.get("switches", 0.0)) / n, float(agg.get("chains", 0.0)) / n]
 					print(line)
 	get_tree().quit()
 
@@ -120,6 +121,12 @@ func _on_ev(e: Dictionary, st: Dictionary, me) -> void:
 				st.countered += 1
 		"position":
 			st.pos_changes += 1
+		"stuffed":
+			st["stuffed"] = float(st.get("stuffed", 0.0)) + 1.0
+		"switch":
+			st["switches"] = float(st.get("switches", 0.0)) + 1.0
+		"chain":
+			st["chains"] = float(st.get("chains", 0.0)) + 1.0
 		"tap":
 			if e.by == me and str(e.get("sub", "")) != "":
 				st.sub_kill += 1
@@ -186,6 +193,8 @@ func _act(core: CombatCore, me, rng: RandomNumberGenerator, pol: String, st: Dic
 			if me.pct() < 0.4 and _try(core, me, "breathe", st):
 				return
 			for id in PRIO:
+				if pol == "expert" and me.target != null and me.target.has("expect") and str(me.target.auras.expect.get("type", "")) == id and not (id == "sub" and me.target.has("worn")):
+					continue   # they're waiting for it: switch it up
 				if id == "sub" and me.grip < 3 and (me.target == null or me.target.pct() > 0.3):
 					continue
 				if _try(core, me, id, st):
