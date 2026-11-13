@@ -19,69 +19,74 @@ static func get_pair(pos: String) -> Dictionary:
 			return {"top": [stance, _xf(Vector3(0, 0, 0.5), 0.0)],
 				"bottom": [stance, _xf(Vector3(0, 0, -0.5), PI)]}
 		"guard":
-			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.35, 0, 0),
-				"l_hip": Vector3(1.15, 0, -0.6), "r_hip": Vector3(1.15, 0, 0.6),
-				"l_kn": Vector3(-1.45, 0, 0), "r_kn": Vector3(-1.45, 0, 0),
-				"l_sh": Vector3(1.3, 0, 0.25), "r_sh": Vector3(1.3, 0, -0.25),
-				"l_el": Vector3(0.5, 0, 0), "r_el": Vector3(0.5, 0, 0)}
-			var top := {"hip_h": 0.58, "spine": Vector3(-0.3, 0, 0), "neck": Vector3(0.25, 0, 0),
-				"l_hip": Vector3(0.05, 0, -0.25), "r_hip": Vector3(0.05, 0, 0.25),
-				"l_kn": Vector3(-1.55, 0, 0), "r_kn": Vector3(-1.55, 0, 0),
-				"l_sh": Vector3(0.95, 0, 0.1), "r_sh": Vector3(0.95, 0, -0.1),
-				"l_el": Vector3(0.35, 0, 0), "r_el": Vector3(0.35, 0, 0)}
-			return {"top": [top, _xf(Vector3(0, 0, -0.62), PI)],
+			# closed guard: legs wrapped around the top player's waist, top kneeling tall inside
+			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.45, 0, 0),
+				"l_hip": Vector3(1.35, 0, -0.45), "r_hip": Vector3(1.35, 0, 0.45),
+				"l_kn": Vector3(-1.95, 0, 0), "r_kn": Vector3(-1.95, 0, 0),
+				"l_sh": Vector3(1.2, 0, 0.35), "r_sh": Vector3(1.2, 0, -0.35),
+				"l_el": Vector3(0.9, 0, 0), "r_el": Vector3(0.9, 0, 0)}
+			var top := {"hip_h": 0.47, "spine": Vector3(-0.1, 0, 0), "neck": Vector3(0.1, 0, 0),
+				"l_hip": Vector3(0.05, 0, -0.2), "r_hip": Vector3(0.05, 0, 0.2),
+				"l_kn": Vector3(-1.6, 0, 0), "r_kn": Vector3(-1.6, 0, 0),
+				"l_sh": Vector3(0.75, 0, 0.15), "r_sh": Vector3(0.75, 0, -0.15),
+				"l_el": Vector3(0.25, 0, 0), "r_el": Vector3(0.25, 0, 0)}
+			return {"top": [top, _xf(Vector3(0, 0, -0.42), PI)],
 				"bottom": [bottom, _xf(Vector3.ZERO, 0.0)]}
 		"half":
-			var bottom := {"hip_h": 0.2, "hip_rot": Vector3(PI / 2, 0, 0.55), "neck": Vector3(-0.3, 0, 0),
-				"l_hip": Vector3(0.9, 0, -0.3), "r_hip": Vector3(0.35, 0, 0.25),
+			# half guard: bottom turned on a hip trapping one leg, top low and heavy with a crossface
+			var bottom := {"hip_h": 0.2, "hip_rot": Vector3(PI / 2, 0, 0.7), "neck": Vector3(-0.3, 0, 0),
+				"l_hip": Vector3(1.0, 0, -0.15), "r_hip": Vector3(0.7, 0, 0.2),
+				"l_kn": Vector3(-1.9, 0, 0), "r_kn": Vector3(-1.3, 0, 0),
+				"l_sh": Vector3(1.0, 0, 0.6), "r_sh": Vector3(0.5, 0, -0.2),
+				"l_el": Vector3(1.4, 0, 0), "r_el": Vector3(0.6, 0, 0)}
+			var top := {"hip_h": 0.36, "spine": Vector3(-1.15, 0, 0), "neck": Vector3(0.75, 0, 0),
+				"l_hip": Vector3(0.6, 0, -0.45), "r_hip": Vector3(-0.2, 0, 0.25),
 				"l_kn": Vector3(-1.5, 0, 0), "r_kn": Vector3(-0.6, 0, 0),
-				"l_sh": Vector3(1.2, 0, 0.5), "r_sh": Vector3(0.8, 0, -0.3),
-				"l_el": Vector3(0.9, 0, 0), "r_el": Vector3(0.4, 0, 0)}
-			var top := {"hip_h": 0.5, "spine": Vector3(-0.85, 0, 0), "neck": Vector3(0.5, 0, 0),
-				"l_hip": Vector3(0.3, 0, -0.35), "r_hip": Vector3(-0.1, 0, 0.2),
-				"l_kn": Vector3(-1.4, 0, 0), "r_kn": Vector3(-1.2, 0, 0),
-				"l_sh": Vector3(1.25, 0, 0.2), "r_sh": Vector3(1.1, 0, -0.3),
-				"l_el": Vector3(0.6, 0, 0), "r_el": Vector3(0.4, 0, 0)}
-			return {"top": [top, _xf(Vector3(0.05, 0, -0.42), PI)],
+				"l_sh": Vector3(1.35, 0, 0.5), "r_sh": Vector3(1.2, 0, -0.5),
+				"l_el": Vector3(1.0, 0, 0), "r_el": Vector3(0.8, 0, 0)}
+			return {"top": [top, _xf(Vector3(0.15, 0, -0.1), PI)],
 				"bottom": [bottom, _xf(Vector3.ZERO, 0.0)]}
 		"side":
+			# side control: top across the chest, chest to chest, perpendicular, knees tight
 			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.2, 0, 0),
-				"l_hip": Vector3(0.6, 0, -0.1), "r_hip": Vector3(0.6, 0, 0.1),
-				"l_kn": Vector3(-1.2, 0, 0), "r_kn": Vector3(-1.2, 0, 0),
-				"l_sh": Vector3(1.4, 0, 0.3), "r_sh": Vector3(1.0, 0, -0.5),
-				"l_el": Vector3(1.4, 0, 0), "r_el": Vector3(0.8, 0, 0)}
-			var top := {"hip_h": 0.55, "spine": Vector3(-1.2, 0, 0), "neck": Vector3(0.7, 0, 0),
-				"l_hip": Vector3(0.2, 0, -0.3), "r_hip": Vector3(-0.3, 0, 0.3),
-				"l_kn": Vector3(-1.5, 0, 0), "r_kn": Vector3(-1.1, 0, 0),
-				"l_sh": Vector3(1.4, 0, 0.3), "r_sh": Vector3(1.3, 0, -0.3),
-				"l_el": Vector3(0.5, 0, 0), "r_el": Vector3(0.5, 0, 0)}
-			return {"top": [top, _xf(Vector3(0.55, 0, 0.35), PI / 2)],
+				"l_hip": Vector3(0.7, 0, -0.1), "r_hip": Vector3(0.7, 0, 0.1),
+				"l_kn": Vector3(-1.3, 0, 0), "r_kn": Vector3(-1.3, 0, 0),
+				"l_sh": Vector3(0.9, 0, 0.6), "r_sh": Vector3(0.6, 0, -0.4),
+				"l_el": Vector3(1.6, 0, 0), "r_el": Vector3(1.2, 0, 0)}
+			var top := {"hip_h": 0.36, "spine": Vector3(-1.4, 0, 0), "neck": Vector3(0.9, 0, 0),
+				"l_hip": Vector3(0.5, 0, -0.35), "r_hip": Vector3(0.1, 0, 0.35),
+				"l_kn": Vector3(-1.7, 0, 0), "r_kn": Vector3(-1.5, 0, 0),
+				"l_sh": Vector3(1.5, 0, 0.55), "r_sh": Vector3(1.45, 0, -0.55),
+				"l_el": Vector3(1.1, 0, 0), "r_el": Vector3(1.1, 0, 0)}
+			return {"top": [top, _xf(Vector3(0.48, 0, 0.3), PI / 2)],
 				"bottom": [bottom, _xf(Vector3.ZERO, 0.0)]}
 		"mount":
-			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.25, 0, 0),
-				"l_hip": Vector3(0.25, 0, -0.1), "r_hip": Vector3(0.25, 0, 0.1),
-				"l_kn": Vector3(-0.5, 0, 0), "r_kn": Vector3(-0.5, 0, 0),
-				"l_sh": Vector3(1.45, 0, 0.2), "r_sh": Vector3(1.45, 0, -0.2),
-				"l_el": Vector3(0.7, 0, 0), "r_el": Vector3(0.7, 0, 0)}
-			var top := {"hip_h": 0.5, "spine": Vector3(-0.15, 0, 0), "neck": Vector3(0.15, 0, 0),
-				"l_hip": Vector3(0.6, 0, -0.85), "r_hip": Vector3(0.6, 0, 0.85),
-				"l_kn": Vector3(-1.75, 0, 0), "r_kn": Vector3(-1.75, 0, 0),
-				"l_sh": Vector3(0.9, 0, 0.2), "r_sh": Vector3(0.9, 0, -0.2),
-				"l_el": Vector3(0.6, 0, 0), "r_el": Vector3(0.6, 0, 0)}
-			return {"top": [top, _xf(Vector3(0, 0, 0.12), PI)],
+			# mount: sitting low on the stomach, knees tight to the ribs, hands posted on the chest
+			var bottom := {"hip_h": 0.17, "hip_rot": LYING, "neck": Vector3(-0.3, 0, 0),
+				"l_hip": Vector3(0.35, 0, -0.15), "r_hip": Vector3(0.35, 0, 0.15),
+				"l_kn": Vector3(-0.8, 0, 0), "r_kn": Vector3(-0.8, 0, 0),
+				"l_sh": Vector3(0.9, 0, 0.3), "r_sh": Vector3(0.9, 0, -0.3),
+				"l_el": Vector3(1.5, 0, 0), "r_el": Vector3(1.5, 0, 0)}
+			var top := {"hip_h": 0.36, "spine": Vector3(-0.25, 0, 0), "neck": Vector3(0.2, 0, 0),
+				"l_hip": Vector3(0.9, 0, -1.0), "r_hip": Vector3(0.9, 0, 1.0),
+				"l_kn": Vector3(-2.1, 0, 0), "r_kn": Vector3(-2.1, 0, 0),
+				"l_sh": Vector3(0.8, 0, 0.15), "r_sh": Vector3(0.8, 0, -0.15),
+				"l_el": Vector3(0.3, 0, 0), "r_el": Vector3(0.3, 0, 0)}
+			return {"top": [top, _xf(Vector3(0, 0, 0.22), PI)],
 				"bottom": [bottom, _xf(Vector3.ZERO, 0.0)]}
 		"back":
-			var bottom := {"hip_h": 0.17, "spine": Vector3(0.15, 0, 0), "neck": Vector3(-0.1, 0, 0),
-				"l_hip": Vector3(1.45, 0, -0.15), "r_hip": Vector3(1.45, 0, 0.15),
-				"l_kn": Vector3(-0.35, 0, 0), "r_kn": Vector3(-0.35, 0, 0),
-				"l_sh": Vector3(1.6, 0, 0.5), "r_sh": Vector3(1.6, 0, -0.5),
-				"l_el": Vector3(1.3, 0, 0), "r_el": Vector3(1.3, 0, 0)}
-			var top := {"hip_h": 0.18, "spine": Vector3(-0.15, 0, 0), "neck": Vector3(0.1, 0, 0),
-				"l_hip": Vector3(1.3, 0, -0.5), "r_hip": Vector3(1.3, 0, 0.5),
-				"l_kn": Vector3(-1.2, 0, 0), "r_kn": Vector3(-1.2, 0, 0),
-				"l_sh": Vector3(1.55, 0, 0.75), "r_sh": Vector3(1.5, 0, -0.75),
-				"l_el": Vector3(1.5, 0, 0), "r_el": Vector3(1.5, 0, 0)}
-			return {"top": [top, _xf(Vector3(0, 0, 0.34), 0.0)],
+			# back control: seated behind, hooks in, seatbelt; bottom fights the hands at the chest
+			var bottom := {"hip_h": 0.2, "spine": Vector3(0.2, 0, 0), "neck": Vector3(-0.1, 0, 0),
+				"l_hip": Vector3(1.35, 0, -0.25), "r_hip": Vector3(1.35, 0, 0.25),
+				"l_kn": Vector3(-0.5, 0, 0), "r_kn": Vector3(-0.5, 0, 0),
+				"l_sh": Vector3(0.6, 0, 0.35), "r_sh": Vector3(0.6, 0, -0.35),
+				"l_el": Vector3(1.9, 0, 0), "r_el": Vector3(1.9, 0, 0)}
+			var top := {"hip_h": 0.18, "spine": Vector3(-0.2, 0, 0), "neck": Vector3(0.15, 0, 0),
+				"l_hip": Vector3(1.25, 0, -0.55), "r_hip": Vector3(1.25, 0, 0.55),
+				"l_kn": Vector3(-1.3, 0, 0), "r_kn": Vector3(-1.3, 0, 0),
+				"l_sh": Vector3(1.45, 0, 0.7), "r_sh": Vector3(1.35, 0, -0.75),
+				"l_el": Vector3(1.6, 0, 0), "r_el": Vector3(1.5, 0, 0)}
+			return {"top": [top, _xf(Vector3(0, 0, 0.32), 0.0)],
 				"bottom": [bottom, _xf(Vector3.ZERO, 0.0)]}
 	return get_pair("standing")
 

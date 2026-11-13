@@ -664,19 +664,17 @@ func _hitstop(dur: float, scale := 0.08) -> void:
 	Engine.time_scale = scale
 	get_tree().create_timer(dur, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 
-## On the ground the camera moves in on the pair (and gives the distance back when you stand).
-var _cam_saved := -1.0
-func _frame_camera(delta: float) -> void:
-	var grounded := _ground_unit() != null and me.in_combat
-	if grounded:
-		if _cam_saved < 0.0:
-			_cam_saved = player.cam_dist
-		player.cam_dist = lerpf(player.cam_dist, minf(_cam_saved, 5.4), clampf(delta * 3.0, 0.0, 1.0))
-	elif _cam_saved >= 0.0:
-		player.cam_dist = lerpf(player.cam_dist, _cam_saved, clampf(delta * 2.0, 0.0, 1.0))
-		if absf(player.cam_dist - _cam_saved) < 0.05:
-			player.cam_dist = _cam_saved
-			_cam_saved = -1.0
+## On the ground the camera moves in on the pair (Player eases it in and back out).
+func _frame_camera(_delta: float) -> void:
+	var gu := _ground_unit()
+	var npc := npc_of(gu) if gu != null and me.in_combat else null
+	player.ground_on = npc != null
+	# the "follow the light" beacon would wash over a fight happening right under it
+	if world.beacon:
+		var bp := world.beacon.global_position
+		world.beacon.visible = not (me.in_combat and Vector2(bp.x - player.global_position.x, bp.z - player.global_position.z).length() < 6.0)
+	if npc != null:
+		player.ground_focus = (player.global_position + npc.global_position) * 0.5 + Vector3(0, 0.55, 0)
 
 # ------------------------------------------------------------ cast effects (CastFX)
 var _cast_fx := {}   # unit id -> rune circle node

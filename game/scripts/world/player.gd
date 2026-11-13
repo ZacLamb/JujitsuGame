@@ -22,6 +22,11 @@ var touch_sprint := false
 var cam_yaw := 0.0
 var cam_pitch := -0.32
 var cam_dist := 6.0
+## Grappling camera: WorldCombat sets these while you're on the ground with someone, and the
+## camera eases in on the middle of the pair (and back out when you stand up).
+var ground_on := false
+var ground_focus := Vector3.ZERO
+var _gb := 0.0
 var _dragging := false
 var _lmb := false
 var _rmb := false
@@ -246,10 +251,13 @@ func _physics_process(delta: float) -> void:
 			var sand := get_parent() is World and (get_parent() as World).zone in ["rio", "socal"] and global_position.z > 31.0
 			Sfx.play("step_sand" if sand else "step_ground", -15.0, randf_range(0.85, 1.15))
 
-	yaw_node.global_position = yaw_node.global_position.lerp(global_position + Vector3(0, 1.5, 0), clampf(delta * 12.0, 0, 1))
+	_gb = move_toward(_gb, 1.0 if ground_on else 0.0, delta * 2.2)
+	var gb := _gb * _gb * (3.0 - 2.0 * _gb)
+	var focus := (global_position + Vector3(0, 1.5, 0)).lerp(ground_focus, gb)
+	yaw_node.global_position = yaw_node.global_position.lerp(focus, clampf(delta * 12.0, 0, 1))
 	yaw_node.rotation.y = cam_yaw
-	pitch_node.rotation.x = cam_pitch
-	arm.spring_length = lerpf(arm.spring_length, cam_dist, clampf(delta * 6.0, 0, 1))
+	pitch_node.rotation.x = lerpf(cam_pitch, minf(cam_pitch, -0.42), gb)
+	arm.spring_length = lerpf(arm.spring_length, lerpf(cam_dist, minf(cam_dist, 3.9), gb), clampf(delta * 6.0, 0, 1))
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 2.2)
 		var k := shake * shake * 0.18
