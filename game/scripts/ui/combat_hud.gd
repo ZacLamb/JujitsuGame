@@ -286,6 +286,11 @@ const GRADE_COL := {"S": Color(1.0, 0.82, 0.2), "A": Color(0.45, 1.0, 0.5), "B":
 
 ## The card after a roll: how you read them and how it ended, with one coaching line.
 func show_report(rep: Dictionary) -> void:
+	# the finish plays out first (its camera and stamp), then the card
+	if not Game.test_mode or Scenes.force:
+		await get_tree().create_timer(2.5).timeout
+		if not is_inside_tree():
+			return
 	if _report and is_instance_valid(_report):
 		_report.queue_free()
 	var p := PanelContainer.new()

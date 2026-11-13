@@ -837,6 +837,9 @@ func _make_world(z: String) -> void:
 		combat.player_tapped.connect(_on_player_tapped)
 		combat.duel_over.connect(_after_duel)
 		combat.boss_moment.connect(_on_boss_moment)
+		combat.finish_moment.connect(func(won: bool, sub_name: String, foe_name: String, at: Vector3, side: Vector3):
+			_hook_scenes()
+			scenes.finish(won, sub_name, foe_name, at, side))
 		combat.bout_over.connect(_on_bout_over)
 		pvp = Pvp.new()
 		add_child(pvp)

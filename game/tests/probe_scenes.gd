@@ -46,6 +46,43 @@ func _ready() -> void:
 		for i in 6: await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png("/home/claude/shots/art_zone.png")
 		main.hud.zone_card_off(0.0)
+	elif which == "finish":
+		Game.set_level(8)
+		main.combat.rebuild_player()
+		var mob: Npc = null
+		for e in main.world.mobs:
+			if e.npc and e.camp.id == "quadra":
+				mob = e.npc
+				break
+		var mp := mob.global_position + Vector3(1.4, 0, 0.6)
+		main.player.teleport(Vector3(mp.x, main.world.ground_y(mp.x, mp.z) + 0.3, mp.z), 0.0)
+		for i in 20: await get_tree().process_frame
+		var c: WorldCombat = main.combat
+		c.set_target_npc(mob)
+		c.engage_npc(mob)
+		var u = c.unit_for(mob)
+		u.ai_t = 999.0
+		for i in 10: await get_tree().process_frame
+		print("td ", c.core.use(c.me, "takedown"))
+		for i in 40:
+			u.ai_t = 999.0
+			await get_tree().process_frame
+		u.hp = 1.0
+		c.core._aura(u, "worn", 999.0, c.me)
+		c.me.grip = 4
+		c.me.gcd = 0.0
+		print("sub ", c.core.use(c.me, "sub"))
+		var tapped := [false]
+		c.core.event.connect(func(e):
+			if str(e.t) == "tap":
+				tapped[0] = true)
+		var t0 := Time.get_ticks_msec()
+		while not tapped[0] and Time.get_ticks_msec() - t0 < 30000:
+			u.ai_t = 999.0
+			c.core.struggle_press(c.me)
+			await get_tree().create_timer(0.1).timeout
+		print("tapped ", tapped[0])
+		await _shots("fin", 4, 0.55)
 	elif which == "flow":
 		Game.promote_belt(1)
 		var ok := false

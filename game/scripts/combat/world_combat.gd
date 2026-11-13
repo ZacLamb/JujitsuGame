@@ -1037,8 +1037,19 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 	tw.chain().tween_callback(l.queue_free)
 
 # ------------------------------------------------------------ taps (WoW: the kill)
+signal finish_moment(won: bool, sub_name: String, foe_name: String, at: Vector3, side: Vector3)
+
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
+	# the finish gets its own camera and a stamp (your taps, both ways; not raids or drills)
+	if by != null and (victim.player or by.player) and not (victim.player and by.player):
+		var foe: CombatCore.Unit = by if victim.player else victim
+		if not bool(foe.data.get("raid", false)) and not bool(foe.data.get("practice", false)):
+			var mv_name := str(Data.MOVES.get(sub, {}).get("name", ""))
+			var d := by.pos - victim.pos
+			d.y = 0
+			var side := Vector3(-d.z, 0, d.x).normalized() if d.length() > 0.05 else Vector3(1, 0, 0)
+			finish_moment.emit(by.player, mv_name, foe.name, (by.pos + victim.pos) * 0.5, side)
 	_hitstop(0.22, 0.1)
 	get_tree().create_timer(0.15).timeout.connect(func(): Sfx.play("tap", -2.0))
 	_fx_stop(by, true)

@@ -272,3 +272,113 @@ func stripe(rank: int) -> void:
 	Sfx.play("perfect", -5.0)
 	CastFX.heal(main.world, p.global_position + Vector3(0, 0.2, 0))
 	main.hud.flash_message(Tx.s("NEW STRIPE"), Data.rank_name(rank))
+
+# ------------------------------------------------------------ the finish
+## The tap: a close camera swings around the two of you in slow motion and the submission is
+## stamped across the screen. Two seconds, no input taken away (you're tangled up anyway).
+var _fin_cam: Camera3D
+var _fin_layer: CanvasLayer
+
+func finish(won: bool, sub_name: String, foe_name: String, at: Vector3, side: Vector3) -> void:
+	if busy or (Game.test_mode and not force) or main.roll != null:
+		return
+	_finish_clear()
+	main.hud.root.visible = false      # nothing but the two of you and the stamp
+	_fin_hud = true
+	var w: Node3D = main.world
+	var focus := Vector3(at.x, main.world.ground_y(at.x, at.z) + 0.45, at.z)
+	_fin_cam = Camera3D.new()
+	_fin_cam.fov = 44.0
+	w.add_child(_fin_cam)
+	var fwd := Vector3(side.z, 0, -side.x)
+	var from := focus + side * 2.5 + Vector3(0, 0.75, 0) + fwd * 0.9
+	var to := focus + side * 1.9 + Vector3(0, 1.25, 0) - fwd * 1.5
+	# keep walls out of it: pull in if something is between the camera and the fight
+	var space := w.get_world_3d().direct_space_state
+	for k in 2:
+		var p: Vector3 = from if k == 0 else to
+		var q := PhysicsRayQueryParameters3D.create(focus + Vector3(0, 0.6, 0), p)
+		q.exclude = [main.player.get_rid()]
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty() and focus.distance_to(hit.position) > 1.0:
+			p = focus + (p - focus).normalized() * maxf(1.0, focus.distance_to(hit.position) - 0.3)
+		if k == 0:
+			from = p
+		else:
+			to = p
+	_fin_cam.global_position = from
+	_fin_cam.look_at(focus, Vector3.UP)
+	_fin_cam.make_current()
+	var cam := _fin_cam
+	var tw := cam.create_tween()
+	tw.tween_method(func(t: float):
+		if is_instance_valid(cam):
+			cam.global_position = from.lerp(to, t)
+			cam.look_at(focus, Vector3.UP), 0.0, 1.0, 1.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# slow motion on the squeeze (real-time timer, so it always ends)
+	get_tree().create_timer(0.24, true, false, true).timeout.connect(func():
+		Engine.time_scale = 0.35
+		get_tree().create_timer(0.75, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0))
+	# the stamp
+	_fin_layer = CanvasLayer.new()
+	_fin_layer.layer = 55
+	add_child(_fin_layer)
+	var vs := get_viewport().get_visible_rect().size
+	var narrow := vs.x < 700.0
+	var col := Color(1.0, 0.84, 0.35) if won else Color(1.0, 0.36, 0.3)
+	var head := Label.new()
+	head.text = (Tx.s("SUBMISSION") if won else Tx.s("YOU TAPPED"))
+	var name_l := Label.new()
+	name_l.text = sub_name.to_upper() if sub_name != "" else ""
+	var who := Label.new()
+	who.text = Tx.f("vs %s", foe_name) if won else Tx.f("%s got the tap", foe_name)
+	var y := vs.y * 0.16
+	for row in [[head, 22 if narrow else 30, Color(1, 0.97, 0.9)], [name_l, 40 if narrow else 76, col], [who, 16 if narrow else 22, Color(1, 0.97, 0.9)]]:
+		var l: Label = row[0]
+		l.add_theme_font_override("font", Wow.title_font())
+		l.add_theme_font_size_override("font_size", int(row[1]))
+		l.add_theme_color_override("font_color", row[2])
+		l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+		l.add_theme_constant_override("outline_size", maxi(5, int(row[1]) / 6))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.position = Vector2(8, y)
+		l.size = Vector2(vs.x - 16, float(row[1]) * 1.25)
+		y += float(row[1]) * 1.3
+		l.modulate.a = 0.0
+		_fin_layer.add_child(l)
+	# the name slams in a beat after the tap
+	var lt := _fin_layer.create_tween()
+	lt.tween_property(head, "modulate:a", 1.0, 0.12)
+	lt.tween_interval(0.12)
+	lt.tween_callback(func():
+		name_l.pivot_offset = name_l.size * 0.5
+		name_l.scale = Vector2(2.2, 2.2)
+		name_l.modulate.a = 1.0
+		who.modulate.a = 1.0
+		Sfx.play("land", -3.0, 0.8)
+		main.player.add_shake(0.5))
+	lt.tween_property(name_l, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	lt.tween_interval(1.5)
+	lt.tween_callback(_finish_clear)
+
+var _fin_hud := false
+
+func _finish_clear() -> void:
+	Engine.time_scale = 1.0
+	if _fin_hud:
+		_fin_hud = false
+		if not busy:
+			main.hud.root.visible = true
+	if _fin_cam and is_instance_valid(_fin_cam):
+		_fin_cam.queue_free()
+		if not busy:
+			main.player.make_current()
+	_fin_cam = null
+	if _fin_layer and is_instance_valid(_fin_layer):
+		var fl := _fin_layer
+		var tw := fl.create_tween()
+		for c in fl.get_children():
+			tw.parallel().tween_property(c, "modulate:a", 0.0, 0.3)
+		tw.tween_callback(fl.queue_free)
+	_fin_layer = null

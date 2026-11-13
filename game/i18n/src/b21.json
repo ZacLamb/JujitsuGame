@@ -1528,5 +1528,20 @@
 "You're on top: stand up to move, or stay and finish",
 "Você está por cima: levante para andar, ou fique e finalize",
 "Estás arriba: levántate para moverte, o quédate y finaliza"
+],
+[
+"SUBMISSION",
+"FINALIZAÇÃO",
+"FINALIZACIÓN"
+],
+[
+"YOU TAPPED",
+"VOCÊ BATEU",
+"TE RENDISTE"
+],
+[
+"%s got the tap",
+"%s finalizou",
+"%s finalizó"
 ]
 ]
