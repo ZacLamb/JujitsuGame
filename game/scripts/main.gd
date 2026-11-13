@@ -926,7 +926,14 @@ func _travel(z: String, free := false, arrive := "") -> void:
 		Game.toast.emit(Tx.f("Careful: %s is a level %s zone and you're level %d. Locals there hit hard.", [Data.ZONES[z].name, Data.zone_levels(z).trim_prefix("Lv "), Game.player_level()]), Color(1.0, 0.5, 0.35))
 	Game.zone = z
 	Game.save_game()
+	if not Game.test_mode:
+		# the painted card goes up first, then the world loads behind it
+		hud.zone_card(z)
+		player.input_enabled = false
+		await get_tree().process_frame
+		await get_tree().process_frame
 	_make_world(z)
+	hud.zone_card_off()
 	if arrive != "" and World.ZONE_ROADS.get(z, {}).has(arrive):
 		var sx := -1.0 if arrive == "w" else 1.0
 		var zc: float = World.ZONE_ROADS[z][arrive]

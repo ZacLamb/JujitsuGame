@@ -234,7 +234,7 @@ func _on_gm_data(kind: String, d: Dictionary) -> void:
 				return
 			var z := str(d.get("zone", ""))
 			if z != "" and z != main.world.zone and Data.ZONES.has(z):
-				main._travel(z, true)
+				await main._travel(z, true)
 			main.player.teleport(Vector3(float(d.x), float(d.y) + 0.5, float(d.z)) + Vector3(1.5, 0, 1.5), main.player.cam_yaw)
 			_status.text = Tx.f("Teleported to %s", str(d.get("name", "?")))
 

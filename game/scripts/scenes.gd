@@ -145,6 +145,7 @@ func boss_entrance(npc: Npc, after: Callable) -> void:
 	c.move(bp + to_me * 1.5 + side * 0.2 + Vector3(0, 0.6, 0), bp + Vector3(0, 1.55, 0), 3.0)
 	npc.rig.action(Emotes.frames("flex", npc.rig.rotation.y))
 	c.title(Tx.s(str(o.title)).to_upper(), str(o.name).to_upper(), col.lightened(0.25))
+	c.portrait(Hud.face_for(str(o.name)))
 	await c.wait(2.6)
 	c.say(Tx.f("Signature: ★ %s ★  Read it and they're wide open. Miss it and it hurts.", str(b.sig_name)))
 	# both of you, side on
@@ -155,6 +156,7 @@ func boss_entrance(npc: Npc, after: Callable) -> void:
 	await c.wait(2.6)
 	c.title_off()
 	c.say_off()
+	c.portrait_off()
 	await c.end()
 	after.call()
 
@@ -213,6 +215,7 @@ func promotion(to_belt: int, boss_id: String, old_color: Color) -> void:
 	c.cut(pp + fwd * 0.6 + right * 2.6 + Vector3(0, 1.45, 0), pp + fwd * 0.6 + Vector3(0, 1.2, 0))
 	c.move(pp + fwd * 0.6 + right * 2.0 + Vector3(0, 1.4, 0), pp + fwd * 0.6 + Vector3(0, 1.15, 0), 5.0)
 	c.say(Tx.f("%s: \"%s\"", [prof_name, Tx.s(str(BELT_LINE.get(to_belt, BELT_LINE[1])))]))
+	c.portrait(Hud.face_for(prof_name))
 	await c.wait(4.4)
 	# 3. the belt goes on
 	var tie := {"hip_h": 0.9, "spine": Vector3(-0.45, 0, 0), "neck": Vector3(-0.25, 0, 0),
@@ -223,6 +226,7 @@ func promotion(to_belt: int, boss_id: String, old_color: Color) -> void:
 	var pr := Transform3D(Basis(Vector3.UP, prof.rotation.y), prof.position)
 	prof.action([[tie, pr, 0.4], [tie2, pr, 0.35], [tie, pr, 0.35], [tie2, pr, 0.35], [tie, pr, 0.35]], true)
 	c.say_off()
+	c.portrait_off()
 	c.move(pp + fwd * 0.6 + right * 1.5 + Vector3(0, 1.15, 0), pp + fwd * 0.3 + Vector3(0, 1.0, 0), 1.8)
 	await c.wait(1.8)
 	p.rig.set_belt_color(col)

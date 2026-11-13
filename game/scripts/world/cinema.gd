@@ -175,6 +175,31 @@ func title(kicker: String, text: String, col := Color.WHITE) -> void:
 	_title.scale = Vector2(1.25, 1.25)
 	_title.create_tween().tween_property(_title, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+## A painted portrait card in the lower-left corner (bosses, professors).
+var _face: TextureRect
+func portrait(tex: Texture2D) -> void:
+	if tex == null or layer == null:
+		return
+	var vs := get_viewport().get_visible_rect().size
+	var sz := 132.0 if vs.x < 700.0 else 200.0
+	_face = TextureRect.new()
+	_face.texture = tex
+	_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_face.size = Vector2(sz, sz)
+	_face.position = Vector2(-sz, vs.y - _bar_h() - sz - 96.0)
+	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_face.draw.connect(func():
+		var r := Rect2(Vector2.ZERO, _face.size)
+		_face.draw_rect(r, Color(0.05, 0.04, 0.03), false, 5.0)
+		_face.draw_rect(r.grow(-3.0), Color(0.9, 0.72, 0.35), false, 2.0))
+	layer.add_child(_face)
+	_face.create_tween().tween_property(_face, "position:x", 28.0, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func portrait_off() -> void:
+	if _face and is_instance_valid(_face):
+		_face.create_tween().tween_property(_face, "modulate:a", 0.0, 0.25)
+
 func title_off() -> void:
 	for l in [_kicker, _title]:
 		l.create_tween().tween_property(l, "modulate:a", 0.0, 0.3)

@@ -672,9 +672,25 @@ func _build_dialogue() -> void:
 	dialogue.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	dialogue.visible = false
 	root.add_child(dialogue)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 14)
+	dialogue.add_child(hb)
+	# painted portrait of whoever is talking (hidden when there isn't one)
+	dlg_face = TextureRect.new()
+	dlg_face.custom_minimum_size = Vector2(116, 116)
+	dlg_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	dlg_face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	dlg_face.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	dlg_face.visible = false
+	dlg_face.draw.connect(func():
+		var r := Rect2(Vector2.ZERO, dlg_face.size)
+		dlg_face.draw_rect(r, Color(0.3, 0.2, 0.08), false, 3.0)
+		dlg_face.draw_rect(r.grow(-3.0), Color(0.85, 0.68, 0.35, 0.9), false, 1.5))
+	hb.add_child(dlg_face)
 	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 10)
-	dialogue.add_child(v)
+	hb.add_child(v)
 	dialogue.add_theme_stylebox_override("panel", Wow.parchment())
 	dialogue.theme = Wow.theme()
 	dialogue.anchor_left = 0.22
@@ -696,7 +712,31 @@ func _build_dialogue() -> void:
 	dlg_yes.pressed.connect(func(): _close_dialogue(true))
 	row.add_child(dlg_yes)
 
+var dlg_face: TextureRect
+static var _faces := {}     # display name -> portrait path
+static var _face_cache := {}
+
+## The painted portrait for a speaker ("Mestre Onça", "Rafa  ·  White Belt, 2 stripes"), or null.
+static func face_for(speaker: String) -> Texture2D:
+	if _faces.is_empty():
+		for id in Data.QUEST_GIVERS:
+			_faces[str(Data.QUEST_GIVERS[id].name)] = "res://assets/portraits/q_%s.jpg" % id
+		for id in Data.OPPONENTS:
+			_faces[str(Data.OPPONENTS[id].name)] = "res://assets/portraits/%s.jpg" % id
+	var nm := speaker.split("  ·  ")[0].strip_edges()
+	if not _faces.has(nm):
+		return null
+	if not _face_cache.has(nm):
+		var path: String = _faces[nm]
+		_face_cache[nm] = load(path) if ResourceLoader.exists(path) else null
+	return _face_cache[nm]
+
 func open_dialogue(speaker: String, text: String, yes_text := "Oss! Let's roll", no_text := "Later") -> void:
+	var face := face_for(speaker)
+	dlg_face.texture = face
+	dlg_face.visible = face != null
+	var narrow := root.size.x < 700.0
+	dlg_face.custom_minimum_size = Vector2(84, 84) if narrow else Vector2(116, 116)
 	dlg_name.text = speaker
 	dlg_text.text = text
 	dlg_yes.text = yes_text
@@ -1475,6 +1515,63 @@ func set_exploring(on: bool) -> void:
 ## land, red for the other side's.
 var _zb: VBoxContainer
 var _zb_t := 0.0
+## Full-screen painted card for a zone while it loads (travel, zone lines).
+var _zcard: Control
+func zone_card(z: String) -> void:
+	var path := "res://assets/art/zone_%s.jpg" % z
+	if not ResourceLoader.exists(path) or not Data.ZONES.has(z):
+		return
+	if _zcard and is_instance_valid(_zcard):
+		_zcard.queue_free()
+	var c := Control.new()
+	_zcard = c
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.z_index = 200
+	root.add_child(c)
+	var bg := ColorRect.new()
+	bg.color = Color(0.03, 0.03, 0.03)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	c.add_child(bg)
+	var art := TextureRect.new()
+	art.texture = load(path)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	c.add_child(art)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.0)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	shade.offset_top = -170
+	shade.color = Color(0, 0, 0, 0.55)
+	c.add_child(shade)
+	var zd: Dictionary = Data.ZONES[z]
+	var narrow := root.size.x < 700.0
+	var t := Wow.title(str(zd.name).to_upper(), 34 if narrow else 58, Color(1.0, 0.86, 0.5))
+	t.add_theme_constant_override("outline_size", 10)
+	t.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	t.offset_top = -150
+	t.offset_bottom = -80
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	c.add_child(t)
+	var sub := Wow.label("%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(z)], 16 if narrow else 22, Color(1, 0.97, 0.9))
+	sub.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	sub.offset_top = -78
+	sub.offset_bottom = -40
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	c.add_child(sub)
+
+## Fade the zone card away once the world is ready.
+func zone_card_off(hold := 1.4) -> void:
+	if _zcard == null or not is_instance_valid(_zcard):
+		return
+	var c := _zcard
+	_zcard = null
+	var tw := c.create_tween()
+	tw.tween_interval(hold)
+	tw.tween_property(c, "modulate:a", 0.0, 0.7)
+	tw.tween_callback(c.queue_free)
+
 func zone_banner(title_: String, sub: String, friendly: bool) -> void:
 	if _zb == null:
 		_zb = VBoxContainer.new()

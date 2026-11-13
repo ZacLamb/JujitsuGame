@@ -37,6 +37,15 @@ func _ready() -> void:
 		for i in 20: await get_tree().process_frame
 		main.scenes.boss_entrance(b, func(): print("FIGHT START"))
 		await _shots("boss", 5, 1.6)
+	elif which == "art":
+		main.hud.open_dialogue("Mestre Onça", "So you beat the town. On my mat, every mistake costs a limb. Oss.", "Oss! Roll with Mestre Onça")
+		for i in 6: await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("/home/claude/shots/art_dialogue.png")
+		main.hud._close_dialogue(false)
+		main.hud.zone_card("pantanal")
+		for i in 6: await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("/home/claude/shots/art_zone.png")
+		main.hud.zone_card_off(0.0)
 	elif which == "flow":
 		Game.promote_belt(1)
 		var ok := false
