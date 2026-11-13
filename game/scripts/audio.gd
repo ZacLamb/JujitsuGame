@@ -1,7 +1,7 @@
 extends Node
 ## Sound effects + music with crossfade. Autoloaded as "Sfx".
 
-const SFX := ["click", "hit", "perfect", "miss", "tap", "squeeze", "win", "lose", "levelup", "collect", "jump", "step_ground", "step_sand", "wings", "hiss", "moo"]
+const SFX := ["click", "hit", "perfect", "miss", "tap", "squeeze", "win", "lose", "levelup", "collect", "jump", "step_ground", "step_sand", "wings", "hiss", "moo", "sprawl", "land", "sweep", "pass", "read", "tap", "whiff", "feint"]
 const SETTINGS := "user://tatame_settings.json"
 
 var muted := false

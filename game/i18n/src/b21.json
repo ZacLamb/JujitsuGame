@@ -883,5 +883,220 @@
 "3 is how a roll ends. Wear them down until their bar is empty, then submit. When it locks in, mash 3 to SQUEEZE until they tap. Only a submission makes someone tap; more Grip makes it go deeper.",
 "3 é como o rola termina. Desgaste o adversário até a barra dele zerar e finalize. Quando encaixar, martele 3 para APERTAR até ele bater. Só finalização faz alguém bater; mais Pegada deixa ela mais profunda.",
 "3 es cómo termina el combate. Desgástalo hasta vaciar su barra y somételo. Cuando encaje, machaca 3 para APRETAR hasta que se rinda. Solo una sumisión hace que alguien se rinda; más Agarre la hace más profunda."
+],
+[
+"Pressure Passer",
+"Passador de Pressão",
+"Pasador de Presión"
+],
+[
+"Guard Player",
+"Guardeiro",
+"Guardero"
+],
+[
+"Sub Hunter",
+"Caçador de Finalização",
+"Cazador de Sumisiones"
+],
+[
+"Back Taker",
+"Pegador de Costas",
+"Tomador de Espalda"
+],
+[
+"Wrestler",
+"Wrestler",
+"Luchador"
+],
+[
+"Judoka",
+"Judoca",
+"Judoca"
+],
+[
+"Scrambler",
+"Escorregadio",
+"Escurridizo"
+],
+[
+"Smashes and pins: FRAME the passes",
+"Amassa e prende: faça FRAME nas passagens",
+"Aplasta e inmoviliza: haz FRAME a los pases"
+],
+[
+"Pulls guard and sweeps: SPRAWL the sweeps",
+"Puxa pra guarda e raspa: SPRAWL nas raspagens",
+"Jala a la guardia y barre: SPRAWL a los barridos"
+],
+[
+"Hunts submissions: be ready to DEFEND",
+"Caça finalizações: esteja pronto pra DEFENDER",
+"Caza sumisiones: listo para DEFENDER"
+],
+[
+"Wants your back: FRAME the back takes",
+"Quer suas costas: FRAME quando ele for pras costas",
+"Quiere tu espalda: FRAME cuando la busque"
+],
+[
+"Shoots constantly: SPRAWL",
+"Entra nas pernas o tempo todo: SPRAWL",
+"Entra a las piernas todo el tiempo: SPRAWL"
+],
+[
+"Throws from the grips: SPRAWL",
+"Projeta a partir da pegada: SPRAWL",
+"Proyecta desde el agarre: SPRAWL"
+],
+[
+"Fast and slippery: keep reading",
+"Rápido e escorregadio: continue lendo",
+"Rápido y escurridizo: sigue leyendo"
+],
+[
+"%s (feint)",
+"%s (finta)",
+"%s (finta)"
+],
+[
+"Feint!",
+"Finta!",
+"¡Finta!"
+],
+[
+"ROLL REPORT",
+"RESUMO DO ROLA",
+"RESUMEN DEL COMBATE"
+],
+[
+"vs %s",
+"vs %s",
+"vs %s"
+],
+[
+"You tapped.",
+"Você bateu.",
+"Te rendiste."
+],
+[
+"Won by %s",
+"Venceu com %s",
+"Ganaste con %s"
+],
+[
+"Won",
+"Venceu",
+"Ganaste"
+],
+[
+"Reads %d/%d",
+"Leituras %d/%d",
+"Lecturas %d/%d"
+],
+[
+"Wrong reads %d",
+"Leituras erradas %d",
+"Lecturas erradas %d"
+],
+[
+"Escapes %d",
+"Fugas %d",
+"Escapes %d"
+],
+[
+"Best position: %s",
+"Melhor posição: %s",
+"Mejor posición: %s"
+],
+[
+"Coach: \"Watch the middle of the screen. When the call comes up, that's your read.\"",
+"Técnico: \"Olhe o meio da tela. Quando o aviso aparecer, essa é sua leitura.\"",
+"Entrenador: \"Mira el centro de la pantalla. Cuando aparezca el aviso, esa es tu lectura.\""
+],
+[
+"Coach: \"Don't guess the counter. Wait for the call, then hit it.\"",
+"Técnico: \"Não chute a defesa. Espere o aviso e aperte.\"",
+"Entrenador: \"No adivines la defensa. Espera el aviso y púlsala.\""
+],
+[
+"Coach: \"Climb before you finish: side, mount, back. Better position, deeper submission.\"",
+"Técnico: \"Suba antes de finalizar: cem-quilos, montada, costas. Posição melhor, finalização mais profunda.\"",
+"Entrenador: \"Sube antes de terminar: lateral, montada, espalda. Mejor posición, sumisión más profunda.\""
+],
+[
+"Coach: \"Good escape. Never give up the finish.\"",
+"Técnico: \"Boa fuga. Nunca entregue a finalização.\"",
+"Entrenador: \"Buen escape. Nunca regales la sumisión.\""
+],
+[
+"Coach: \"Wear them down, then finish. And read their attacks.\"",
+"Técnico: \"Desgaste, depois finalize. E leia os ataques dele.\"",
+"Entrenador: \"Desgástalo y luego termina. Y lee sus ataques.\""
+],
+[
+"Coach: \"Clean roll. Oss!\"",
+"Técnico: \"Rola limpo. Oss!\"",
+"Entrenador: \"Combate limpio. ¡Oss!\""
+],
+[
+"Read the Room",
+"Leitura Afiada",
+"Lectura Afilada"
+],
+[
+"Counter 25 techniques.",
+"Defenda 25 técnicas.",
+"Contrarresta 25 técnicas."
+],
+[
+"Mind Reader",
+"Leitor de Mentes",
+"Lector de Mentes"
+],
+[
+"Counter 250 techniques.",
+"Defenda 250 técnicas.",
+"Contrarresta 250 técnicas."
+],
+[
+"Untouchable",
+"Intocável",
+"Intocable"
+],
+[
+"Counter 10 techniques in a row without a wrong read or getting caught.",
+"Defenda 10 técnicas seguidas sem errar a leitura nem ser pego.",
+"Contrarresta 10 técnicas seguidas sin errar la lectura ni que te atrapen."
+],
+[
+"Houdini",
+"Houdini",
+"Houdini"
+],
+[
+"Escape 5 finishes.",
+"Escape de 5 finalizações.",
+"Escapa de 5 sumisiones."
+],
+[
+"Not Fooled",
+"Não Caiu",
+"No Caíste"
+],
+[
+"Counter a feint.",
+"Defenda uma finta.",
+"Contrarresta una finta."
+],
+[
+"Flawless Roll",
+"Rola Perfeito",
+"Combate Perfecto"
+],
+[
+"Earn an S on a roll report.",
+"Tire S no resumo de um rola.",
+"Saca una S en el resumen de un combate."
 ]
 ]

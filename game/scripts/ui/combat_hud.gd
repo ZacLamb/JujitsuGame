@@ -260,6 +260,85 @@ func _update_read(delta: float) -> void:
 	else:
 		_read_btn.modulate.a = 1.0
 
+# ------------------------------------------------------------ roll report card
+var _report: PanelContainer
+var _report_t := 0.0
+const GRADE_COL := {"S": Color(1.0, 0.82, 0.2), "A": Color(0.45, 1.0, 0.5), "B": Color(0.45, 0.75, 1.0), "C": Color(0.7, 0.7, 0.7)}
+
+## The card after a roll: how you read them and how it ended, with one coaching line.
+func show_report(rep: Dictionary) -> void:
+	if _report and is_instance_valid(_report):
+		_report.queue_free()
+	var p := PanelContainer.new()
+	_report = p
+	p.anchor_left = 0.5
+	p.anchor_right = 0.5
+	p.anchor_top = 0.5
+	p.anchor_bottom = 0.5
+	p.offset_left = -230
+	p.offset_right = 230
+	p.offset_top = -95
+	p.grow_vertical = Control.GROW_DIRECTION_END
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	p.add_theme_stylebox_override("panel", Wow.sb(Color(0.04, 0.03, 0.03, 0.92), Wow.FRAME, 6, 12, 2))
+	add_child(p)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	p.add_child(h)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.custom_minimum_size = Vector2(360, 0)
+	v.add_theme_constant_override("separation", 3)
+	h.add_child(v)
+	var lost := bool(rep.get("lost", false))
+	v.add_child(Wow.title(Tx.s("ROLL REPORT"), 18, Wow.GOLD))
+	var who := Tx.f("vs %s", str(rep.get("foe", "?")))
+	var secs := int(float(rep.get("secs", 0.0)))
+	v.add_child(Wow.label("%s  ·  %d:%02d" % [who, secs / 60, secs % 60], 13, Wow.PALE))
+	var how := Tx.s("You tapped.") if lost else (Tx.f("Won by %s", str(rep.finish)) if str(rep.finish) != "" else Tx.s("Won"))
+	v.add_child(Wow.label(how, 15, Color(1, 0.45, 0.4) if lost else Wow.GREEN))
+	var tries := int(rep.reads) + int(rep.caught)
+	var stat := Tx.f("Reads %d/%d", [int(rep.reads), tries]) + "   ·   " + Tx.f("Wrong reads %d", int(rep.whiffs)) + "   ·   " + Tx.f("Escapes %d", int(rep.escapes))
+	v.add_child(Wow.label(stat, 13, Wow.WHITE))
+	if str(rep.get("best_pos", "")) != "":
+		v.add_child(Wow.label(Tx.f("Best position: %s", Tx.s(str(rep.best_pos))), 13, Wow.WHITE))
+	v.add_child(Wow.label(_coach_line(rep), 13, Color(1.0, 0.82, 0.45), true))
+	var g := str(rep.get("grade", ""))
+	var gl := Wow.title(g if g != "" else "×", 54, GRADE_COL.get(g, Color(1, 0.4, 0.35)))
+	gl.custom_minimum_size = Vector2(54, 0)
+	gl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	h.add_child(gl)
+	p.gui_input.connect(func(ev): if ev is InputEventMouseButton and ev.pressed: _report_t = 0.0)
+	p.modulate.a = 0.0
+	p.create_tween().tween_property(p, "modulate:a", 1.0, 0.25)
+	_report_t = 7.0
+	if g == "S":
+		Sfx.play("levelup", -6.0)
+
+func _coach_line(rep: Dictionary) -> String:
+	if int(rep.caught) > int(rep.reads):
+		return Tx.s("Coach: \"Watch the middle of the screen. When the call comes up, that's your read.\"")
+	if int(rep.whiffs) >= 2:
+		return Tx.s("Coach: \"Don't guess the counter. Wait for the call, then hit it.\"")
+	if int(rep.best) < 2 and not bool(rep.get("lost", false)):
+		return Tx.s("Coach: \"Climb before you finish: side, mount, back. Better position, deeper submission.\"")
+	if int(rep.escapes) > 0:
+		return Tx.s("Coach: \"Good escape. Never give up the finish.\"")
+	if bool(rep.get("lost", false)):
+		return Tx.s("Coach: \"Wear them down, then finish. And read their attacks.\"")
+	return Tx.s("Coach: \"Clean roll. Oss!\"")
+
+func _tick_report(delta: float) -> void:
+	if _report == null or not is_instance_valid(_report):
+		return
+	_report_t -= delta
+	if _report_t < 0.6:
+		_report.modulate.a = clampf(_report_t / 0.6, 0.0, 1.0)
+	if _report_t <= 0.0 or (combat and combat.me and combat.me.in_combat):
+		_report.queue_free()
+		_report = null
+
 func flash(head: String, sub: String) -> void:
 	_flash.text = head
 	_flash_sub.text = sub
@@ -297,6 +376,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_update_read(delta)
+	_tick_report(delta)
 	_err.text = combat.error_text if combat.error_t > 0.0 else ""
 	_err.modulate.a = clampf(combat.error_t, 0.0, 1.0)
 	_flash_t = maxf(0.0, _flash_t - delta)
@@ -408,6 +488,14 @@ func _draw_ladder() -> void:
 		x += w + 3.0
 		if x > 300.0 + 560.0:
 			break
+	# the opponent's style (and, while hints are on, what to watch for)
+	var ar := CombatCore.arch_of(t)
+	if not ar.is_empty() and not t.player:
+		var line := Tx.s(str(ar.name))
+		if _hints_on():
+			line += "  ·  " + Tx.s(str(ar.tip))
+		draw_string_outline(f, Vector2(310, y + 32), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
+		draw_string(f, Vector2(310, y + 32), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.82, 0.45))
 	if here != "standing":
 		var who := Tx.s("you on top") if top else Tx.s("you underneath")
 		draw_string_outline(f, Vector2(x + 4, y + 12), who, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)

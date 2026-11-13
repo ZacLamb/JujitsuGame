@@ -487,7 +487,7 @@ func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) ->
 		get_tree().create_timer(0.62).timeout.connect(func():
 			_hitstop(0.06, 0.15)
 			player.add_shake(0.75)
-			Sfx.play("hit", -1.0, 0.6)
+			Sfx.play("land" if tp == "takedown" else "sweep", -1.0)
 			UiKit.buzz(45))
 
 ## A submission being set up: both bodies move part of the way into the finish, so you see the
@@ -545,7 +545,100 @@ func _yaw_to(u: CombatCore.Unit, t: CombatCore.Unit) -> float:
 	var to := t.pos - u.pos
 	return atan2(-to.x, -to.z)
 
+# ------------------------------------------------------------ roll report
+## Per-fight stats for the report card: how you read them, how you finished.
+signal roll_report(rep: Dictionary)
+var _rep := {}
+
+func _track(e: Dictionary) -> void:
+	var u: CombatCore.Unit = e.get("u")
+	match str(e.t):
+		"combat":
+			if u.player and bool(e.on):
+				_rep = {"t0": Time.get_ticks_msec(), "foe": "", "reads": 0, "caught": 0, "whiffs": 0, "escapes": 0,
+					"best": 0, "best_pos": "", "finish": "", "won": false, "lost": false, "feints": 0}
+			elif u.player and not bool(e.on) and not _rep.is_empty():
+				_finish_report()
+		"cast":
+			if not _rep.is_empty() and not u.player and e.get("target") == me and _rep.foe == "":
+				_rep.foe = u.name
+		"interrupt":
+			if u.player and not _rep.is_empty():
+				_rep.reads += 1
+				if _rep.foe == "" and e.get("target"):
+					_rep.foe = e.target.name
+				Game.bump("reads_25")
+				Game.bump("reads_250")
+				Game.bump("read_streak_10")
+				if bool(e.get("ab", {}).get("feint", false)):
+					_rep.feints += 1
+					Game.unlock("feint_read")
+		"miss":
+			if u.player and e.get("whiff", false) and not _rep.is_empty():
+				_rep.whiffs += 1
+				_streak_break()
+		"use":
+			# an enemy technique that landed on you (a read you missed)
+			if not u.player and e.get("target") == me and not _rep.is_empty() and (str(e.ab.get("_mv", "")) != "" or str(e.ab.get("type", "")) in ["takedown", "sub"]):
+				_rep.caught += 1
+				_streak_break()
+		"struggle":
+			if not bool(e.on) and not _rep.is_empty() and e.target == me and not bool(e.get("tapped", false)):
+				_rep.escapes += 1
+				Game.bump("escapes_5")
+		"position":
+			if not _rep.is_empty() and e.get("e") != null:
+				var d: int = core.dom(me, e.e)
+				if d > int(_rep.best):
+					_rep.best = d
+					_rep.best_pos = CombatCore.pos_label(str(e.pos), bool(e.ptop))
+		"tap":
+			if _rep.is_empty():
+				return
+			var by: CombatCore.Unit = e.get("by")
+			if by == me and not u.player:
+				_rep.won = true
+				_rep.foe = u.name
+				_rep.finish = str(Data.MOVES.get(str(e.get("sub", "")), {}).get("name", ""))
+			elif u.player:
+				_rep.lost = true
+				if by:
+					_rep.foe = by.name
+				_finish_report()
+
+func _streak_break() -> void:
+	Game.counters["read_streak_10"] = 0
+
+## A = reads and health; S needs both near perfect.
+static func grade(rep: Dictionary, hp_frac: float) -> String:
+	if bool(rep.get("lost", false)):
+		return ""
+	var tries := int(rep.reads) + int(rep.caught)
+	var rd := float(rep.reads) / float(tries) if tries > 0 else 1.0
+	var score := rd * 0.6 + hp_frac * 0.4 - 0.05 * float(rep.whiffs)
+	if score >= 0.85:
+		return "S"
+	if score >= 0.7:
+		return "A"
+	if score >= 0.5:
+		return "B"
+	return "C"
+
+func _finish_report() -> void:
+	if _rep.is_empty():
+		return
+	var rep := _rep
+	_rep = {}
+	if not bool(rep.won) and not bool(rep.lost):
+		return   # walked away / reset: no card
+	rep["secs"] = (Time.get_ticks_msec() - int(rep.t0)) / 1000.0
+	rep["grade"] = grade(rep, me.pct())
+	if rep.grade == "S":
+		Game.unlock("grade_s")
+	roll_report.emit(rep)
+
 func _on_event(e: Dictionary) -> void:
+	_track(e)
 	var u: CombatCore.Unit = e.get("u")
 	match str(e.t):
 		"position":
@@ -559,7 +652,10 @@ func _on_event(e: Dictionary) -> void:
 				_float(mover, "+%d  %s" % [int(e.pts), Data.POSITION_NAMES.get(str(e.pos), "")], Color(0.5, 1.0, 0.6), 0.9)
 			elif mover and str(e.pos) != "standing":
 				_float(mover, str(Data.POSITION_NAMES.get(str(e.pos), "")), Color(0.8, 0.85, 1.0), 0.7)
-			Sfx.play("hit", -6.0, 0.8)
+			if str(mvd.get("type", "")) in ["pass", "advance", "back", "escape", "guard"]:
+				Sfx.play("pass", -4.0, randf_range(0.9, 1.1))
+			elif str(mvd.get("type", "")) == "":
+				Sfx.play("hit", -6.0, 0.8)
 		"use":
 			var a: Dictionary = e.ab
 			if raid and is_instance_valid(raid):
@@ -650,7 +746,9 @@ func _on_event(e: Dictionary) -> void:
 		"interrupt":
 			if u.player:
 				_hitstop(0.09)
-				Sfx.play("perfect", -4.0)
+				Sfx.play("read", -3.0)
+				if str(e.get("kind", "")) == "base":
+					Sfx.play("sprawl", -2.0)
 				player.add_shake(0.35)
 				UiKit.buzz(30)
 			var n := _node_of(e.target)
@@ -663,13 +761,19 @@ func _on_event(e: Dictionary) -> void:
 			if u.player:
 				_error(str(e.get("text", "Missed")))
 				if e.get("whiff", false):
-					Sfx.play("miss", -6.0, 0.8)
+					Sfx.play("whiff", -4.0)
 		"proc":
 			var n := _node_of(u)
 			if n:
 				_float(n, str(e.text), Color(0.4, 1, 0.6))
 		"tap":
 			_on_tap(u, e.get("by"), str(e.get("sub", "")))
+		"feint":
+			# the cast changes under you: restart its effect and make some noise
+			_fx_cast(u, e.ab, 1.0, e.target)
+			Sfx.play("feint", -3.0)
+			if e.target and e.target.player:
+				player.add_shake(0.2)
 		"struggle":
 			var tg: CombatCore.Unit = e.target
 			if bool(e.on):
@@ -755,6 +859,7 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	_finishing = true
 	_hitstop(0.22, 0.1)
+	get_tree().create_timer(0.15).timeout.connect(func(): Sfx.play("tap", -2.0))
 	_fx_stop(by, true)
 	var vn := _node_of(victim)
 	if vn:

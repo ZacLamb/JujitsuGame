@@ -126,7 +126,7 @@ func add_enemy(d: Dictionary, kind: String) -> Unit:
 		dm = 1.25
 	elif u.elite:
 		hm = 2.2
-		dm = 1.5
+		dm = 1.65
 	# your first roll (Rafa) is a lesson: normal strength, slower, and he only shoots takedowns
 	if bool(d.get("tutor", false)):
 		u.elite = false
@@ -598,7 +598,7 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 		if pm(u) and u.mods.get("base_grip", false):
 			u.grip = mini(u.max_grip, u.grip + 2)
 			u.gas = minf(u.max_gas, u.gas + 30.0)
-	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "text": "%s!" % KIND_VERB[kind]})
+	emit({"t": "interrupt", "u": u, "target": t, "ab": ab, "kind": kind, "text": "%s!" % KIND_VERB[kind]})
 	emit({"t": "cast_stop", "u": t})
 	# counter-to-counter: elites and bosses read your counter and flow into the next attack
 	if not t.player and (t.elite or t.boss) and rng.randf() < (0.35 if t.boss else 0.2):
@@ -798,6 +798,50 @@ func tick(delta: float) -> void:
 			continue   # locked together in the finish
 		_tick_unit(u, delta)
 
+# ------------------------------------------------------------ feints (depth for later levels)
+## Elites and bosses sometimes FEINT: halfway through a technique they switch to one with a
+## different counter (shoot -> pass, pass -> choke). Only once you know all three counters, and
+## only once per technique. A fast read beats it; a slow one has to read again.
+const FEINT_CHANCE := 0.3
+const FEINT_CHANCE_BOSS := 0.4
+
+func _maybe_feint(u: Unit, c: Dictionary) -> void:
+	if u.player or c.has("feinted") or c.has("_nofeint") or not (u.elite or u.boss):
+		return
+	var t: Unit = c.target
+	if t == null or not t.player or float(c.t) < float(c.dur) * 0.45:
+		return
+	c["_nofeint"] = true   # decide once per technique
+	for k in COUNTER_IDS:
+		if ability(t, k).is_empty():
+			return
+	if rng.randf() > (FEINT_CHANCE_BOSS if u.boss else FEINT_CHANCE):
+		return
+	var kind := counter_kind(c.ab)
+	var opts: Array = []
+	var top := not u.ptop
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		if m.has("spec") or str(m.pos) != u.gpos or not str(m.type) in POSITIONAL or str(m.type) == "escape":
+			continue
+		if u.gpos != "standing" and str(m.role) != "any" and str(m.role) != ("top" if top else "bottom"):
+			continue
+		if str(m.type) == "sub" and u.grip < 1 and not t.has("worn"):
+			continue
+		var ab := move_ability(mv)
+		if counter_kind(ab) != kind:
+			opts.append(ab)
+	if opts.is_empty():
+		return
+	var na: Dictionary = opts[rng.randi() % opts.size()]
+	na["name"] = Tx.f("%s (feint)", str(na.name))
+	na["feint"] = true
+	c.ab = na
+	c["feinted"] = true
+	c.t = float(c.dur) * 0.3
+	emit({"t": "proc", "u": u, "text": "Feint!"})
+	emit({"t": "feint", "u": u, "target": t, "ab": na})
+
 # ------------------------------------------------------------ the finish (squeeze / escape)
 ## A submission that would end the roll becomes a short struggle. `meter` is how deep the
 ## submission is (0 = they escaped, 1 = tap). The attacker squeezes (mash), the defender fights
@@ -913,6 +957,7 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			emit({"t": "cast_stop", "u": u})
 		else:
 			c.t = float(c.t) + delta
+			_maybe_feint(u, c)
 			if float(c.t) >= float(c.dur):
 				u.cast = {}
 				emit({"t": "cast_stop", "u": u})
@@ -1012,7 +1057,7 @@ func _ai(u: Unit, delta: float) -> void:
 	u.ai_t -= delta
 	if u.ai_t > 0.0 or dist(u, t) > MELEE:
 		return
-	var pace: Vector2 = (AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0))
+	var pace: Vector2 = (AI_PACE_BOSS if u.boss else (AI_PACE_ELITE if u.elite else AI_PACE)) * float(u.data.get("pace", 1.0)) * float(arch_of(u).get("pace", 1.0))
 	# grappling the player: real techniques from this position
 	if t.player and (t.target == u or u.gpos != "standing"):
 		var mv := _ai_move(u, t)
@@ -1028,6 +1073,22 @@ func _ai(u: Unit, delta: float) -> void:
 		return
 	use(u, str(ready[rng.randi() % ready.size()].id), t)
 	u.ai_t = rng.randf_range(pace.x, pace.y)
+
+## Fighting styles: every enemy style has habits you learn to read. Weights multiply how often
+## they go for each kind of technique; the target frame shows the name and a tip.
+const ARCH := {
+	"pressure": {"name": "Pressure Passer", "tip": "Smashes and pins: FRAME the passes", "w": {"pass": 3.0, "advance": 2.2, "takedown": 1.4, "sweep": 0.5, "guard": 0.0, "sub": 1.2}},
+	"guard": {"name": "Guard Player", "tip": "Pulls guard and sweeps: SPRAWL the sweeps", "w": {"guard": 4.0, "sweep": 3.0, "escape": 1.6, "takedown": 0.3, "sub": 1.3}},
+	"submission": {"name": "Sub Hunter", "tip": "Hunts submissions: be ready to DEFEND", "w": {"sub": 2.4, "back": 1.4, "pass": 0.8}, "sub_grip": 0},
+	"back": {"name": "Back Taker", "tip": "Wants your back: FRAME the back takes", "w": {"back": 3.5, "sub": 1.2, "takedown": 1.2}},
+	"wrestler": {"name": "Wrestler", "tip": "Shoots constantly: SPRAWL", "w": {"takedown": 3.2, "pass": 1.5, "advance": 1.5, "sub": 0.6, "guard": 0.0}, "pace": 0.85},
+	"judoka": {"name": "Judoka", "tip": "Throws from the grips: SPRAWL", "w": {"takedown": 3.0, "sub": 1.0, "guard": 0.0}},
+	"athlete": {"name": "Scrambler", "tip": "Fast and slippery: keep reading", "w": {"escape": 2.2, "sweep": 2.0, "takedown": 1.5}, "pace": 0.85},
+	"passer": {"name": "Pressure Passer", "tip": "Smashes and pins: FRAME the passes", "w": {"pass": 3.0, "advance": 2.2, "takedown": 1.4, "sweep": 0.5, "guard": 0.0}},
+}
+
+static func arch_of(u: Unit) -> Dictionary:
+	return ARCH.get(str(u.data.get("style", "balanced")), {})
 
 ## How often enemies attempt something (seconds between attempts).
 const AI_PACE := Vector2(2.3, 3.3)
@@ -1093,7 +1154,7 @@ func _ai_move(u: Unit, t: Unit) -> String:
 		var w := 1.0
 		match tp:
 			"sub":
-				w = 0.0 if u.grip < 1 and not t.has("worn") else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
+				w = 0.0 if u.grip < int(arch_of(u).get("sub_grip", 1)) and not t.has("worn") else (3.0 if t.pct() < 0.5 or dom(u, t) >= 2 else 0.8)
 				if t.has("worn"):
 					w = 20.0   # finish it
 				if str(u.data.get("trait", "")) == "hunter":
@@ -1106,6 +1167,7 @@ func _ai_move(u: Unit, t: Unit) -> String:
 				w = 2.0
 			"guard":
 				w = 0.7
+		w *= float(arch_of(u).get("w", {}).get(tp, 1.0))
 		if w <= 0.0:
 			continue
 		picks.append([mv, w])

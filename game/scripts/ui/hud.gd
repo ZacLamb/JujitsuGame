@@ -616,6 +616,8 @@ func set_combat(c: WorldCombat) -> void:
 		root.move_child(combat_hud, status_panels[0].get_index() + 1 if not status_panels.is_empty() else 0)
 		apply_layout.call_deferred()   # the bar exists now: size and place it
 	combat_hud.combat = c
+	if not c.roll_report.is_connected(combat_hud.show_report):
+		c.roll_report.connect(combat_hud.show_report)
 	if not c.ability_learned.is_connected(combat_hud.learned):
 		c.ability_learned.connect(combat_hud.learned)
 
