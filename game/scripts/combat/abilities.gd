@@ -40,9 +40,9 @@ const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F",
 ## How each ability teaches itself the first time you get it.
 const TUTORIAL := {
 	"handfight": "Target someone (Tab or click) and press 1 to fight for grips. It wears them down and builds Grip (the red dots under your bars).",
-	"takedown": "2 takes the fight to the ground with you on top. Positions matter: climb guard, half, side, mount, back and you hit harder.",
+	"takedown": "2 takes the fight to the ground with you on top. Run in and shoot for Momentum: it lands harder. Positions matter: climb guard, half, side, mount, back and you hit harder.",
 	"sub": "3 is how a roll ends. Wear them down until their bar is empty, then submit. When it locks in, mash 3 to SQUEEZE until they tap. Only a submission makes someone tap; more Grip makes it go deeper.",
-	"base": "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment.",
+	"base": "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment. On your feet you can also just step back out of reach: the shot misses, but you earn nothing for it.",
 	"defend": "When they lock a submission, DEFEND! flashes: hit T. Get worn down and they WILL go for the finish, so watch for it.",
 	"breathe": "F recovers Gas. Out of combat it also restores Composure.",
 	"pass": "4 passes their guard: you climb to side control and they're Pinned (they hit 25% softer). Climb again within a few seconds and you build FLOW: your next submission goes in deeper.",

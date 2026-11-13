@@ -324,6 +324,14 @@ func _process(delta: float) -> void:
 			player.rig.rotation.y = lerp_angle(player.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 10.0, 0, 1))
 	player.rig.combat_ready = me.in_combat
 	player.rooted = me.down() or _finishing or _ground_unit() != null
+	# on the ground you can't walk away: say so (once in a while) when they try
+	if _ground_unit() != null and not _finishing and not core.in_struggle(me):
+		_root_hint_t = maxf(0.0, _root_hint_t - delta)
+		if _root_hint_t <= 0.0 and (Input.get_vector("move_left", "move_right", "move_forward", "move_back").length() > 0.5 or player.touch_move.length() > 0.5):
+			_root_hint_t = 6.0
+			var g2 := _ground_unit()
+			var under: bool = not g2.ptop
+			_error(Tx.s("You're tangled up: escape first, then you can move") if under else Tx.s("You're on top: stand up to move, or stay and finish"))
 
 ## Mob personalities in a fight: runners bolt for help at 20%, callers shout for a campmate at 50%.
 func _traits(npc: Npc, u: CombatCore.Unit) -> void:
@@ -575,6 +583,7 @@ func _show_sub_setup(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void
 		rig.action([[p, r, 0.5]], true)
 
 ## The finish pose itself (the struggle): both bodies all the way into the submission.
+var _root_hint_t := 0.0
 var _last_sub_pose := {}   # where the finish was locked in (the tap plays out there, not back in guard)
 
 func _show_sub_full(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void:
@@ -655,6 +664,18 @@ func _track(e: Dictionary) -> void:
 			if not u.player and e.get("target") == me and not _rep.is_empty() and (str(e.ab.get("_mv", "")) != "" or str(e.ab.get("type", "")) in ["takedown", "sub"]):
 				_rep.caught += 1
 				_streak_break()
+		"slip":
+			if u.player:
+				Sfx.play("whiff", -8.0, 1.3)
+				var sn := _node_of(u)
+				if sn:
+					_float(sn, Tx.s("Slipped it!"), Color(0.75, 0.9, 1.0), 0.8)
+				if not _rep.is_empty():
+					_rep["slips"] = int(_rep.get("slips", 0)) + 1
+		"momentum":
+			if u.player:
+				Sfx.play("land", -6.0, 1.15)
+				player.punch(4.0)
 		"chain":
 			if u.player and not _rep.is_empty():
 				_rep.chains += 1

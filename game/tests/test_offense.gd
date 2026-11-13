@@ -121,6 +121,46 @@ func _ready() -> void:
 		e4.grip = 3
 		for i in 60:
 			check(not core4._ai_move(e4, me4) in Data.GI_ONLY, "enemy used a gi choke in no-gi")
+	# --- distance on the feet: step out of range and the shot misses; run in and shoot for momentum
+	var core5 := CombatCore.new()
+	core5.rng.seed = 5
+	var me5 := core5.add_player("You", 8, Game.mods(), Abilities.player_kit())
+	me5.known = Abilities.known_moves()
+	var e5 := core5.add_enemy({"name": "Mob", "level": 4.85, "style": "wrestler", "rank": Game.rank}, "mob")
+	e5.pos = Vector3(1.5, 0, 0)
+	core5.engage(e5, me5)
+	core5.engage(me5, e5)
+	me5.target = e5
+	cnt = {}
+	core5.event.connect(_ev)
+	var hp0 := me5.hp
+	var slipped := false
+	for i in 400:
+		core5.tick(0.05)
+		if not e5.cast.is_empty() and str(e5.cast.ab.get("type", "")) == "takedown":
+			me5.pos = Vector3(-6.0, 0, 0)        # back out of reach while it's coming
+			slipped = true
+		elif slipped and e5.cast.is_empty():
+			break
+	print("slip events %d, lunge %d, pos %s" % [cnt.get("slip", 0), e5.lunge, e5.gpos])
+	check(int(cnt.get("slip", 0)) >= 1 and e5.gpos == "standing", "stepping out of range didn't make the takedown miss")
+	check(e5.lunge >= 1, "a slipped shot didn't extend their next reach")
+	var core6 := CombatCore.new()
+	var me6 := core6.add_player("You", 8, Game.mods(), Abilities.player_kit())
+	me6.known = Abilities.known_moves()
+	var e6 := core6.add_enemy({"name": "Mob", "level": 4.85, "style": "balanced", "rank": Game.rank}, "mob")
+	e6.pos = Vector3(8.0, 0, 0)
+	e6.ai_t = 999.0
+	me6.target = e6
+	core6.engage(me6, e6)
+	cnt = {}
+	core6.event.connect(_ev)
+	for i in 30:
+		me6.pos.x += 0.2            # 4 m/s toward them
+		core6.tick(0.05)
+	core6.use(me6, "takedown")
+	print("approach %.1f m/s, momentum events %d" % [me6.approach, cnt.get("momentum", 0)])
+	check(int(cnt.get("momentum", 0)) == 1, "running in and shooting didn't give momentum")
 	# --- zone bosses: the signature fires, phase two happens, a good reader still wins
 	var aud = load("res://tests/audit_core.gd").new()
 	bal._build("guard", 10)

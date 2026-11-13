@@ -56,6 +56,9 @@ class Unit:
 	var rank := 0
 	var seen := {}                 # enemies: how often the player went for each technique type
 	var last_type := ""            # enemies: the player's last technique type against them
+	var lunge := 0                 # enemies: shots you slipped in a row (each makes the next reach further)
+	var approach := 0.0            # player: how fast you're closing on your target (m/s, smoothed)
+	var _last_d := -1.0
 	var boss_id := ""              # zone bosses (Data.BOSS): signature + second phase
 	var sig_t := 9.0               # seconds until the signature is ready
 	var phase := 1
@@ -440,6 +443,11 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		emit({"t": "proc", "u": u, "text": Tx.f("Switch! They bit on the %s", Tx.s(str(Abilities.TEMPLATES.get(switched, {}).get("label", switched))))})
 		emit({"t": "switch", "u": u, "target": t, "was": switched})
 		_flow(u)
+	if u.player and tp == "takedown" and u.approach >= MOMENTUM_SPEED and t != null and not t.player:
+		a = a.duplicate()
+		a["dmg"] = float(a.get("dmg", 0.0)) * MOMENTUM_DMG
+		emit({"t": "proc", "u": u, "text": Tx.s("Momentum!")})
+		emit({"t": "momentum", "u": u, "target": t})
 	var chained := false
 	if u.has("chain") and str(a.get("_mv", "")) != "" and str(a.get("_mv", "")) == str(u.auras.chain.get("next", "")):
 		chained = true
@@ -690,6 +698,28 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 			emit({"t": "proc", "u": t, "text": "Re-counter!"})
 			emit({"t": "cast", "u": t, "ab": ra, "target": u, "dur": float(ra.cast)})
 
+## ------------------------------------------------------------ distance on the feet
+## Standing, range is a weapon. Step back out of reach as a shot comes in and it misses (a SLIP):
+## safer than a read, but it earns nothing and each slip in a row makes their next shot reach further.
+## Close the distance fast and shoot (MOMENTUM) and your takedown lands harder.
+const SLIP_REACH := 0.9       # extra reach per slip in a row
+const SLIP_MAX := 3
+const SLIP_STUMBLE := 0.7
+const MOMENTUM_SPEED := 2.4   # m/s closing speed
+const MOMENTUM_DMG := 1.3
+
+func _track_approach(delta: float) -> void:
+	var p := player
+	if p == null or p.target == null or p.target.dead or delta <= 0.0:
+		if p:
+			p.approach = 0.0
+			p._last_d = -1.0
+		return
+	var d := dist(p, p.target)
+	if p._last_d >= 0.0:
+		p.approach = lerpf(p.approach, (p._last_d - d) / delta, clampf(delta * 8.0, 0.0, 1.0))
+	p._last_d = d
+
 ## ------------------------------------------------------------ your offense
 ## FLOW: every technique that improves your position (or a switch that catches them guessing)
 ## within a few seconds of the last one stacks up, to 3. A submission spends it: harder, and the
@@ -897,6 +927,8 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 			_aura(t, "worn", 9999.0, src)
 			emit({"t": "proc", "u": t, "text": "Worn down!"})
 	t.hp -= amount
+	if src.player and not t.player and str(a.get("id", "")) != "auto":
+		t.lunge = 0
 	if t.player and t.has("flow") and str(a.get("type", "")) in POSITIONAL:
 		t.auras.erase("flow")
 		emit({"t": "aura_off", "u": t, "aura": "flow"})
@@ -948,6 +980,7 @@ func _check_ooc(p: Unit) -> void:
 
 # ------------------------------------------------------------ tick
 func tick(delta: float) -> void:
+	_track_approach(delta)
 	if puppet:
 		return
 	if not struggle.is_empty():
@@ -1124,8 +1157,18 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			if float(c.t) >= float(c.dur):
 				u.cast = {}
 				emit({"t": "cast_stop", "u": u})
-				if t != null and dist(u, t) <= float(c.ab.get("range", MELEE)) + 1.0:
+				if t != null and dist(u, t) <= float(c.ab.get("range", MELEE)) + 1.0 + SLIP_REACH * u.lunge:
+					u.lunge = 0
 					_resolve(u, c.ab, t)
+				elif t != null and t.player and not u.player and u.gpos == "standing":
+					# you stepped out of range: the shot hits air. No reversal (that takes a read), but
+					# they stumble for a beat, and their next shot reaches further so backing off forever fails
+					u.lunge = mini(SLIP_MAX, u.lunge + 1)
+					u.cds[c.ab.get("id", "")] = maxf(float(u.cds.get(c.ab.get("id", ""), 0.0)), 3.0)
+					_aura(u, "down", SLIP_STUMBLE, t)
+					u.ai_t = minf(u.ai_t, 1.4)
+					emit({"t": "slip", "u": t, "target": u, "ab": c.ab})
+					emit({"t": "miss", "u": u, "target": t, "text": "Out of range"})
 				else:
 					emit({"t": "miss", "u": u, "target": t, "text": "Out of range"})
 	# auto attack (hand fighting)
