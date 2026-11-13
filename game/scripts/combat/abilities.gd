@@ -163,13 +163,15 @@ static func _spec_ability(s: Dictionary) -> Dictionary:
 static func enemy_kit(d: Dictionary, elite: bool, boss: bool) -> Array:
 	var st := str(d.get("style", "balanced"))
 	var kit: Array = []
-	var td := {"wrestler": "Double-Leg Takedown", "judoka": "Osoto Gari", "guard": "Scissor Sweep", "athlete": "Single-Leg Takedown", "passer": "Knee Cut"}
-	kit.append({"id": "e_take", "name": td.get(st, "Takedown"), "type": "takedown", "cost": 0.0, "cd": 11.0, "cast": 1.4,
+	var td := {"wrestler": "Double-Leg Takedown", "judoka": "Osoto Gari", "guard": "Ankle Pick", "athlete": "Single-Leg Takedown", "passer": "Body Lock Takedown",
+		"pressure": "Body Lock Takedown", "submission": "Arm Drag Takedown", "back": "Snap Down"}
+	kit.append({"id": "e_take", "name": td.get(st, "Single-Leg Takedown"), "type": "takedown", "cost": 0.0, "cd": 11.0, "cast": 1.4,
 		"dmg": 1.5, "grip": 2, "effect": "down", "dur": 1.4})
-	kit.append({"id": "e_press", "name": "Heavy Pressure" if st in ["passer", "wrestler"] else "Grip Break", "type": "pass",
+	kit.append({"id": "e_press", "name": "Collar Tie Pressure" if st in ["passer", "wrestler", "pressure"] else "Grip Break", "type": "pass",
 		"cost": 0.0, "cd": 8.0, "dmg": 1.15, "grip": 1, "effect": "pin" if elite else "", "dur": 5.0})
-	var subs := {"guard": "Triangle Choke", "wrestler": "Guillotine", "judoka": "Cross Collar Choke", "athlete": "Straight Ankle Lock", "passer": "Americana"}
-	kit.append({"id": "e_sub", "name": subs.get(st, "Rear Naked Choke"), "type": "sub", "cost": 0.0, "cd": 14.0, "cast": 2.2,
+	# standing submissions only: everything else needs the fight on the ground first
+	var subs := {"guard": "Flying Armbar", "wrestler": "Guillotine Choke", "judoka": "Standing Loop Choke", "athlete": "Flying Armbar", "passer": "Guillotine Choke"}
+	kit.append({"id": "e_sub", "name": subs.get(st, "Guillotine Choke"), "type": "sub", "cost": 0.0, "cd": 14.0, "cast": 2.2,
 		"dmg": 1.6, "per_grip": 0.5, "finisher": true})
 	if boss:
 		kit.append({"id": "e_burst", "name": "Scramble", "type": "sweep", "cost": 0.0, "cd": 16.0, "cast": 0.0, "dmg": 2.2, "grip": 2})
@@ -187,7 +189,7 @@ static func tip_lines(a: Dictionary, u, core = null, t = null) -> Array:
 		if mv == "":
 			out.append([Tx.f("%s: nothing from %s", [str(TEMPLATES.get(str(a.type), {}).get("label", a.type)), here]), Wow.RED, 15])
 		elif mv == "@stand":
-			out.append(["Scramble Up", Wow.WHITE, 16])
+			out.append(["Technical Stand-Up", Wow.WHITE, 16])
 			out.append([Tx.f("From %s: back to your feet", here), Wow.GREEN, 12])
 		else:
 			var m: Dictionary = Data.MOVES[mv]

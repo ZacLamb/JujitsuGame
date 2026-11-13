@@ -49,6 +49,7 @@ func rebuild_player() -> void:
 		me.abilities = Abilities.player_kit()
 	me.hp = me.max_hp * ratio
 	me.known = Abilities.known_moves()
+	core.gi = Game.kit == "gi"
 	if Game.style != "":
 		for id in Game.ensure_bar(me.abilities):
 			var a := core.ability(me, str(id))
@@ -156,6 +157,7 @@ func engage_npc(npc: Npc) -> void:
 	var u := unit_for(npc)
 	if u == null or u.dead:
 		return
+	core.gi = Game.kit == "gi"
 	core.engage(u, me)
 	u.target = me
 	npc.in_combat = true
@@ -571,14 +573,19 @@ func _show_sub_setup(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void
 		rig.action([[p, r, 0.5]], true)
 
 ## The finish pose itself (the struggle): both bodies all the way into the submission.
+var _last_sub_pose := {}   # where the finish was locked in (the tap plays out there, not back in guard)
+
 func _show_sub_full(u: CombatCore.Unit, t: CombatCore.Unit, mv: String) -> void:
 	var ar := _rig_of(u)
 	var dr := _rig_of(t)
 	if ar == null or dr == null or not Data.MOVES.has(mv):
 		return
 	var e := t if u.player else u
-	var pr := RollPoses.sub_pair(mv, e.gpos, true)
+	# who is on top matters: a kimura from the bottom of half guard is not the one from the top
+	var atk_top: bool = e.ptop if u.player else not e.ptop
+	var pr := RollPoses.sub_pair(mv, e.gpos, atk_top)
 	var anchor := Transform3D(Basis(Vector3.UP, _yaw_to(u, t) + PI), t.pos)
+	_last_sub_pose = {"pos": e.gpos, "top": atk_top}
 	for side in [[ar, pr.atk], [dr, pr.def]]:
 		var rig: BodyRig = side[0]
 		var fin: Array = side[1]
@@ -1001,7 +1008,7 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 		sub_id = "guard_armbar"
 	# the finish: both bodies go to the submission, the loser taps three times
 	if vr and ar:
-		var pr := RollPoses.sub_pair(sub_id, "guard", true)
+		var pr := RollPoses.sub_pair(sub_id, str(_last_sub_pose.get("pos", "guard")), bool(_last_sub_pose.get("top", true)))
 		var yaw := _yaw_to(by, victim)
 		var anchor := Transform3D(Basis(Vector3.UP, yaw + PI), victim.pos)
 		var a_local: Transform3D = (ar.get_parent() as Node3D).global_transform.affine_inverse() * anchor * pr.atk[1]

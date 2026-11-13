@@ -17,7 +17,7 @@ const POS_BACK := "back"
 
 const POSITION_NAMES := {
 	"standing": "Standing",
-	"guard": "Closed Guard",
+	"guard": "Guard",
 	"half": "Half Guard",
 	"side": "Side Control",
 	"mount": "Mount",
@@ -168,7 +168,7 @@ const MOVES := {
 	"imanari_roll": {"name": "Imanari Roll", "pos": "standing", "role": "any", "result": "sub", "pts": 0, "diff": 3, "cost": 20, "type": "sub", "rank": 99},
 	"baseball_choke": {"name": "Baseball Bat Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99},
 	"twister": {"name": "Twister", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
-	"crucifix": {"name": "Crucifix Choke", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
+	"crucifix": {"name": "Crucifix Choke", "pos": "back", "role": "top", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99},
 	"triangle_armbar": {"name": "Triangle Armbar", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99},
 	# --- spec-exclusive techniques (rank 99: only your spec knows them; see Specs)
 	"chain_sub": {"name": "Armbar-Triangle Chain", "pos": "guard", "role": "bottom", "result": "sub", "pts": 0, "diff": 2, "cost": 18, "type": "sub", "rank": 99, "spec": "sub_hunter"},
@@ -176,13 +176,13 @@ const MOVES := {
 	"worm_sweep": {"name": "Worm Guard Sweep", "pos": "guard", "role": "bottom", "result": ["side", true], "pts": 2, "diff": 2, "cost": 14, "type": "sweep", "rank": 99, "spec": "lapel_guard"},
 	"blast_double": {"name": "Blast Double", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 16, "type": "takedown", "rank": 99, "spec": "chain_wrestler"},
 	"tilt_back": {"name": "Tilt to the Back", "pos": "side", "role": "top", "result": ["back", true], "pts": 4, "diff": 2, "cost": 14, "type": "back", "rank": 99, "spec": "rider"},
-	"peek_out": {"name": "Peek-Out Scramble", "pos": "side", "role": "bottom", "result": ["half", true], "pts": 0, "diff": 2, "cost": 12, "type": "escape", "rank": 99, "spec": "scrambler"},
+	"peek_out": {"name": "Ghost Escape", "pos": "side", "role": "bottom", "result": ["half", true], "pts": 0, "diff": 2, "cost": 12, "type": "escape", "rank": 99, "spec": "scrambler"},
 	"seoi_nage": {"name": "Ippon Seoi Nage", "pos": "standing", "role": "any", "result": ["side", true], "pts": 2, "diff": 2, "cost": 16, "type": "takedown", "rank": 99, "spec": "thrower"},
 	"kuzushi_snap": {"name": "Kuzushi Snap-Down", "pos": "standing", "role": "any", "result": ["back", true], "pts": 2, "diff": 3, "cost": 15, "type": "back", "rank": 99, "spec": "grip_fighter"},
 	"kesa_armlock": {"name": "Kesa Gatame Armlock", "pos": "side", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99, "spec": "newaza"},
 	"heel_hook": {"name": "Inside Heel Hook", "pos": "half", "role": "bottom", "result": "sub", "pts": 0, "diff": 3, "cost": 17, "type": "sub", "rank": 99, "spec": "leg_locker"},
 	"kiss_dragon": {"name": "Kiss of the Dragon", "pos": "guard", "role": "bottom", "result": ["back", true], "pts": 4, "diff": 3, "cost": 16, "type": "back", "rank": 99, "spec": "berimbolo"},
-	"tech_standup": {"name": "Technical Stand-Up Reversal", "pos": "mount", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 99, "spec": "gas_tank"},
+	"tech_standup": {"name": "Kipping Escape", "pos": "mount", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 99, "spec": "gas_tank"},
 	"over_under": {"name": "Over-Under Pass", "pos": "guard", "role": "top", "result": ["side", true], "pts": 3, "diff": 2, "cost": 16, "type": "pass", "rank": 99, "spec": "smash"},
 	"x_pass": {"name": "X-Pass", "pos": "half", "role": "top", "result": ["side", true], "pts": 3, "diff": 1, "cost": 12, "type": "pass", "rank": 99, "spec": "speed"},
 	"smount_armbar": {"name": "S-Mount Armbar", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 15, "type": "sub", "rank": 99, "spec": "mount_hunter"},
@@ -1025,7 +1025,8 @@ const PATHS := {
 	"nogi": {"name": "No-Gi", "lineage": "the Arpoador beach crew", "desc": "Scrambles, front headlocks and leg locks. Faster, slipperier, more risk.",
 		"moves": ["darce", "toe_hold", "kneebar", "high_crotch", "body_lock_td"]},
 }
-const GI_ONLY := ["cross_collar", "bow_arrow", "ezekiel", "lasso_sweep", "paper_cutter"]   # need a collar to grab
+## Need cloth to grip (collar, lapel, sleeve): not available when you roll no-gi, for you or for them.
+const GI_ONLY := ["cross_collar", "bow_arrow", "ezekiel", "lasso_sweep", "paper_cutter", "baseball_choke", "worm_sweep"]
 const PATH_LATE_RANKS := 5        # the other path's signatures come ~10 levels later
 const PATH_MASTERY := 0.10        # +10% technique damage in your path's kit
 const PATH_RETRAIN_COST := 500

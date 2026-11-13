@@ -1268,5 +1268,70 @@
 "Wrong read: %s! [%s]",
 "Leitura errada: %s! [%s]",
 "Lectura errónea: ¡%s! [%s]"
+],
+[
+"Kipping Escape",
+"Fuga de Kipping",
+"Escape Kipping"
+],
+[
+"Ghost Escape",
+"Fuga Fantasma",
+"Escape Fantasma"
+],
+[
+"Technical Stand-Up",
+"Levantada Técnica",
+"Levantada Técnica"
+],
+[
+"Stay heavy",
+"Pese em cima",
+"Mantén el peso"
+],
+[
+"Ankle Pick",
+"Catada de Tornozelo",
+"Recogida de Tobillo"
+],
+[
+"Body Lock Takedown",
+"Queda de Body Lock",
+"Derribo de Body Lock"
+],
+[
+"Arm Drag Takedown",
+"Queda de Arm Drag",
+"Derribo de Arm Drag"
+],
+[
+"Snap Down",
+"Snap Down",
+"Snap Down"
+],
+[
+"Collar Tie Pressure",
+"Pressão na Nuca",
+"Presión en la Nuca"
+],
+[
+"Standing Loop Choke",
+"Loop Choke em Pé",
+"Loop Choke de Pie"
+],
+[
+"Guillotine Choke",
+"Guilhotina",
+"Guillotina"
+],
+[
+"Flying Armbar",
+"Armlock Voador",
+"Armbar Volador"
+],
+[
+"Back to the feet",
+"De volta em pé",
+"De vuelta de pie"
 ]
 ]

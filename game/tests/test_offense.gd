@@ -92,5 +92,34 @@ func _ready() -> void:
 	# --- rival memory
 	check(WorldCombat.rival_fav({"pass": 4.0, "takedown": 1.0, "_rolls": 2}) == "pass", "rival didn't pick the favourite")
 	check(WorldCombat.rival_fav({"pass": 1.0, "takedown": 1.0, "sweep": 1.0}) == "", "rival read a habit that isn't there")
+	# --- jiu-jitsu rules
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		check(str(m.pos) in ["standing", "guard", "half", "side", "mount", "back"], "%s: bad position" % mv)
+		if str(m.type) == "takedown":
+			check(str(m.pos) == "standing", "%s: a takedown that isn't from standing" % mv)
+		if str(m.type) in ["sweep", "escape"] and str(m.pos) != "standing":
+			check(str(m.role) == "bottom", "%s: a sweep / escape from the top" % mv)
+		if str(m.type) in ["pass", "advance"]:
+			check(str(m.role) == "top", "%s: a pass from the bottom" % mv)
+		if str(m.pos) in ["side", "mount", "back"] and str(m.role) == "bottom":
+			check(str(m.type) in ["escape", "sweep"], "%s: attacking from under %s" % [mv, m.pos])
+	for st in ["wrestler", "judoka", "guard", "athlete", "passer", "pressure", "submission", "back", "balanced"]:
+		for a in Abilities.enemy_kit({"style": st}, false, false):
+			var nm := str(a.name)
+			for bad in ["Sweep", "Triangle", "Americana", "Rear Naked", "Knee Cut", "Collar Choke", "Ankle Lock"]:
+				check(not nm.contains(bad) or nm.contains("Standing"), "%s enemy standing kit has %s" % [st, nm])
+	# no-gi: nobody reaches for a collar
+	var core4 := CombatCore.new()
+	core4.gi = false
+	var me4 := core4.add_player("You", 20, Game.mods(), Abilities.player_kit())
+	var e4 := core4.add_enemy({"name": "Mob", "level": 10.0, "style": "judoka", "rank": 30}, "mob")
+	core4.engage(e4, me4)
+	for pos in ["mount", "side", "back"]:
+		e4.gpos = pos
+		e4.ptop = false
+		e4.grip = 3
+		for i in 60:
+			check(not core4._ai_move(e4, me4) in Data.GI_ONLY, "enemy used a gi choke in no-gi")
 	print("PASS (0 failures)" if fails == 0 else "FAILED (%d failures)" % fails)
 	get_tree().quit()

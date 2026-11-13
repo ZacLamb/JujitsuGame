@@ -229,6 +229,18 @@ static func sub_pair(sub_id: String, pos: String, atk_top: bool) -> Dictionary:
 		"keylock":
 			a2.merge({"spine": Vector3(-0.7, 0, 0.2), "l_sh": Vector3(1.2, 0, 0.7), "l_el": Vector3(1.8, 0, 0), "r_sh": Vector3(1.0, 0, -0.4), "r_el": Vector3(1.6, 0, 0)}, true)
 			d2.merge({"r_sh": Vector3(0.4, 0, -1.5), "r_el": Vector3(1.7, 0, 0), "neck": Vector3(-0.2, 0, 0.3)}, true)
+		"headlock" when pos == "standing":
+			# guillotine: their head is under your armpit, bent over at the waist; you lean back and lift
+			a2.merge({"hip_h": 0.9, "spine": Vector3(0.3, 0, 0), "neck": Vector3(-0.2, 0, 0),
+				"l_sh": Vector3(0.7, 0, 0.35), "l_el": Vector3(2.0, 0, 0), "r_sh": Vector3(0.55, 0, -0.5), "r_el": Vector3(1.9, 0, 0),
+				"l_hip": Vector3(0.3, 0, -0.18), "r_hip": Vector3(0.1, 0, 0.18), "l_kn": Vector3(-0.4, 0, 0), "r_kn": Vector3(-0.3, 0, 0)}, true)
+			d2.merge({"hip_h": 0.78, "spine": Vector3(-1.35, 0, 0), "neck": Vector3(-0.2, 0, 0),
+				"l_hip": Vector3(0.75, 0, -0.15), "r_hip": Vector3(0.45, 0, 0.15), "l_kn": Vector3(-0.7, 0, 0), "r_kn": Vector3(-0.5, 0, 0),
+				"l_sh": Vector3(0.9, 0, 0.5), "l_el": Vector3(1.2, 0, 0), "r_sh": Vector3(0.9, 0, -0.5), "r_el": Vector3(1.2, 0, 0)}, true)
+			var dx: Transform3D = de[1]
+			var ax: Transform3D = at[1]
+			dx.origin = ax.origin + (dx.origin - ax.origin) * 0.72   # close the distance: head to hip
+			return {"atk": [a2, ax], "def": [d2, dx]}
 		"headlock":
 			a2.merge({"spine": Vector3(-1.1, 0, 0), "l_sh": Vector3(1.5, 0, 0.85), "l_el": Vector3(2.0, 0, 0), "r_sh": Vector3(1.5, 0, -0.85), "r_el": Vector3(2.0, 0, 0)}, true)
 			d2.merge({"neck": Vector3(0.6, 0, 0), "l_sh": Vector3(1.6, 0, 0.1), "l_el": Vector3(0.6, 0, 0)}, true)

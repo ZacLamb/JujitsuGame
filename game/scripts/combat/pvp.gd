@@ -229,7 +229,7 @@ func guest_press(id: String) -> String:
 		if mv != "@stand" and Data.MOVES.has(mv):
 			a["name"] = str(Data.MOVES[mv].name)
 		elif mv == "@stand":
-			a["name"] = "Scramble Up"
+			a["name"] = "Technical Stand-Up"
 	# the host runs it with the guest's own numbers: bake the cast time with our haste
 	a["cast"] = float(a.get("cast", 0.0))
 	Net.send_duel(peer, {"k": "act", "ab": a})

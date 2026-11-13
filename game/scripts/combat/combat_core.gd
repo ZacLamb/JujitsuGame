@@ -56,6 +56,7 @@ class Unit:
 	var rank := 0
 	var seen := {}                 # enemies: how often the player went for each technique type
 	var last_type := ""            # enemies: the player's last technique type against them
+	var _stall := 0                # enemies: AI ticks with nothing to do from this position
 	var rival := false             # a named fighter who has rolled with you before (remembers your game)
 
 	func has(a: String) -> bool:
@@ -68,6 +69,7 @@ class Unit:
 var units: Array = []
 ## Live duels: the guest's game only mirrors the host's fight (no logic runs, snapshots drive it).
 var puppet := false
+var gi := true                # the roll is in the gi (collar / lapel techniques exist); set by WorldCombat
 
 ## A unit with a real player's numbers: you, or (live duels, on the host) the other human.
 static func pm(u: Unit) -> bool:
@@ -298,6 +300,8 @@ static func counter_verb(a: Dictionary) -> String:
 			return "Hip escape"
 		"guard":
 			return "Posture"
+		"escape":
+			return "Stay heavy"
 	return "Frame"
 
 ## [position, is u on top] for u fighting t (one of them must be the player).
@@ -337,6 +341,8 @@ func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
 	var role := "top" if pi[1] else "bottom"
 	var ok := func(mv: String) -> bool:
 		var m: Dictionary = Data.MOVES.get(mv, {})
+		if not gi and mv in Data.GI_ONLY:
+			return false
 		return not m.is_empty() and str(m.pos) == pos and (str(m.role) == "any" or str(m.role) == role or pos == "standing")
 	if str(a.get("id", "")) == "spec":
 		return str(a.move) if ok.call(str(a.move)) else ""
@@ -406,7 +412,7 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		if mv != "" and mv != str(a.get("move", "")) or mv == "@stand":
 			a = a.duplicate()
 			a["_mv"] = mv
-			a["name"] = "Scramble Up" if mv == "@stand" else str(Data.MOVES[mv].name)
+			a["name"] = "Technical Stand-Up" if mv == "@stand" else str(Data.MOVES[mv].name)
 		elif mv != "":
 			a = a.duplicate()
 			a["_mv"] = mv
@@ -762,13 +768,16 @@ func _start_chain(u: Unit, a: Dictionary) -> void:
 func _recounter_move(t: Unit, countered: String) -> String:
 	if Data.CHAINS.has(countered):
 		var nx: String = Data.CHAINS[countered]
-		if Data.MOVES.has(nx) and str(Data.MOVES[nx].pos) == t.gpos:
+		if Data.MOVES.has(nx) and str(Data.MOVES[nx].pos) == t.gpos and (gi or not nx in Data.GI_ONLY) \
+				and (t.gpos == "standing" or str(Data.MOVES[nx].role) in ["any", "bottom" if t.ptop else "top"]):
 			return nx
 	var ty := str(Data.MOVES.get(countered, {}).get("type", ""))
 	var opts: Array = []
 	for mv in Data.MOVES:
 		var m: Dictionary = Data.MOVES[mv]
 		if m.has("spec") or int(m.get("rank", 0)) > t.rank + 3 or str(m.pos) != t.gpos or str(m.type) == ty:
+			continue
+		if not gi and mv in Data.GI_ONLY:
 			continue
 		if not str(m.type) in POSITIONAL or str(m.type) == "escape":
 			continue
@@ -1208,10 +1217,22 @@ func _ai(u: Unit, delta: float) -> void:
 				u.ai_t = rng.randf_range(pace.x, pace.y)
 				return
 	# otherwise: the standing kit (hand fighting pressure)
-	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "" and (not bool(a.get("finisher", false)) or t.has("worn")) and _ai_allowed(u, t, str(a.get("type", ""))))
+	# the standing kit's takedown and standing choke make no sense once the fight is on the ground
+	var grounded := u.gpos != "standing"
+	var ready: Array = u.abilities.filter(func(a): return block_reason(u, a, t) == "" and (not bool(a.get("finisher", false)) or t.has("worn")) and _ai_allowed(u, t, str(a.get("type", ""))) \
+		and not (grounded and str(a.get("type", "")) in ["takedown", "sub"] and not t.has("worn")))
 	if ready.is_empty():
 		u.ai_t = 0.5
+		# nothing they know from here: they disengage and the roll restarts on the feet
+		if grounded and t.player and not in_struggle(u) and not u.has("pinned"):
+			u._stall += 1
+			if u._stall >= 3:
+				u._stall = 0
+				stand_up(u)
+				emit({"t": "proc", "u": u, "text": Tx.s("Back to the feet")})
+				u.ai_t = 1.0
 		return
+	u._stall = 0
 	use(u, str(ready[rng.randi() % ready.size()].id), t)
 	u.ai_t = rng.randf_range(pace.x, pace.y)
 
@@ -1313,6 +1334,8 @@ func _ai_move(u: Unit, t: Unit) -> String:
 	for mv in Data.MOVES:
 		var m: Dictionary = Data.MOVES[mv]
 		if m.has("spec") or int(m.get("rank", 0)) > cap or str(m.pos) != u.gpos:
+			continue
+		if not gi and mv in Data.GI_ONLY:
 			continue
 		if u.gpos != "standing" and str(m.role) != "any" and str(m.role) != role:
 			continue
