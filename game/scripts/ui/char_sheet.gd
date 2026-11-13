@@ -71,7 +71,7 @@ class SlotIcon extends Control:
 	var trim := Color(0, 0, 0, 0)
 	var empty := false
 	func _init() -> void:
-		custom_minimum_size = Vector2(44, 44)
+		custom_minimum_size = Vector2(64, 64)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	func _draw() -> void:
 		var s := minf(size.x, size.y)

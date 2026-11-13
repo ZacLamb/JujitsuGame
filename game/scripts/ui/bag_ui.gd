@@ -174,7 +174,7 @@ class BagPanel extends PanelContainer:
 		_bagbar.add_child(bl)
 		for i in Loot.BAG_SLOTS:
 			var bs := ItemSlot.new()
-			bs.custom_minimum_size = Vector2(40, 40)
+			bs.custom_minimum_size = Vector2(48, 48)
 			bs.k = i
 			bs.id = str(Game.bags[i])
 			bs.tip_holder = self
@@ -257,7 +257,7 @@ class ShopPanel extends PanelContainer:
 		s.n = 1
 		s.tip_holder = self
 		s.price_mode = "buy"
-		s.custom_minimum_size = Vector2(44, 44)
+		s.custom_minimum_size = Vector2(52, 52)
 		s.clicked.connect(func(_k, _r): _buy(id))
 		h.add_child(s)
 		var nm := Wow.label(str(it.name), 16, Loot.color(id))
