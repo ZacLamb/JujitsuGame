@@ -182,6 +182,7 @@ func _register_inputs() -> void:
 
 var _dbg_t := 0.0
 
+var _seen_t := 0.0
 func _process(delta: float) -> void:
 	if OS.has_feature("web") and Game.test_mode:
 		_dbg_t += delta
@@ -194,6 +195,12 @@ func _process(delta: float) -> void:
 		var c := Vector3(0, 0, -10)
 		_title_cam.position = c + Vector3(sin(_title_t) * 42.0, 16.0, cos(_title_t) * 42.0)
 		_title_cam.look_at(c + Vector3(0, 4, 0), Vector3.UP)
+	# keep "last seen" fresh so time away is measured from when you actually left
+	if not _in_title:
+		_seen_t += delta
+		if _seen_t > 180.0:
+			_seen_t = 0.0
+			Game.save_game()
 	_mouse_process()
 	_promo_process()
 	_check_zone_line(delta)
@@ -620,9 +627,21 @@ func open_barber() -> void:
 		hud.show_toast("Fresh look. Seu Zé approves.", Wow.GOLD))
 	sel.cancelled.connect(done)
 
+func _on_rare(npc: Npc) -> void:
+	Sfx.play("feint", -4.0, 1.4)
+	Game.toast.emit(Tx.f("Rare nearby: %s", Tx.s(str(npc.mob.name))), Color(0.8, 0.85, 1.0))
+	if hud.combat_hud and not combat.me.in_combat:
+		hud.combat_hud.flash(Tx.s("RARE"), Tx.s(str(npc.mob.name)))
+
 func _begin_play() -> void:
 	player.input_enabled = true
 	Telemetry.session()
+	if Game.rest_note > 0 or Game.rested > 0:
+		# welcome back: time away is banked as bonus XP
+		Game.toast.emit(Tx.f("Rested: your rolls pay double for the next %d XP", Game.rested), Color(0.45, 0.7, 1.0))
+		Game.rest_note = 0
+	if not world.rare_spotted.is_connected(_on_rare):
+		world.rare_spotted.connect(_on_rare)
 	if Data.ZONES.has(Game.zone):
 		var zd: Dictionary = Data.ZONES[Game.zone]
 		hud.zone_banner(str(zd.name), "%s  ·  %s" % [Tx.s(str(zd.sub)), Data.zone_levels(Game.zone)], true)

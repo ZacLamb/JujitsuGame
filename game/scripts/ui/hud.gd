@@ -397,7 +397,8 @@ func refresh() -> void:
 	chip_holder.add_child(chip)
 	var capped := Game.level_capped()
 	xp_bar.value = 100.0 * Game.level_progress()
-	xp_bar.add_theme_stylebox_override("fill", Wow.sb(XP_CAP_COLOR if capped else XP_COLOR, Color(0, 0, 0, 0), 2, 0))
+	var rested := Game.rested > 0 and not capped
+	xp_bar.add_theme_stylebox_override("fill", Wow.sb(XP_CAP_COLOR if capped else (Color(0.3, 0.55, 1.0) if rested else XP_COLOR), Color(0, 0, 0, 0), 2, 0))
 	var lv := Game.player_level()
 	_portrait.glyph = STYLE_GLYPH.get(Game.style, "shield")
 	_portrait.key = ("spec_" + Game.spec) if Game.spec != "" else ("class_" + Game.style)
@@ -414,6 +415,8 @@ func refresh() -> void:
 		_xp_text.text = "Max level"
 	else:
 		_xp_text.text = Tx.f("Level %d  ·  %d / %d XP", [lv, Game.xp_into_level(), Game.xp_level_need()])
+		if rested:
+			_xp_text.text += "  ·  " + Tx.f("Rested +%d", Game.rested)
 	var parts: Array = []
 	if Game.attr_points() > 0:
 		parts.append(Tx.f("%d attribute point%s [C]", [Game.attr_points(), "" if Game.attr_points() == 1 else "s"]))

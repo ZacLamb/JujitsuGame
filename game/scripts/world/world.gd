@@ -6,6 +6,7 @@ signal nearby_changed(npc: Npc)
 signal landmark_entered(id: String)
 signal spot_changed(spot: Dictionary)
 signal mob_engaged(npc: Npc)
+signal rare_spotted(npc: Npc)   # a rare is up and you just came within sight of it
 
 const HALF := 100
 const WATER_Y := -1.25
@@ -1952,6 +1953,11 @@ func _process(_delta: float) -> void:
 			e.t = float(e.t) - _delta
 			if float(e.t) <= 0.0:
 				_spawn_mob(e)
+				e["seen"] = false
+		elif bool(e.rare) and not bool(e.get("seen", false)) and game_started and player and is_instance_valid(e.npc) \
+				and (e.npc as Node3D).global_position.distance_to(player.global_position) < 45.0:
+			e["seen"] = true
+			rare_spotted.emit(e.npc)
 			continue
 		var mn: Npc = e.npc
 		if not mn.visible:

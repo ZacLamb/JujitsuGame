@@ -1863,5 +1863,30 @@
 "Passes and Advances hit 15% harder. Enemy sweeps hit you 20% softer. Crush: +1 Grip every 3s your target stays Pinned. Burst (V): Dead Weight.",
 "Passagens e Avanços batem 15% mais forte. Raspagens inimigas batem 20% mais fraco em você. Esmagar: +1 Pegada a cada 3s com o alvo Imobilizado. Explosão (V): Peso Morto.",
 "Los Pasajes y Avances pegan 15% más fuerte. Los raspados enemigos te pegan 20% menos. Aplastar: +1 Agarre cada 3s con el objetivo Inmovilizado. Explosión (V): Peso Muerto."
+],
+[
+"Rested: +%d XP",
+"Descansado: +%d XP",
+"Descansado: +%d XP"
+],
+[
+"Rested: your rolls pay double for the next %d XP",
+"Descansado: seus rolas rendem o dobro pelos próximos %d XP",
+"Descansado: tus rolas rinden el doble durante los próximos %d XP"
+],
+[
+"Rare nearby: %s",
+"Raro por perto: %s",
+"Raro cerca: %s"
+],
+[
+"RARE",
+"RARO",
+"RARO"
+],
+[
+"Rested +%d",
+"Descansado +%d",
+"Descansado +%d"
 ]
 ]

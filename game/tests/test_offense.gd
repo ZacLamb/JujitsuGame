@@ -185,6 +185,24 @@ func _ready() -> void:
 	check(sigs >= 8, "the boss signature rarely fires")
 	check(phases >= 6, "phase two rarely happens")
 	_rotation(bal)
+	# --- rested XP: time away banks XP, rolls spend it for double
+	bal._build("guard", 8)
+	Game.rested = 0
+	Game.accrue_rest(int(Time.get_unix_time_from_system()) - 6 * 3600)
+	var need := Game.xp_level_need()
+	check(absi(Game.rested - need / 2) <= 2 and Game.rest_note == Game.rested, "6h away banked %d of a %d level" % [Game.rested, need])
+	Game.accrue_rest(int(Time.get_unix_time_from_system()) - 400 * 3600)
+	check(Game.rested == Game.rest_cap(), "rested didn't cap")
+	Game.rested = 20
+	var x0 := Game.xp
+	var m := Game.xp_mult()
+	Game.add_xp(30, true)
+	check(Game.xp - x0 == int(round(30 * m)) + 20 and Game.rested == 0, "rested bonus wrong: +%d xp, %d left" % [Game.xp - x0, Game.rested])
+	x0 = Game.xp
+	Game.rested = 50
+	Game.add_xp(30)
+	check(Game.xp - x0 == int(round(30 * m)) and Game.rested == 50, "quest XP spent rested")
+	Game.rested = 0
 	print("PASS (0 failures)" if fails == 0 else "FAILED (%d failures)" % fails)
 	get_tree().quit()
 

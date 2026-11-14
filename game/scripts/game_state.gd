@@ -17,6 +17,13 @@ var boot_into := false     # set before a scene reload: skip the title and go st
 const SAVE_VERSION := 1
 
 var xp := 0
+## Rested XP (WoW): time away banks bonus XP; rolls pay double until the bank is spent.
+var rested := 0
+var last_rested := 0          # rested bonus inside the last XP gain
+var rest_note := 0            # banked on this login (main shows it once)
+const REST_HOURS_PER_LEVEL := 12.0   # away this long = one level's worth banked
+const REST_CAP_LEVELS := 1.5
+const REST_MIN_SECS := 600.0
 var rank := 0  # 0..4 white belt stripes, 5 = blue belt
 var wins := {}  # opponent id -> win count
 var losses := {}
@@ -192,6 +199,8 @@ func reset_state() -> void:
 	war_mine = 0
 	player_name = "Gringo"
 	xp = 0
+	rested = 0
+	rest_note = 0
 	rank = 0
 	wins = {}
 	losses = {}
@@ -249,6 +258,7 @@ func save_game() -> void:
 		"style": style, "gi": gi_index, "attrs": attr_alloc, "talents": talents,
 		"stripe_xp": stripe_xp, "zone": zone, "train": train, "drills_ready": drills_ready, "daily": daily, "login": login, "academy": academy, "medals": medals, "quests": quests, "path": path, "stamps": stamps, "honor": honor, "pvp_record": pvp_record, "inventory": inventory, "equipped": equipped, "kit": kit, "team": team, "territories": territories,
 		"money": money, "bag": bag, "bags": bags, "buffs": buffs, "spec": spec,
+		"rested": rested, "seen": int(Time.get_unix_time_from_system()),
 		"origin": origin, "body": body, "skin_t": skin_t, "head": head, "bar_layout": bar_layout, "rolled": rolled,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -268,6 +278,7 @@ func load_game() -> void:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	xp = int(parsed.get("xp", 0))
+	rested = int(parsed.get("rested", 0))
 	rank = int(parsed.get("rank", 0))
 	wins = parsed.get("wins", {})
 	losses = parsed.get("losses", {})
@@ -317,6 +328,7 @@ func load_game() -> void:
 			talents.erase(k)
 	if points_left("class") < 0 or points_left("spec") < 0:
 		talents = {}
+	accrue_rest(int(parsed.get("seen", 0)))
 
 # ------------------------------------------------------------ rank / xp
 	money = int(parsed.get("money", 0))
@@ -348,8 +360,31 @@ func xp_into_stripe() -> int:
 func at_stripe_cap() -> bool:
 	return rank % 5 == 4
 
-func add_xp(amount: int) -> void:
+func rest_cap() -> int:
+	return int(xp_level_need() * REST_CAP_LEVELS)
+
+## Bank rested XP for the time since this character was last saved.
+func accrue_rest(seen: int) -> void:
+	rest_note = 0
+	if seen <= 0 or player_level() >= MAX_LEVEL:
+		return
+	var away := float(Time.get_unix_time_from_system()) - float(seen)
+	if away < REST_MIN_SECS:
+		return
+	var gain := int(xp_level_need() * (away / 3600.0) / REST_HOURS_PER_LEVEL)
+	var before := rested
+	rested = mini(rest_cap(), rested + gain)
+	rest_note = rested - before
+
+func add_xp(amount: int, rolled_for := false) -> void:
 	amount = int(round(amount * xp_mult()))
+	if rolled_for and rested > 0 and amount > 0:
+		var extra := mini(amount, rested)
+		rested -= extra
+		amount += extra
+		last_rested = extra
+	else:
+		last_rested = 0
 	var before := player_level()
 	xp += amount
 	stripe_xp += amount
@@ -1318,7 +1353,7 @@ func record_roll(opp_id: String, result: Dictionary) -> int:
 		if result.by_sub:
 			unlock("tapped")
 	drills_ready = true
-	add_xp(gained)
+	add_xp(gained, true)
 	if result.won and Gear.BOSS_SET.has(opp_id):
 		boss_drop(Gear.BOSS_SET[opp_id])
 	if result.won:
@@ -2035,7 +2070,8 @@ func record_mob(result: Dictionary, mob: Dictionary) -> Dictionary:
 	if Data.display_level(lv) < player_level() - 6:
 		gained = int(gained * 0.15)
 	out.xp = gained
-	add_xp(gained)
+	add_xp(gained, true)
+	out["rested"] = last_rested
 	bump("mob_kills")
 	if Data.display_level(lv) >= player_level() - 6:
 		add_war(10 if mob.get("rare", false) else (2 if mob.get("elite", false) else 1))

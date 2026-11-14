@@ -1123,6 +1123,8 @@ func _on_tap(victim: CombatCore.Unit, by: CombatCore.Unit, sub: String) -> void:
 	if not npc.mob.is_empty():
 		var loot := Game.record_mob({"won": true, "by_sub": true, "sub": sub_id}, npc.mob)
 		_reward_toasts(int(loot.xp), int(loot.money), loot.items)
+		if int(loot.get("rested", 0)) > 0:
+			Game.toast.emit(Tx.f("Rested: +%d XP", int(loot.rested)), Color(0.45, 0.7, 1.0))
 		if not _rep.is_empty():
 			_rep.xp = int(_rep.xp) + int(loot.xp)
 		if npc.mob.get("revenge", false):
