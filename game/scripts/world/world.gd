@@ -1954,11 +1954,11 @@ func _process(_delta: float) -> void:
 			if float(e.t) <= 0.0:
 				_spawn_mob(e)
 				e["seen"] = false
-		elif bool(e.rare) and not bool(e.get("seen", false)) and game_started and player and is_instance_valid(e.npc) \
+			continue
+		if bool(e.rare) and not bool(e.get("seen", false)) and game_started and player and is_instance_valid(e.npc) \
 				and (e.npc as Node3D).global_position.distance_to(player.global_position) < 45.0:
 			e["seen"] = true
 			rare_spotted.emit(e.npc)
-			continue
 		var mn: Npc = e.npc
 		if not mn.visible:
 			continue
