@@ -34,9 +34,9 @@ const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 ## Easy to learn: level 1 is the whole game in miniature (grip, takedown, submit, sprawl); every
 ## level after adds one idea.
 const UNLOCK := {"handfight": 1, "takedown": 1, "sub": 1, "base": 1, "defend": 2, "breathe": 2, "pass": 3, "frame": 4,
-	"racial": 4, "escape": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10}
-const UTILITY := ["base", "frame", "defend", "breathe", "racial"]
-const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G"}
+	"racial": 4, "escape": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10, "burst": 6}
+const UTILITY := ["base", "frame", "defend", "breathe", "racial", "burst"]
+const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G", "burst": "V"}
 ## How each ability teaches itself the first time you get it.
 const TUTORIAL := {
 	"handfight": "Target someone (Tab or click) and press 1 to fight for grips. It wears them down and builds Grip (the red dots under your bars).",
@@ -54,6 +54,7 @@ const TUTORIAL := {
 	"advance": "9 climbs to a better position (side control to mount). Big damage and +2 Grip.",
 	"spec": "Your specialization's signature technique.",
 	"racial": "Your origin's special ability, on G.",
+	"burst": "V is your style's big moment: a long cooldown that changes the fight for a few seconds. Save it for a boss, a bad spot or the finish. Also watch your bar: when Hand Fight finds an OPENING, a button lights up gold. That technique is free right now.",
 }
 
 static func _all_kit() -> Array:
@@ -90,6 +91,7 @@ static func _all_kit() -> Array:
 		"effect": "breathe", "text": "Slow your breathing: +45 Gas. Out of combat it also restores half your Composure."})
 	if Game.style != "":
 		out.append(Origins.racial(Game.origin))
+		out.append(CombatCore.burst_ability(Game.style))
 	for a in out:
 		a["unlock"] = int(UNLOCK.get(str(a.id), 1))
 	return out

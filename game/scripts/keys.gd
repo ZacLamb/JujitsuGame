@@ -10,7 +10,7 @@ const LIST := [
 	["jump", "Jump"], ["sprint", "Run"], ["autorun", "Auto-run"], ["interact", "Talk / roll / use"], ["target_next", "Next target"],
 	["ab_0", "Move 1"], ["ab_1", "Move 2"], ["ab_2", "Move 3"], ["ab_3", "Move 4"], ["ab_4", "Move 5"],
 	["ab_5", "Move 6"], ["ab_6", "Move 7"], ["ab_7", "Move 8"], ["ab_8", "Move 9"], ["ab_9", "Move 10"],
-	["ab_base", "Sprawl / Base"], ["ab_frame", "Frame"], ["ab_defend", "Defend"], ["ab_breathe", "Breathe"], ["ab_racial", "Origin racial"],
+	["ab_base", "Sprawl / Base"], ["ab_frame", "Frame"], ["ab_defend", "Defend"], ["ab_breathe", "Breathe"], ["ab_racial", "Origin racial"], ["ab_burst", "Style burst"],
 	["character", "Character"], ["talents", "Talents"], ["spellbook", "Moves"], ["bags", "Bags"], ["journal", "Quest log"],
 	["map", "World map"], ["finder", "Group finder"], ["arena", "Ranked arena"], ["academy", "Academy"], ["fullscreen", "Full screen"],
 ]

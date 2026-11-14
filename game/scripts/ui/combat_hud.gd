@@ -10,7 +10,7 @@ const TYPE_COL := {"handfight": Color(0.78, 0.78, 0.74), "takedown": Color(0.95,
 const TYPE_GLYPH := {"handfight": "link", "takedown": "down", "sweep": "loop", "pass": "chevron", "advance": "chevron",
 	"back": "loop", "sub": "bolt", "escape": "wave", "guard": "shield", "defend": "shield"}
 const ID_ICON := {"base": ["down", Color(1.0, 0.6, 0.2)], "frame": ["chevron", Color(0.4, 0.7, 1.0)], "defend": ["lock", Color(1.0, 0.35, 0.35)],
-	"breathe": ["wave", Color(0.45, 0.85, 1.0)], "racial": ["star", Color(0.45, 1.0, 0.55)], "spec": ["star", Color(0.75, 0.5, 1.0)]}
+	"breathe": ["wave", Color(0.45, 0.85, 1.0)], "racial": ["star", Color(0.45, 1.0, 0.55)], "burst": ["star", Color(1.0, 0.78, 0.2)], "spec": ["star", Color(0.75, 0.5, 1.0)]}
 const HP_COL := Color(0.2, 0.75, 0.25)
 
 ## [glyph, colour] for an ability's icon.
@@ -33,7 +33,7 @@ var _card_root: VBoxContainer
 var _cards: Array = []
 
 var bar: HFlowContainer
-const BAR_W := 15 * 44 + 15 * 3 + 10   # one row: 10 moves, a gap, 5 counters
+const BAR_W := 16 * 44 + 16 * 3 + 10   # one row: 10 moves, a gap, 6 utility buttons
 const BAR_W2 := 10 * 44 + 10 * 3 + 10   # two rows: the 10 moves (+gap), then the counters
 
 func _init() -> void:
@@ -55,7 +55,7 @@ func _ready() -> void:
 	bar.add_theme_constant_override("h_separation", 3)
 	bar.name = "ActionBar"
 	add_child(bar)
-	for i in 15:
+	for i in 10 + Abilities.UTILITY.size():
 		if i == 10:
 			var gap := Control.new()
 			gap.custom_minimum_size = Vector2(10, 0)
@@ -331,6 +331,8 @@ func show_report(rep: Dictionary) -> void:
 		extra.append(Tx.f("Read streak %d", int(rep.best_streak)))
 	if int(rep.get("chains", 0)) > 0:
 		extra.append(Tx.f("Chains %d", int(rep.chains)))
+	if float(rep.get("dmg", 0.0)) > 0.0 and float(rep.get("secs", 0.0)) > 1.0:
+		extra.append(Tx.f("Damage %d (%.1f/s)", [int(rep.dmg), float(rep.dmg) / float(rep.secs)]))
 	if int(rep.get("bonus", 0)) > 0:
 		extra.append(Tx.f("Skill bonus +%d XP", int(rep.bonus)))
 	if not extra.is_empty():
@@ -451,8 +453,10 @@ func _draw() -> void:
 	if me.grip > 0:
 		draw_string_outline(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
 		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
-	_auras(me, Vector2(x0, 76))
-	_party_frames(Vector2(14, 98))
+	_aura_tip = []
+	_auras(me, Vector2(x0, 76), 200.0)
+	_party_frames(Vector2(14, 122))
+	_draw_meter()
 	# the read's timer: how long until their technique lands
 	if _read_btn and _read_btn.visible and _read_frac >= 0.0:
 		var rr := Rect2(_read_btn.position + Vector2(10, _read_btn.size.y + 4), Vector2(_read_btn.size.x - 20, 8))
@@ -475,6 +479,7 @@ func _draw() -> void:
 	# target frame
 	var t: CombatCore.Unit = combat.target
 	if t == null:
+		_draw_aura_tip()
 		return
 	var tp := Vector2(300, 12)
 	var plate := Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Color(1, 0.82, 0.3, 0.9) if t.elite else Color(Wow.FRAME, 0.9), 4, 0, 2 if t.elite else 1)
@@ -503,7 +508,10 @@ func _draw() -> void:
 		var kind := CombatCore.counter_kind(t.cast.ab)
 		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind]
 		_bar(tp + Vector2(10, 82), Vector2(250, 16), float(t.cast.t) / float(t.cast.dur), kc, str(t.cast.ab.name))
-	_auras(t, tp + Vector2(280, 30))
+	if size.x >= 720.0:
+		_draw_tot(tp + Vector2(278, 0), t)
+	_auras(t, tp + Vector2(278, 34), maxf(AURA_SZ * 2.0, size.x - tp.x - 290.0))
+	_draw_aura_tip()
 
 ## The position ladder under the target frame: where the fight is, and who's on top.
 const LADDER := ["standing", "guard", "half", "side", "mount", "back"]
@@ -623,21 +631,164 @@ func _pframe(x: float, y: float, name_: String, role: String, u: CombatCore.Unit
 		draw_string(f, Vector2(x + 9, y + 26), Tx.s("tapped out"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 0.5, 0.4))
 	return y + 34
 
-func _auras(u: CombatCore.Unit, at: Vector2) -> void:
-	var names := {"down": ["DOWN", Color(1, 0.55, 0.2)], "pinned": ["PIN", Color(0.95, 0.8, 0.3)], "exposed": ["EXP", Color(0.75, 0.55, 1.0)],
-		"base": ["BASE", Color(0.98, 0.6, 0.2)], "guarded": ["GRD", Color(0.55, 0.7, 0.95)], "framed": ["FRM", Color(0.4, 0.75, 1.0)],
-		"rattled": ["RTL", Color(0.75, 0.3, 0.8)], "lucky": ["LCK", Color(0.4, 1.0, 0.5)], "mate": ["MATE", Color(0.4, 0.85, 0.4)],
-		"ginga": ["GNG", Color(0.4, 0.9, 1.0)], "rush": ["RUSH", Color(1.0, 0.45, 0.3)], "game_plan": ["PLAN", Color(0.35, 0.9, 0.8)], "chain": ["CHAIN", Color(1.0, 0.4, 0.55)]}
+## Buffs and debuffs as icons (WoW): a coloured square, a clock sweep as it runs out, seconds
+## underneath and a stack count in the corner. Gold edge = good for whoever has it, red = bad.
+## Hover one for what it does.
+const AURA := {
+	"down": ["DWN", Color(1, 0.55, 0.2), true, "Down", "Stunned: can't act."],
+	"pinned": ["PIN", Color(0.95, 0.8, 0.3), true, "Pinned", "Deals 25% less damage."],
+	"exposed": ["EXP", Color(0.75, 0.55, 1.0), true, "Exposed", "Takes critical hits 25% more often."],
+	"rattled": ["RTL", Color(0.75, 0.3, 0.8), true, "Rattled", "Deals 15% less damage."],
+	"worn": ["WORN", Color(0.9, 0.2, 0.2), true, "Worn down", "Nothing left: the next submission finishes it."],
+	"kuzushi": ["KUZ", Color(0.95, 0.6, 0.85), true, "Off-balance", "Your next throw hits 20% harder and keeps them down longer, per stack."],
+	"expect": ["EYE", Color(1.0, 0.3, 0.2), false, "Expecting", "Waiting for the technique you keep using. Do something else."],
+	"base": ["BASE", Color(0.98, 0.6, 0.2), false, "Base", "Takes 50% less damage."],
+	"guarded": ["GRD", Color(0.55, 0.7, 0.95), false, "Guard", "Takes 40% less damage."],
+	"framed": ["FRM", Color(0.4, 0.75, 1.0), false, "Framed", ""],
+	"lucky": ["LCK", Color(0.4, 1.0, 0.5), false, "Beginner's Luck", "The next technique is a certain critical."],
+	"mate": ["MATE", Color(0.4, 0.85, 0.4), false, "Recovering", "Restoring Composure."],
+	"ginga": ["GNG", Color(0.4, 0.9, 1.0), false, "Ginga", "Takes 70% less damage."],
+	"rush": ["RUSH", Color(1.0, 0.45, 0.3), false, "Rush", "Deals 20% more damage."],
+	"game_plan": ["PLAN", Color(0.35, 0.9, 0.8), false, "Game Plan", "Deals 15% more damage."],
+	"chain": ["CHN", Color(1.0, 0.4, 0.55), false, "Submission chain", "The next submission in the chain is faster and hits harder."],
+	"flow": ["FLOW", Color(0.45, 1.0, 0.6), false, "Flow", "Your next submission goes in 15% deeper per stack."],
+	"opening": ["OPEN", Color(1.0, 0.85, 0.25), false, "Opening", "Your next takedown, sweep, pass or position change is free."],
+	"reshoot": ["SHOT", Color(1.0, 0.6, 0.25), false, "Re-shot", "Takedown is ready again and hits 25% harder."],
+	"relentless": ["RLNT", Color(1.0, 0.5, 0.2), false, "Relentless", "Positional techniques cost no Gas and have no cooldown."],
+	"web": ["WEB", Color(0.5, 0.75, 1.0), false, "Spider Web", "Their techniques come 35% slower and you take 30% less."],
+	"ippon": ["IPN", Color(1.0, 0.9, 0.5), false, "Ippon", "Your next throw is a certain critical."],
+	"overdrive": ["OVR", Color(0.4, 1.0, 0.9), false, "Overdrive", "30% faster and nothing costs Gas."],
+	"tempo": ["TMP", Color(0.4, 0.9, 0.75), false, "Tempo", "4% faster per stack."],
+}
+const AURA_SZ := 30.0
+var _aura_tip := []     # [rect, name, text] of the icon under the mouse this frame
+
+func _auras(u: CombatCore.Unit, at: Vector2, max_w := 400.0) -> void:
 	var x := 0.0
+	var y := 0.0
+	var f := Wow.body()
+	var mouse := get_local_mouse_position()
 	for k in u.auras:
-		if not names.has(k):
+		if not AURA.has(k):
 			continue
-		var r := Rect2(at + Vector2(x, 0), Vector2(30, 18))
-		draw_rect(r, Color(0, 0, 0, 0.85))
-		draw_rect(r.grow(-1.5), Color(names[k][1], 0.35))
-		draw_string(Wow.body(), r.position + Vector2(2, 13), str(names[k][0]), HORIZONTAL_ALIGNMENT_LEFT, 28, 10, Color.WHITE)
-		draw_string(Wow.body(), r.position + Vector2(2, 30), "%d" % ceili(float(u.auras[k].t)), HORIZONTAL_ALIGNMENT_LEFT, 28, 11, Color(1, 1, 0.8))
-		x += 34.0
+		var d: Array = AURA[k]
+		var au: Dictionary = u.auras[k]
+		if x + AURA_SZ > max_w:
+			x = 0.0
+			y += AURA_SZ + 16.0
+		var r := Rect2(at + Vector2(x, y), Vector2(AURA_SZ, AURA_SZ))
+		var col: Color = d[1]
+		draw_rect(r, Color(0, 0, 0, 0.9))
+		draw_rect(r.grow(-2.0), col.darkened(0.62))
+		draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(AURA_SZ - 4.0, (AURA_SZ - 4.0) * 0.5)), Color(col.darkened(0.25), 0.8))
+		var total := float(au.get("dur", 0.0))
+		var left := float(au.get("t", 0.0))
+		var timed := total > 0.0 and total < 900.0
+		if timed:
+			# the clock: the dark part grows as the time runs out
+			var gone := clampf(1.0 - left / total, 0.0, 1.0)
+			if gone > 0.01:
+				var c := r.get_center()
+				var pts := PackedVector2Array([c])
+				var steps := maxi(2, int(24 * gone))
+				for i in steps + 1:
+					var ang := -PI / 2.0 + TAU * gone * float(i) / steps
+					var dir := Vector2(cos(ang), sin(ang))
+					var k2 := (AURA_SZ / 2.0 - 2.0) / maxf(absf(dir.x), absf(dir.y))
+					pts.append(c + dir * k2)
+				draw_colored_polygon(pts, Color(0, 0, 0, 0.6))
+		draw_rect(r.grow(-1.0), Color(1.0, 0.3, 0.25) if bool(d[2]) else Color(1.0, 0.82, 0.35), false, 1.5)
+		var lab := str(d[0])
+		var lw := f.get_string_size(lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		draw_string_outline(f, r.position + Vector2((AURA_SZ - lw) / 2.0, 14), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 5, Color.BLACK)
+		draw_string(f, r.position + Vector2((AURA_SZ - lw) / 2.0, 14), lab, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
+		var n := int(au.get("n", 0))
+		if n > 1:
+			var ns := str(n)
+			draw_string_outline(f, r.position + Vector2(AURA_SZ - 9, AURA_SZ - 3), ns, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color.BLACK)
+			draw_string(f, r.position + Vector2(AURA_SZ - 9, AURA_SZ - 3), ns, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1))
+		if timed:
+			var ts := "%d" % ceili(left) if left >= 3.0 else "%.1f" % left
+			var tw := f.get_string_size(ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+			draw_string_outline(f, r.position + Vector2((AURA_SZ - tw) / 2.0, AURA_SZ + 11), ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color.BLACK)
+			draw_string(f, r.position + Vector2((AURA_SZ - tw) / 2.0, AURA_SZ + 11), ts, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 0.8) if left >= 3.0 else Color(1, 0.6, 0.4))
+		if r.has_point(mouse):
+			var nm := Tx.s(str(d[3]))
+			if k == "expect":
+				nm = Tx.f("Expecting your %s", Tx.s(str(Abilities.TEMPLATES.get(str(au.get("type", "")), {}).get("label", ""))))
+			_aura_tip = [r, nm, Tx.s(str(d[4]))]
+		x += AURA_SZ + 4.0
+
+func _draw_aura_tip() -> void:
+	if _aura_tip.is_empty():
+		return
+	var f := Wow.body()
+	var r: Rect2 = _aura_tip[0]
+	var w := maxf(f.get_string_size(str(_aura_tip[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, minf(260.0, f.get_string_size(str(_aura_tip[2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x)) + 16.0
+	var lines: Array = []
+	var cur := ""
+	for word in str(_aura_tip[2]).split(" ", false):
+		var tryl := word if cur == "" else cur + " " + word
+		if cur != "" and f.get_string_size(tryl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x > w - 16.0:
+			lines.append(cur)
+			cur = word
+		else:
+			cur = tryl
+	if cur != "":
+		lines.append(cur)
+	var box := Rect2(Vector2(minf(r.position.x, size.x - w - 6.0), r.end.y + 18.0), Vector2(w, 24.0 + 15.0 * lines.size()))
+	draw_style_box(Wow.sb(Color(0.03, 0.03, 0.05, 0.95), Wow.FRAME, 4, 0, 1), box)
+	draw_string(f, box.position + Vector2(8, 17), str(_aura_tip[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Wow.GOLD)
+	for i in lines.size():
+		draw_string(f, box.position + Vector2(8, 33 + 15 * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Wow.WHITE)
+
+## Target of target: who your target is on (in a raid: who has the boss).
+func _draw_tot(at: Vector2, t: CombatCore.Unit) -> void:
+	var o: CombatCore.Unit = t.target
+	if o == null or o.dead or not t.in_combat:
+		return
+	var f := Wow.body()
+	draw_style_box(Wow.sb(Color(0.03, 0.03, 0.05, 0.85), Color(Wow.FRAME, 0.9), 3, 0, 1), Rect2(at, Vector2(118, 28)))
+	var nm := Tx.s("You") if o == combat.me else Tx.s(o.name)
+	draw_string_outline(f, at + Vector2(6, 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 106, 11, 3, Color.BLACK)
+	draw_string(f, at + Vector2(6, 12), nm, HORIZONTAL_ALIGNMENT_LEFT, 106, 11, Color(1.0, 0.5, 0.4) if o == combat.me else Color(0.6, 0.85, 1.0))
+	_bar(at + Vector2(6, 16), Vector2(106, 7), o.pct(), HP_COL, "")
+
+## The damage meter: everyone on your side, most damage first, with damage per second.
+func _draw_meter() -> void:
+	var me: CombatCore.Unit = combat.me
+	var secs := combat.fight_secs()
+	if secs <= 0.0:
+		return
+	var rows: Array = []
+	for u in combat.core.units:
+		if CombatCore.friendly(u) and u.done > 0.0:
+			rows.append(u)
+	if rows.is_empty():
+		return
+	rows.sort_custom(func(a, b): return a.done > b.done)
+	rows = rows.slice(0, 6)
+	var f := Wow.body()
+	var w := 168.0
+	var h := 16.0 + 15.0 * rows.size()
+	var at := Vector2(size.x - w - 14.0, size.y * 0.5 - h - 30.0)
+	if size.x < 760.0:
+		return   # phones: no room, the report has the number
+	draw_rect(Rect2(at, Vector2(w, h)), Color(0, 0, 0, 0.5))
+	draw_string(f, at + Vector2(5, 11), Tx.s("Damage"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Wow.GOLD)
+	draw_string(f, at + Vector2(w - 65, 11), "%d:%02d" % [int(secs) / 60, int(secs) % 60], HORIZONTAL_ALIGNMENT_RIGHT, 60, 10, Wow.PALE)
+	var top: float = rows[0].done
+	for i in rows.size():
+		var u: CombatCore.Unit = rows[i]
+		var ry := at.y + 15.0 + 15.0 * i
+		var col: Color = Rpg.class_color(Game.style) if u == me else {"tank": Color(0.35, 0.65, 1.0), "heal": Color(0.35, 0.85, 0.78)}.get(u.role, Color(1.0, 0.45, 0.35))
+		draw_rect(Rect2(at.x + 2, ry, (w - 4.0) * u.done / top, 13), Color(col, 0.55))
+		var nm := Tx.s("You") if u == me else Tx.s(u.name)
+		draw_string_outline(f, Vector2(at.x + 5, ry + 11), nm, HORIZONTAL_ALIGNMENT_LEFT, 80, 10, 2, Color.BLACK)
+		draw_string(f, Vector2(at.x + 5, ry + 11), nm, HORIZONTAL_ALIGNMENT_LEFT, 80, 10, Color.WHITE)
+		var num := "%d  (%.1f)" % [int(u.done), u.done / maxf(secs, 1.0)]
+		draw_string_outline(f, Vector2(at.x + w - 85, ry + 11), num, HORIZONTAL_ALIGNMENT_RIGHT, 80, 10, 2, Color.BLACK)
+		draw_string(f, Vector2(at.x + w - 85, ry + 11), num, HORIZONTAL_ALIGNMENT_RIGHT, 80, 10, Color.WHITE)
 
 # ------------------------------------------------------------ action buttons
 func _draw_slot(b: Button, i: int) -> void:
@@ -659,6 +810,7 @@ func _draw_slot(b: Button, i: int) -> void:
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
 		b.draw_rect(r.grow(-1.0), Color(1.0, 0.4, 0.55, 0.6 + 0.4 * pulse), false, 3.0)
 	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
+	var tg0: CombatCore.Unit = combat.target
 	var cd := float(me.cds.get(a.id, 0.0))
 	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
 	# tints: red = out of range / no target, blue = no gas, dark = cooldown
@@ -680,6 +832,34 @@ func _draw_slot(b: Button, i: int) -> void:
 			var w := f.get_string_size(Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 			b.draw_string_outline(f, Vector2((b.size.x - w) / 2.0, 36), Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color.BLACK)
 			b.draw_string(f, Vector2((b.size.x - w) / 2.0, 36), Tx.s(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1, 1, 0.85))
+	# procs: this button is lit up right now (WoW's glowing border)
+	var lit := false
+	if why == "" or why == "gcd":
+		if me.has("opening") and t in CombatCore.OPENING_TYPES:
+			lit = true
+		elif t == "takedown" and (me.has("reshoot") or me.has("ippon") or (tg0 != null and tg0.has("kuzushi") and int(tg0.auras.kuzushi.get("n", 0)) >= CombatCore.KUZUSHI_MAX)):
+			lit = true
+		elif t == "sub" and me.has("flow") and int(me.auras.flow.get("n", 0)) >= CombatCore.FLOW_MAX and me.grip >= 3:
+			lit = true
+	if lit:
+		var ph := Time.get_ticks_msec() / 90.0
+		var lp := 0.5 + 0.5 * sin(ph)
+		b.draw_rect(inner, Color(1.0, 0.9, 0.4, 0.10 + 0.14 * lp))
+		b.draw_rect(r.grow(1.0), Color(1.0, 0.85, 0.25, 0.75 + 0.25 * lp), false, 4.0)
+		b.draw_rect(r.grow(-4.0), Color(1.0, 1.0, 0.8, 0.5 * lp), false, 1.5)
+		# a spark running round the edge
+		var per := 2.0 * (r.size.x + r.size.y)
+		var dd := fmod(ph * 14.0, per)
+		var sp := Vector2.ZERO
+		if dd < r.size.x:
+			sp = Vector2(dd, 0)
+		elif dd < r.size.x + r.size.y:
+			sp = Vector2(r.size.x, dd - r.size.x)
+		elif dd < 2.0 * r.size.x + r.size.y:
+			sp = Vector2(r.size.x - (dd - r.size.x - r.size.y), r.size.y)
+		else:
+			sp = Vector2(0, r.size.y - (dd - 2.0 * r.size.x - r.size.y))
+		b.draw_circle(sp, 3.5, Color(1, 1, 0.85, 0.95))
 	# finisher / advance ready glow
 	if why == "" and (bool(a.get("finisher", false)) and me.grip >= 3 or str(a.get("needs", "")) == "control"):
 		b.draw_rect(r.grow(-1), Color(1, 0.85, 0.3, 0.85), false, 2.0)

@@ -184,5 +184,125 @@ func _ready() -> void:
 	check(bw.mash <= bw.expert, "mashing beats the boss as well as reading")
 	check(sigs >= 8, "the boss signature rarely fires")
 	check(phases >= 6, "phase two rarely happens")
+	_rotation(bal)
 	print("PASS (0 failures)" if fails == 0 else "FAILED (%d failures)" % fails)
 	get_tree().quit()
+
+## One fresh fight for a style: the player, a tough standing mob that holds still.
+func _setup(bal, style: String, lvl := 12) -> Array:
+	bal._build(style, lvl)
+	var core := CombatCore.new()
+	core.rng.seed = 7
+	var me := core.add_player("You", lvl, Game.mods(), Abilities.player_kit())
+	me.known = Abilities.known_moves()
+	var e := core.add_enemy({"name": "Mob", "level": lvl + 4, "style": "balanced", "rank": Game.rank}, "elite")
+	e.pos = Vector3(1, 0, 0)
+	e.ai_t = 999.0
+	me.target = e
+	core.engage(me, e)
+	core.engage(e, me)
+	cnt = {}
+	core.event.connect(_ev)
+	return [core, me, e]
+
+func _ready_up(me: CombatCore.Unit) -> void:
+	me.gcd = 0.0
+	me.gas = me.max_gas
+
+## Procs, bursts and the five styles.
+func _rotation(bal) -> void:
+	# --- Opening: Hand Fight finds it, the next takedown is free and off cooldown
+	var f := _setup(bal, "passer")
+	var core: CombatCore = f[0]
+	var me: CombatCore.Unit = f[1]
+	var e: CombatCore.Unit = f[2]
+	check(not core.ability(me, "burst").is_empty(), "no burst ability at level 12")
+	core.opening_chance = 0.0
+	core.use(me, "takedown")
+	e.auras.erase("down")
+	core.stand_up(e)
+	check(float(me.cds.get("takedown", 0.0)) > 5.0, "takedown has no cooldown to reset")
+	_ready_up(me)
+	core.opening_chance = 1.0
+	core.use(me, "handfight")
+	check(me.has("opening") and not me.cds.has("takedown"), "hand fight didn't open them up / reset the takedown")
+	_ready_up(me)
+	check(core.cost_of(me, core.ability(me, "takedown")) == 0.0, "the opening technique isn't free")
+	e.auras.erase("expect")
+	core.use(me, "takedown")
+	check(not me.has("opening") and me.gas == me.max_gas, "the opening wasn't spent by the takedown")
+	print("opening: procs %d" % int(cnt.get("opening", 0)))
+	# --- passer: Crush builds grip under the pin; Dead Weight pins and exposes
+	core.opening_chance = 0.0
+	me.grip = 0
+	core._aura(e, "pinned", 20.0, me)
+	for i in 70:
+		core.tick(0.1)
+	check(me.grip >= 2, "Crush gave %d grip in 7s of pin" % me.grip)
+	e.auras.erase("pinned")
+	_ready_up(me)
+	check(core.use(me, "burst") == "", "Dead Weight couldn't be used")
+	check(e.has("pinned") and e.has("exposed") and float(me.cds.get("burst", 0.0)) > 80.0, "Dead Weight didn't pin and expose")
+	# --- wrestler: a correct sprawl resets the takedown; Relentless removes cooldowns
+	f = _setup(bal, "wrestler")
+	core = f[0]; me = f[1]; e = f[2]
+	core.opening_chance = 0.0
+	core.use(me, "takedown")
+	e.auras.erase("down")
+	core.stand_up(e)
+	check(me.cds.has("takedown"), "wrestler takedown has no cooldown")
+	var td: Dictionary = core.ability(e, "e_take")
+	e.cast = {"ab": td, "t": 0.0, "dur": 1.4, "target": me}
+	me.cds.erase("base")
+	core.use(me, "base")
+	check(not me.cds.has("takedown") and me.has("reshoot"), "a correct sprawl didn't reset the takedown")
+	_ready_up(me)
+	core.use(me, "burst")
+	check(me.has("relentless"), "Relentless didn't start")
+	e.auras.erase("down")
+	e.auras.erase("expect")
+	core.use(me, "takedown")
+	check(not me.cds.has("takedown") and me.gas == me.max_gas, "Relentless takedown still cost gas or went on cooldown")
+	# --- judoka: Kuzushi stacks, the throw spends it; Ippon is a certain crit
+	f = _setup(bal, "judoka")
+	core = f[0]; me = f[1]; e = f[2]
+	core.opening_chance = 0.0
+	for i in 3:
+		_ready_up(me)
+		core.use(me, "handfight")
+	check(e.has("kuzushi") and int(e.auras.kuzushi.n) == 3, "Kuzushi didn't stack to 3")
+	_ready_up(me)
+	core.use(me, "burst")
+	check(me.has("ippon"), "Ippon didn't start")
+	var hp0 := e.hp
+	_ready_up(me)
+	e.auras.erase("expect")
+	core.use(me, "takedown")
+	check(not e.has("kuzushi") and not me.has("ippon") and float(e.auras.get("down", {}).get("t", 0.0)) > 3.0, "the throw didn't spend Kuzushi / Ippon")
+	print("judoka: ippon throw hit %d of %d" % [int(hp0 - e.hp), int(e.max_hp)])
+	# --- athlete: Tempo speeds the global cooldown; Overdrive is free
+	f = _setup(bal, "athlete")
+	core = f[0]; me = f[1]; e = f[2]
+	core.opening_chance = 0.0
+	var h0 := core.haste(me)
+	for i in 5:
+		_ready_up(me)
+		core.use(me, "handfight")
+	check(me.has("tempo") and int(me.auras.tempo.n) == 5 and core.haste(me) > h0 * 1.19, "Tempo didn't stack")
+	_ready_up(me)
+	core.use(me, "burst")
+	_ready_up(me)
+	core.use(me, "handfight")
+	check(me.has("overdrive") and me.gas == me.max_gas, "Overdrive hand fight cost gas")
+	# --- guard: sweeps build more grip; Spider Web slows their techniques
+	f = _setup(bal, "guard")
+	core = f[0]; me = f[1]; e = f[2]
+	core.opening_chance = 0.0
+	core.use(me, "burst")
+	check(me.has("web"), "Spider Web didn't start")
+	td = core.ability(e, "e_take")
+	e.cast = {"ab": td, "t": 0.0, "dur": 1.4, "target": me}
+	for i in 14:
+		core.tick(0.1)
+	check(not e.cast.is_empty(), "Spider Web didn't slow their takedown")
+	bal._build("guard", 8)

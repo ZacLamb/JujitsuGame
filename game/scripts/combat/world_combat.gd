@@ -273,7 +273,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				press(id)
 			get_viewport().set_input_as_handled()
 			return
-	for k in ["base", "frame", "defend", "breathe", "racial"]:
+	for k in Abilities.UTILITY:
 		if event.is_action_pressed("ab_" + k):
 			press(k)
 			get_viewport().set_input_as_handled()
@@ -629,6 +629,10 @@ signal roll_report(rep: Dictionary)
 signal boss_moment(kind: String, boss: CombatCore.Unit, text: String)   # "signature" / "sig_read" / "phase"
 var _rep := {}
 
+## Seconds into the current fight (0 out of combat): the damage meter's clock.
+func fight_secs() -> float:
+	return (Time.get_ticks_msec() - int(_rep.t0)) / 1000.0 if not _rep.is_empty() else 0.0
+
 func _track(e: Dictionary) -> void:
 	var u: CombatCore.Unit = e.get("u")
 	match str(e.t):
@@ -637,6 +641,8 @@ func _track(e: Dictionary) -> void:
 				_rep = {"t0": Time.get_ticks_msec(), "foe": "", "reads": 0, "caught": 0, "whiffs": 0, "escapes": 0,
 					"best": 0, "best_pos": "", "finish": "", "won": false, "lost": false, "feints": 0,
 					"streak": 0, "best_streak": 0, "xp": 0, "chains": 0, "level": me.level, "zone": str(world.zone)}
+				for fu in core.units:
+					fu.done = 0.0
 			elif u.player and not bool(e.on) and not _rep.is_empty():
 				_finish_report()
 		"cast":
@@ -749,6 +755,7 @@ func _finish_report() -> void:
 		return
 	var rep := _rep
 	_rep = {}
+	rep["dmg"] = me.done
 	if not bool(rep.won) and not bool(rep.lost):
 		rep["secs"] = (Time.get_ticks_msec() - int(rep.t0)) / 1000.0
 		if float(rep.secs) > 2.0:
@@ -921,6 +928,15 @@ func _on_event(e: Dictionary) -> void:
 			var n := _node_of(u)
 			if n:
 				_float(n, str(e.text), Color(0.4, 1, 0.6))
+		"opening":
+			if u.player:
+				Sfx.play("perfect", -10.0, 1.25)
+		"burst":
+			if u.player:
+				Sfx.play("levelup", -8.0, 1.2)
+				player.punch(7.0)
+				player.add_shake(0.25)
+				raid_warning.emit(Tx.s(str(e.name)).to_upper(), "")
 		"tap":
 			_on_tap(u, e.get("by"), str(e.get("sub", "")))
 		"signature":

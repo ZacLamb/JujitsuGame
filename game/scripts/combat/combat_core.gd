@@ -63,6 +63,9 @@ class Unit:
 	var sig_t := 9.0               # seconds until the signature is ready
 	var phase := 1
 	var _stall := 0                # enemies: AI ticks with nothing to do from this position
+	var style := ""                # player: guard / wrestler / judoka / athlete / passer
+	var crush_t := 0.0             # player (passer): time the target has been under the pin
+	var done := 0.0                # damage dealt this fight (the meter)
 	var rival := false             # a named fighter who has rolled with you before (remembers your game)
 
 	func has(a: String) -> bool:
@@ -113,6 +116,7 @@ func add_player(name: String, level: int, mods: Dictionary, abilities: Array) ->
 	u.swing_time = 2.0
 	u.abilities = abilities
 	u.known = Abilities.known_moves()
+	u.style = Game.style
 	return _add(u)
 
 ## Enemy from a mob or opponent dict. kind: "mob" | "named" | "boss".
@@ -265,6 +269,10 @@ func cost_of(u: Unit, a: Dictionary) -> float:
 			c = 0.0
 		if bool(a.get("finisher", false)) and m.get("free_sub", false):
 			c = 0.0
+		if u.has("overdrive"):
+			c = 0.0
+		if str(a.get("type", "")) in OPENING_TYPES and (u.has("opening") or u.has("relentless")):
+			c = 0.0
 	return maxf(c, 0.0)
 
 func cd_of(u: Unit, a: Dictionary) -> float:
@@ -276,10 +284,117 @@ func cd_of(u: Unit, a: Dictionary) -> float:
 		if str(a.get("id", "")) == "spec":
 			pass
 		c *= 1.0 - float(u.mods.get("cd", {}).get(str(a.get("type", "")), 0.0)) if str(a.get("type", "")) != str(a.get("id", "")) else 1.0
+		if u.has("relentless") and str(a.get("type", "")) in OPENING_TYPES:
+			c = 0.0
 	return maxf(c, 0.0)
 
 func haste(u: Unit) -> float:
-	return float(u.mods.get("decision", 1.0)) if pm(u) else 1.0
+	if not pm(u):
+		return 1.0
+	var h := float(u.mods.get("decision", 1.0))
+	if u.has("tempo"):
+		h *= 1.0 + TEMPO_HASTE * int(u.auras.tempo.get("n", 1))
+	if u.has("overdrive"):
+		h *= 1.0 + OVERDRIVE_HASTE
+	return h
+
+# ------------------------------------------------------------ the rotation: procs, bursts, styles
+## OPENING (everyone): Hand Fight sometimes finds an opening. Your next positional technique is
+## free and off cooldown: the button lights up. This is what you watch your bar for.
+## BURST (V, level 6, 90s): one big button per style.
+## And each style plays its own way:
+##   wrestler  Chain Wrestling: a correct Sprawl resets Takedown (re-shot).   Burst: Relentless.
+##   guard     Bottom Game: sweeps hit 20% harder and build +1 Grip.          Burst: Spider Web.
+##   passer    Crush: +1 Grip every 3s your target stays Pinned.              Burst: Dead Weight.
+##   judoka    Kuzushi: Hand Fight stacks Off-balance; a throw spends it.     Burst: Ippon.
+##   athlete   Tempo: every technique you land speeds you up (5 stacks).      Burst: Overdrive.
+const OPENING_TYPES := ["takedown", "sweep", "pass", "advance", "back"]
+const OPENING_DUR := 8.0
+var opening_chance := 0.25
+const BURST_CD := 90.0
+const BURST_DUR := 12.0
+const BURST_LEVEL := 6
+const TEMPO_HASTE := 0.04
+const TEMPO_MAX := 5
+const TEMPO_DUR := 4.0
+const OVERDRIVE_HASTE := 0.3
+const KUZUSHI_MAX := 3
+const KUZUSHI_DUR := 10.0
+const KUZUSHI_DMG := 0.2
+const KUZUSHI_DOWN := 0.5
+const CRUSH_EVERY := 3.0
+const WEB_SLOW := 0.65
+const WEB_DR := 0.7
+const SWEEP_DMG := 1.2
+const RESHOOT_DMG := 1.25
+const BURST := {
+	"wrestler": {"name": "Relentless", "text": "12s: takedowns, sweeps, passes and position changes cost no Gas and have no cooldown. Shoot, shoot again."},
+	"guard": {"name": "Spider Web", "text": "12s: tie them up. Their techniques come 35% slower (easier to read) and you take 30% less."},
+	"passer": {"name": "Dead Weight", "text": "All your weight on them: Pinned and Exposed for 12s, +2 Grip."},
+	"judoka": {"name": "Ippon", "text": "Full Off-balance on your target, and your next throw is a certain critical."},
+	"athlete": {"name": "Overdrive", "text": "12s: 30% faster and nothing costs Gas."},
+}
+const PASSIVE := {
+	"wrestler": ["Chain Wrestling", "A correct Sprawl resets your Takedown and the re-shot hits 25% harder."],
+	"guard": ["Bottom Game", "Sweeps hit 20% harder and build +1 Grip."],
+	"passer": ["Crush", "+1 Grip every 3 seconds your target stays Pinned."],
+	"judoka": ["Kuzushi", "Hand Fight stacks Off-balance (3). A throw spends it: +20% damage and a longer Down per stack."],
+	"athlete": ["Tempo", "Each technique you land makes you 4% faster for 4s (5 stacks)."],
+}
+
+static func burst_ability(style: String) -> Dictionary:
+	var b: Dictionary = BURST.get(style, BURST.athlete)
+	return {"id": "burst", "name": str(b.name), "type": "burst", "key": "V", "cost": 0.0, "cd": BURST_CD, "harm": style == "passer",
+		"gcd": false, "effect": "burst", "text": str(b.text)}
+
+func _stack(u: Unit, name: String, dur: float, cap: int, src: Unit, add := 1) -> int:
+	var n := mini(cap, (int(u.auras[name].get("n", 0)) if u.auras.has(name) else 0) + add)
+	_aura(u, name, dur, src)
+	u.auras[name]["n"] = n
+	return n
+
+func _drop(u: Unit, name: String) -> void:
+	if u.auras.has(name):
+		u.auras.erase(name)
+		emit({"t": "aura_off", "u": u, "aura": name})
+
+func _burst(u: Unit, t: Unit) -> void:
+	var st := u.style if BURST.has(u.style) else "athlete"
+	match st:
+		"wrestler":
+			_aura(u, "relentless", BURST_DUR, u)
+			for k in OPENING_TYPES:
+				u.cds.erase(k)
+		"guard":
+			_aura(u, "web", BURST_DUR, u)
+		"passer":
+			if t != null and not t.dead:
+				_aura(t, "pinned", BURST_DUR, u)
+				_aura(t, "exposed", BURST_DUR, u)
+				u.grip = mini(u.max_grip, u.grip + 2)
+		"judoka":
+			_aura(u, "ippon", 15.0, u)
+			if t != null and not t.dead and not t.player:
+				_stack(t, "kuzushi", KUZUSHI_DUR + 5.0, KUZUSHI_MAX, u, KUZUSHI_MAX)
+		_:
+			_aura(u, "overdrive", BURST_DUR, u)
+	emit({"t": "burst", "u": u, "style": st, "name": str(BURST[st].name)})
+	emit({"t": "proc", "u": u, "text": "%s!" % Tx.s(str(BURST[st].name))})
+
+## After the player lands a technique (not the auto hand fighting): procs and style stacks.
+func _landed(u: Unit, a: Dictionary, t: Unit) -> void:
+	var tp := str(a.get("type", ""))
+	if tp == "handfight":
+		if not u.has("opening") and rng.randf() < opening_chance:
+			_aura(u, "opening", OPENING_DUR, u)
+			for k in OPENING_TYPES:
+				u.cds.erase(k)
+			emit({"t": "proc", "u": u, "text": Tx.s("Opening!")})
+			emit({"t": "opening", "u": u})
+		if u.style == "judoka" and t != null and not t.dead:
+			_stack(t, "kuzushi", KUZUSHI_DUR, KUZUSHI_MAX, u)
+	if u.style == "athlete":
+		_stack(u, "tempo", TEMPO_DUR, TEMPO_MAX, u)
 
 # ------------------------------------------------------------ positions (the grappling layer)
 ## Every fight with your target has a position (standing, guard, half, side, mount, back) and a
@@ -448,6 +563,28 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		a["dmg"] = float(a.get("dmg", 0.0)) * MOMENTUM_DMG
 		emit({"t": "proc", "u": u, "text": Tx.s("Momentum!")})
 		emit({"t": "momentum", "u": u, "target": t})
+	if u.player and t != null and not t.player:
+		# style rules (see the rotation block above)
+		if tp == "sweep" and u.style == "guard":
+			a = a.duplicate()
+			a["dmg"] = float(a.get("dmg", 0.0)) * SWEEP_DMG
+			a["grip"] = int(a.get("grip", 0)) + 1
+		if tp == "takedown":
+			if u.has("reshoot"):
+				a = a.duplicate()
+				a["dmg"] = float(a.get("dmg", 0.0)) * RESHOOT_DMG
+				_drop(u, "reshoot")
+			if t.has("kuzushi"):
+				var kz := int(t.auras.kuzushi.get("n", 1))
+				a = a.duplicate()
+				a["dmg"] = float(a.get("dmg", 0.0)) * (1.0 + KUZUSHI_DMG * kz)
+				a["dur"] = float(a.get("dur", 1.8)) + KUZUSHI_DOWN * kz
+				_drop(t, "kuzushi")
+				emit({"t": "proc", "u": u, "text": Tx.f("Kuzushi x%d", kz)})
+			if u.has("ippon"):
+				a = a.duplicate()
+				a["_crit"] = true
+				_drop(u, "ippon")
 	var chained := false
 	if u.has("chain") and str(a.get("_mv", "")) != "" and str(a.get("_mv", "")) == str(u.auras.chain.get("next", "")):
 		chained = true
@@ -458,6 +595,8 @@ func use_ab(u: Unit, a: Dictionary, t: Unit = null) -> String:
 		emit({"t": "aura_off", "u": u, "aura": "chain"})
 		emit({"t": "proc", "u": u, "text": Tx.f("Chain! %s", str(Data.MOVES[str(a._mv)].name))})
 	u.gas -= cost_of(u, a)
+	if u.player and tp in OPENING_TYPES:
+		_drop(u, "opening")
 	if bool(a.get("gcd", true)):
 		u.gcd = GCD / haste(u)
 	var ct := float(a.get("cast", 0.0)) / haste(u)
@@ -493,6 +632,9 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		"guard":
 			_aura(u, "guarded", float(a.get("dur", 6.0)) + _extra(u, "guarded"), u)
 			_transition(u, u.target, str(a.get("_mv", "")), a)
+			return
+		"burst":
+			_burst(u, t if t != null else u.target)
 			return
 		"lucky":
 			_aura(u, "lucky", 20.0, u)
@@ -570,7 +712,7 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 				amount *= 1.0 + float(m.get("down_dmg", 0.0))
 			if t.pct() < 0.35:
 				amount *= 1.0 + float(m.get("exec", 0.0))
-		var crit := rng.randf() < crit_c
+		var crit := rng.randf() < crit_c or bool(a.get("_crit", false))
 		if u.has("lucky"):
 			crit = true
 			u.auras.erase("lucky")
@@ -588,6 +730,8 @@ func _resolve(u: Unit, a: Dictionary, t: Unit) -> void:
 		_damage(u, t, amount, crit, a)
 	if t.dead:
 		return
+	if u.player:
+		_landed(u, a, t)
 	_start_chain(u, a)
 	var g := int(a.get("grip", 0))
 	if pm(u):
@@ -671,6 +815,10 @@ func _counter(u: Unit, t: Unit, kind: String) -> void:
 	u.grip = mini(u.max_grip, u.grip + 1)
 	u.gas = minf(u.max_gas, u.gas + 12.0)
 	u.cds[kind] = COUNTER_CD
+	if kind == "base" and u.player and u.style == "wrestler" and float(ability(u, "takedown").get("cd", 0.0)) > 0.0:
+		u.cds.erase("takedown")
+		_aura(u, "reshoot", 6.0, u)
+		emit({"t": "proc", "u": u, "text": Tx.s("Re-shot!")})
 	if kind == "base":
 		_aura(u, "base", 2.0 + _extra(u, "base"), u)
 		if pm(u) and u.mods.get("base_grip", false):
@@ -899,6 +1047,8 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 		amount *= 0.3
 	if t.has("guarded"):
 		amount *= 0.6
+	if t.has("web"):
+		amount *= WEB_DR
 	if src.has("pinned"):
 		amount *= 0.75
 	# turtles shell up: hard to hurt until you've passed (side / mount / back on top)
@@ -927,6 +1077,7 @@ func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> vo
 			_aura(t, "worn", 9999.0, src)
 			emit({"t": "proc", "u": t, "text": "Worn down!"})
 	t.hp -= amount
+	src.done += amount
 	if src.player and not t.player and str(a.get("id", "")) != "auto":
 		t.lunge = 0
 	if t.player and t.has("flow") and str(a.get("type", "")) in POSITIONAL:
@@ -1152,7 +1303,7 @@ func _tick_unit(u: Unit, delta: float) -> void:
 			u.cast = {}
 			emit({"t": "cast_stop", "u": u})
 		else:
-			c.t = float(c.t) + delta
+			c.t = float(c.t) + delta * (WEB_SLOW if t != null and t.has("web") and not u.player else 1.0)
 			_maybe_feint(u, c)
 			if float(c.t) >= float(c.dur):
 				u.cast = {}
@@ -1171,6 +1322,18 @@ func _tick_unit(u: Unit, delta: float) -> void:
 					emit({"t": "miss", "u": u, "target": t, "text": "Out of range"})
 				else:
 					emit({"t": "miss", "u": u, "target": t, "text": "Out of range"})
+	# passer: every few seconds under the pin is another grip
+	if u.player and u.style == "passer":
+		var pt := u.target
+		if pt != null and not pt.dead and pt.has("pinned") and pt.auras.pinned.src == u:
+			u.crush_t += delta
+			if u.crush_t >= CRUSH_EVERY:
+				u.crush_t = 0.0
+				if u.grip < u.max_grip:
+					u.grip += 1
+					emit({"t": "proc", "u": u, "text": Tx.s("Crush: +1 Grip")})
+		else:
+			u.crush_t = 0.0
 	# auto attack (hand fighting)
 	var tg := u.target
 	if tg != null and not tg.dead and not u.down() and u.cast.is_empty() and dist(u, tg) <= MELEE:

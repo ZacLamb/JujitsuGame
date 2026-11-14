@@ -1543,5 +1543,325 @@
 "%s got the tap",
 "%s finalizou",
 "%s finalizó"
+],
+[
+"Down",
+"Derrubado",
+"Derribado"
+],
+[
+"Stunned: can't act.",
+"Atordoado: não pode agir.",
+"Aturdido: no puede actuar."
+],
+[
+"Deals 25% less damage.",
+"Causa 25% menos dano.",
+"Hace 25% menos daño."
+],
+[
+"Exposed",
+"Exposto",
+"Expuesto"
+],
+[
+"Takes critical hits 25% more often.",
+"Recebe críticos 25% mais vezes.",
+"Recibe críticos un 25% más a menudo."
+],
+[
+"Rattled",
+"Abalado",
+"Sacudido"
+],
+[
+"Deals 15% less damage.",
+"Causa 15% menos dano.",
+"Hace 15% menos daño."
+],
+[
+"Worn down",
+"Desgastado",
+"Desgastado"
+],
+[
+"Nothing left: the next submission finishes it.",
+"Sem mais nada: a próxima finalização encerra.",
+"Sin nada más: la próxima finalización lo termina."
+],
+[
+"Off-balance",
+"Desequilibrado",
+"Desequilibrado"
+],
+[
+"Your next throw hits 20% harder and keeps them down longer, per stack.",
+"Sua próxima queda bate 20% mais forte e mantém no chão por mais tempo, por acúmulo.",
+"Tu próximo derribo pega 20% más fuerte y lo deja más tiempo en el suelo, por acumulación."
+],
+[
+"Expecting",
+"Esperando",
+"Esperando"
+],
+[
+"Waiting for the technique you keep using. Do something else.",
+"Esperando a técnica que você repete. Faça outra coisa.",
+"Esperando la técnica que repites. Haz otra cosa."
+],
+[
+"Expecting your %s",
+"Esperando seu %s",
+"Esperando tu %s"
+],
+[
+"Base",
+"Base",
+"Base"
+],
+[
+"Takes 50% less damage.",
+"Recebe 50% menos dano.",
+"Recibe 50% menos daño."
+],
+[
+"Takes 40% less damage.",
+"Recebe 40% menos dano.",
+"Recibe 40% menos daño."
+],
+[
+"Framed",
+"Enquadrado",
+"Enmarcado"
+],
+[
+"The next technique is a certain critical.",
+"A próxima técnica é um crítico certo.",
+"La próxima técnica es un crítico seguro."
+],
+[
+"Recovering",
+"Recuperando",
+"Recuperando"
+],
+[
+"Restoring Composure.",
+"Restaurando Compostura.",
+"Restaurando Compostura."
+],
+[
+"Takes 70% less damage.",
+"Recebe 70% menos dano.",
+"Recibe 70% menos daño."
+],
+[
+"Rush",
+"Ímpeto",
+"Ímpetu"
+],
+[
+"Deals 20% more damage.",
+"Causa 20% mais dano.",
+"Hace 20% más daño."
+],
+[
+"Game Plan",
+"Plano de Luta",
+"Plan de Lucha"
+],
+[
+"Deals 15% more damage.",
+"Causa 15% mais dano.",
+"Hace 15% más daño."
+],
+[
+"Submission chain",
+"Cadeia de finalizações",
+"Cadena de finalizaciones"
+],
+[
+"The next submission in the chain is faster and hits harder.",
+"A próxima finalização da cadeia é mais rápida e mais forte.",
+"La próxima finalización de la cadena es más rápida y más fuerte."
+],
+[
+"Flow",
+"Fluxo",
+"Flujo"
+],
+[
+"Your next submission goes in 15% deeper per stack.",
+"Sua próxima finalização entra 15% mais fundo por acúmulo.",
+"Tu próxima finalización entra un 15% más profundo por acumulación."
+],
+[
+"Opening",
+"Abertura",
+"Apertura"
+],
+[
+"Opening!",
+"Abertura!",
+"¡Apertura!"
+],
+[
+"Your next takedown, sweep, pass or position change is free.",
+"Sua próxima queda, raspagem, passagem ou troca de posição é grátis.",
+"Tu próximo derribo, raspado, pasaje o cambio de posición es gratis."
+],
+[
+"Re-shot",
+"Nova entrada",
+"Nueva entrada"
+],
+[
+"Re-shot!",
+"Nova entrada!",
+"¡Nueva entrada!"
+],
+[
+"Takedown is ready again and hits 25% harder.",
+"A queda está pronta de novo e bate 25% mais forte.",
+"El derribo está listo otra vez y pega 25% más fuerte."
+],
+[
+"Relentless",
+"Implacável",
+"Implacable"
+],
+[
+"Positional techniques cost no Gas and have no cooldown.",
+"Técnicas de posição não gastam Gás e não têm recarga.",
+"Las técnicas de posición no gastan Gas ni tienen recarga."
+],
+[
+"Spider Web",
+"Teia de Aranha",
+"Telaraña"
+],
+[
+"Their techniques come 35% slower and you take 30% less.",
+"As técnicas deles vêm 35% mais lentas e você recebe 30% menos.",
+"Sus técnicas llegan 35% más lentas y recibes 30% menos."
+],
+[
+"Ippon",
+"Ippon",
+"Ippon"
+],
+[
+"Your next throw is a certain critical.",
+"Sua próxima queda é um crítico certo.",
+"Tu próximo derribo es un crítico seguro."
+],
+[
+"Overdrive",
+"Sobremarcha",
+"Sobremarcha"
+],
+[
+"30% faster and nothing costs Gas.",
+"30% mais rápido e nada gasta Gás.",
+"30% más rápido y nada gasta Gas."
+],
+[
+"Tempo",
+"Ritmo",
+"Ritmo"
+],
+[
+"4% faster per stack.",
+"4% mais rápido por acúmulo.",
+"4% más rápido por acumulación."
+],
+[
+"Dead Weight",
+"Peso Morto",
+"Peso Muerto"
+],
+[
+"12s: takedowns, sweeps, passes and position changes cost no Gas and have no cooldown. Shoot, shoot again.",
+"12s: quedas, raspagens, passagens e trocas de posição não gastam Gás nem têm recarga. Entre, entre de novo.",
+"12s: derribos, raspados, pasajes y cambios de posición no gastan Gas ni tienen recarga. Entra, entra otra vez."
+],
+[
+"12s: tie them up. Their techniques come 35% slower (easier to read) and you take 30% less.",
+"12s: amarre o oponente. As técnicas dele vêm 35% mais lentas (mais fáceis de ler) e você recebe 30% menos.",
+"12s: enrédalo. Sus técnicas llegan 35% más lentas (más fáciles de leer) y recibes 30% menos."
+],
+[
+"All your weight on them: Pinned and Exposed for 12s, +2 Grip.",
+"Todo o seu peso em cima: Imobilizado e Exposto por 12s, +2 Pegada.",
+"Todo tu peso encima: Inmovilizado y Expuesto por 12s, +2 Agarre."
+],
+[
+"Full Off-balance on your target, and your next throw is a certain critical.",
+"Desequilíbrio total no alvo, e sua próxima queda é um crítico certo.",
+"Desequilibrio total en tu objetivo, y tu próximo derribo es un crítico seguro."
+],
+[
+"12s: 30% faster and nothing costs Gas.",
+"12s: 30% mais rápido e nada gasta Gás.",
+"12s: 30% más rápido y nada gasta Gas."
+],
+[
+"Crush: +1 Grip",
+"Esmagar: +1 Pegada",
+"Aplastar: +1 Agarre"
+],
+[
+"Kuzushi x%d",
+"Kuzushi x%d",
+"Kuzushi x%d"
+],
+[
+"Damage",
+"Dano",
+"Daño"
+],
+[
+"You",
+"Você",
+"Tú"
+],
+[
+"Damage %d (%.1f/s)",
+"Dano %d (%.1f/s)",
+"Daño %d (%.1f/s)"
+],
+[
+"Style burst",
+"Explosão do estilo",
+"Explosión del estilo"
+],
+[
+"V is your style's big moment: a long cooldown that changes the fight for a few seconds. Save it for a boss, a bad spot or the finish. Also watch your bar: when Hand Fight finds an OPENING, a button lights up gold. That technique is free right now.",
+"V é o grande momento do seu estilo: uma recarga longa que muda a luta por alguns segundos. Guarde para um chefe, um aperto ou a finalização. E fique de olho na barra: quando a Briga de Pegada acha uma ABERTURA, um botão acende em dourado. Essa técnica está grátis agora.",
+"V es el gran momento de tu estilo: una recarga larga que cambia la lucha por unos segundos. Guárdalo para un jefe, un apuro o la finalización. Y mira tu barra: cuando la Lucha de Agarres encuentra una APERTURA, un botón se enciende en dorado. Esa técnica es gratis ahora."
+],
+[
+"Bottom techniques (sweeps, guard subs) hit 8% harder. Pull Guard costs no Gas. Bottom Game: sweeps hit 20% harder and build +1 Grip. Burst (V): Spider Web.",
+"Técnicas por baixo (raspagens, finalizações da guarda) batem 8% mais forte. Puxar Guarda não gasta Gás. Jogo por Baixo: raspagens batem 20% mais forte e dão +1 Pegada. Explosão (V): Teia de Aranha.",
+"Las técnicas desde abajo (raspados, finalizaciones de guardia) pegan 8% más fuerte. Jalar Guardia no gasta Gas. Juego de Abajo: los raspados pegan 20% más fuerte y dan +1 Agarre. Explosión (V): Telaraña."
+],
+[
+"Takedowns hit 25% harder. Enemy takedowns hit you 20% softer. Chain Wrestling: a correct Sprawl resets Takedown. Burst (V): Relentless.",
+"Quedas batem 25% mais forte. Quedas inimigas batem 20% mais fraco em você. Wrestling em Cadeia: um Sprawl certo recarrega a Queda. Explosão (V): Implacável.",
+"Los derribos pegan 25% más fuerte. Los derribos enemigos te pegan 20% menos. Lucha en Cadena: un Sprawl correcto recarga el Derribo. Explosión (V): Implacable."
+],
+[
+"Throws (Osoto Gari, Uchi Mata) hit 20% harder. Kuzushi: Hand Fight stacks Off-balance, a throw spends it. Burst (V): Ippon.",
+"Projeções (Osoto Gari, Uchi Mata) batem 20% mais forte. Kuzushi: a Briga de Pegada acumula Desequilíbrio, a queda gasta. Explosão (V): Ippon.",
+"Las proyecciones (Osoto Gari, Uchi Mata) pegan 20% más fuerte. Kuzushi: la Lucha de Agarres acumula Desequilibrio, el derribo lo gasta. Explosión (V): Ippon."
+],
+[
+"+50% Gas regeneration. Escapes are 20% stronger. Tempo: every technique you land makes you faster. Burst (V): Overdrive.",
+"+50% de regeneração de Gás. Fugas 20% mais fortes. Ritmo: cada técnica que entra deixa você mais rápido. Explosão (V): Sobremarcha.",
+"+50% de regeneración de Gas. Escapes 20% más fuertes. Ritmo: cada técnica que conectas te hace más rápido. Explosión (V): Sobremarcha."
+],
+[
+"Passes and Advances hit 15% harder. Enemy sweeps hit you 20% softer. Crush: +1 Grip every 3s your target stays Pinned. Burst (V): Dead Weight.",
+"Passagens e Avanços batem 15% mais forte. Raspagens inimigas batem 20% mais fraco em você. Esmagar: +1 Pegada a cada 3s com o alvo Imobilizado. Explosão (V): Peso Morto.",
+"Los Pasajes y Avances pegan 15% más fuerte. Los raspados enemigos te pegan 20% menos. Aplastar: +1 Agarre cada 3s con el objetivo Inmovilizado. Explosión (V): Peso Muerto."
 ]
 ]
