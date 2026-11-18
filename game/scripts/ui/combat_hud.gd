@@ -455,6 +455,7 @@ func _draw() -> void:
 		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
 	_aura_tip = []
 	_draw_plates()
+	_draw_lockout()
 	_auras(me, Vector2(x0, 76), 200.0)
 	_party_frames(Vector2(14, 122))
 	_draw_meter()
@@ -742,6 +743,33 @@ func _draw_aura_tip() -> void:
 	draw_string(f, box.position + Vector2(8, 17), str(_aura_tip[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Wow.GOLD)
 	for i in lines.size():
 		draw_string(f, box.position + Vector2(8, 33 + 15 * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Wow.WHITE)
+
+## Loss of control (WoW): when you can't act, say so in the middle of the screen, with how long
+## is left and the one button that gets you out.
+func _draw_lockout() -> void:
+	var me: CombatCore.Unit = combat.me
+	if not me.down() or me.dead:
+		return
+	var left := float(me.auras.down.get("t", 0.0))
+	var total := maxf(0.1, float(me.auras.down.get("dur", left)))
+	var f := Wow.title_font()
+	var w := 230.0
+	var at := Vector2((size.x - w) / 2.0, size.y * 0.5 + 56.0)
+	draw_rect(Rect2(at, Vector2(w, 46)), Color(0.35, 0.03, 0.03, 0.82))
+	draw_rect(Rect2(at, Vector2(w, 46)), Color(1.0, 0.3, 0.25, 0.95), false, 2.0)
+	draw_rect(Rect2(at + Vector2(0, 42), Vector2(w * clampf(left / total, 0.0, 1.0), 4)), Color(1.0, 0.45, 0.3))
+	var head := Tx.s("DOWN")
+	draw_string_outline(f, at + Vector2(14, 31), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, 5, Color.BLACK)
+	draw_string(f, at + Vector2(14, 31), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(1.0, 0.85, 0.8))
+	var ts := Tx.f("%.1f sec", left)
+	draw_string_outline(f, at + Vector2(w - 104, 31), ts, HORIZONTAL_ALIGNMENT_RIGHT, 90, 20, 5, Color.BLACK)
+	draw_string(f, at + Vector2(w - 104, 31), ts, HORIZONTAL_ALIGNMENT_RIGHT, 90, 20, Color.WHITE)
+	var esc: Dictionary = combat.core.ability(me, "escape")
+	if not esc.is_empty() and float(me.cds.get("escape", 0.0)) <= 0.0 and me.gas >= combat.core.cost_of(me, esc):
+		var hint := Tx.f("Escape [%s]", _key_for("escape"))
+		var hw := Wow.body().get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		draw_string_outline(Wow.body(), Vector2((size.x - hw) / 2.0, at.y + 64), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, 4, Color.BLACK)
+		draw_string(Wow.body(), Vector2((size.x - hw) / 2.0, at.y + 64), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.6, 1.0, 0.7))
 
 ## Nameplates (WoW): a health bar over everyone you're fighting, with their technique's cast bar
 ## under it, so you can read a fight with several opponents without clicking through them.

@@ -1888,5 +1888,20 @@
 "Rested +%d",
 "Descansado +%d",
 "Descansado +%d"
+],
+[
+"DOWN",
+"NO CHÃO",
+"EN EL SUELO"
+],
+[
+"%.1f sec",
+"%.1f s",
+"%.1f s"
+],
+[
+"Escape [%s]",
+"Fuga [%s]",
+"Escape [%s]"
 ]
 ]

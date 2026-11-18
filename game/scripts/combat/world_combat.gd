@@ -185,6 +185,9 @@ func duel(npc: Npc) -> void:
 	u.hp = u.max_hp
 	target = u
 	engage_npc(npc)
+	var mid := (player.global_position + npc.global_position) * 0.5
+	var across := (npc.global_position - player.global_position)
+	_plant_flag(mid + Vector3(across.z, 0, -across.x).normalized() * 2.2)
 	Game.toast.emit(Tx.f("%s squares up!", u.name), Color(1, 0.6, 0.4))
 
 func set_target_npc(npc: Npc) -> void:
@@ -296,6 +299,8 @@ func _process(delta: float) -> void:
 	if me == null or world == null or player == null:
 		return
 	error_t = maxf(0.0, error_t - delta)
+	if _duel_flag != null and not me.in_combat and not _finishing:
+		_drop_flag()
 	_frame_camera(delta)
 	_tick_practice()
 	me.pos = player.global_position
@@ -1293,7 +1298,72 @@ func start_bout(opp: Dictionary, tag: String, elite := false) -> Npc:
 		_float(npc, "DRILL!", Color(0.6, 1.0, 0.7), 1.3)
 	else:
 		_float(npc, "FIGHT!", Color(1, 0.85, 0.35), 1.3)
+		_plant_flag((player.global_position + pos) * 0.5 + Vector3(fwd.z, 0, -fwd.x).normalized() * 2.2)
 	return npc
+
+## The duel flag (WoW plants one too): a bamboo pole with a banner in your belt colour, stuck in
+## the ground beside the two of you. It says "this is a match" to everyone walking past, and it
+## comes down when the fight is over.
+var _duel_flag: Node3D
+
+func _plant_flag(at: Vector3) -> void:
+	_drop_flag()
+	if Game.test_mode and not Scenes.force:
+		return
+	var f := Node3D.new()
+	var pole := MeshInstance3D.new()
+	var pm := CylinderMesh.new()
+	pm.top_radius = 0.035
+	pm.bottom_radius = 0.045
+	pm.height = 2.7
+	pole.mesh = pm
+	pole.position.y = 1.35
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.72, 0.62, 0.36)
+	pole.material_override = wood
+	f.add_child(pole)
+	var cloth := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.78, 0.56, 0.02)
+	cloth.mesh = bm
+	cloth.position = Vector3(0.42, 2.3, 0)
+	var cm := StandardMaterial3D.new()
+	cm.albedo_color = Color(0.08, 0.08, 0.1)
+	cm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cloth.material_override = cm
+	f.add_child(cloth)
+	var stripe := MeshInstance3D.new()
+	var sm := BoxMesh.new()
+	sm.size = Vector3(0.78, 0.13, 0.03)
+	stripe.mesh = sm
+	stripe.position = Vector3(0.42, 2.3, 0)
+	var stm := StandardMaterial3D.new()
+	stm.albedo_color = Data.BELTS[Game.belt_index()].color
+	stm.emission_enabled = true
+	stm.emission = stm.albedo_color
+	stm.emission_energy_multiplier = 0.35
+	stripe.material_override = stm
+	f.add_child(stripe)
+	world.add_child(f)
+	at.y = world.ground_y(at.x, at.z)
+	f.global_position = at + Vector3(0, -2.8, 0)
+	f.rotation.y = randf() * TAU
+	var tw := f.create_tween()
+	tw.tween_property(f, "global_position:y", at.y, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var sway := f.create_tween().set_loops()
+	sway.tween_property(f, "rotation:z", 0.035, 1.3).set_trans(Tween.TRANS_SINE)
+	sway.tween_property(f, "rotation:z", -0.035, 1.3).set_trans(Tween.TRANS_SINE)
+	Sfx.play("land", -10.0, 1.3)
+	_duel_flag = f
+
+func _drop_flag() -> void:
+	if _duel_flag and is_instance_valid(_duel_flag):
+		var f := _duel_flag
+		var tw := f.create_tween()
+		tw.tween_interval(1.5)
+		tw.tween_property(f, "global_position:y", f.global_position.y - 3.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		tw.tween_callback(f.queue_free)
+	_duel_flag = null
 
 # ------------------------------------------------------------ practice partner (academy drill)
 ## Reads drill: the partner throws `total` techniques; you counter them. Nobody gets hurt.
