@@ -95,7 +95,7 @@ const HP_GROWTH := 0.05
 const DMG_GROWTH := 0.045
 const HP_CURVE := 0.0009
 const ENEMY_DMG := 1.25
-const MOB_HP := 1.5
+const MOB_HP := 1.1
 
 static func dmg_scale(level: int) -> float:
 	return 6.0 + 1.5 * float(level)

@@ -628,12 +628,48 @@ func _build_ground_detail() -> void:
 	rng.seed = 5150
 	var blade := PrismMesh.new()
 	blade.size = Vector3(0.18, 0.42, 0.02)
+	var dry: bool = zone in ["chapada", "sedona"]
 	var parts := {
 		"grass_a": {"mesh": blade, "color": Color(0.32, 0.55, 0.2) if not zone in ["chapada", "sedona"] else Color(0.55, 0.55, 0.25), "xf": []},
 		"grass_b": {"mesh": blade, "color": Color(0.42, 0.63, 0.24) if not zone in ["chapada", "sedona"] else Color(0.65, 0.58, 0.3), "xf": []},
 		"flower_y": {"mesh": BodyRig._sph(0.07, -1, 6), "color": Color(0.98, 0.85, 0.2), "xf": []},
 		"flower_p": {"mesh": BodyRig._sph(0.07, -1, 6), "color": Color(0.9, 0.45, 0.75), "xf": []},
+		"bush": {"mesh": BodyRig._sph(0.5, -1, 8), "color": Color(0.24, 0.46, 0.17) if not dry else Color(0.5, 0.5, 0.26), "xf": []},
+		"bloom_a": {"mesh": BodyRig._sph(0.12, -1, 6), "color": Color(1.0, 0.8, 0.12) if not dry else Color(0.95, 0.7, 0.2), "xf": []},
+		"bloom_b": {"mesh": BodyRig._sph(0.12, -1, 6), "color": Color(0.93, 0.4, 0.7) if not dry else Color(0.7, 0.45, 0.85), "xf": []},
 	}
+	# flowering thickets: clumps of low bushes covered in blossom, so open ground has places in it
+	var clumps := 0
+	var ct := 0
+	while clumps < 70 and ct < 1500:
+		ct += 1
+		var cx := rng.randf_range(-84, 84)
+		var cz := rng.randf_range(-84, 84)
+		if _is_blocked(cx, cz, 2.6):
+			continue
+		var cy := ground_y(cx, cz)
+		if cy < 0.0 or cy > 9.0 or absf(ground_y(cx + 1.5, cz) - cy) > 0.7 or absf(ground_y(cx, cz + 1.5) - cy) > 0.7:
+			continue
+		if zone == "caceres" and absf(cx - river_x(cz)) < 13.0:
+			continue
+		if (zone == "rio" or zone == "socal") and ((cz > -30.0 and cx > -64.0) or cz > 16.0):
+			continue
+		var bloom := "bloom_a" if rng.randf() < 0.65 else "bloom_b"
+		for bi in rng.randi_range(3, 5):
+			var bx := cx + rng.randf_range(-1.7, 1.7)
+			var bz := cz + rng.randf_range(-1.7, 1.7)
+			if _is_blocked(bx, bz, 0.6):
+				continue
+			var by := ground_y(bx, bz)
+			var bs := rng.randf_range(0.7, 1.25)
+			parts.bush.xf.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(bs, bs * 0.62, bs)), Vector3(bx, by + 0.12 * bs, bz)))
+			for fi in rng.randi_range(6, 10):
+				var ang := rng.randf() * TAU
+				var rr := rng.randf_range(0.05, 0.42) * bs
+				var up := sqrt(maxf(0.0, 0.25 - (rr / bs) * (rr / bs))) * 0.62 * bs
+				var fs := rng.randf_range(0.7, 1.2)
+				parts[bloom].xf.append(Transform3D(Basis().scaled(Vector3(fs, fs, fs)), Vector3(bx + cos(ang) * rr, by + 0.12 * bs + up + 0.03, bz + sin(ang) * rr)))
+		clumps += 1
 	var placed := 0
 	var tries := 0
 	while placed < 2600 and tries < 9000:
@@ -670,7 +706,7 @@ func _build_ground_detail() -> void:
 			mm.set_instance_transform(i, p.xf[i])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
-		mmi.material_override = EnvShaders.grass(p.color, 1.0 if str(k).begins_with("grass") else 0.6)
+		mmi.material_override = EnvShaders.grass(p.color, 1.0 if str(k).begins_with("grass") else (0.25 if str(k).begins_with("b") else 0.6))
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi.visibility_range_end = 70.0
 		add_child(mmi)

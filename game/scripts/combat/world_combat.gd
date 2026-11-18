@@ -23,6 +23,7 @@ var _finishing := false
 var error_text := ""
 var error_t := 0.0
 const LEASH := 26.0
+const SOCIAL_RANGE := 5.5   # metres: a campmate this close joins the fight
 const CHASE_SPEED := 4.2
 
 func setup(w: World, p: Player) -> void:
@@ -162,10 +163,18 @@ func engage_npc(npc: Npc) -> void:
 	core.gi = Game.kit == "gi"
 	core.engage(u, me)
 	u.target = me
+	var fresh := not npc.in_combat
 	npc.in_combat = true
 	npc.rig.combat_ready = true
 	if target == null:
 		target = u
+	# social aggro (WoW): pull one and an aggressive campmate standing right next to it comes too
+	if fresh and not npc.mob.has("bout") and not npc.mob.has("raid") and not Game.test_mode:
+		var mate := _campmate(npc, SOCIAL_RANGE)
+		if mate != null and bool(mate.mob.get("aggro", false)) and not mate._chasing \
+				and Game.player_level() - Data.display_level(float(mate.mob.level)) <= 6:
+			mate._chasing = true
+			mate._notice()
 
 ## A named fighter accepted your challenge: they fight you right here.
 func duel(npc: Npc) -> void:
@@ -855,9 +864,13 @@ func _on_event(e: Dictionary) -> void:
 				col = Color(1, 0.25, 0.2)
 			elif bool(e.crit):
 				col = Color(1, 0.85, 0.2)
+			elif u.player and str(e.ab.get("id", "")) != "auto":
+				col = Color(1, 0.95, 0.55)   # your techniques in yellow, hand fighting in white
 			var txt := str(int(e.amount)) + ("!" if bool(e.crit) else "")
 			if n:
-				_float(n, txt, col, 1.35 if bool(e.crit) else 1.0)
+				# big hits read big: the number grows with how much of their bar it took
+				var frac := float(e.amount) / maxf(1.0, t.max_hp)
+				_float(n, txt, col, clampf(0.85 + 3.5 * frac, 0.85, 1.7) * (1.4 if bool(e.crit) else 1.0), bool(e.crit))
 			if bool(e.crit) and (u.player or t.player):
 				player.add_shake(0.45)
 				Sfx.play("hit", -3.0, 1.15)
@@ -1033,7 +1046,7 @@ func _fx_stop(u, success: bool) -> void:
 	CastFX.cast_stop(_cast_fx[u.id], success)
 	_cast_fx.erase(u.id)
 
-func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
+func _float(n: Node3D, text: String, col: Color, size := 1.0, pop := false) -> void:
 	var l := Label3D.new()
 	l.text = text
 	l.font = Wow.title_font()
@@ -1050,6 +1063,8 @@ func _float(n: Node3D, text: String, col: Color, size := 1.0) -> void:
 	var tw := l.create_tween().set_parallel(true)
 	tw.tween_property(l, "global_position:y", l.global_position.y + 1.1, 1.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(l, "modulate:a", 0.0, 1.1).set_delay(0.35)
+	if pop:
+		tw.tween_property(l, "font_size", l.font_size, 0.16).from(int(l.font_size * 1.7)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.chain().tween_callback(l.queue_free)
 
 # ------------------------------------------------------------ taps (WoW: the kill)

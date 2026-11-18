@@ -20,8 +20,8 @@ var rooted := false   # knocked down / finishing in combat: no walking
 var touch_move := Vector2.ZERO   # from virtual joystick, -1..1
 var touch_sprint := false
 var cam_yaw := 0.0
-var cam_pitch := -0.32
-var cam_dist := 6.0
+var cam_pitch := -0.46
+var cam_dist := 8.5
 ## Grappling camera: WorldCombat sets these while you're on the ground with someone, and the
 ## camera eases in on the middle of the pair (and back out when you stand up).
 var ground_on := false
@@ -97,7 +97,7 @@ func punch(amount := 5.0) -> void:
 		_punch_tw.kill()
 	cam.fov = 62.0
 	_punch_tw = create_tween()
-	_punch_tw.tween_property(cam, "fov", 62.0 - amount, 0.05).set_ease(Tween.EASE_OUT)
+	_punch_tw.tween_property(cam, "fov", 62.0 - amount * 0.5, 0.05).set_ease(Tween.EASE_OUT)
 	_punch_tw.tween_property(cam, "fov", 62.0, 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func refresh_look() -> void:
@@ -161,7 +161,7 @@ func look(delta: Vector2) -> void:
 	_last_look_ms = Time.get_ticks_msec()
 
 func zoom(amount: float) -> void:
-	cam_dist = clampf(cam_dist + amount, 2.2, 16.0)
+	cam_dist = clampf(cam_dist + amount, 2.2, 22.0)
 
 func _physics_process(delta: float) -> void:
 	var dir2 := Vector2.ZERO
@@ -268,8 +268,10 @@ func _physics_process(delta: float) -> void:
 	var focus := (global_position + Vector3(0, 1.5, 0)).lerp(ground_focus, gb)
 	yaw_node.global_position = yaw_node.global_position.lerp(focus, clampf(delta * 12.0, 0, 1))
 	yaw_node.rotation.y = cam_yaw
-	pitch_node.rotation.x = lerpf(cam_pitch, minf(cam_pitch, -0.42), gb)
-	arm.spring_length = lerpf(arm.spring_length, lerpf(cam_dist, minf(cam_dist, 3.9), gb), clampf(delta * 6.0, 0, 1))
+	# the camera is the player's (WoW): a fight never takes the angle or the zoom away, it only
+	# re-centres on the two of you when the roll goes to the ground
+	pitch_node.rotation.x = cam_pitch
+	arm.spring_length = lerpf(arm.spring_length, cam_dist, clampf(delta * 6.0, 0, 1))
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 2.2)
 		var k := shake * shake * 0.18

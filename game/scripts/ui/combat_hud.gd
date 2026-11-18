@@ -454,6 +454,7 @@ func _draw() -> void:
 		draw_string_outline(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
 		draw_string(f, Vector2(x0 + 4 + me.max_grip * 12, 66), Tx.s("GRIP"), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.55, 0.35))
 	_aura_tip = []
+	_draw_plates()
 	_auras(me, Vector2(x0, 76), 200.0)
 	_party_frames(Vector2(14, 122))
 	_draw_meter()
@@ -741,6 +742,46 @@ func _draw_aura_tip() -> void:
 	draw_string(f, box.position + Vector2(8, 17), str(_aura_tip[1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Wow.GOLD)
 	for i in lines.size():
 		draw_string(f, box.position + Vector2(8, 33 + 15 * i), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Wow.WHITE)
+
+## Nameplates (WoW): a health bar over everyone you're fighting, with their technique's cast bar
+## under it, so you can read a fight with several opponents without clicking through them.
+func _draw_plates() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var f := Wow.body()
+	for u in combat.core.units:
+		if u.player or u.dead or CombatCore.friendly(u) or not (u.in_combat or u == combat.target):
+			continue
+		var n: Npc = combat.npc_of(u)
+		if n == null or not is_instance_valid(n) or not n.visible:
+			continue
+		var wp := n.global_position + Vector3(0, 2.3 if u.gpos == "standing" else 1.5, 0)
+		if cam.is_position_behind(wp) or cam.global_position.distance_to(wp) > 45.0:
+			continue
+		var p := cam.unproject_position(wp)
+		var is_t: bool = u == combat.target
+		var w := 124.0 if is_t else 92.0
+		var h := 10.0 if is_t else 8.0
+		var at := Vector2(p.x - w / 2.0, p.y - h)
+		var nm := Tx.s(u.name)
+		var nw := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		draw_string_outline(f, Vector2(p.x - nw / 2.0, at.y - 4), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color.BLACK)
+		draw_string(f, Vector2(p.x - nw / 2.0, at.y - 4), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.82, 0.3) if u.elite else Color(1.0, 0.45, 0.4))
+		draw_rect(Rect2(at - Vector2(1.5, 1.5), Vector2(w + 3, h + 3)), Color(1, 1, 1, 0.9) if is_t else Color(0, 0, 0, 0.9))
+		draw_rect(Rect2(at, Vector2(w, h)), Color(0.08, 0.02, 0.02, 0.95))
+		draw_rect(Rect2(at, Vector2(w * clampf(u.pct(), 0.0, 1.0), h)), Color(0.85, 0.2, 0.16))
+		draw_rect(Rect2(at, Vector2(w * clampf(u.pct(), 0.0, 1.0), h * 0.4)), Color(1, 1, 1, 0.15))
+		if not u.cast.is_empty():
+			var kind := CombatCore.counter_kind(u.cast.ab)
+			var kc: Color = READ_COL.get(kind, Color(1, 0.75, 0.2))
+			var cy := at.y + h + 3.0
+			draw_rect(Rect2(at.x - 1, cy - 1, w + 2, 9), Color(0, 0, 0, 0.9))
+			draw_rect(Rect2(at.x, cy, w * clampf(float(u.cast.t) / maxf(0.01, float(u.cast.dur)), 0.0, 1.0), 7), kc)
+			var cn := Tx.s(str(u.cast.ab.get("name", "")))
+			var cw := f.get_string_size(cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+			draw_string_outline(f, Vector2(p.x - cw / 2.0, cy + 19), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
+			draw_string(f, Vector2(p.x - cw / 2.0, cy + 19), cn, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color.WHITE)
 
 ## Target of target: who your target is on (in a raid: who has the boss).
 func _draw_tot(at: Vector2, t: CombatCore.Unit) -> void:
