@@ -92,7 +92,11 @@ func _ready() -> void:
 	_err.anchor_right = 0.5
 	_err.offset_left = -300
 	_err.offset_right = 300
-	_err.offset_top = 96
+	# warnings sit low, just above the bars, where your eyes already are in a fight
+	_err.anchor_top = 1.0
+	_err.anchor_bottom = 1.0
+	_err.offset_top = -214
+	_err.offset_bottom = -184
 	_err.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_err.add_theme_constant_override("outline_size", 6)
 	add_child(_err)
@@ -888,6 +892,12 @@ func _draw_slot(b: Button, i: int) -> void:
 		b.draw_rect(r.grow(-1.0), Color(1.0, 0.4, 0.55, 0.6 + 0.4 * pulse), false, 3.0)
 	var why := combat.core.block_reason(me, a, combat.target if combat.target else null)
 	var tg0: CombatCore.Unit = combat.target
+	if bool(a.get("locked", false)) and (tg0 == null or not (bool(tg0.data.get("dummy", false)) or bool(tg0.data.get("scripted", false)))):
+		# not learned yet: you can see it, you can't use it (drill it on a dummy)
+		b.draw_rect(inner, Color(0.02, 0.02, 0.03, 0.78))
+		IconArt.draw(b, r.grow(-10.0), "lock", Color(0.85, 0.8, 0.7, 0.9), Color(0, 0, 0, 0), false, "")
+		b.draw_string(Wow.body(), Vector2(4, 13), slot_key(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.6, 0.6))
+		return
 	var cd := float(me.cds.get(a.id, 0.0))
 	var gcd := me.gcd if bool(a.get("gcd", true)) else 0.0
 	# tints: red = out of range / no target, blue = no gas, dark = cooldown

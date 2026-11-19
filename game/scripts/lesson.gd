@@ -25,6 +25,7 @@ const STEPS := [
 	{"id": "grip", "text": "Fight for grips: press [%s] twice. Each one builds Grip, the red dots under your bars. Grip is what powers a submission.", "key": "handfight", "need": 2},
 	{"id": "takedown", "text": "Take the fight to the ground: press [%s]. You land on top.", "key": "takedown"},
 	{"id": "climb", "text": "Position decides how hard you hit. Climb to a better one: [%s] passes the guard. The ladder under their name shows where you are.", "key": "pass"},
+	{"id": "escape", "text": "Now you're stuck underneath. Get out: press [%s]. Escape works even when you're Down.", "key": "escape"},
 	{"id": "read_td", "text": "Now they attack. The technique's name appears in the middle of the screen. A TAKEDOWN or a SWEEP is stopped by Sprawl / Base: press [%s] before the bar runs out.", "key": "base", "cast": "base"},
 	{"id": "read_pass", "text": "A PASS or a change of position is stopped by Frame: press [%s].", "key": "frame", "cast": "frame"},
 	{"id": "read_sub", "text": "A SUBMISSION is stopped by Defend: press [%s]. Miss this one in a real roll and you tap.", "key": "defend", "cast": "defend"},
@@ -115,6 +116,10 @@ func _go(i: int) -> void:
 	match str(s.id):
 		"grip", "takedown":
 			wc.core.stand_up(foe)
+		"escape":
+			foe.gpos = "side"
+			foe.ptop = false
+			wc.core.emit({"t": "position", "e": foe, "pos": "side", "ptop": false, "by": foe, "pts": 0, "move": ""})
 		"climb":
 			if foe.gpos == "standing" or not foe.ptop:
 				foe.gpos = "guard"
@@ -173,6 +178,9 @@ func _ev(e: Dictionary) -> void:
 		"climb":
 			if str(e.t) == "position" and e.get("by") == wc.me and str(e.pos) in ["side", "mount", "back", "half"] and bool(e.ptop):
 				_hit()
+		"escape":
+			if str(e.t) == "position" and e.get("by") == wc.me:
+				_hit()
 		"read_td", "read_pass", "read_sub", "mixed":
 			if str(e.t) == "interrupt" and u == wc.me:
 				_hit()
@@ -210,6 +218,9 @@ func end(done: bool) -> void:
 	if not done and is_instance_valid(npc) and wc.core.units.has(foe):
 		wc._finish_bout(npc, foe, true, "", false)
 	Game.flags["lesson_done"] = true
+	for id in Abilities.LESSON_SET:
+		Game.learn_ab(id)
 	Game.save_game()
+	wc.rebuild_player.call_deferred()
 	finished.emit(done)
 	queue_free()

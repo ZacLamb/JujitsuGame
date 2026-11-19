@@ -1983,5 +1983,45 @@
 "Walk it off at the academy",
 "Voltar para a academia",
 "Volver a la academia"
+],
+[
+"Not learned yet: drill it on a training dummy",
+"Ainda não aprendido: treine no boneco de treino",
+"Aún no aprendido: practícalo en el muñeco de entrenamiento"
+],
+[
+"Training Dummy",
+"Boneco de Treino",
+"Muñeco de Entrenamiento"
+],
+[
+"Sparring Dummy",
+"Boneco de Sparring",
+"Muñeco de Sparring"
+],
+[
+"Takes every move",
+"Aceita todo golpe",
+"Acepta toda técnica"
+],
+[
+"Throws techniques, no damage",
+"Ataca sem causar dano",
+"Ataca sin hacer daño"
+],
+[
+"Learned: %s",
+"Aprendido: %s",
+"Aprendido: %s"
+],
+[
+"%s  %d / %d",
+"%s  %d / %d",
+"%s  %d / %d"
+],
+[
+"Now you're stuck underneath. Get out: press [%s]. Escape works even when you're Down.",
+"Agora você está preso por baixo. Saia: aperte [%s]. A Fuga funciona mesmo quando você está No Chão.",
+"Ahora estás atrapado abajo. Sal: pulsa [%s]. El Escape funciona incluso cuando estás En el Suelo."
 ]
 ]

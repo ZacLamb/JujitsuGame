@@ -93,6 +93,11 @@ func unit_for(npc: Npc, kind := "") -> CombatCore.Unit:
 	u.pos = npc.global_position
 	_unit_of[key] = u
 	_npc_of[u.id] = npc
+	if npc.mob.get("dummy", false):
+		u.max_hp *= 30.0
+		u.hp = u.max_hp
+		u.swing_time = 99999.0
+		u.swing = 99999.0
 	if npc.opp_id != "" and npc.mob.is_empty():
 		_rival_setup(npc.opp_id, u)
 		if Data.BOSS.has(npc.opp_id) and u.boss:
@@ -249,6 +254,12 @@ func press(slot_id: String) -> void:
 	# no target for an attack: grab the nearest enemy in reach
 	if bool(a.get("harm", true)) and (target == null or target.dead):
 		_auto_target()
+	# a dummy you've targeted is a drill partner for every button, not just attacks
+	if target != null and not target.dead and not target.in_combat and bool(target.data.get("dummy", false)) and core.dist(me, target) <= CombatCore.MELEE + 0.5:
+		var dn := npc_of(target)
+		if dn:
+			engage_npc(dn)
+			me.target = target
 	var why := core.use(me, slot_id, target)
 	if why == "gcd":
 		return
@@ -472,6 +483,9 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 	elif t == null or t.dead or home_d > npc.camp_radius + LEASH or core.dist(u, me) > 45.0:
 		_evade(npc, u)
 		return
+	if npc.mob.get("dummy", false):
+		_drive_dummy(npc, u, delta)
+		return
 	if u.down() or not u.cast.is_empty() or npc.rig.in_action() or u.gpos != "standing":
 		return
 	var to := t.pos - npc.global_position
@@ -485,6 +499,58 @@ func _drive_npc(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
 		speed = 0.8
 	npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 9.0, 0, 1))
 	npc.rig.animate_locomotion(delta, speed)
+
+## Training dummies stay put. The sparring one throws a technique every few seconds (no damage)
+## so you can practise reads and work from underneath; both get back up when left alone.
+func _drive_dummy(npc: Npc, u: CombatCore.Unit, delta: float) -> void:
+	if core.dist(u, me) > 7.0:
+		_evade(npc, u, true)
+		return
+	var t: float = float(npc.get_meta("dummy_t", 5.0)) - delta
+	if t <= 0.0 and u.cast.is_empty() and not u.down() and not core.in_struggle(me):
+		if npc.mob.get("spar", false) and core.dist(u, me) <= CombatCore.MELEE + 0.6:
+			core.script_cast(u, me, ["base", "frame", "defend"][randi() % 3], 3.0)
+			t = 7.5
+		elif u.gpos != "standing" and Time.get_ticks_msec() - int(npc.get_meta("dummy_hit", 0)) > 9000:
+			core.stand_up(u)
+			t = 4.0
+		else:
+			t = 1.0
+	npc.set_meta("dummy_t", t)
+	if u.gpos == "standing" and u.cast.is_empty() and not npc.rig.in_action():
+		var to := me.pos - npc.global_position
+		npc.rig.rotation.y = lerp_angle(npc.rig.rotation.y, atan2(-to.x, -to.z), clampf(delta * 6.0, 0, 1))
+		npc.rig.animate_locomotion(delta, 0.0)
+
+## Drilling: three clean reps of a move on a dummy and it's yours.
+func _drill(e: Dictionary) -> void:
+	var u: CombatCore.Unit = e.get("u")
+	if u != me:
+		return
+	var id := ""
+	var tg: CombatCore.Unit = e.get("target")
+	if str(e.t) == "use":
+		id = str(e.ab.get("id", ""))
+		if tg == null:
+			tg = me.target
+	elif str(e.t) == "interrupt":
+		id = str(e.get("kind", ""))
+	if tg == null or not bool(tg.data.get("dummy", false)):
+		return
+	var n := npc_of(tg)
+	if n:
+		n.set_meta("dummy_hit", Time.get_ticks_msec())
+	if id == "" or Game.ab_learned(id) or not (id in Abilities.DRILL_SET or id in Abilities.LESSON_SET):
+		return
+	var reps := Game.drill_rep(id)
+	var nm := Tx.s(str(Abilities.TEMPLATES.get(id, {}).get("label", str(core.ability(me, id).get("name", id)))))
+	if reps >= Abilities.DRILL_REPS:
+		Game.learn_ab(id)
+		Game.toast.emit(Tx.f("Learned: %s", nm), Color(0.55, 1.0, 0.6))
+		Sfx.play("levelup", -8.0, 1.2)
+		rebuild_player.call_deferred()
+	else:
+		_float(player, Tx.f("%s  %d / %d", [nm, reps, Abilities.DRILL_REPS]), Color(0.6, 1.0, 0.7), 0.9)
 
 ## Leashed (you ran away / pulled it too far): it walks home at full health, like WoW evading.
 func _evade(npc: Npc, u: CombatCore.Unit, quiet := false) -> void:
@@ -652,6 +718,8 @@ func fight_secs() -> float:
 
 func _track(e: Dictionary) -> void:
 	var u: CombatCore.Unit = e.get("u")
+	if str(e.t) in ["use", "interrupt"]:
+		_drill(e)
 	match str(e.t):
 		"combat":
 			if u.player and bool(e.on):

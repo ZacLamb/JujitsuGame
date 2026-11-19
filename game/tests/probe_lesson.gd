@@ -21,7 +21,7 @@ func _ready() -> void:
 	var L: Lesson = main.lesson
 	var t0 := Time.get_ticks_msec()
 	var last := -1
-	var shots := {4: "read", 7: "mixed", 8: "finish"}
+	var shots := {5: "read", 8: "mixed", 9: "finish"}
 	while is_instance_valid(L) and not L._over and Time.get_ticks_msec() - t0 < 100000:
 		await get_tree().create_timer(0.35).timeout
 		if not is_instance_valid(L) or L._over:
@@ -38,6 +38,7 @@ func _ready() -> void:
 			"grip": c.press("handfight")
 			"takedown": c.press("takedown")
 			"climb": c.press("pass")
+			"escape": c.press("escape")
 			"read_td", "read_pass", "read_sub", "mixed":
 				if not L.foe.cast.is_empty() and float(L.foe.cast.t) > 1.0:
 					if shots.has(L.step):

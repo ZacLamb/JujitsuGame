@@ -35,8 +35,14 @@ const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 ## level after adds one idea.
 ## The whole game is on the bar from the first roll (you choose what to do, the game doesn't hand
 ## it out a button at a time). Only the spec signature and the style burst come later.
+## You can SEE every move from the start, but a white belt has to LEARN them: the first lesson
+## teaches the basics, the rest are drilled on a training dummy (three clean reps each) once
+## you reach the level they open at.
 const UNLOCK := {"handfight": 1, "takedown": 1, "sub": 1, "base": 1, "defend": 1, "breathe": 1, "pass": 1, "frame": 1,
-	"racial": 1, "escape": 1, "sweep": 1, "back": 1, "guard": 1, "advance": 1, "spec": 10, "burst": 10}
+	"racial": 1, "escape": 1, "guard": 2, "sweep": 3, "back": 4, "advance": 5, "spec": 10, "burst": 10}
+const LESSON_SET := ["takedown", "pass", "sub", "base", "frame", "defend", "escape"]
+const DRILL_SET := ["guard", "sweep", "back", "advance"]
+const DRILL_REPS := 3
 const UTILITY := ["base", "frame", "defend", "breathe", "racial", "burst"]
 const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G", "burst": "V"}
 ## How each ability teaches itself the first time you get it.
@@ -96,6 +102,8 @@ static func _all_kit() -> Array:
 		out.append(CombatCore.burst_ability(Game.style))
 	for a in out:
 		a["unlock"] = int(UNLOCK.get(str(a.id), 1))
+		if (str(a.id) in LESSON_SET or str(a.id) in DRILL_SET) and not Game.ab_learned(str(a.id)):
+			a["locked"] = true
 	return out
 
 ## Techniques the player knows, strongest first (what the position buttons pick from).

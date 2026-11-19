@@ -360,6 +360,35 @@ func xp_into_stripe() -> int:
 func at_stripe_cap() -> bool:
 	return rank % 5 == 4
 
+# ------------------------------------------------------------ learning moves
+## Which abilities this character has learned (the lesson, then drilling on a dummy).
+## Characters from before this system already know everything their level gives.
+func _learned() -> Dictionary:
+	if not flags.has("learned"):
+		var d := {}
+		if xp > 0 or player_level() > 1 or flags.get("lesson_done", false) or test_mode:
+			for id in Abilities.LESSON_SET + Abilities.DRILL_SET:
+				d[id] = true
+		flags["learned"] = d
+	return flags["learned"]
+
+func ab_learned(id: String) -> bool:
+	return bool(_learned().get(id, false))
+
+func learn_ab(id: String) -> bool:
+	if ab_learned(id):
+		return false
+	_learned()[id] = true
+	save_game()
+	return true
+
+## One clean rep of a move you're drilling. Returns reps so far (DRILL_REPS = learned).
+func drill_rep(id: String) -> int:
+	var reps: Dictionary = flags.get("drill_reps", {})
+	reps[id] = int(reps.get(id, 0)) + 1
+	flags["drill_reps"] = reps
+	return int(reps[id])
+
 func rest_cap() -> int:
 	return int(xp_level_need() * REST_CAP_LEVELS)
 

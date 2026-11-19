@@ -3212,6 +3212,38 @@ func _build_mobs() -> void:
 		if c.has("rare"):
 			var r := {"npc": null, "camp": c, "rare": true, "t": _rng.randf_range(20.0, float(c.rare.respawn))}
 			mobs.append(r)
+	_spawn_dummies()
+
+## Two training dummies by every zone's arrival point: one that just takes it (learn what each
+## move does, watch the numbers), one that throws techniques back without hurting you (reads,
+## and working from underneath). No XP either way.
+func _spawn_dummies() -> void:
+	if not Data.ZONES.has(zone):
+		return
+	var sp: Vector3 = Data.ZONES[zone].spawn
+	var lv := 1.0 + (Game.player_level() - 1) * 0.55 / 2.0
+	var i := 0
+	for d in [{"name": "Training Dummy", "title": "Takes every move", "spar": false}, {"name": "Sparring Dummy", "title": "Throws techniques, no damage", "spar": true}]:
+		var at := sp + Vector3(5.0 + 3.2 * i, 0, 3.0)
+		for tries in 8:
+			if not _is_blocked(at.x, at.z, 1.0):
+				break
+			at += Vector3(1.5, 0, 1.5)
+		var m := {"name": Tx.s(str(d.name)), "title": str(d.title), "rank": 0, "level": lv, "gi": Color(0.55, 0.55, 0.58), "skin": Color(0.75, 0.6, 0.45),
+			"body": "male", "style": "balanced", "extra": [], "zone": zone, "intro": "", "win": "", "lose": "", "mob": true, "elite": false, "rare": false,
+			"camp": "dummy", "aggro": false, "trait": "", "dummy": true, "scripted": true, "spar": bool(d.spar)}
+		var c := {"id": "dummy", "pos": at, "radius": 0.5, "respawn": 9999.0, "name": "Dummy", "title": "Dummy", "lv": [lv, lv], "count": 1}
+		var n := Npc.new()
+		add_child(n)
+		n.setup_mob(m, self, Vector3(at.x, ground_y(at.x, at.z), at.z), 0.5)
+		n.wander = false
+		n.position = Vector3(at.x, ground_y(at.x, at.z), at.z)
+		if player:
+			n.set_player(player)
+		n.tag.text = "%s\n<%s>" % [m.name, Tx.s(str(d.title))]
+		n.tag.modulate = Color(0.75, 0.9, 1.0)
+		mobs.append({"npc": n, "camp": c, "rare": false, "t": 0.0, "dummy": true})
+		i += 1
 
 func _spawn_mob(e: Dictionary) -> void:
 	var c: Dictionary = e.camp

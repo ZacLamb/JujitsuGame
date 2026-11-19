@@ -658,6 +658,8 @@ func _begin_play() -> void:
 		# welcome back: time away is banked as bonus XP
 		Game.toast.emit(Tx.f("Rested: your rolls pay double for the next %d XP", Game.rested), Color(0.45, 0.7, 1.0))
 		Game.rest_note = 0
+	if not Game.test_mode and not Game.flags.get("lesson_done", false) and Game.xp == 0 and Game.flags.get("intro_seen", false):
+		start_lesson.call_deferred()   # a new character who came in without the opening
 	if not world.rare_spotted.is_connected(_on_rare):
 		world.rare_spotted.connect(_on_rare)
 	if Data.ZONES.has(Game.zone):

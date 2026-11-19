@@ -420,7 +420,7 @@ func refresh() -> void:
 	var parts: Array = []
 	if Game.attr_points() > 0:
 		parts.append(Tx.f("%d attribute point%s [C]", [Game.attr_points(), "" if Game.attr_points() == 1 else "s"]))
-	if Game.talent_points() > 0:
+	if Game.talent_points() > 0 and lv >= 10:   # talents can wait until you know the fight
 		parts.append(Tx.f("%d talent point%s [N]", [Game.talent_points(), "" if Game.talent_points() == 1 else "s"]))
 	lvl_label.text = (Tx.s("✦ Spend ") + "  ·  ".join(parts)) if not parts.is_empty() else ""
 	# objective tracker

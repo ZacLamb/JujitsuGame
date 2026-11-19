@@ -9,6 +9,8 @@ var muted := false
 var prefs := {"music": 0.8, "sfx": 0.9, "ambience": 0.8, "mouse": 1.0, "invert_y": false}
 var _streams := {}
 var _players: Array = []
+var _music_now: AudioStreamPlayer
+var _music_tw: Tween
 var _music_a: AudioStreamPlayer
 var _music_b: AudioStreamPlayer
 var _current := ""
@@ -121,16 +123,22 @@ func music(n: String) -> void:
 		return
 	var st: AudioStreamOggVorbis = load(path)
 	st.loop = true
-	var old := _music_a if _music_a.playing else null
+	# one track at a time: the new one fades in on the idle player, the other fades out and stops.
+	# (A second change during a cross-fade used to leave both playing.)
+	if _music_tw and _music_tw.is_valid():
+		_music_tw.kill()
+	var old: AudioStreamPlayer = _music_now
 	var nxt := _music_b if old == _music_a else _music_a
+	nxt.stop()
 	nxt.stream = st
 	nxt.volume_db = -40.0
 	nxt.play()
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(nxt, "volume_db", -9.0, 1.2)
-	if old:
-		tw.tween_property(old, "volume_db", -40.0, 1.2)
-		tw.chain().tween_callback(old.stop)
+	_music_now = nxt
+	_music_tw = create_tween().set_parallel(true)
+	_music_tw.tween_property(nxt, "volume_db", -9.0, 1.2)
+	if old != null and old.playing:
+		_music_tw.tween_property(old, "volume_db", -40.0, 1.2)
+		_music_tw.chain().tween_callback(old.stop)
 
 
 # ------------------------------------------------------------ ambience

@@ -114,6 +114,8 @@ func setup_mob(m: Dictionary, w, center: Vector3, radius: float) -> Npc:
 	return self
 
 func refresh_mob_tag() -> void:
+	if mob.get("dummy", false):
+		return
 	var lv := Data.display_level(float(mob.level))
 	var kind := ""
 	if mob.get("rare", false):

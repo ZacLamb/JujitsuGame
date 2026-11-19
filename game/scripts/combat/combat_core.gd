@@ -489,6 +489,10 @@ func block_reason(u: Unit, a: Dictionary, t: Unit) -> String:
 		return "You tapped"
 	if u.down() and str(a.type) != "escape" and not str(a.get("effect", "")) in ["jeitinho", "advice"]:
 		return "You're down!"
+	if bool(a.get("locked", false)) and u.player:
+		var dt := t if t != null else u.target
+		if dt == null or not (bool(dt.data.get("dummy", false)) or bool(dt.data.get("scripted", false))):
+			return "Not learned yet: drill it on a training dummy"
 	if in_struggle(u):
 		return "Busy"
 	if not u.cast.is_empty():
@@ -901,7 +905,7 @@ func _flow(u: Unit) -> void:
 
 ## How likely t is to get ready for a technique you repeat (0 = never reads you).
 func read_back_chance(t: Unit, u: Unit) -> float:
-	if bool(t.data.get("practice", false)) or bool(t.data.get("tutor", false)) or bool(t.data.get("raid", false)):
+	if bool(t.data.get("practice", false)) or bool(t.data.get("tutor", false)) or bool(t.data.get("raid", false)) or bool(t.data.get("dummy", false)):
 		return 0.0
 	if t.boss:
 		return 0.9
@@ -1039,9 +1043,22 @@ static var gm_god := false   # Game Master test tool: the player takes no damage
 func _damage(src: Unit, t: Unit, amount: float, crit: bool, a: Dictionary) -> void:
 	if gm_god and t.player:
 		amount = 0.0
-	if bool(t.data.get("practice", false)) or bool(src.data.get("practice", false)):
+	if bool(t.data.get("practice", false)) or bool(src.data.get("practice", false)) or bool(src.data.get("dummy", false)):
 		emit({"t": "dmg", "u": src, "target": t, "amount": 0.0, "crit": false, "ab": a})
 		return   # drilling: nobody gets hurt
+	if bool(t.data.get("dummy", false)):
+		# a training dummy takes real numbers (so you can see what a move does) and never taps
+		var dd := dom(src, t)
+		if dd != 0:
+			amount *= 1.0 + DOM_STEP * dd if dd > 0 else 1.0 / (1.0 - DOM_STEP * dd)
+		amount = maxf(1.0, round(amount))
+		src.done += amount
+		t.hp -= amount
+		if t.hp < t.max_hp * 0.3:
+			t.hp = t.max_hp
+		engage(src, t)
+		emit({"t": "dmg", "u": src, "target": t, "amount": amount, "crit": crit, "ab": a})
+		return
 	var dm := dom(src, t)
 	if dm != 0:
 		amount *= 1.0 + DOM_STEP * dm if dm > 0 else 1.0 / (1.0 - DOM_STEP * dm)
@@ -1614,7 +1631,8 @@ func _ai_allowed(u: Unit, t: Unit, tp: String) -> bool:
 			need = "frame"
 		_:
 			return true
-	return not ability(t, need).is_empty()
+	var na := ability(t, need)
+	return not na.is_empty() and not bool(na.get("locked", false))
 
 const E_CAST := {"takedown": 1.4, "sweep": 1.3, "pass": 1.5, "advance": 1.3, "back": 1.4, "sub": 2.2, "escape": 1.2, "guard": 0.9}
 const E_DMG := {"takedown": 1.4, "sweep": 1.2, "pass": 1.2, "advance": 1.4, "back": 0.9, "sub": 1.3, "escape": 0.4, "guard": 0.3}
