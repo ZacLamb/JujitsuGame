@@ -639,6 +639,35 @@ func _is_banner(text: String) -> bool:
 			return true
 	return text.contains("  ·  ") or text.contains(" is yours!")
 
+## You learned a move: a button that opens the Moves book, where you drag it onto your bar.
+var _moves_btn: Button
+func offer_moves(move_name: String) -> void:
+	if _moves_btn and is_instance_valid(_moves_btn):
+		_moves_btn.queue_free()
+	var b := Button.new()
+	_moves_btn = b
+	b.text = Tx.f("New move: %s  ·  open Moves [%s] and drag it to your bar", [move_name, Keys.label("spellbook")])
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_color_override("font_color", Color(0.6, 1.0, 0.7))
+	b.anchor_left = 0.5
+	b.anchor_right = 0.5
+	b.anchor_top = 1.0
+	b.anchor_bottom = 1.0
+	b.offset_left = -260
+	b.offset_right = 260
+	b.offset_top = -168
+	b.offset_bottom = -134
+	b.add_theme_stylebox_override("normal", Wow.sb(Color(0.03, 0.06, 0.04, 0.92), Color(0.5, 1.0, 0.6, 0.95), 5, 6, 2))
+	root.add_child(b)
+	b.pressed.connect(func():
+		b.queue_free()
+		open_window("talents", TAB_SPELLBOOK))
+	var tw := b.create_tween().set_loops(10)
+	tw.tween_property(b, "modulate:a", 0.7, 0.9)
+	tw.tween_property(b, "modulate:a", 1.0, 0.9)
+	tw.finished.connect(b.queue_free)
+
 ## After a tap: a small button for a few seconds, instead of a box that stops the game.
 var _walk_btn: Button
 func offer_walk_off(cb: Callable) -> void:
@@ -2334,6 +2363,8 @@ class AbilityEntry extends HBoxContainer:
 		var where := ""
 		if not have:
 			where = Tx.f("Unlocks at level %d", int(a.get("unlock", 1)))
+			if int(a.get("unlock", 1)) <= Game.player_level() and bool(a.get("locked", false)):
+				where = Tx.s("Ready to learn: drill it on a training dummy") if str(a.id) in Abilities.DRILL_SET else Tx.s("Taught in the first lesson (/lesson)")
 		elif str(a.id) in Abilities.UTILITY:
 			where = Tx.f("Always on your bar [%s]", Keys.label("ab_" + str(a.id)))
 		else:

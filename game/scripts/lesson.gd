@@ -220,6 +220,7 @@ func end(done: bool) -> void:
 	Game.flags["lesson_done"] = true
 	for id in Abilities.LESSON_SET:
 		Game.learn_ab(id)
+		Game.place_ab(id)
 	Game.save_game()
 	wc.rebuild_player.call_deferred()
 	finished.emit(done)

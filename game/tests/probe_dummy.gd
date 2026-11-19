@@ -33,11 +33,13 @@ func _ready() -> void:
 	main.player.teleport(Vector3(p.x, w.ground_y(p.x, p.z) + 1.0, p.z), 0.8)
 	for i in 20: await get_tree().process_frame
 	var me := c.me
-	var g: Dictionary = c.core.ability(me, "guard")
-	print("guard locked: ", g.get("locked", false), " vs mob: '", c.core.block_reason(me, g, c.unit_for(mob)), "'")
+	print("bar before: ", Game.bar_layout, " has guard ability: ", not c.core.ability(me, "guard").is_empty())
+	_shot("a_nodummy")
 	c.set_target_npc(dummy)
-	print("vs dummy: '", c.core.block_reason(me, g, c.target), "'")
-	_shot("a_locked")
+	await get_tree().create_timer(0.3).timeout
+	me = c.me
+	print("drilling ", Game.drilling, " temp ", Game.drill_temp(), " has guard: ", not c.core.ability(c.me, "guard").is_empty())
+	_shot("a_drill")
 	for i in 3:
 		me.gcd = 0.0; me.cds.clear(); me.gas = me.max_gas
 		c.press("guard"); print("press guard err: ", c.error_text if c.error_t > 0 else "")
@@ -49,6 +51,8 @@ func _ready() -> void:
 		c.me.gcd = 0.0; c.me.gas = c.me.max_gas
 		c.press("handfight")
 		await get_tree().create_timer(0.4).timeout
+	print("bar after learn: ", Game.bar_layout)
+	_shot("c_learned")
 	print("dummy hp ", snappedf(c.target.pct(), 0.01), " done ", c.me.done, " xp ", Game.xp)
 	_shot("b_hit")
 	# sparring dummy throws something

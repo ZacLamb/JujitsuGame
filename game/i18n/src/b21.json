@@ -2023,5 +2023,25 @@
 "Now you're stuck underneath. Get out: press [%s]. Escape works even when you're Down.",
 "Agora você está preso por baixo. Saia: aperte [%s]. A Fuga funciona mesmo quando você está No Chão.",
 "Ahora estás atrapado abajo. Sal: pulsa [%s]. El Escape funciona incluso cuando estás En el Suelo."
+],
+[
+"New move: %s  ·  open Moves [%s] and drag it to your bar",
+"Novo golpe: %s  ·  abra Golpes [%s] e arraste para a barra",
+"Nueva técnica: %s  ·  abre Técnicas [%s] y arrástrala a tu barra"
+],
+[
+"New move to learn: %s  ·  drill it on a training dummy",
+"Novo golpe para aprender: %s  ·  treine no boneco de treino",
+"Nueva técnica por aprender: %s  ·  practícala en el muñeco de entrenamiento"
+],
+[
+"Ready to learn: drill it on a training dummy",
+"Pronto para aprender: treine no boneco de treino",
+"Listo para aprender: practícalo en el muñeco de entrenamiento"
+],
+[
+"Taught in the first lesson (/lesson)",
+"Ensinado na primeira aula (/lesson)",
+"Se enseña en la primera clase (/lesson)"
 ]
 ]

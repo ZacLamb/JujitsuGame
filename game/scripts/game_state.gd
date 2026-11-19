@@ -372,6 +372,51 @@ func _learned() -> Dictionary:
 		flags["learned"] = d
 	return flags["learned"]
 
+## True while your target is a training dummy (or the lesson partner): the moves you could be
+## learning show up in the empty slots of your bar, just for the drill.
+var drilling := false
+
+func drill_temp() -> Dictionary:
+	var out := {}
+	if not drilling:
+		return out
+	var lv := player_level()
+	for id in Abilities.LESSON_SET + Abilities.DRILL_SET:
+		if ab_learned(id) or int(Abilities.UNLOCK.get(id, 1)) > lv or id in bar_layout:
+			continue
+		var want := Abilities.ORDER.find(id)
+		var slot := -1
+		if want >= 0 and want < bar_layout.size() and str(bar_layout[want]) == "" and not out.has(want):
+			slot = want
+		else:
+			for i in bar_layout.size():
+				if str(bar_layout[i]) == "" and not out.has(i):
+					slot = i
+					break
+		if slot >= 0:
+			out[slot] = id
+	return out
+
+## What bar slot i fires: your own layout, or a move you're drilling right now.
+func bar_id(i: int) -> String:
+	var b := str(bar_layout[i]) if i < bar_layout.size() else ""
+	return b if b != "" else str(drill_temp().get(i, ""))
+
+## Put a newly learned basic on the bar in its usual slot (the lesson does this; later moves
+## you place yourself from the Moves book).
+func place_ab(id: String) -> void:
+	if id in bar_layout:
+		return
+	while bar_layout.size() < 10:
+		bar_layout.append("")
+	var want := Abilities.ORDER.find(id)
+	if want >= 0 and str(bar_layout[want]) == "":
+		bar_layout[want] = id
+	else:
+		var free := bar_layout.find("")
+		if free >= 0:
+			bar_layout[free] = id
+
 func ab_learned(id: String) -> bool:
 	return bool(_learned().get(id, false))
 
@@ -441,6 +486,10 @@ func _announce_level(before: int) -> void:
 	if tal > 0:
 		txt += Tx.f(", +%d talent point%s", [tal, "" if tal == 1 else "s"])
 	toast.emit(txt, Color(0.75, 0.55, 1.0))
+	for id in Abilities.DRILL_SET:
+		var ul := int(Abilities.UNLOCK.get(id, 1))
+		if before < ul and after >= ul and not ab_learned(id):
+			toast.emit(Tx.f("New move to learn: %s  ·  drill it on a training dummy", Tx.s(str(Abilities.TEMPLATES[id].label))), Color(0.55, 1.0, 0.6))
 	if before < Specs.UNLOCK_LEVEL and after >= Specs.UNLOCK_LEVEL and spec == "":
 		toast.emit("Specializations unlocked! Open the Journal (J) > Specs to choose your path.", Color(0.8, 0.6, 1.0))
 
@@ -503,6 +552,7 @@ func ensure_bar(pool: Array) -> Array:
 	var known: Array = flags.get("abilities_known", [])
 	var fresh: Array = []
 	var have := pool.map(func(a): return str(a.id))
+	var locked := pool.filter(func(a): return bool(a.get("locked", false))).map(func(a): return str(a.id))
 	for i in bar_layout.size():
 		if str(bar_layout[i]) != "" and not str(bar_layout[i]) in have:
 			bar_layout[i] = ""
@@ -512,6 +562,8 @@ func ensure_bar(pool: Array) -> Array:
 			fresh.append(id)
 		if id in Abilities.UTILITY or id in bar_layout:
 			continue
+		if id in locked or (id in Abilities.DRILL_SET and not first) or (id in Abilities.LESSON_SET and not first and not flags.get("lesson_done", false)):
+			continue   # learned moves go on the bar when you put them there (Moves book, P)
 		if not id in fresh and not first:
 			continue   # the player took it off the bar on purpose
 		var want := Abilities.ORDER.find(id)

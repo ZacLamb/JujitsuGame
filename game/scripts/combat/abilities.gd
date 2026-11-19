@@ -118,12 +118,13 @@ static func known_moves() -> Array:
 ## Abilities you have right now (your spellbook / what the bar can hold).
 static func player_kit() -> Array:
 	var lv := Game.player_level()
-	return _all_kit().filter(func(a): return int(a.unlock) <= lv)
+	# a move you haven't learned isn't on your bar at all: it only exists while you drill it on a dummy
+	return _all_kit().filter(func(a): return int(a.unlock) <= lv and (not bool(a.get("locked", false)) or Game.drilling))
 
 ## Abilities still to come, greyed out in the spellbook (WoW shows future spells).
 static func future_kit() -> Array:
 	var lv := Game.player_level()
-	return _all_kit().filter(func(a): return int(a.unlock) > lv)
+	return _all_kit().filter(func(a): return int(a.unlock) > lv or bool(a.get("locked", false)))
 
 static func _make(t: String, move_id: String, style: String) -> Dictionary:
 	var tp: Dictionary = TEMPLATES[t]

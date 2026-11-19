@@ -906,6 +906,7 @@ func _make_world(z: String) -> void:
 		if hud:
 			hud.set_party(party)
 		combat.raid_over.connect(_on_raid_over)
+		combat.move_learned.connect(func(nm): hud.offer_moves(nm))
 		combat.raid_warning.connect(func(h, sb): hud.combat_hud.flash(h, sb) if hud.combat_hud else null)
 	else:
 		combat.set_world(world)

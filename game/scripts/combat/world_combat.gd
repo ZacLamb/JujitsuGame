@@ -9,6 +9,7 @@ var coach := false           # the lesson is running: prompts name the answer
 var tap_pending := false     # the "you tapped" choice is open
 var _last_hit := {}          # the enemy ability that last hit you (for the coach's note)
 signal ability_learned(a: Dictionary)
+signal move_learned(name: String)   # drilled on a dummy: prompt to open the Moves book
 signal enemy_tapped(npc: Npc, sub: String)
 
 var core := CombatCore.new()
@@ -292,7 +293,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	for i in 10:
 		if event.is_action_pressed("ab_%d" % i):
-			var id: String = str(Game.bar_layout[i]) if i < Game.bar_layout.size() else ""
+			var id: String = Game.bar_id(i)
 			if id == "":
 				_error("Empty slot (drag a move here from your Moves book, P)")
 			else:
@@ -313,6 +314,10 @@ func _process(delta: float) -> void:
 	if me == null or world == null or player == null:
 		return
 	error_t = maxf(0.0, error_t - delta)
+	var dr := target != null and not target.dead and (bool(target.data.get("dummy", false)) or bool(target.data.get("scripted", false)))
+	if dr != Game.drilling:
+		Game.drilling = dr
+		rebuild_player()
 	if _duel_flag != null and not me.in_combat and not _finishing:
 		_drop_flag()
 	_frame_camera(delta)
@@ -549,6 +554,7 @@ func _drill(e: Dictionary) -> void:
 		Game.toast.emit(Tx.f("Learned: %s", nm), Color(0.55, 1.0, 0.6))
 		Sfx.play("levelup", -8.0, 1.2)
 		rebuild_player.call_deferred()
+		move_learned.emit(nm)
 	else:
 		_float(player, Tx.f("%s  %d / %d", [nm, reps, Abilities.DRILL_REPS]), Color(0.6, 1.0, 0.7), 0.9)
 
