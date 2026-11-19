@@ -18,6 +18,7 @@ const CH := {
 }
 const CH_NAMES := {"say": "Say", "zone": "Zone", "world": "World", "whisper": "Whisper", "party": "Party", "academy": "Academy"}
 signal academy_requested
+signal lesson_requested
 
 signal emote_requested(id: String)
 static var typing := false
@@ -270,6 +271,8 @@ func _command(t: String) -> void:
 			academy_requested.emit()
 		"/who":
 			Net.who()
+		"/lesson":
+			lesson_requested.emit()
 		"/p", "/party":
 			_set_channel("party")
 			if rest != "" and party:

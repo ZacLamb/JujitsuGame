@@ -135,7 +135,7 @@ const MOVES := {
 	# --- mount, top
 	"mount_armbar": {"name": "Armbar from Mount", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 1, "cost": 14, "type": "sub", "rank": 0},
 	"cross_collar": {"name": "Cross Collar Choke", "pos": "mount", "role": "top", "result": "sub", "pts": 0, "diff": 2, "cost": 14, "type": "sub", "rank": 3},
-	"mount_to_back": {"name": "Take the Back", "pos": "mount", "role": "top", "result": ["back", true], "pts": 4, "diff": 1, "cost": 10, "type": "back", "rank": 2},
+	"mount_to_back": {"name": "Take the Back", "pos": "mount", "role": "top", "result": ["back", true], "pts": 4, "diff": 1, "cost": 10, "type": "back", "rank": 0},
 	# --- mount, bottom
 	"upa": {"name": "Upa (Bridge & Roll)", "pos": "mount", "role": "bottom", "result": ["guard", true], "pts": 2, "diff": 1, "cost": 14, "type": "sweep", "rank": 0},
 	"elbow_knee": {"name": "Elbow-Knee Escape", "pos": "mount", "role": "bottom", "result": ["half", false], "pts": 0, "diff": 1, "cost": 10, "type": "escape", "rank": 0},

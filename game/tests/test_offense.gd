@@ -20,11 +20,11 @@ func _ready() -> void:
 	check(s >= 80 and c == 0, "skill bonus S=%d C=%d" % [s, c])
 	# --- read back
 	var bal = load("res://tests/test_balance.gd").new()
-	bal._build("guard", 8)
+	bal._build("guard", 12)
 	for seed_v in 30:
 		var core := CombatCore.new()
 		core.rng.seed = seed_v
-		var me := core.add_player("You", 8, Game.mods(), Abilities.player_kit())
+		var me := core.add_player("You", 12, Game.mods(), Abilities.player_kit())
 		me.known = Abilities.known_moves()
 		var e := core.add_enemy({"name": "Mob", "level": 4.85, "style": "balanced", "rank": Game.rank}, "mob")
 		e.pos = Vector3(1, 0, 0)
@@ -74,7 +74,7 @@ func _ready() -> void:
 	check(core2.read_back_chance(e2, me2) == 0.0, "normal mobs read a level 3 player")
 	# --- flow: climbing builds it, the sub spends it
 	var core3 := CombatCore.new()
-	var me3 := core3.add_player("You", 8, Game.mods(), Abilities.player_kit())
+	var me3 := core3.add_player("You", 12, Game.mods(), Abilities.player_kit())
 	me3.known = Abilities.known_moves()
 	var e3 := core3.add_enemy({"name": "Mob", "level": 4.85, "style": "balanced", "rank": Game.rank}, "mob")
 	e3.pos = Vector3(1, 0, 0)
@@ -124,7 +124,7 @@ func _ready() -> void:
 	# --- distance on the feet: step out of range and the shot misses; run in and shoot for momentum
 	var core5 := CombatCore.new()
 	core5.rng.seed = 5
-	var me5 := core5.add_player("You", 8, Game.mods(), Abilities.player_kit())
+	var me5 := core5.add_player("You", 12, Game.mods(), Abilities.player_kit())
 	me5.known = Abilities.known_moves()
 	var e5 := core5.add_enemy({"name": "Mob", "level": 4.85, "style": "wrestler", "rank": Game.rank}, "mob")
 	e5.pos = Vector3(1.5, 0, 0)
@@ -146,7 +146,7 @@ func _ready() -> void:
 	check(int(cnt.get("slip", 0)) >= 1 and e5.gpos == "standing", "stepping out of range didn't make the takedown miss")
 	check(e5.lunge >= 1, "a slipped shot didn't extend their next reach")
 	var core6 := CombatCore.new()
-	var me6 := core6.add_player("You", 8, Game.mods(), Abilities.player_kit())
+	var me6 := core6.add_player("You", 12, Game.mods(), Abilities.player_kit())
 	me6.known = Abilities.known_moves()
 	var e6 := core6.add_enemy({"name": "Mob", "level": 4.85, "style": "balanced", "rank": Game.rank}, "mob")
 	e6.pos = Vector3(8.0, 0, 0)
@@ -186,7 +186,7 @@ func _ready() -> void:
 	check(phases >= 6, "phase two rarely happens")
 	_rotation(bal)
 	# --- rested XP: time away banks XP, rolls spend it for double
-	bal._build("guard", 8)
+	bal._build("guard", 12)
 	Game.rested = 0
 	Game.accrue_rest(int(Time.get_unix_time_from_system()) - 6 * 3600)
 	var need := Game.xp_level_need()
@@ -323,4 +323,4 @@ func _rotation(bal) -> void:
 	for i in 14:
 		core.tick(0.1)
 	check(not e.cast.is_empty(), "Spider Web didn't slow their takedown")
-	bal._build("guard", 8)
+	bal._build("guard", 12)

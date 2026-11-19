@@ -385,7 +385,7 @@ func _burst(u: Unit, t: Unit) -> void:
 func _landed(u: Unit, a: Dictionary, t: Unit) -> void:
 	var tp := str(a.get("type", ""))
 	if tp == "handfight":
-		if not u.has("opening") and rng.randf() < opening_chance:
+		if u.level >= ADV_LEVEL and not u.has("opening") and rng.randf() < opening_chance:
 			_aura(u, "opening", OPENING_DUR, u)
 			for k in OPENING_TYPES:
 				u.cds.erase(k)
@@ -881,9 +881,15 @@ const FLOW_SUB := 0.15        # submission damage per stack
 ## for anything else and they bit on the wrong thing: a SWITCH (+damage, +flow).
 const READ_BACK_TYPES := ["takedown", "sweep", "pass", "advance", "back", "sub"]
 const SWITCH_DMG := 1.3
-const READ_BACK_LEVEL := 6    # normal mobs start reading you once you have options to switch to
+const READ_BACK_LEVEL := 10    # normal mobs start reading you once you have options to switch to
+
+## The extra layers (flow, the Opening proc, opponents reading your habits, the burst) start at
+## this level: the first hours are just the fight.
+const ADV_LEVEL := 10
 
 func _flow(u: Unit) -> void:
+	if u.level < ADV_LEVEL:
+		return
 	var n := 1
 	if u.has("flow"):
 		n = mini(FLOW_MAX, int(u.auras.flow.get("n", 1)) + 1)
@@ -1426,6 +1432,8 @@ func _ai(u: Unit, delta: float) -> void:
 	u.ai_t -= delta
 	if u.ai_t > 0.0 or dist(u, t) > MELEE:
 		return
+	if bool(u.data.get("scripted", false)):
+		return   # the lesson decides what the partner does
 	if bool(u.data.get("practice", false)):
 		_practice_ai(u, t)
 		return
@@ -1538,6 +1546,30 @@ const AI_PACE_RAID := Vector2(3.0, 5.0)   # raid adds: the party's job is the bo
 
 ## The academy practice partner: techniques you can read, one every couple of seconds, any kind
 ## you know the counter for (and feints once you know all three).
+## The partner throws one technique of the kind asked for ("base" / "frame" / "defend"), taking
+## `dur` seconds. Returns the technique's name ("" if there is none).
+func script_cast(u: Unit, t: Unit, want: String, dur: float) -> String:
+	if u.gpos != "standing":
+		stand_up(u)
+	var opts: Array = []
+	for mv in Data.MOVES:
+		var m: Dictionary = Data.MOVES[mv]
+		if m.has("spec") or not str(m.type) in POSITIONAL or str(m.type) in ["escape", "guard"] or int(m.get("rank", 0)) > 4:
+			continue
+		if want == "base" and str(m.type) != "takedown":
+			continue   # both of you are standing: a shot, not a sweep
+		var ab := move_ability(mv)
+		if counter_kind(ab) == want:
+			opts.append(ab)
+	if opts.is_empty():
+		return ""
+	var ab: Dictionary = opts[rng.randi() % opts.size()]
+	ab["cast"] = dur
+	ab["_nofeint"] = true
+	u.cast = {"ab": ab, "t": 0.0, "dur": dur, "target": t}
+	emit({"t": "cast", "u": u, "ab": ab, "target": t, "dur": dur})
+	return str(ab.get("name", ""))
+
 func _practice_ai(u: Unit, t: Unit) -> void:
 	if u.gpos != "standing":
 		stand_up(u)   # reset between reps

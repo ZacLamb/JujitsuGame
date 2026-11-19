@@ -1903,5 +1903,85 @@
 "Escape [%s]",
 "Fuga [%s]",
 "Escape [%s]"
+],
+[
+"Three things win a roll: GRIPS, POSITION, SUBMISSION. Your partner won't fight back yet. Follow along.",
+"Três coisas ganham um rola: PEGADA, POSIÇÃO, FINALIZAÇÃO. Seu parceiro ainda não vai reagir. Acompanhe.",
+"Tres cosas ganan una rola: AGARRE, POSICIÓN, FINALIZACIÓN. Tu compañero todavía no va a reaccionar. Sigue los pasos."
+],
+[
+"Fight for grips: press [%s] twice. Each one builds Grip, the red dots under your bars. Grip is what powers a submission.",
+"Brigue pela pegada: aperte [%s] duas vezes. Cada uma dá Pegada, os pontos vermelhos sob suas barras. É a Pegada que dá força à finalização.",
+"Pelea por el agarre: pulsa [%s] dos veces. Cada una da Agarre, los puntos rojos bajo tus barras. El Agarre es lo que da fuerza a la finalización."
+],
+[
+"Take the fight to the ground: press [%s]. You land on top.",
+"Leve a luta para o chão: aperte [%s]. Você cai por cima.",
+"Lleva la lucha al suelo: pulsa [%s]. Caes arriba."
+],
+[
+"Position decides how hard you hit. Climb to a better one: [%s] passes the guard. The ladder under their name shows where you are.",
+"A posição decide a força do golpe. Suba para uma melhor: [%s] passa a guarda. A escada sob o nome dele mostra onde você está.",
+"La posición decide qué tan fuerte pegas. Sube a una mejor: [%s] pasa la guardia. La escalera bajo su nombre muestra dónde estás."
+],
+[
+"Now they attack. The technique's name appears in the middle of the screen. A TAKEDOWN or a SWEEP is stopped by Sprawl / Base: press [%s] before the bar runs out.",
+"Agora ele ataca. O nome da técnica aparece no meio da tela. Uma QUEDA ou RASPAGEM se para com Sprawl / Base: aperte [%s] antes da barra acabar.",
+"Ahora ataca. El nombre de la técnica aparece en el centro de la pantalla. Un DERRIBO o un RASPADO se frena con Sprawl / Base: pulsa [%s] antes de que se acabe la barra."
+],
+[
+"A PASS or a change of position is stopped by Frame: press [%s].",
+"Uma PASSAGEM ou troca de posição se para com Frame: aperte [%s].",
+"Un PASAJE o cambio de posición se frena con Frame: pulsa [%s]."
+],
+[
+"A SUBMISSION is stopped by Defend: press [%s]. Miss this one in a real roll and you tap.",
+"Uma FINALIZAÇÃO se para com Defender: aperte [%s]. Errou essa num rola de verdade, você bate.",
+"Una FINALIZACIÓN se frena con Defender: pulsa [%s]. Si fallas esta en una rola real, te rindes."
+],
+[
+"Three in a row, and this time nobody tells you which. Read the name: takedown or sweep, pass, or submission. Sprawl, Frame or Defend.",
+"Três seguidas, e agora ninguém diz qual. Leia o nome: queda ou raspagem, passagem ou finalização. Sprawl, Frame ou Defender.",
+"Tres seguidas, y esta vez nadie te dice cuál. Lee el nombre: derribo o raspado, pasaje o finalización. Sprawl, Frame o Defender."
+],
+[
+"Only a submission ends a roll. They're worn down: press [%s], then mash it to squeeze until they tap.",
+"Só uma finalização encerra o rola. Ele está desgastado: aperte [%s] e depois martele para apertar até ele bater.",
+"Solo una finalización termina la rola. Está desgastado: pulsa [%s] y luego machácalo para apretar hasta que se rinda."
+],
+[
+"FIRST LESSON  ·  %d / %d",
+"PRIMEIRA AULA  ·  %d / %d",
+"PRIMERA CLASE  ·  %d / %d"
+],
+[
+"Skip lesson",
+"Pular aula",
+"Saltar clase"
+],
+[
+"That one was %s [%s]",
+"Essa era %s [%s]",
+"Esa era %s [%s]"
+],
+[
+"Lesson done. Now go find a real roll: follow the golden light.",
+"Aula concluída. Agora ache um rola de verdade: siga a luz dourada.",
+"Clase terminada. Ahora busca una rola de verdad: sigue la luz dorada."
+],
+[
+"Lesson skipped. Type /lesson any time to take it.",
+"Aula pulada. Digite /lesson quando quiser fazer.",
+"Clase saltada. Escribe /lesson cuando quieras hacerla."
+],
+[
+"You tapped to %s%s  ·  no XP",
+"Você bateu para %s%s  ·  sem XP",
+"Te rendiste ante %s%s  ·  sin XP"
+],
+[
+"Walk it off at the academy",
+"Voltar para a academia",
+"Volver a la academia"
 ]
 ]

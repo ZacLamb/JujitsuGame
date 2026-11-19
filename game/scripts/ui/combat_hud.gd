@@ -122,7 +122,7 @@ var _read_sig := false     # a boss signature is coming: gold, two lines
 var _read_frac := 0.0
 var _read_col := Color.WHITE
 var _read_t := 0.0
-const READ_COL := {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35), "sub": Color(0.45, 1.0, 0.5),
+const READ_COL := {"incoming": Color(1.0, 0.86, 0.5), "base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35), "sub": Color(0.45, 1.0, 0.5),
 	"squeeze": Color(0.45, 1.0, 0.5), "escape": Color(1, 0.35, 0.35)}
 
 func _build_read() -> void:
@@ -161,10 +161,11 @@ var _hints: Array = []
 const HINT_UNTIL := 15
 
 func _hints_on() -> bool:
-	var pref = Sfx.pref("hints", null)
-	if pref != null:
-		return bool(pref)
-	return Game.player_level() < HINT_UNTIL
+	# off unless you ask for them (Esc > Controls): the game doesn't tell you what to press
+	if combat != null and combat.coach:
+		return true
+	var pref = Sfx.pref("hints2", null)
+	return pref != null and bool(pref)
 
 func _usable(id: String, t: CombatCore.Unit) -> bool:
 	var a := combat.core.ability(combat.me, id)
@@ -221,13 +222,20 @@ func _update_read(delta: float) -> void:
 		_read_sig = false
 		var c: CombatCore.Unit = core._caster_at(me)
 		var t: CombatCore.Unit = combat.target
-		if c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
+		if c != null and not _hints_on():
+			# what they're doing, not what you should press: the answer is yours to choose
+			text = Tx.s(str(c.cast.ab.get("name", ""))).to_upper()
+			kind = "incoming"
+			frac = 1.0 - float(c.cast.t) / maxf(0.01, float(c.cast.dur))
+		elif c != null and not core.ability(me, CombatCore.counter_kind(c.cast.ab)).is_empty():
 			kind = CombatCore.counter_kind(c.cast.ab)
 			text = "%s!  [%s]" % [Tx.s(CombatCore.counter_verb(c.cast.ab)).to_upper(), _key_for(kind)]
 			if bool(c.cast.ab.get("sig", false)):
 				text = "★ %s ★\n%s" % [str(c.cast.ab.get("name", "")).to_upper(), text]
 				_read_sig = true
 			frac = 1.0 - float(c.cast.t) / maxf(0.01, float(c.cast.dur))
+		elif not _hints_on():
+			pass
 		elif t != null and not t.dead and t.has("worn"):
 			kind = "sub"
 			var why := core.block_reason(me, core.ability(me, "sub"), t)
@@ -266,7 +274,7 @@ func _update_read(delta: float) -> void:
 			_read_btn.add_theme_stylebox_override(st, box)
 		for st in ["font_color", "font_hover_color", "font_pressed_color"]:
 			_read_btn.add_theme_color_override(st, _read_col)
-		_read_btn.disabled = kind == ""
+		_read_btn.disabled = kind == "" or kind == "incoming"
 		_read_btn.pivot_offset = Vector2(190, 35)
 		_read_btn.scale = Vector2(1.18, 1.18)
 		_read_btn.create_tween().tween_property(_read_btn, "scale", Vector2.ONE, 0.14)
@@ -508,7 +516,7 @@ func _draw() -> void:
 		draw_string(Wow.body(), tp + Vector2(222, 66), Tx.s(tag), HORIZONTAL_ALIGNMENT_RIGHT, 40, 11, Color(1, 0.82, 0.3))
 	if not t.cast.is_empty():
 		var kind := CombatCore.counter_kind(t.cast.ab)
-		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind]
+		var kc: Color = {"base": Color(1, 0.6, 0.2), "frame": Color(0.4, 0.75, 1.0), "defend": Color(1, 0.35, 0.35)}[kind] if _hints_on() else Color(1.0, 0.8, 0.35)
 		_bar(tp + Vector2(10, 82), Vector2(250, 16), float(t.cast.t) / float(t.cast.dur), kc, str(t.cast.ab.name))
 	if size.x >= 720.0:
 		_draw_tot(tp + Vector2(278, 0), t)
@@ -802,7 +810,7 @@ func _draw_plates() -> void:
 		draw_rect(Rect2(at, Vector2(w * clampf(u.pct(), 0.0, 1.0), h * 0.4)), Color(1, 1, 1, 0.15))
 		if not u.cast.is_empty():
 			var kind := CombatCore.counter_kind(u.cast.ab)
-			var kc: Color = READ_COL.get(kind, Color(1, 0.75, 0.2))
+			var kc: Color = READ_COL.get(kind, Color(1, 0.75, 0.2)) if _hints_on() else Color(1.0, 0.8, 0.35)
 			var cy := at.y + h + 3.0
 			draw_rect(Rect2(at.x - 1, cy - 1, w + 2, 9), Color(0, 0, 0, 0.9))
 			draw_rect(Rect2(at.x, cy, w * clampf(float(u.cast.t) / maxf(0.01, float(u.cast.dur)), 0.0, 1.0), 7), kc)

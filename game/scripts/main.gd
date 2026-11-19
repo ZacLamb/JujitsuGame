@@ -64,6 +64,7 @@ func _ready() -> void:
 	hud.root.add_child(gm_panel)
 	hud.combat_log.gm_requested.connect(gm_panel.toggle)
 	hud.combat_log.academy_requested.connect(hud.toggle_academy)
+	hud.combat_log.lesson_requested.connect(start_lesson)
 	if OS.get_cmdline_user_args().has("--autoplay") or Game.boot_into:
 		Game.boot_into = false
 		_start_game.call_deferred()
@@ -632,6 +633,23 @@ func _on_rare(npc: Npc) -> void:
 	Game.toast.emit(Tx.f("Rare nearby: %s", Tx.s(str(npc.mob.name))), Color(0.8, 0.85, 1.0))
 	if hud.combat_hud and not combat.me.in_combat:
 		hud.combat_hud.flash(Tx.s("RARE"), Tx.s(str(npc.mob.name)))
+
+var lesson: Lesson
+
+## The professor's first lesson (new characters, and /lesson to replay it).
+func start_lesson() -> void:
+	if (lesson != null and is_instance_valid(lesson)) or combat == null or combat.me == null or combat.me.in_combat or roll != null:
+		return
+	if hud.dialogue_open():
+		hud._close_dialogue(false)
+	player.input_enabled = true
+	lesson = Lesson.new()
+	lesson.name = "Lesson"
+	add_child(lesson)
+	lesson.finished.connect(func(done: bool):
+		Game.toast.emit(Tx.s("Lesson done. Now go find a real roll: follow the golden light.") if done
+			else Tx.s("Lesson skipped. Type /lesson any time to take it."), Color(0.6, 1.0, 0.7)))
+	lesson.start(self)
 
 func _begin_play() -> void:
 	player.input_enabled = true
@@ -1634,13 +1652,25 @@ func _on_mob_engaged(npc: Npc) -> void:
 ## You tapped in the open world: no XP, a gloating winner, a coach's note, and a choice.
 var _tap_prompt := false
 
+## No pop-up: you tap, they let go, you get up where you are (35% Composure, Rattled for a
+## minute). The coach's note goes to the chat log, and a small button offers the walk back.
 func _on_player_tapped(info: Dictionary) -> void:
-	_tap_prompt = true
-	player.input_enabled = false
 	var how := Tx.f(" with a %s", str(info.how)) if str(info.how) != "" else ""
-	hud.open_dialogue(Tx.f("You tapped to %s%s", [str(info.by), how]),
-		Tx.f("No XP for this one, and they won't let you forget it (⚔ Revenge: beat them for bonus XP).\n\n%s\n\nShake it off and get up right here (35%% Composure, Rattled: -15%% damage for 60s), or walk it off back at the academy (full Composure).", str(info.lesson)),
-		"Shake it off", "Back to the academy")
+	await get_tree().create_timer(2.6 if not Game.test_mode else 0.0).timeout
+	if not is_instance_valid(combat) or not combat.tap_pending:
+		return
+	combat.resolve_tap(true)
+	player.input_enabled = true
+	Game.toast.emit(Tx.f("You tapped to %s%s  ·  no XP", [str(info.by), how]), Color(1, 0.5, 0.4))
+	if hud.combat_log and str(info.lesson) != "":
+		hud.combat_log.add(str(info.lesson), Color(1.0, 0.82, 0.45))
+	hud.offer_walk_off(func():
+		if combat.me.in_combat:
+			return
+		var sp: Vector3 = Data.ZONES[Game.zone].spawn
+		player.teleport(Vector3(sp.x, world.ground_y(sp.x, sp.z) + 0.5, sp.z), 0.0)
+		combat.me.hp = combat.me.max_hp
+		combat.me.auras.erase("rattled"))
 
 # ------------------------------------------------------------ bicos (odd jobs around town)
 var _job_prompt := ""
@@ -1776,6 +1806,10 @@ func _practice_over(info: Dictionary) -> void:
 func _on_bout_over(tag: String, won: bool, info: Dictionary) -> void:
 	if tag == "practice":
 		_practice_over(info)
+		return
+	if tag == "lesson":
+		if lesson != null and is_instance_valid(lesson):
+			lesson.end(won and not bool(info.get("forfeit", false)))
 		return
 	var res := {"won": won, "by_sub": not bool(info.get("forfeit", false)), "sub": str(info.get("sub", "")) if won else "tap",
 		"signature": false, "min_stamina": float(info.get("gas", 1.0))}

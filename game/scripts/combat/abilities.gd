@@ -33,8 +33,10 @@ const KEYS := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 ## they unlock and the player can rearrange it from the spellbook.
 ## Easy to learn: level 1 is the whole game in miniature (grip, takedown, submit, sprawl); every
 ## level after adds one idea.
-const UNLOCK := {"handfight": 1, "takedown": 1, "sub": 1, "base": 1, "defend": 2, "breathe": 2, "pass": 3, "frame": 4,
-	"racial": 4, "escape": 4, "sweep": 5, "back": 6, "guard": 7, "advance": 8, "spec": 10, "burst": 6}
+## The whole game is on the bar from the first roll (you choose what to do, the game doesn't hand
+## it out a button at a time). Only the spec signature and the style burst come later.
+const UNLOCK := {"handfight": 1, "takedown": 1, "sub": 1, "base": 1, "defend": 1, "breathe": 1, "pass": 1, "frame": 1,
+	"racial": 1, "escape": 1, "sweep": 1, "back": 1, "guard": 1, "advance": 1, "spec": 10, "burst": 10}
 const UTILITY := ["base", "frame", "defend", "breathe", "racial", "burst"]
 const UTILITY_KEYS := {"base": "Q", "frame": "R", "defend": "T", "breathe": "F", "racial": "G", "burst": "V"}
 ## How each ability teaches itself the first time you get it.
@@ -42,11 +44,11 @@ const TUTORIAL := {
 	"handfight": "Target someone (Tab or click) and press 1 to fight for grips. It wears them down and builds Grip (the red dots under your bars).",
 	"takedown": "2 takes the fight to the ground with you on top. Run in and shoot for Momentum: it lands harder. Positions matter: climb guard, half, side, mount, back and you hit harder.",
 	"sub": "3 is how a roll ends. Wear them down until their bar is empty, then submit. When it locks in, mash 3 to SQUEEZE until they tap. Only a submission makes someone tap; more Grip makes it go deeper.",
-	"base": "When they shoot a takedown, SPRAWL! flashes in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment. On your feet you can also just step back out of reach: the shot misses, but you earn nothing for it.",
-	"defend": "When they lock a submission, DEFEND! flashes: hit T. Get worn down and they WILL go for the finish, so watch for it.",
+	"base": "When they shoot a takedown or try a sweep, its name shows in the middle of the screen. Hit Q in time: they're stopped and off-balance. Guess wrong (or mash it) and your counters lock for a moment. On your feet you can also just step back out of reach: the shot misses, but you earn nothing for it.",
+	"defend": "When they go for a submission, its name shows in the middle of the screen: hit T. Get worn down and they WILL go for the finish, so watch for it.",
 	"breathe": "F recovers Gas. Out of combat it also restores Composure.",
 	"pass": "4 passes their guard: you climb to side control and they're Pinned (they hit 25% softer). Climb again within a few seconds and you build FLOW: your next submission goes in deeper.",
-	"frame": "When they try to pass or change position, FRAME! flashes: hit R. Now every technique has one right answer: Q, R or T. Read it, don't guess.",
+	"frame": "When they try to pass or change position, its name shows in the middle of the screen: hit R. Now every technique has one right answer: Q, R or T. Read it, don't guess.",
 	"escape": "5 gets you out from underneath: side control to guard, mount to half guard, or back to your feet.",
 	"sweep": "6 reverses them from the bottom: you end up on top.",
 	"back": "7 takes the back: +2 Grip and they're Exposed (you crit them more). The best place to finish from. From now on opponents notice your habits: when their frame says Expecting, that button is crossed out. Do something else and they bite on the wrong thing.",

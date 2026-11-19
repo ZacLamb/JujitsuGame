@@ -639,6 +639,34 @@ func _is_banner(text: String) -> bool:
 			return true
 	return text.contains("  ·  ") or text.contains(" is yours!")
 
+## After a tap: a small button for a few seconds, instead of a box that stops the game.
+var _walk_btn: Button
+func offer_walk_off(cb: Callable) -> void:
+	if _walk_btn and is_instance_valid(_walk_btn):
+		_walk_btn.queue_free()
+	var b := Button.new()
+	_walk_btn = b
+	b.text = Tx.s("Walk it off at the academy")
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 14)
+	b.anchor_left = 0.5
+	b.anchor_right = 0.5
+	b.anchor_top = 1.0
+	b.anchor_bottom = 1.0
+	b.offset_left = -130
+	b.offset_right = 130
+	b.offset_top = -168
+	b.offset_bottom = -136
+	b.add_theme_stylebox_override("normal", Wow.sb(Color(0.05, 0.04, 0.03, 0.88), Color(1.0, 0.82, 0.35, 0.9), 5, 6, 1))
+	root.add_child(b)
+	b.pressed.connect(func():
+		b.queue_free()
+		cb.call())
+	var tw := b.create_tween()
+	tw.tween_interval(14.0)
+	tw.tween_property(b, "modulate:a", 0.0, 1.0)
+	tw.tween_callback(b.queue_free)
+
 func show_toast(text: String, color := Color.WHITE) -> void:
 	if combat_log:
 		combat_log.add(text, color)
@@ -1882,9 +1910,9 @@ func _build_settings() -> void:
 	_slider_row(lc, "Fight speed", float(Sfx.pref("fight_speed", 0.7)), 0.4, 1.0, func(x): Sfx.set_pref("fight_speed", x))
 	var hints := CheckButton.new()
 	hints.text = "Button hints in fights"
-	hints.button_pressed = bool(Sfx.pref("hints", Game.player_level() < 15))
+	hints.button_pressed = bool(Sfx.pref("hints2", false))
 	hints.focus_mode = Control.FOCUS_NONE
-	hints.toggled.connect(func(on): Sfx.set_pref("hints", on))
+	hints.toggled.connect(func(on): Sfx.set_pref("hints2", on))
 	lc.add_child(hints)
 	var inv := CheckButton.new()
 	inv.text = "Invert camera up/down"

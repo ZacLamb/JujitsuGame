@@ -5,6 +5,7 @@ extends Node
 ## text and sound. Owned by Main; the HUD polls `core` for frames / action bar.
 
 signal player_tapped(info: Dictionary)
+var coach := false           # the lesson is running: prompts name the answer
 var tap_pending := false     # the "you tapped" choice is open
 var _last_hit := {}          # the enemy ability that last hit you (for the coach's note)
 signal ability_learned(a: Dictionary)
@@ -52,10 +53,12 @@ func rebuild_player() -> void:
 	me.known = Abilities.known_moves()
 	core.gi = Game.kit == "gi"
 	if Game.style != "":
-		for id in Game.ensure_bar(me.abilities):
-			var a := core.ability(me, str(id))
-			if not a.is_empty():
-				ability_learned.emit(a)
+		var fresh: Array = Game.ensure_bar(me.abilities)
+		if fresh.size() <= 3:   # a new character gets the lesson, not a pile of cards
+			for id in fresh:
+				var a := core.ability(me, str(id))
+				if not a.is_empty():
+					ability_learned.emit(a)
 	me.name = "You"
 
 func set_world(w: World) -> void:
@@ -1293,7 +1296,9 @@ func start_bout(opp: Dictionary, tag: String, elite := false) -> Npc:
 	me.grip = 0
 	target = u
 	engage_npc(npc)
-	if bool(m.get("practice", false)):
+	if bool(m.get("scripted", false)):
+		pass
+	elif bool(m.get("practice", false)):
 		practice = {"npc": npc, "u": u, "casts": 0, "reads": 0, "streak": 0, "best": 0, "total": int(m.get("reps", 20))}
 		_float(npc, "DRILL!", Color(0.6, 1.0, 0.7), 1.3)
 	else:
@@ -1525,7 +1530,7 @@ func _lesson(ab: Dictionary) -> String:
 			return Keys.fill("Coach: \"Pinned means you hit softer. Escape breaks the pin; Base (Q) halves the damage while you work.\"")
 	if core.engaged_enemies().size() > 1:
 		return Keys.fill("Coach: \"Too many at once. Pull one at a time, and press Base (Q) the moment it gets ugly.\"")
-	return Keys.fill("Coach: \"Wear them down, then FINISH: only a submission makes them tap. And watch the middle of the screen: when SPRAWL, FRAME or DEFEND flashes, that's your read.\"")
+	return Keys.fill("Coach: \"Wear them down, then FINISH: only a submission makes them tap. And read the name in the middle of the screen: takedowns and sweeps get Sprawl, passes get Frame, submissions get Defend.\"")
 
 ## The player chose how to come back from a tap.
 func resolve_tap(shake_off: bool) -> void:

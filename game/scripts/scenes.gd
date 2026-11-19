@@ -105,7 +105,10 @@ func opening() -> void:
 		await c.wait(3.2)
 	c.say_off()
 	await c.end()
-	Game.toast.emit(Tx.f("Walk to %s and press [%s] to roll.", [first.display_name if first else "the plaza", Keys.label("interact")]), Color(1, 0.95, 0.8))
+	if main != null and main.has_method("start_lesson") and not Game.flags.get("lesson_done", false):
+		main.start_lesson()
+	else:
+		Game.toast.emit(Tx.f("Walk to %s and press [%s] to roll.", [first.display_name if first else "the plaza", Keys.label("interact")]), Color(1, 0.95, 0.8))
 
 ## The easiest named fighter in this zone (Rafa in Cáceres).
 func _first_roll_npc() -> Npc:
