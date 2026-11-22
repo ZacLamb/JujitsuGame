@@ -68,12 +68,26 @@ static func recoil(yaw: float) -> Array:
 	return [[hit, _root(yaw, -0.18), 0.08, Tween.EASE_OUT], [s, _root(yaw), 0.22]]
 
 ## A sprawl: hips drop, legs shoot back, chest drives down onto their shot (then back to stance).
+## Posed from real footage (Cáceres Jiu-Jitsu, Nov 2026): the legs kick straight back and wide,
+## the hips drop almost to the mat, and the chest lands heavy on the shooter's shoulders.
 static func sprawl(yaw: float) -> Array:
 	var s := stance()
-	var sp := _m(s, {"hip_h": 0.5, "spine": Vector3(-0.95, 0, 0), "neck": Vector3(0.6, 0, 0),
-		"l_hip": Vector3(-0.55, 0, -0.15), "r_hip": Vector3(-0.5, 0, 0.15), "l_kn": Vector3(-0.25, 0, 0), "r_kn": Vector3(-0.3, 0, 0),
-		"l_sh": Vector3(1.1, 0, 0.45), "r_sh": Vector3(1.1, 0, -0.45), "l_el": Vector3(1.2, 0, 0), "r_el": Vector3(1.2, 0, 0)})
-	return [[sp, _root(yaw, -0.35), 0.1, Tween.EASE_OUT], [sp, _root(yaw, -0.35), 0.28], [s, _root(yaw), 0.3]]
+	var drop := _m(s, {"hip_h": 0.6, "spine": Vector3(-0.8, 0, 0), "neck": Vector3(0.5, 0, 0),
+		"l_hip": Vector3(-0.6, 0, -0.25), "r_hip": Vector3(-0.55, 0, 0.25), "l_kn": Vector3(-0.2, 0, 0), "r_kn": Vector3(-0.25, 0, 0),
+		"l_sh": Vector3(1.3, 0, 0.4), "r_sh": Vector3(1.3, 0, -0.4), "l_el": Vector3(0.8, 0, 0), "r_el": Vector3(0.8, 0, 0)})
+	var flat := {"hip_h": 0.36, "spine": Vector3(-1.05, 0, 0), "neck": Vector3(0.75, 0, 0),
+		"l_hip": Vector3(-1.12, 0, -0.38), "r_hip": Vector3(-1.08, 0, 0.38), "l_kn": Vector3(-0.08, 0, 0), "r_kn": Vector3(-0.1, 0, 0),
+		"l_sh": Vector3(1.55, 0, 0.42), "r_sh": Vector3(1.55, 0, -0.42), "l_el": Vector3(0.45, 0, 0), "r_el": Vector3(0.45, 0, 0)}
+	return [[drop, _root(yaw, -0.1), 0.08, Tween.EASE_OUT], [flat, _root(yaw, -0.22), 0.12, Tween.EASE_OUT],
+		[flat, _root(yaw, -0.22), 0.5], [s, _root(yaw), 0.32]]
+
+## Their shot got sprawled on: driven down onto hands and knees, head under your chest (held).
+## reach: how far they dove (so they end up under your chest however far away the shot started).
+static func stuffed(yaw: float, reach := 0.85) -> Array:
+	var down := {"hip_h": 0.43, "spine": Vector3(-1.5, 0, 0), "neck": Vector3(0.1, 0, 0),
+		"l_hip": Vector3(0.25, 0, -0.2), "r_hip": Vector3(0.15, 0, 0.2), "l_kn": Vector3(-1.75, 0, 0), "r_kn": Vector3(-1.7, 0, 0),
+		"l_sh": Vector3(1.45, 0, 0.35), "r_sh": Vector3(1.45, 0, -0.35), "l_el": Vector3(0.75, 0, 0), "r_el": Vector3(0.75, 0, 0)}
+	return [[down, _root(yaw, reach), 0.14, Tween.EASE_IN]]
 
 ## A frame: arms extend, posture braces back (then back to stance).
 static func brace(yaw: float) -> Array:

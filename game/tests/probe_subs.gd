@@ -31,7 +31,7 @@ func _ready() -> void:
 	w.add_child(cam)
 	cam.current = true
 	cam.fov = 45
-	var cases := [["guillotine", "standing", true], ["guillotine", "standing", true], ["rnc", "back", true], ["americana", "side", true]]
+	var cases := [["rnc", "back", true], ["rnc", "back", true]]
 	var tiles: Array = []
 	for cs in cases:
 		u.gpos = cs[1]
@@ -49,14 +49,14 @@ func _ready() -> void:
 		var mid: Vector3 = (main.player.global_position + mob.global_position) * 0.5 + Vector3(0, 0.4, 0)
 		var to: Vector3 = mob.global_position - main.player.global_position
 		var b := Basis(Vector3.UP, atan2(to.x, to.z) + PI / 2)
-		cam.global_position = mid + b * Vector3(1.6, 1.5, 2.6)
+		cam.global_position = mid + b * Vector3(1.2, 1.2, 2.4)
 		cam.look_at(mid, Vector3.UP)
 		for i in 3: await get_tree().process_frame
 		var im := get_viewport().get_texture().get_image()
 		im = im.get_region(Rect2i(320, 60, 640, 600))
 		im.resize(320, 300)
 		tiles.append(im)
-	var sheet := Image.create(320 * 4, 300, false, tiles[0].get_format())
+	var sheet := Image.create(320 * 2, 300, false, tiles[0].get_format())
 	for i in tiles.size():
 		sheet.blit_rect(tiles[i], Rect2i(0, 0, 320, 300), Vector2i((i % 4) * 320, (i / 4) * 300))
 	sheet.save_png("/home/claude/shots/subs_sheet.png")

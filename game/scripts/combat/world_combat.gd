@@ -1006,6 +1006,11 @@ func _on_event(e: Dictionary) -> void:
 					var k := str(e.get("kind", ""))
 					if k == "base":
 						player.rig.action(CombatAnim.sprawl(yaw))
+						# the shooter ends up flattened under you, not thrown on their back
+						var sr := _rig_of(e.target)
+						if sr and not _grounded(e.target) and str(e.get("ab", {}).get("type", "")) == "takedown":
+							var gap: float = e.target.pos.distance_to(u.pos)
+							sr.action(CombatAnim.stuffed(_yaw_to(e.target, u), clampf(gap - 0.8, 0.2, 3.6)), true)
 					elif k == "frame":
 						player.rig.action(CombatAnim.brace(yaw))
 			var n := _node_of(e.target)

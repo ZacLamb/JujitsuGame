@@ -221,8 +221,15 @@ static func sub_pair(sub_id: String, pos: String, atk_top: bool) -> Dictionary:
 	var d2: Dictionary = (de[0] as Dictionary).duplicate()
 	match fam:
 		"back_choke":
-			a2.merge({"l_sh": Vector3(1.7, 0, 1.05), "l_el": Vector3(1.9, 0, 0), "r_sh": Vector3(2.1, 0, -0.5), "r_el": Vector3(2.1, 0, 0), "neck": Vector3(0.25, 0, 0)}, true)
-			d2.merge({"l_sh": Vector3(2.3, 0, 0.45), "l_el": Vector3(2.0, 0, 0), "r_sh": Vector3(2.3, 0, -0.45), "r_el": Vector3(2.0, 0, 0), "neck": Vector3(-0.35, 0, 0)}, true)
+			# posed from real footage (Cáceres Jiu-Jitsu, Nov 2026): seated behind, leaning back, one arm
+			# deep under the chin with the other hand behind the head; they sit with legs out, both
+			# hands pulling at the forearm, chin lifted
+			a2.merge({"spine": Vector3(0.18, 0, 0), "neck": Vector3(0.35, 0, 0.25),
+				"r_sh": Vector3(1.45, 0, 0.55), "r_el": Vector3(1.55, 0, 0),
+				"l_sh": Vector3(1.75, 0, 0.25), "l_el": Vector3(2.15, 0, 0)}, true)
+			d2.merge({"spine": Vector3(0.32, 0, 0), "neck": Vector3(-0.3, 0, 0),
+				"l_sh": Vector3(0.4, 0, 0.3), "l_el": Vector3(2.25, 0, 0), "r_sh": Vector3(0.4, 0, -0.3), "r_el": Vector3(2.25, 0, 0),
+				"l_kn": Vector3(-0.22, 0, 0), "r_kn": Vector3(-0.3, 0, 0)}, true)
 		"collar":
 			a2.merge({"spine": Vector3(-0.65, 0, 0), "l_sh": Vector3(1.5, 0, 0.45), "l_el": Vector3(1.7, 0, 0), "r_sh": Vector3(1.5, 0, -0.45), "r_el": Vector3(1.7, 0, 0)}, true)
 			d2.merge({"l_sh": Vector3(1.9, 0, 0.2), "l_el": Vector3(0.5, 0, 0), "r_sh": Vector3(1.9, 0, -0.2), "r_el": Vector3(0.5, 0, 0), "neck": Vector3(-0.45, 0, 0)}, true)
