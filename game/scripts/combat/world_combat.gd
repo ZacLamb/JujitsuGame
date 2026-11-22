@@ -291,6 +291,14 @@ func _error(t: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if player == null or not player.input_enabled:
 		return
+	if event is InputEventKey and event.pressed and not event.echo and event.alt_pressed:
+		var row2 := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0].find(event.physical_keycode)
+		if row2 >= 0:
+			var id2: String = Game.bar_id(10 + row2)
+			if id2 != "":
+				press(id2)
+			get_viewport().set_input_as_handled()
+			return
 	for i in 10:
 		if event.is_action_pressed("ab_%d" % i):
 			var id: String = Game.bar_id(i)
@@ -629,6 +637,15 @@ func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) ->
 		var xf: Transform3D = pair[pair_side[0]][1]
 		var parent := rig.get_parent() as Node3D
 		var local: Transform3D = parent.global_transform.affine_inverse() * anchor * xf
+		var arc := MoveArcs.arc(mv) if actor_rig != null else {}
+		if not arc.is_empty():
+			# this technique has its own shape (shot, throw, trip, guard pull, toreando...)
+			var mate: BodyRig = bot_rig if rig == top_rig else top_rig
+			var to_mate: Vector3 = parent.global_transform.basis.inverse() * (mate.global_position - rig.global_position)
+			var is_actor := rig == actor_rig
+			rig.action(MoveArcs.frames(rig.current_pose(), rig.current_root(), arc.actor if is_actor else arc.other, pose, local, to_mate,
+				bool(arc.get("flip", false)) and not is_actor), true)
+			continue
 		if fl.is_empty() or actor_rig == null:
 			# no arc for this move: still lift through the middle so bodies don't slide through each other
 			var cur_p := rig.current_pose()
@@ -644,8 +661,11 @@ func _show_position(e: CombatCore.Unit, mv := "", by: CombatCore.Unit = null) ->
 		var mid_r: Transform3D = rig.current_root().interpolate_with(local, 0.5)
 		var res := RollPoses.apply_flavor(mid_p, mid_r, fl.actor if rig == actor_rig else fl.other, toward)
 		rig.action([[res[0], res[1], 0.34], [pose, local, 0.46]], true)
-	if tp in ["takedown", "sweep"]:
-		get_tree().create_timer(0.62).timeout.connect(func():
+	var land_t := 0.62
+	if actor_rig != null and MoveArcs.family(mv) != "":
+		land_t = float(MoveArcs.arc(mv).get("land", 0.0))
+	if tp in ["takedown", "sweep"] and land_t > 0.0:
+		get_tree().create_timer(land_t).timeout.connect(func():
 			_hitstop(0.06, 0.15)
 			player.add_shake(0.75)
 			Sfx.play("land" if tp == "takedown" else "sweep", -1.0)

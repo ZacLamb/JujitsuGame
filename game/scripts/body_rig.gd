@@ -428,15 +428,16 @@ func tween_frames(frames: Array) -> void:
 		var root: Transform3D = f[1]
 		var dur: float = f[2]
 		var ease_kind: int = f[3] if f.size() > 3 else Tween.EASE_IN_OUT
+		var trans_kind: int = f[4] if f.size() > 4 else Tween.TRANS_CUBIC
 		if not first:
 			_tween.chain()
 		first = false
-		_tween.tween_property(self, "position", root.origin, dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
-		_tween.parallel().tween_property(self, "quaternion", root.basis.get_rotation_quaternion(), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
-		_tween.parallel().tween_property(hips, "position:y", pose.get("hip_h", 0.95), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
-		_tween.parallel().tween_property(hips, "rotation", pose.get("hip_rot", Vector3.ZERO), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+		_tween.tween_property(self, "position", root.origin, dur).set_trans(trans_kind).set_ease(ease_kind)
+		_tween.parallel().tween_property(self, "quaternion", root.basis.get_rotation_quaternion(), dur).set_trans(trans_kind).set_ease(ease_kind)
+		_tween.parallel().tween_property(hips, "position:y", pose.get("hip_h", 0.95), dur).set_trans(trans_kind).set_ease(ease_kind)
+		_tween.parallel().tween_property(hips, "rotation", pose.get("hip_rot", Vector3.ZERO), dur).set_trans(trans_kind).set_ease(ease_kind)
 		for j in JOINTS:
-			_tween.parallel().tween_property(joints[j], "rotation", pose.get(j, Vector3.ZERO), dur).set_trans(Tween.TRANS_CUBIC).set_ease(ease_kind)
+			_tween.parallel().tween_property(joints[j], "rotation", pose.get(j, Vector3.ZERO), dur).set_trans(trans_kind).set_ease(ease_kind)
 
 static func lerp_pose(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 	var out := {"hip_h": lerpf(float(a.get("hip_h", 0.95)), float(b.get("hip_h", 0.95)), t),

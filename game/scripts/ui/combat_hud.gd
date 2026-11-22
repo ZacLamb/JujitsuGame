@@ -74,6 +74,31 @@ func _ready() -> void:
 		b.draw.connect(func(): _draw_slot(b, idx))
 		bar.add_child(b)
 		_slots.append(b)
+	# second row (WoW's stacked bar): individual techniques you drag from the Moves book
+	bar2 = HBoxContainer.new()
+	bar2.add_theme_constant_override("separation", 3)
+	bar2.anchor_left = 0.5
+	bar2.anchor_right = 0.5
+	bar2.anchor_top = 1.0
+	bar2.anchor_bottom = 1.0
+	bar2.name = "ActionBar2"
+	bar2.visible = false
+	add_child(bar2)
+	for j in 10:
+		var b2 := BarSlot.new()
+		b2.hud = self
+		b2.slot = ROW2 + j
+		b2.custom_minimum_size = Vector2(44, 44)
+		b2.flat = true
+		b2.focus_mode = Control.FOCUS_NONE
+		b2.mouse_filter = Control.MOUSE_FILTER_STOP
+		var idx2 := ROW2 + j
+		b2.pressed.connect(func(): _press(idx2))
+		b2.mouse_entered.connect(func(): _show_tip(idx2, b2))
+		b2.mouse_exited.connect(_hide_tip)
+		b2.draw.connect(func(): _draw_slot(b2, idx2))
+		bar2.add_child(b2)
+		_slots.append(b2)
 	# "New technique" cards: bottom-right, above the bags, out of the way of the fight
 	_card_root = VBoxContainer.new()
 	_card_root.anchor_left = 1.0
@@ -395,14 +420,36 @@ func flash(head: String, sub: String) -> void:
 	_flash_sub.text = sub
 	_flash_t = 3.5
 
-## Slot i: 0-9 = the customizable bar (Game.bar_layout), 10-13 = Base / Frame / Breathe / racial.
-func slot_id(i: int) -> String:
+## Slot i: 0-9 = the main bar, 10.. = the fixed counters (Base / Frame / Breathe...), ROW2.. = the
+## second row. layout_index() maps a slot to its place in Game.bar_layout (-1 = fixed).
+const ROW2 := 100
+var bar2: HBoxContainer
+
+static func layout_index(i: int) -> int:
 	if i < 10:
-		return Game.bar_id(i)
+		return i
+	return 10 + (i - ROW2) if i >= ROW2 else -1
+
+func slot_id(i: int) -> String:
+	var li := layout_index(i)
+	if li >= 0:
+		return Game.bar_id(li)
 	return str(Abilities.UTILITY[i - 10])
 
 func slot_key(i: int) -> String:
+	if i >= ROW2:
+		return "A" + Keys.label("ab_%d" % (i - ROW2))
 	return Keys.label("ab_%d" % i) if i < 10 else Keys.label("ab_" + str(Abilities.UTILITY[i - 10]))
+
+## The second row shows once something is on it, or while the Moves book is open to drag from.
+func bar2_wanted() -> bool:
+	if DisplayServer.is_touchscreen_available():
+		return false
+	for li in range(10, mini(Game.bar_layout.size(), Game.BAR_N)):
+		if str(Game.bar_layout[li]) != "":
+			return true
+	return get_viewport().gui_is_dragging() or book_open
+var book_open := false
 
 func _ability(i: int) -> Dictionary:
 	if combat == null or combat.me == null:
@@ -413,7 +460,7 @@ func _ability(i: int) -> Dictionary:
 func _press(i: int) -> void:
 	var a := _ability(i)
 	if not a.is_empty():
-		combat.press(str(a.id))
+		combat.press(str(a.get("slot_id", a.id)))
 
 func _process(delta: float) -> void:
 	var in_title := false
@@ -886,6 +933,11 @@ func _draw_slot(b: Button, i: int) -> void:
 	var col: Color = st[1]
 	var inner := r.grow(-4)
 	IconArt.draw(b, r, str(st[0]), col, Color(0, 0, 0, 0), false, IconArt.ability_key(a))
+	if a.has("pin"):
+		# a named technique: its first word under the icon, so six takedowns don't look alike
+		var tag := Tx.s(str(a.name)).split(" ")[0].replace("-", "").left(6)
+		b.draw_string_outline(Wow.body(), Vector2(3, r.size.y - 4), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
+		b.draw_string(Wow.body(), Vector2(3, r.size.y - 4), tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 0.95, 0.8))
 	if me.has("chain") and str(a.get("type", "")) == "sub":
 		# live submission chain: this button is the next link
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 120.0)
@@ -971,7 +1023,7 @@ func _draw_slot(b: Button, i: int) -> void:
 func _show_tip(i: int, b: Control) -> void:
 	_hide_tip()
 	var a := _ability(i)
-	_tip = tooltip_for(a, combat.me if combat else null, i < 10)
+	_tip = tooltip_for(a, combat.me if combat else null, layout_index(i) >= 0)
 	if _tip == null:
 		return
 	add_child(_tip)
@@ -1077,7 +1129,7 @@ class BarSlot extends Button:
 	var slot := 0
 	func _get_drag_data(_at: Vector2) -> Variant:
 		var id := hud.slot_id(slot)
-		if id == "" or slot >= 10:
+		if id == "" or CombatHud.layout_index(slot) < 0:
 			return null
 		var prev := Label.new()
 		prev.text = str(hud._ability(slot).get("name", id))
@@ -1086,16 +1138,16 @@ class BarSlot extends Button:
 		set_drag_preview(prev)
 		return {"ability": id, "from_slot": slot}
 	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-		return slot < 10 and data is Dictionary and data.has("ability") and not str(data.ability) in Abilities.UTILITY
+		return CombatHud.layout_index(slot) >= 0 and data is Dictionary and data.has("ability") and not str(data.ability) in Abilities.UTILITY
 	func _drop_data(_at: Vector2, data: Variant) -> void:
-		Game.bar_set(slot, str(data.ability))
+		Game.bar_set(CombatHud.layout_index(slot), str(data.ability))
 	func _notification(what: int) -> void:
 		# dragged off the bar onto nothing: take it off (WoW)
 		if what == NOTIFICATION_DRAG_END and is_instance_valid(hud) and not get_viewport().gui_is_drag_successful():
 			var d = get_viewport().gui_get_drag_data()
 			if d is Dictionary and int(d.get("from_slot", -1)) == slot:
-				Game.bar_set(slot, "")
+				Game.bar_set(CombatHud.layout_index(slot), "")
 	func _gui_input(e: InputEvent) -> void:
-		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT and slot < 10:
-			Game.bar_set(slot, "")
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_RIGHT and CombatHud.layout_index(slot) >= 0:
+			Game.bar_set(CombatHud.layout_index(slot), "")
 			accept_event()

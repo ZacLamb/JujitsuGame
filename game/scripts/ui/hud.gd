@@ -267,6 +267,16 @@ func apply_layout() -> void:
 	bar.offset_right = bw / 2.0
 	bar.offset_bottom = -14
 	bar.offset_top = -14 - bar_h
+	# second row of techniques, stacked above the first ten buttons
+	_bar2_on = rows == 1 and combat_hud.bar2_wanted()
+	combat_hud.bar2.visible = _bar2_on
+	if _bar2_on:
+		var b2w := 10 * 44.0 + 9 * 3.0
+		combat_hud.bar2.offset_left = -bw / 2.0
+		combat_hud.bar2.offset_right = -bw / 2.0 + b2w
+		combat_hud.bar2.offset_bottom = -14 - bar_h - 3
+		combat_hud.bar2.offset_top = combat_hud.bar2.offset_bottom - 44
+		bar_h += 47.0
 	var bar_top := vs.y - 14.0 - bar_h
 	var bar_l := (vs.x - bw) / 2.0
 	var bar_r := (vs.x + bw) / 2.0
@@ -1539,8 +1549,13 @@ func _build_title() -> void:
 			cb.text = Cloud.community_label
 			cb.visible = Cloud.community_url != "")
 
+var _bar2_on := false
 func _process(_d: float) -> void:
 	_zone_banner_tick(_d)
+	if combat_hud and combat_hud.bar2:
+		combat_hud.book_open = journal != null and journal.visible and _window == "talents"
+		if combat_hud.bar2_wanted() != _bar2_on:
+			apply_layout()
 	# the "[E] Attack ..." prompt has no business on screen mid-fight
 	if prompt and combat_hud and combat_hud.combat and combat_hud.combat.me:
 		prompt.visible = not combat_hud.combat.me.in_combat
@@ -2295,7 +2310,7 @@ func _fill_spellbook() -> void:
 	var th := Wow.title("Technique library", 19, Color(0.45, 0.2, 0.05))
 	th.add_theme_constant_override("outline_size", 0)
 	v.add_child(th)
-	var sub := Wow.label(Tx.f("%d techniques known. Each move button uses the strongest technique of its kind you know.", known_n), 13, Color(0.35, 0.24, 0.12))
+	var sub := Wow.label(Tx.f("%d techniques known. A move button picks the strongest of its kind; drag a technique to a bar to choose it yourself (second row: Alt+1 to Alt+0).", known_n), 13, Color(0.35, 0.24, 0.12))
 	sub.add_theme_constant_override("outline_size", 0)
 	v.add_child(sub)
 	var tip_layer := Control.new()
@@ -2369,7 +2384,7 @@ class AbilityEntry extends HBoxContainer:
 			where = Tx.f("Always on your bar [%s]", Keys.label("ab_" + str(a.id)))
 		else:
 			var i := Game.bar_layout.find(str(a.id))
-			where = (Tx.f("On your bar [%s]", Keys.label("ab_%d" % i))) if i >= 0 else "Not on your bar: drag it there"
+			where = (Tx.f("On your bar [%s]", Keys.label("ab_%d" % i) if i < 10 else "Alt+" + Keys.label("ab_%d" % (i - 10)))) if i >= 0 else "Not on your bar: drag it there"
 		var sl := Wow.label(where, 12, Color(0.4, 0.3, 0.18) if have else Color(0.5, 0.25, 0.2))
 		sl.add_theme_constant_override("outline_size", 0)
 		tv.add_child(sl)
@@ -2407,6 +2422,16 @@ class AbilityEntry extends HBoxContainer:
 class SpellEntry extends HBoxContainer:
 	var move_id := ""
 	var _tip: Control
+	## A technique you know can be dragged to the action bars as its own button.
+	func _get_drag_data(_at: Vector2) -> Variant:
+		if move_id == "" or not Game.knows(move_id) or Data.MOVES[move_id].has("spec"):
+			return null
+		var prev := Label.new()
+		prev.text = str(Data.MOVES[move_id].name)
+		prev.add_theme_font_override("font", Wow.title_font())
+		prev.add_theme_font_size_override("font_size", 16)
+		set_drag_preview(prev)
+		return {"ability": "mv:" + move_id, "from_slot": -1}
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		mouse_entered.connect(func():
@@ -2476,6 +2501,9 @@ func _spell_entry(id: String) -> Control:
 		subt = (Tx.f("%s spec", Specs.get_spec(str(m.spec)).name)) if m.has("spec") else Tx.f("Unlocks at %s", Data.rank_name(int(m.rank)))
 	elif m.role != "any":
 		subt += "  ·  " + ("top" if m.role == "top" else "bottom")
+	if known and not m.has("spec"):
+		subt += "  ·  " + Tx.s("drag to a bar")
+		h.mouse_default_cursor_shape = Control.CURSOR_DRAG
 	var sl := Wow.label(subt, 12, Color(0.4, 0.3, 0.18))
 	sl.add_theme_constant_override("outline_size", 0)
 	tv.add_child(sl)

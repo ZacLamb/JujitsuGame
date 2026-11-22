@@ -254,6 +254,22 @@ func emit(e: Dictionary) -> void:
 
 # ------------------------------------------------------------ abilities
 func ability(u: Unit, id: String) -> Dictionary:
+	if id.begins_with("mv:"):
+		# one named technique on the bar: the same button as its kind (shared cost and cooldown),
+		# but it only ever throws this technique, from the position it works in
+		var mv := id.substr(3)
+		var md: Dictionary = Data.MOVES.get(mv, {})
+		if md.is_empty() or not mv in u.known:
+			return {}
+		var base := ability(u, str(md.get("type", "")))
+		if base.is_empty():
+			return {}
+		var pinned := base.duplicate()
+		pinned["pin"] = mv
+		pinned["move"] = mv
+		pinned["name"] = str(md.name)
+		pinned["slot_id"] = id
+		return pinned
 	for a in u.abilities:
 		if str(a.get("id", "")) == id and id != "":
 			return a
@@ -468,6 +484,8 @@ func move_for(u: Unit, a: Dictionary, t: Unit) -> String:
 		return not m.is_empty() and str(m.pos) == pos and (str(m.role) == "any" or str(m.role) == role or pos == "standing")
 	if str(a.get("id", "")) == "spec":
 		return str(a.move) if ok.call(str(a.move)) else ""
+	if a.has("pin"):
+		return str(a.pin) if str(a.pin) in u.known and ok.call(str(a.pin)) else ""
 	# a live submission chain: the next link is already there
 	if u.has("chain"):
 		var nx := str(u.auras.chain.get("next", ""))

@@ -49,7 +49,8 @@ var origin := "gringo"     # Origins id (Tatame's "race")
 var body := "male"         # "male" / "female"
 var skin_t := 0.35         # skin tone 0..1 (UiKit.skin_tone); the hero bodies take it from the face
 var head := ""             # face (BodyRig.HEADS); "" = default for the body
-var bar_layout: Array = [] # action bar slots 1-0: ability ids ("" = empty)
+const BAR_N := 20          # two rows of ten: the main bar, and a second row above it
+var bar_layout: Array = [] # action bar slots: ability ids, or "mv:<technique>" for one named technique ("" = empty)
 var attr_alloc := {}       # attribute -> points spent
 var talents := {}          # talent id -> rank
 var stripe_xp := 0
@@ -389,7 +390,7 @@ func drill_temp() -> Dictionary:
 		if want >= 0 and want < bar_layout.size() and str(bar_layout[want]) == "" and not out.has(want):
 			slot = want
 		else:
-			for i in bar_layout.size():
+			for i in mini(10, bar_layout.size()):
 				if str(bar_layout[i]) == "" and not out.has(i):
 					slot = i
 					break
@@ -407,7 +408,7 @@ func bar_id(i: int) -> String:
 func place_ab(id: String) -> void:
 	if id in bar_layout:
 		return
-	while bar_layout.size() < 10:
+	while bar_layout.size() < BAR_N:
 		bar_layout.append("")
 	var want := Abilities.ORDER.find(id)
 	if want >= 0 and str(bar_layout[want]) == "":
@@ -540,7 +541,7 @@ func knows(move_id: String) -> bool:
 ## Keeps the action bar in step with what you can use: newly unlocked abilities drop into their
 ## usual slot (or the first free one). Returns the ids learned since last time (tutorial cards).
 func ensure_bar(pool: Array) -> Array:
-	while bar_layout.size() < 10:
+	while bar_layout.size() < BAR_N:
 		bar_layout.append("")
 	var first := not flags.has("abilities_known")
 	if not flags.has("bar_v2"):
@@ -554,7 +555,11 @@ func ensure_bar(pool: Array) -> Array:
 	var have := pool.map(func(a): return str(a.id))
 	var locked := pool.filter(func(a): return bool(a.get("locked", false))).map(func(a): return str(a.id))
 	for i in bar_layout.size():
-		if str(bar_layout[i]) != "" and not str(bar_layout[i]) in have:
+		var bid := str(bar_layout[i])
+		if bid.begins_with("mv:"):
+			if not knows(bid.substr(3)):
+				bar_layout[i] = ""
+		elif bid != "" and not bid in have:
 			bar_layout[i] = ""
 	for id in have:
 		if not id in known:
@@ -580,9 +585,9 @@ func ensure_bar(pool: Array) -> Array:
 
 ## Put an ability in a bar slot (moving it if it's already elsewhere; "" clears the slot).
 func bar_set(slot: int, id: String) -> void:
-	while bar_layout.size() < 10:
+	while bar_layout.size() < BAR_N:
 		bar_layout.append("")
-	if slot < 0 or slot >= 10:
+	if slot < 0 or slot >= BAR_N:
 		return
 	var old := bar_layout.find(id) if id != "" else -1
 	if old >= 0:

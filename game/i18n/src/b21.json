@@ -2043,5 +2043,15 @@
 "Taught in the first lesson (/lesson)",
 "Ensinado na primeira aula (/lesson)",
 "Se enseña en la primera clase (/lesson)"
+],
+[
+"drag to a bar",
+"arraste para uma barra",
+"arrastra a una barra"
+],
+[
+"%d techniques known. A move button picks the strongest of its kind; drag a technique to a bar to choose it yourself (second row: Alt+1 to Alt+0).",
+"%d técnicas conhecidas. O botão escolhe a mais forte do tipo; arraste uma técnica para uma barra para escolher você mesmo (segunda fileira: Alt+1 a Alt+0).",
+"%d técnicas conocidas. El botón elige la más fuerte de su tipo; arrastra una técnica a una barra para elegir tú mismo (segunda fila: Alt+1 a Alt+0)."
 ]
 ]
