@@ -21,7 +21,10 @@ const FAMILY := {
 	"knee_cut_half": "kneecut", "knee_slice": "kneecut",
 	"stack_pass": "stack", "over_under": "stack", "smash_pass": "smash",
 	"scissor_sweep": "scissor", "hip_bump": "hipbump", "flower_sweep": "pendulum", "lasso_sweep": "pendulum",
-	"lumberjack": "hipbump", "upa": "upa", "old_school": "comeup", "deep_half": "comeup"}
+	"lumberjack": "hipbump", "upa": "upa", "old_school": "comeup", "deep_half": "comeup",
+	"mount_up": "kneeslide", "shrimp_guard": "shrimp", "elbow_knee": "shrimp", "recover_guard": "shrimp",
+	"underhook_half": "shrimp", "tech_standup": "shrimp", "arm_drag_back": "spin_back", "berimbolo": "spin_back",
+	"kiss_dragon": "spin_back", "mount_to_back": "take_back", "tilt_back": "take_back", "back_escape": "turn_in"}
 
 static func family(mv: String) -> String:
 	return str(FAMILY.get(mv, ""))
@@ -203,6 +206,37 @@ static func arc(mv: String) -> Dictionary:
 					{"k": 0.5, "d": 0.22, "pk": 0.4, "add": {"hip_h": 0.25, "hip_rot": Vector3(0, 0, 0.9)}}],
 				"other": [{"k": 0.0, "d": 0.2, "pk": 0.0, "lift": 0.34, "add": {"spine": Vector3(-0.55, 0, 0), "l_sh": Vector3(0.6, 0, 0), "r_sh": Vector3(0.6, 0, 0)}},
 					{"k": 0.5, "d": 0.22, "lift": 0.3, "roll": 1.2}], "land": 0.62}
+		"kneeslide":
+			# from side control the near knee slides across the belly, the other leg posts, then sit
+			var slide := {"hip_h": 0.44, "spine": Vector3(-0.7, 0, 0), "neck": Vector3(0.45, 0, 0),
+				"l_hip": Vector3(1.15, 0, -0.2), "l_kn": Vector3(-1.9, 0, 0), "r_hip": Vector3(-0.35, 0, 0.3), "r_kn": Vector3(-0.4, 0, 0),
+				"l_sh": Vector3(1.3, 0, 0.3), "r_sh": Vector3(1.3, 0, -0.3), "l_el": Vector3(0.8, 0, 0), "r_el": Vector3(0.8, 0, 0)}
+			return {"actor": [{"k": 0.35, "d": 0.24, "pose": slide}, {"k": 0.75, "d": 0.2, "pk": 0.7}],
+				"other": [{"k": 0.35, "d": 0.24, "pk": 0.3, "add": {"l_sh": Vector3(0.4, 0, 0), "r_sh": Vector3(0.4, 0, 0), "l_el": Vector3(-0.6, 0, 0), "r_el": Vector3(-0.6, 0, 0)}},
+					{"k": 0.75, "d": 0.2}], "land": 0.0}
+		"shrimp":
+			# frame with straight arms, turn onto a hip, shoot the hips away and bring the knees back in
+			return {"actor": [{"k": 0.1, "d": 0.2, "pk": 0.0, "drive": -0.22, "add": {"hip_rot": Vector3(0, 0, 0.85), "l_sh": Vector3(0.45, 0, 0), "r_sh": Vector3(0.45, 0, 0), "l_el": Vector3(-0.9, 0, 0), "r_el": Vector3(-0.9, 0, 0), "l_kn": Vector3(0.5, 0, 0)}},
+					{"k": 0.55, "d": 0.22, "pk": 0.5, "drive": -0.12, "add": {"hip_rot": Vector3(0, 0, 0.5), "l_hip": Vector3(0.6, 0, 0), "r_hip": Vector3(0.6, 0, 0), "l_kn": Vector3(-0.5, 0, 0), "r_kn": Vector3(-0.5, 0, 0)}}],
+				"other": [{"k": 0.1, "d": 0.2, "pk": 0.0, "add": {"hip_h": 0.08, "spine": Vector3(0.25, 0, 0)}}, {"k": 0.55, "d": 0.22, "add": {"hip_h": 0.1, "spine": Vector3(0.2, 0, 0)}}], "land": 0.0}
+		"spin_back":
+			# drag the arm across, sit up past their shoulder and swing around behind
+			var situp := {"hip_h": 0.34, "hip_rot": Vector3(0.4, 0, 0.3), "spine": Vector3(-0.4, 0, 0), "neck": Vector3(0.15, 0, 0),
+				"l_hip": Vector3(1.1, 0, -0.45), "r_hip": Vector3(1.1, 0, 0.45), "l_kn": Vector3(-1.5, 0, 0), "r_kn": Vector3(-1.5, 0, 0),
+				"l_sh": Vector3(1.4, 0, 0.7), "l_el": Vector3(1.3, 0, 0), "r_sh": Vector3(1.6, 0, -0.1), "r_el": Vector3(0.6, 0, 0)}
+			return {"actor": [{"k": 0.15, "d": 0.22, "pose": situp, "side": 0.25}, {"k": 0.6, "d": 0.24, "pose": _m(situp, {"hip_h": 0.4, "hip_rot": Vector3(0.1, 0, 0)}), "side": 0.45}],
+				"other": [{"k": 0.1, "d": 0.22, "pk": 0.0, "add": {"spine": Vector3(-0.7, 0, 0), "l_sh": Vector3(0.5, 0, 0), "r_sh": Vector3(0.5, 0, 0), "l_el": Vector3(-0.2, 0, 0)}},
+					{"k": 0.55, "d": 0.24, "pk": 0.4, "add": {"spine": Vector3(-0.5, 0, 0)}}], "land": 0.0}
+		"take_back":
+			# they turn away to escape; ride the turn, chest glued to their back, and sink the hooks
+			return {"actor": [{"k": 0.25, "d": 0.22, "pk": 0.2, "side": 0.25, "add": {"hip_h": 0.1, "spine": Vector3(-0.5, 0, 0)}}, {"k": 0.7, "d": 0.24, "add": {"spine": Vector3(-0.3, 0, 0)}}],
+				"other": [{"k": 0.2, "d": 0.22, "pk": 0.1, "add": {"hip_rot": Vector3(0, 0, 1.1), "l_hip": Vector3(0.5, 0, 0), "r_hip": Vector3(0.5, 0, 0), "l_kn": Vector3(-0.8, 0, 0), "r_kn": Vector3(-0.8, 0, 0)}},
+					{"k": 0.7, "d": 0.24, "pk": 0.6, "add": {"hip_rot": Vector3(0, 0, 0.5)}}], "land": 0.0}
+		"turn_in":
+			# strip the choking hand, slide the shoulders to the mat and turn in to face them
+			return {"actor": [{"k": 0.15, "d": 0.22, "pk": 0.0, "add": {"hip_h": -0.04, "hip_rot": Vector3(0.6, 0, 0), "l_sh": Vector3(0.6, 0, 0), "r_sh": Vector3(0.6, 0, 0)}},
+					{"k": 0.6, "d": 0.24, "pk": 0.5, "add": {"hip_rot": Vector3(0, 0, -0.8)}}],
+				"other": [{"k": 0.15, "d": 0.22, "pk": 0.0, "add": {"spine": Vector3(0.3, 0, 0), "l_sh": Vector3(0, 0, -0.5), "r_sh": Vector3(0, 0, 0.5)}}, {"k": 0.6, "d": 0.24}], "land": 0.0}
 	return {}
 
 ## Keyframes for one body: from where it is now, through the stages, to its final pose and spot.
